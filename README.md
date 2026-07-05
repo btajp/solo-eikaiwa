@@ -33,6 +33,12 @@ A local-first, research-grounded English speaking practice app for daily self-st
 OPENAI_API_KEY=$YOUR_OPENAI_KEY_ENV_VAR
 ```
 
+任意: 暗記例文300の音声を一括生成しておく（初回のみ・要 OPENAI_API_KEY）:
+
+```bash
+cd app && bun ../scripts/generate-sentence-audio.ts
+```
+
 ## 起動
 
 ### 常駐（推奨）
@@ -70,6 +76,7 @@ cd app/client && bun run dev # UI :5173（/api をプロキシ）
 - **クイックドリル（5〜10分）** — 日々のデフォルト。音読ウォームアップ / 4/3/2ミニ / ロールプレイ / シャドーイングの単品ドリル。研究上、総学習時間より「頻度と完了」が効くため、短くても毎日が正解
 - **強化セッション（60分 / 30分・週1〜2回おすすめ）** — 5ブロック通し: 音読ウォームアップ → 4/3/2 流暢性トレーニング → 実務ロールプレイ → シャドーイング → 振り返り
 - **自由会話** — AIと英語でただ話す
+- **暗記例文300** — 会話でそのまま使う文法・言い回しを網羅した300文（日常/ビジネス/IT）。日本語を見て声に出す→答え合わせ→自己評価、の産出リトリーバルと間隔反復で覚える
 
 お題・シナリオの追加は Markdown ファイル1枚（frontmatter: `id` / `kind` / `title` / `title_ja`、本文の `- ` 行がヒント。既存ファイル参照）。選択は least-recently-used で自動ローテーションします。
 
