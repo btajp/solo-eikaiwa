@@ -5,12 +5,18 @@ import { PROGRESS_DIR, SCENARIOS_DIR, TOPICS_DIR } from "./paths";
 export type BlockKind = "chunk-placeholder" | "warmup-reading" | "four-three-two" | "roleplay" | "shadowing" | "reflection";
 export type ContentItem = { id: string; kind: "topic" | "scenario"; title: string; titleJa: string; hints: string[] };
 export type MenuBlock = { id: string; kind: BlockKind; title: string; minutes: number; params: Record<string, unknown> };
-export type Menu = { minutes: 60 | 30; date: string; blocks: MenuBlock[] };
+export type Menu = { minutes: number; date: string; blocks: MenuBlock[] };
 /** id → 使用日(YYYY-MM-DD)の配列。新しい日付が末尾、最大7件保持 */
 export type UsageMap = Record<string, string[]>;
 
 /** 4/3/2 ブロックのラウンド秒数。スキャフォールド較正値（流暢性が伸びたら [180,120,90] → [240,180,120] へ戻す） */
 export const FTT_ROUNDS_SEC: readonly number[] = [120, 90, 60];
+
+/** クイックドリル（4/3/2ミニ）のラウンド秒数。2ラウンドで反復メカニズムを保ちつつ短縮 */
+export const FTT_MINI_ROUNDS_SEC: readonly number[] = [120, 90];
+
+export type QuickKind = "warmup" | "ftt-mini" | "roleplay" | "shadowing";
+export const QUICK_KINDS: readonly QuickKind[] = ["warmup", "ftt-mini", "roleplay", "shadowing"];
 
 export function parseContentFile(text: string): ContentItem | null {
   const m = text.match(/^---\n([\s\S]*?)\n---/);
@@ -86,6 +92,15 @@ function readJsonSafe<T>(file: string): T | undefined {
   }
 }
 
+function loadUsage(usageFile: string): UsageMap {
+  return readJsonSafe<UsageMap>(usageFile) ?? {};
+}
+
+function saveUsage(usageFile: string, usage: UsageMap): void {
+  mkdirSync(path.dirname(usageFile), { recursive: true });
+  writeFileSync(usageFile, JSON.stringify(usage, null, 2));
+}
+
 /** JSONとしては妥当でも Menu の形になっていないキャッシュ（手動編集・古いフォーマット等）を弾く */
 function isValidMenuShape(value: unknown): value is Menu {
   const blocks = (value as Partial<Menu> | undefined)?.blocks;
@@ -115,7 +130,7 @@ export function buildTodayMenu(minutes: 60 | 30, deps: MenuDeps = {}): Menu {
     console.warn(`[menu] cached menu has unexpected shape, rebuilding: ${cacheFile}`);
   }
 
-  const usage: UsageMap = readJsonSafe<UsageMap>(usageFile) ?? {};
+  const usage = loadUsage(usageFile);
   const topics = loadContent(topicsDir);
   const scenarios = loadContent(scenariosDir);
 
@@ -128,8 +143,7 @@ export function buildTodayMenu(minutes: 60 | 30, deps: MenuDeps = {}): Menu {
 
   markUsed(usage, mainTopic.id, ymd);
   markUsed(usage, scenario.id, ymd);
-  mkdirSync(path.dirname(usageFile), { recursive: true });
-  writeFileSync(usageFile, JSON.stringify(usage, null, 2));
+  saveUsage(usageFile, usage);
 
   const warmupTitle = "音読ウォームアップ";
   const blocks: MenuBlock[] =
@@ -152,4 +166,40 @@ export function buildTodayMenu(minutes: 60 | 30, deps: MenuDeps = {}): Menu {
   mkdirSync(menuCacheDir, { recursive: true });
   writeFileSync(cacheFile, JSON.stringify(menu, null, 2));
   return menu;
+}
+
+/**
+ * 5〜10分の単品ドリルメニュー。日次のデフォルト導線（第3弾リサーチ: 総時間より頻度・完了数が効く）。
+ * トピック/シナリオのローテーションと使用記録は buildTodayMenu と共有する。
+ * 通しメニューと違いキャッシュしない（同日の再実行は次のアイテムが出る＝意図どおり）。
+ */
+export function buildQuickMenu(kind: QuickKind, deps: MenuDeps = {}): Menu {
+  const topicsDir = deps.topicsDir ?? TOPICS_DIR;
+  const scenariosDir = deps.scenariosDir ?? SCENARIOS_DIR;
+  const usageFile = deps.usageFile ?? path.join(PROGRESS_DIR, "topic-usage.json");
+  const ymd = (deps.today ?? (() => new Date()))().toISOString().slice(0, 10);
+  const usage = loadUsage(usageFile);
+
+  let block: MenuBlock;
+  if (kind === "roleplay") {
+    const scenario = pickNext(loadContent(scenariosDir), usage, ymd);
+    markUsed(usage, scenario.id, ymd);
+    block = { id: "q1", kind: "roleplay", title: `実務ロールプレイ: ${scenario.title}`, minutes: 10, params: { scenario } };
+  } else {
+    const topic = pickNext(loadContent(topicsDir), usage, ymd);
+    markUsed(usage, topic.id, ymd);
+    if (kind === "warmup") {
+      block = { id: "q1", kind: "warmup-reading", title: "音読ウォームアップ", minutes: 6, params: { topic } };
+    } else if (kind === "ftt-mini") {
+      block = {
+        id: "q1", kind: "four-three-two", title: `4/3/2ミニ: ${topic.title}`, minutes: 8,
+        params: { topic, roundsSec: [...FTT_MINI_ROUNDS_SEC] },
+      };
+    } else {
+      block = { id: "q1", kind: "shadowing", title: `シャドーイング: ${topic.title}`, minutes: 5, params: { topic } };
+    }
+  }
+
+  saveUsage(usageFile, usage);
+  return { minutes: block.minutes, date: ymd, blocks: [block] };
 }

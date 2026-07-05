@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { appendEvent, readEvents, type SessionEvent } from "../session-log";
+import { appendEvent, listPracticeDays, readEvents, type SessionEvent } from "../session-log";
 
 describe("session-log", () => {
   test("appendEvent は1行1JSONで追記し readEvents で復元できる", () => {
@@ -31,5 +31,20 @@ describe("session-log", () => {
     const events = readEvents(file);
     expect(events).toHaveLength(2);
     expect(events[1].text).toBe("hi");
+  });
+});
+
+describe("listPracticeDays", () => {
+  test("YYYY-MM-DD.jsonl のみを昇順で返す（拡張子なし）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "days-"));
+    writeFileSync(path.join(dir, "2026-07-03.jsonl"), "");
+    writeFileSync(path.join(dir, "2026-07-01.jsonl"), "");
+    writeFileSync(path.join(dir, "notes.txt"), "");
+    writeFileSync(path.join(dir, "bad-name.jsonl"), "");
+    expect(listPracticeDays(dir)).toEqual(["2026-07-01", "2026-07-03"]);
+  });
+
+  test("ディレクトリが無ければ空配列", () => {
+    expect(listPracticeDays("/nonexistent/nope")).toEqual([]);
   });
 });

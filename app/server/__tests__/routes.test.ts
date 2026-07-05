@@ -4,12 +4,18 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { makeFetchHandler, type RouteDeps } from "../routes";
 import { markErrorLogged, readEvents } from "../session-log";
+import type { QuickKind } from "../menu";
 
 const FAKE_HEALTH = { ok: true, whisper: true, ffmpeg: true, claude: true, ttsKey: true, modelFile: true };
 const FAKE_MENU = {
   minutes: 60 as const,
   date: "2026-07-05",
   blocks: [{ id: "b1", kind: "reflection", title: "振り返り", minutes: 5, params: {} }],
+};
+const FAKE_QUICK_MENU = {
+  minutes: 6,
+  date: "2026-07-05",
+  blocks: [{ id: "q1", kind: "warmup-reading", title: "音読ウォームアップ", minutes: 6, params: {} }],
 };
 const FAKE_AE = { items: [{ quote: "q", issue: "i", better: "b", why_ja: "w" }], praise: "p" };
 const FAKE_REFLECTION = { goodPhrases: ["g"], fixes: [], noteForTomorrow_ja: "n" };
@@ -47,6 +53,10 @@ function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
       chunks: [{ en: "The main problem was ...", ja: "一番の問題は…" }],
       outline: ["Opening"],
     })) as RouteDeps["prepPack"],
+    buildQuick: ((_kind: QuickKind) => FAKE_QUICK_MENU) as RouteDeps["buildQuick"],
+    practiceDays: () => ["2026-07-01", "2026-07-03"],
+    getSettings: () => ({ anchor: "" }),
+    saveSettings: (_s: { anchor: string }) => {},
     ...overrides,
   };
   return { deps, logFile, recordingsDir };
@@ -551,5 +561,68 @@ describe("routes: coach/prep", () => {
       method: "POST", headers: { "content-type": "application/json" }, body: "{oops",
     }));
     expect(res.status).toBe(400);
+  });
+});
+
+describe("routes: quick menu / progress / settings", () => {
+  test("GET /api/menu/quick?kind=warmup は200でメニューを返す", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/menu/quick?kind=warmup"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(FAKE_QUICK_MENU);
+  });
+
+  test("GET /api/menu/quick の不正kindとkind欠落は400", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    for (const q of ["?kind=bogus", ""]) {
+      const res = await handler(new Request(`http://localhost/api/menu/quick${q}`));
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { error: string }).error).toContain("kind");
+    }
+  });
+
+  test("GET /api/progress/days は {days} を返す", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/progress/days"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ days: ["2026-07-01", "2026-07-03"] });
+  });
+
+  test("GET /api/settings と PUT /api/settings のラウンドトリップ", async () => {
+    let stored = { anchor: "" };
+    const { deps } = makeTestDeps({
+      getSettings: () => stored,
+      saveSettings: (s) => { stored = s; },
+    });
+    const handler = makeFetchHandler(deps);
+    const put = await handler(new Request("http://localhost/api/settings", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ anchor: "朝コーヒーを淹れたら1ドリル" }),
+    }));
+    expect(put.status).toBe(200);
+    expect(await put.json()).toEqual({ ok: true });
+    const got = await handler(new Request("http://localhost/api/settings"));
+    expect(await got.json()).toEqual({ anchor: "朝コーヒーを淹れたら1ドリル" });
+  });
+
+  test("PUT /api/settings は anchor が string でない・200字超・不正JSONで400", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const bad1 = await handler(new Request("http://localhost/api/settings", {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ anchor: 42 }),
+    }));
+    expect(bad1.status).toBe(400);
+    const bad2 = await handler(new Request("http://localhost/api/settings", {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ anchor: "x".repeat(201) }),
+    }));
+    expect(bad2.status).toBe(400);
+    const bad3 = await handler(new Request("http://localhost/api/settings", {
+      method: "PUT", headers: { "content-type": "application/json" }, body: "{broken",
+    }));
+    expect(bad3.status).toBe(400);
   });
 });

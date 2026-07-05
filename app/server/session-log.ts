@@ -1,5 +1,6 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { SESSIONS_DIR } from "./paths";
 
 export type SessionEvent = {
   ts: string;
@@ -41,4 +42,13 @@ export function markErrorLogged(err: unknown): void {
 
 export function isErrorLogged(err: unknown): boolean {
   return err instanceof Error && (err as Error & Record<symbol, unknown>)[LOGGED_MARKER] === true;
+}
+
+/** 練習を実施した日（セッションログが存在する日）の一覧。カレンダー表示用の情報的フィードバック */
+export function listPracticeDays(dir: string = SESSIONS_DIR): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))
+    .map((f) => f.slice(0, -6))
+    .sort();
 }

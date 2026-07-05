@@ -6,8 +6,9 @@ import { transcribeAudio } from "./stt";
 import { synthesize } from "./tts";
 import { converseTurn } from "./converse";
 import { checkHealth } from "./health";
-import type { Menu } from "./menu";
+import { QUICK_KINDS, type Menu, type QuickKind } from "./menu";
 import type { AeFeedback, Reflection, PrepPack } from "./coach";
+import type { Settings } from "./settings";
 
 /**
  * HTTP ハンドラが依存する副作用を注入可能にする境界。
@@ -30,6 +31,10 @@ export type RouteDeps = {
   scenarioPrompt: (scenarioId: string) => string | null;
   /** 未知の topicId は null（ルートは404を返す） */
   prepPack: (topicId: string) => Promise<PrepPack | null>;
+  buildQuick: (kind: QuickKind) => Menu;
+  practiceDays: () => string[];
+  getSettings: () => Settings;
+  saveSettings: (s: Settings) => void;
 };
 
 function json(data: unknown, status = 200): Response {
@@ -89,6 +94,25 @@ function handleMenuToday(url: URL, deps: RouteDeps): Response {
   if (raw !== "60" && raw !== "30") return json({ error: "minutes must be 60 or 30" }, 400);
   const minutes = Number(raw) as 60 | 30;
   return json(deps.buildMenu(minutes));
+}
+
+function handleMenuQuick(url: URL, deps: RouteDeps): Response {
+  const kind = url.searchParams.get("kind") ?? "";
+  if (!(QUICK_KINDS as readonly string[]).includes(kind)) {
+    return json({ error: `kind must be one of: ${QUICK_KINDS.join(", ")}` }, 400);
+  }
+  return json(deps.buildQuick(kind as QuickKind));
+}
+
+async function handleSettingsPut(req: Request, deps: RouteDeps): Promise<Response> {
+  const parsed = await parseJsonBody<{ anchor?: unknown }>(req);
+  if (!parsed.ok) return parsed.response;
+  const anchor = parsed.body.anchor;
+  if (typeof anchor !== "string" || anchor.length > 200) {
+    return json({ error: "anchor must be a string of at most 200 characters" }, 400);
+  }
+  deps.saveSettings({ anchor });
+  return json({ ok: true });
 }
 
 async function handleAeFeedback(req: Request, deps: RouteDeps): Promise<Response> {
@@ -176,6 +200,10 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
       if (req.method === "POST" && url.pathname === "/api/session/start") return await handleSessionStart(req, deps);
       if (req.method === "POST" && url.pathname === "/api/session/end") return await handleSessionEnd(req, deps);
       if (req.method === "GET" && url.pathname === "/api/menu/today") return handleMenuToday(url, deps);
+      if (req.method === "GET" && url.pathname === "/api/menu/quick") return handleMenuQuick(url, deps);
+      if (req.method === "GET" && url.pathname === "/api/progress/days") return json({ days: deps.practiceDays() });
+      if (req.method === "GET" && url.pathname === "/api/settings") return json(deps.getSettings());
+      if (req.method === "PUT" && url.pathname === "/api/settings") return await handleSettingsPut(req, deps);
       if (req.method === "POST" && url.pathname === "/api/feedback/ae") return await handleAeFeedback(req, deps);
       if (req.method === "POST" && url.pathname === "/api/coach/model-talk") return await handleModelTalk(req, deps);
       if (req.method === "POST" && url.pathname === "/api/coach/prep") return await handlePrep(req, deps);

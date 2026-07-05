@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
-  buildTodayMenu, loadContent, parseContentFile, pickNext,
-  type ContentItem, type MenuDeps, type UsageMap,
+  buildQuickMenu, buildTodayMenu, FTT_MINI_ROUNDS_SEC, loadContent, parseContentFile, pickNext, QUICK_KINDS,
+  type ContentItem, type MenuDeps, type QuickKind, type UsageMap,
 } from "../menu";
 
 function makeContentDirs(): { topicsDir: string; scenariosDir: string; usageFile: string; menuCacheDir: string } {
@@ -14,6 +14,7 @@ function makeContentDirs(): { topicsDir: string; scenariosDir: string; usageFile
   const menuCacheDir = path.join(dir, "cache");
   mkdirSync(topicsDir, { recursive: true });
   mkdirSync(scenariosDir, { recursive: true });
+  mkdirSync(menuCacheDir, { recursive: true });
   const topic = (id: string, title: string) =>
     `---\nid: ${id}\nkind: topic\ntitle: "${title}"\ntitle_ja: "ja-${id}"\n---\nHints:\n- hint one\n- hint two\n- hint three\n`;
   const scenario = (id: string, title: string) =>
@@ -197,5 +198,57 @@ describe("four-three-two の roundsSec", () => {
     const m30 = buildTodayMenu(30, { ...dirs, today: JULY5 });
     const ftt30 = m30.blocks.find((b) => b.kind === "four-three-two")!;
     expect(ftt30.params.roundsSec).toEqual([120, 90, 60]);
+  });
+});
+
+describe("buildQuickMenu", () => {
+  test("warmup: 1ブロック・6分・topic埋め込み・usage記録", () => {
+    const { topicsDir, scenariosDir, usageFile, menuCacheDir } = makeContentDirs();
+    const deps: MenuDeps = { topicsDir, scenariosDir, usageFile, menuCacheDir, today: JULY5 };
+    const m = buildQuickMenu("warmup", deps);
+    expect(m.minutes).toBe(6);
+    expect(m.blocks).toHaveLength(1);
+    expect(m.blocks[0].kind).toBe("warmup-reading");
+    expect(m.blocks[0].minutes).toBe(6);
+    expect((m.blocks[0].params.topic as { id: string }).id).toBe("t1");
+    const usage = JSON.parse(readFileSync(usageFile, "utf8"));
+    expect(usage.t1).toEqual(["2026-07-05"]);
+  });
+
+  test("ftt-mini: four-three-two・8分・roundsSec=[120,90]", () => {
+    const { topicsDir, scenariosDir, usageFile, menuCacheDir } = makeContentDirs();
+    const deps: MenuDeps = { topicsDir, scenariosDir, usageFile, menuCacheDir, today: JULY5 };
+    const m = buildQuickMenu("ftt-mini", deps);
+    expect(m.minutes).toBe(8);
+    expect(m.blocks[0].kind).toBe("four-three-two");
+    expect(m.blocks[0].params.roundsSec).toEqual([...FTT_MINI_ROUNDS_SEC]);
+    expect(FTT_MINI_ROUNDS_SEC).toEqual([120, 90]);
+  });
+
+  test("roleplay: scenario・10分 / shadowing: topic・5分", () => {
+    const { topicsDir, scenariosDir, usageFile, menuCacheDir } = makeContentDirs();
+    const deps: MenuDeps = { topicsDir, scenariosDir, usageFile, menuCacheDir, today: JULY5 };
+    const r = buildQuickMenu("roleplay", deps);
+    expect(r.minutes).toBe(10);
+    expect(r.blocks[0].kind).toBe("roleplay");
+    expect((r.blocks[0].params.scenario as { id: string }).id).toBe("s1");
+    const s = buildQuickMenu("shadowing", deps);
+    expect(s.minutes).toBe(5);
+    expect(s.blocks[0].kind).toBe("shadowing");
+  });
+
+  test("ローテーションを buildTodayMenu と共有する（同日の再実行は次のアイテム）", () => {
+    const { topicsDir, scenariosDir, usageFile, menuCacheDir } = makeContentDirs();
+    const deps: MenuDeps = { topicsDir, scenariosDir, usageFile, menuCacheDir, today: JULY5 };
+    const first = buildQuickMenu("warmup", deps);
+    const second = buildQuickMenu("warmup", deps);
+    expect((first.blocks[0].params.topic as { id: string }).id).toBe("t1");
+    expect((second.blocks[0].params.topic as { id: string }).id).toBe("t2");
+    // キャッシュファイルは作らない
+    expect(readdirSync(menuCacheDir).filter((f) => f.startsWith("menu-"))).toHaveLength(0);
+  });
+
+  test("QUICK_KINDS は4種", () => {
+    expect(QUICK_KINDS).toEqual(["warmup", "ftt-mini", "roleplay", "shadowing"]);
   });
 });

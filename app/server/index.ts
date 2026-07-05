@@ -3,9 +3,10 @@ import { transcribeAudio } from "./stt";
 import { synthesize } from "./tts";
 import { converseTurn } from "./converse";
 import { checkHealth } from "./health";
-import { buildTodayMenu, loadContent } from "./menu";
+import { buildQuickMenu, buildTodayMenu, loadContent } from "./menu";
 import { generateAeFeedback, generateModelTalk, generatePrepPack, generateReflection, roleplayPrompt } from "./coach";
-import { readEvents } from "./session-log";
+import { listPracticeDays, readEvents } from "./session-log";
+import { readSettings, writeSettings } from "./settings";
 import { makeFetchHandler, type RouteDeps } from "./routes";
 
 ensureDirs();
@@ -36,6 +37,10 @@ const realDeps: RouteDeps = {
     if (!topic) return null;
     return generatePrepPack({ topicTitle: topic.title, hints: topic.hints });
   },
+  buildQuick: (kind) => buildQuickMenu(kind),
+  practiceDays: () => listPracticeDays(),
+  getSettings: () => readSettings(),
+  saveSettings: (s) => writeSettings(s),
 };
 
 Bun.serve({
