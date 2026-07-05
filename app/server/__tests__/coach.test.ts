@@ -105,6 +105,7 @@ describe("generatePrepPack", () => {
     expect(seen[0].prompt).toContain("Zero trust");
     expect(seen[0].prompt).toContain("definition");
     expect(seen[0].systemPrompt).toContain("STRICT JSON");
+    expect(seen[0].systemPrompt).toContain("No ellipses");
   });
 
   test("```フェンス付きJSONでも取り出す", async () => {

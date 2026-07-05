@@ -84,11 +84,15 @@ export type PrepPack = { chunks: Array<{ en: string; ja: string }>; outline: str
 
 const PREP_SYSTEM = `You prepare a Japanese IT professional (CEFR A2-B1) for a short English monologue.
 You receive a topic and hint angles. Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:
-{"chunks":[{"en":"<reusable spoken chunk or sentence starter, B1 level>","ja":"<自然な日本語訳>"}],"outline":["<short English bullet>"]}
+{"chunks":[{"en":"<complete, speakable sentence, B1 level>","ja":"<自然な日本語訳>"}],"outline":["<short English bullet>"]}
 Rules:
-- 6-8 chunks. Each must be something the learner can say aloud as-is and reuse in similar talks
-  (e.g. "The main problem we had was ...", "What worked well was ...", "Let me give you an example.").
-- Prefer sentence starters and connectors over topic-specific full sentences.
+- 6-8 chunks. Each "en" MUST be a complete, speakable sentence of roughly 8-16 words that the learner can read aloud as-is.
+  No ellipses ("..."), no blanks, and no placeholders like [X] — always fill the slot with a concrete, topic-relevant
+  example a B1-level IT professional could plausibly say, using the given topic and hints for the content
+  (e.g. "The main problem we had was a slow database query.", "What worked well was splitting the task into smaller steps.").
+- Keep the reusable sentence frame recognizable at the START of each sentence (sentence-starter + filled example), so the
+  learner can reuse that same frame with their own content in the next exercise.
+- ja: the natural full-sentence Japanese translation of "en" (not a fragment).
 - outline: 3-4 bullets forming a simple talk skeleton (opening → 1-2 points → wrap-up), tied to the given hints.
 Do not use any tools — reply directly with text only.`;
 
