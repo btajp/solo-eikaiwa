@@ -1,8 +1,11 @@
-import { ensureDirs, RECORDINGS_DIR, sessionLogPath } from "./paths";
+import { ensureDirs, RECORDINGS_DIR, SCENARIOS_DIR, TOPICS_DIR, sessionLogPath } from "./paths";
 import { transcribeAudio } from "./stt";
 import { synthesize } from "./tts";
 import { converseTurn } from "./converse";
 import { checkHealth } from "./health";
+import { buildTodayMenu, loadContent } from "./menu";
+import { generateAeFeedback, generateModelTalk, generateReflection, roleplayPrompt } from "./coach";
+import { readEvents } from "./session-log";
 import { makeFetchHandler, type RouteDeps } from "./routes";
 
 ensureDirs();
@@ -16,6 +19,18 @@ const realDeps: RouteDeps = {
   health: () => checkHealth(),
   logFile: () => sessionLogPath(new Date()),
   recordingsDir: RECORDINGS_DIR,
+  buildMenu: (minutes) => buildTodayMenu(minutes),
+  aeFeedback: (args) => generateAeFeedback(args),
+  modelTalk: async (topicId) => {
+    const topic = loadContent(TOPICS_DIR).find((t) => t.id === topicId);
+    if (!topic) return null;
+    return generateModelTalk({ topicTitle: topic.title, hints: topic.hints });
+  },
+  reflection: () => generateReflection({ events: readEvents(sessionLogPath(new Date())) }),
+  scenarioPrompt: (scenarioId) => {
+    const sc = loadContent(SCENARIOS_DIR).find((s) => s.id === scenarioId);
+    return sc ? roleplayPrompt(sc) : null;
+  },
 };
 
 Bun.serve({

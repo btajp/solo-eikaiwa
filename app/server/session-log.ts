@@ -3,7 +3,10 @@ import path from "node:path";
 
 export type SessionEvent = {
   ts: string;
-  type: "session_start" | "session_end" | "user_utterance" | "assistant_reply" | "error";
+  type:
+    | "session_start" | "session_end"
+    | "user_utterance" | "assistant_reply" | "error"
+    | "block_start" | "block_end" | "round_start" | "round_end";
   sessionId: string;
   text?: string;
   meta?: Record<string, unknown>;

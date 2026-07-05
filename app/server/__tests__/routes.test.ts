@@ -6,6 +6,13 @@ import { makeFetchHandler, type RouteDeps } from "../routes";
 import { markErrorLogged, readEvents } from "../session-log";
 
 const FAKE_HEALTH = { ok: true, whisper: true, ffmpeg: true, claude: true, ttsKey: true, modelFile: true };
+const FAKE_MENU = {
+  minutes: 60 as const,
+  date: "2026-07-05",
+  blocks: [{ id: "b1", kind: "reflection", title: "振り返り", minutes: 5, params: {} }],
+};
+const FAKE_AE = { items: [{ quote: "q", issue: "i", better: "b", why_ja: "w" }], praise: "p" };
+const FAKE_REFLECTION = { goodPhrases: ["g"], fixes: [], noteForTomorrow_ja: "n" };
 
 /** テストごとに独立した temp dir/log を持つフェイク RouteDeps を組み立てる */
 function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
@@ -30,6 +37,12 @@ function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
     health: () => FAKE_HEALTH,
     logFile: () => logFile,
     recordingsDir,
+    buildMenu: ((_minutes: 60 | 30) => FAKE_MENU) as RouteDeps["buildMenu"],
+    aeFeedback: (async () => FAKE_AE) as RouteDeps["aeFeedback"],
+    modelTalk: (async (topicId: string) =>
+      topicId === "known-topic" ? { text: "model talk" } : null) as RouteDeps["modelTalk"],
+    reflection: (async () => FAKE_REFLECTION) as RouteDeps["reflection"],
+    scenarioPrompt: ((id: string) => (id === "known-scenario" ? "ROLEPLAY PROMPT" : null)) as RouteDeps["scenarioPrompt"],
     ...overrides,
   };
   return { deps, logFile, recordingsDir };
@@ -222,6 +235,151 @@ describe("routes: session", () => {
     );
     expect(res.status).toBe(400);
     expect((await res.json()) as { error: string }).toHaveProperty("error");
+  });
+});
+
+describe("routes: menu", () => {
+  test("GET /api/menu/today はデフォルト60分のメニューを返す", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/menu/today"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(FAKE_MENU);
+  });
+
+  test("minutes=30 が渡る / 不正値は400", async () => {
+    const seen: number[] = [];
+    const { deps } = makeTestDeps({
+      buildMenu: ((m: 60 | 30) => { seen.push(m); return { ...FAKE_MENU, minutes: m }; }) as RouteDeps["buildMenu"],
+    });
+    const handler = makeFetchHandler(deps);
+    const ok = await handler(new Request("http://localhost/api/menu/today?minutes=30"));
+    expect(ok.status).toBe(200);
+    expect(seen).toEqual([30]);
+    const bad = await handler(new Request("http://localhost/api/menu/today?minutes=45"));
+    expect(bad.status).toBe(400);
+  });
+});
+
+describe("routes: coach", () => {
+  test("POST /api/feedback/ae: 正常系とtranscript空400", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const ok = await handler(new Request("http://localhost/api/feedback/ae", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ transcript: "I go yesterday", topicTitle: "My week" }),
+    }));
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual(FAKE_AE);
+    const bad = await handler(new Request("http://localhost/api/feedback/ae", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ topicTitle: "x" }),
+    }));
+    expect(bad.status).toBe(400);
+  });
+
+  test("POST /api/coach/model-talk: 既知ID 200 / 欠落400 / 未知404", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const ok = await handler(new Request("http://localhost/api/coach/model-talk", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ topicId: "known-topic" }),
+    }));
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ text: "model talk" });
+    const missing = await handler(new Request("http://localhost/api/coach/model-talk", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}),
+    }));
+    expect(missing.status).toBe(400);
+    const unknown = await handler(new Request("http://localhost/api/coach/model-talk", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ topicId: "nope" }),
+    }));
+    expect(unknown.status).toBe(404);
+  });
+
+  test("POST /api/coach/reflection は Reflection を返す", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/coach/reflection", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}),
+    }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(FAKE_REFLECTION);
+  });
+});
+
+describe("routes: session/event", () => {
+  test("ホワイトリストのtypeはログされ {ok:true}", async () => {
+    const { deps, logFile } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/session/event", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type: "block_start", meta: { blockId: "b2", kind: "four-three-two" } }),
+    }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    const events = readEvents(logFile);
+    expect(events).toEqual([
+      expect.objectContaining({ type: "block_start", meta: { blockId: "b2", kind: "four-three-two" } }),
+    ]);
+  });
+
+  test("ホワイトリスト外のtypeは400", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/session/event", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type: "session_start" }),
+    }));
+    expect(res.status).toBe(400);
+  });
+});
+
+describe("routes: converse + scenarioId", () => {
+  test("既知の scenarioId は systemPromptOverride 付きで converse に渡る", async () => {
+    const seen: Array<{ systemPromptOverride?: string }> = [];
+    const { deps } = makeTestDeps({
+      converse: (async (args: { userText: string; sessionId?: string; systemPromptOverride?: string }) => {
+        seen.push({ systemPromptOverride: args.systemPromptOverride });
+        return { replyText: "ok", sessionId: "s1" };
+      }) as RouteDeps["converse"],
+    });
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/converse", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userText: "hi", scenarioId: "known-scenario" }),
+    }));
+    expect(res.status).toBe(200);
+    expect(seen[0].systemPromptOverride).toBe("ROLEPLAY PROMPT");
+  });
+
+  test("未知の scenarioId は400", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/converse", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userText: "hi", scenarioId: "nope" }),
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  test("scenarioId なしは従来どおり（override は undefined）", async () => {
+    const seen: Array<{ systemPromptOverride?: string }> = [];
+    const { deps } = makeTestDeps({
+      converse: (async (args: { userText: string; systemPromptOverride?: string }) => {
+        seen.push({ systemPromptOverride: args.systemPromptOverride });
+        return { replyText: "ok", sessionId: "s1" };
+      }) as RouteDeps["converse"],
+    });
+    const handler = makeFetchHandler(deps);
+    await handler(new Request("http://localhost/api/converse", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userText: "hi" }),
+    }));
+    expect(seen[0].systemPromptOverride).toBeUndefined();
   });
 });
 
