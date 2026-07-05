@@ -1,9 +1,19 @@
-# ローカルHTTPSプロキシ: https://learn-english → Vite(5173) → API(3111)
-# 使い方: リポジトリルートで `caddy run`（初回は `caddy trust` でローカルCAを信頼させる）
+# ローカルHTTPS: https://learn-english → 静的配信(app/client/dist) + /api/* → APIサーバ(3111, launchd常駐)
+# 使い方: 共有Caddyデーモン(com.local.https.caddy)が sites/*.caddy 経由でこのファイルを import する
 # /etc/hosts に「127.0.0.1 learn-english」が必要。learn-english.localhost は hosts 不要（Chrome系）。
+# 開発用の http://localhost:5173（Vite）はこの設定と独立に動作する。
 
 learn-english, learn-english.localhost {
 	bind 127.0.0.1
 	tls internal
-	reverse_proxy 127.0.0.1:5173
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:3111
+	}
+
+	handle {
+		root * /Users/okash1n/ghq/github.com/okash1n/learn-english/app/client/dist
+		try_files {path} /index.html
+		file_server
+	}
 }

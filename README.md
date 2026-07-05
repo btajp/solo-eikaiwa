@@ -35,12 +35,35 @@ OPENAI_API_KEY=$YOUR_OPENAI_KEY_ENV_VAR
 
 ## 起動
 
+### 常駐（推奨）
+
+launchd の LaunchAgent として API サーバを常駐させ、ビルド済みクライアントを共有 Caddy デーモンが静的配信する。ログイン時に自動起動し、クラッシュ時は自動再起動する。
+
+```bash
+./scripts/install-daemon.sh   # クライアントビルド → LaunchAgent 登録 → ヘルスチェック
+```
+
+初回、または Caddyfile を変更した場合は、共有 Caddy デーモンへの反映のために以下を手動実行する（sudo が必要なため `install-daemon.sh` はこれを自動実行しない）:
+
+```bash
+sudo launchctl kickstart -k system/com.local.https.caddy
+```
+
+ブラウザで https://learn-english を開く。
+
+- 状態確認: `./scripts/status-daemon.sh`
+- 停止・解除: `./scripts/uninstall-daemon.sh`
+- クライアントのコードを変更したら、常駐運用中は再ビルドが必要（`cd app/client && bun run build`、または `./scripts/install-daemon.sh` を再実行）
+- ポート3111が `bun run dev`（後述の開発フロー）で使用中の場合、`install-daemon.sh` は警告を出して中断する。先に開発サーバを停止すること
+
+### 開発
+
 ```bash
 cd app && bun run dev        # APIサーバ :3111（127.0.0.1 のみ、外部非公開）
 cd app/client && bun run dev # UI :5173（/api をプロキシ）
 ```
 
-ブラウザで http://localhost:5173 を開く。
+ブラウザで http://localhost:5173 を開く。常駐用の Caddy 設定（https://learn-english）とは独立して動作する。
 
 ## 使い方
 
