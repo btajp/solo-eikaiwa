@@ -21,9 +21,12 @@ export function FreeTalkScreen(props: { scenarioId?: string; onSessionId?: (id: 
   const [errorMsg, setErrorMsg] = useState("");
   const sessionIdRef = useRef<string | undefined>(undefined);
   const recorderRef = useRef(new Recorder());
+  // stop→sttUpload→converse→ttsFetch→playBlob の対話パイプラインがアンマウント後も
+  // 走り続けないようにするフラグ。await の後・setState の前（特に playBlob の前）で毎回チェックする
+  const aliveRef = useRef(true);
 
   // 録音中/再生中に画面を離脱してもマイク・音声が解放されるよう、アンマウント時に停止する
-  useEffect(() => () => { recorderRef.current.cancel(); stopPlayback(); }, []);
+  useEffect(() => () => { aliveRef.current = false; recorderRef.current.cancel(); stopPlayback(); }, []);
 
   async function onMainButton() {
     setErrorMsg("");
@@ -41,7 +44,9 @@ export function FreeTalkScreen(props: { scenarioId?: string; onSessionId?: (id: 
     try {
       setStatus("transcribing");
       const blob = await recorderRef.current.stop();
+      if (!aliveRef.current) return;
       const text = await sttUpload(blob);
+      if (!aliveRef.current) return;
       if (!text) {
         setErrorMsg("音声を聞き取れませんでした。もう一度話してください。");
         setStatus("error");
@@ -51,14 +56,19 @@ export function FreeTalkScreen(props: { scenarioId?: string; onSessionId?: (id: 
 
       setStatus("thinking");
       const { replyText, sessionId } = await converse(text, sessionIdRef.current, props.scenarioId);
+      if (!aliveRef.current) return;
       sessionIdRef.current = sessionId;
       props.onSessionId?.(sessionId);
       setTurns((t) => [...t, { role: "ai", text: replyText }]);
 
       setStatus("speaking");
-      await playBlob(await ttsFetch(replyText));
+      const audioBlob = await ttsFetch(replyText);
+      if (!aliveRef.current) return;
+      await playBlob(audioBlob);
+      if (!aliveRef.current) return;
       setStatus("idle");
     } catch (err) {
+      if (!aliveRef.current) return;
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setStatus("error");
     }

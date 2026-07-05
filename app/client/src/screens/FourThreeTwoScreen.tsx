@@ -28,11 +28,30 @@ export function FourThreeTwoScreen(props: { topic: ContentItem }) {
   // 現在のラウンドで round_start を送信済みかどうか。finishRound が対応する round_end を
   // 送るのは round_start を送っている場合のみにし、未対応イベントを防ぐ
   const roundStartedRef = useRef(false);
-
-  // 録音中に画面を離脱してもマイクが解放されるよう、アンマウント時に停止する
-  useEffect(() => () => { recorderRef.current.cancel(); stopPlayback(); }, []);
+  // STT/AEフィードバックの非同期処理がアンマウント後も setState し続けないようにするフラグ。
+  // await の後・setState の前で毎回チェックする
+  const aliveRef = useRef(true);
+  // アンマウント時の aborted round_end で使う、現在ラウンド番号の同期ミラー
+  // （クリーンアップの deps:[] クロージャは初回描画時の roundIndex のまま古くなるため、ref で最新値を追う）
+  const roundIndexRef = useRef(0);
 
   const roundIndex = phase.kind === "round" ? phase.index : 0;
+  useEffect(() => { roundIndexRef.current = roundIndex; }, [roundIndex]);
+
+  // 録音中に画面を離脱してもマイクが解放されるよう、アンマウント時に停止する。
+  // ラウンドが開始済み（round_start 送信済み）のまま離脱した場合は SessionRunner の
+  // aborted block_end と対称に、aborted な round_end を1回だけ送る
+  useEffect(() => {
+    return () => {
+      aliveRef.current = false;
+      recorderRef.current.cancel();
+      stopPlayback();
+      if (roundStartedRef.current) {
+        roundStartedRef.current = false;
+        sendSessionEvent("round_end", { block: "four-three-two", round: roundIndexRef.current + 1, aborted: true });
+      }
+    };
+  }, []);
 
   async function toggleRecording() {
     setErrorMsg("");
@@ -54,13 +73,16 @@ export function FourThreeTwoScreen(props: { topic: ContentItem }) {
     try {
       setRecState("transcribing");
       const blob = await recorderRef.current.stop();
+      if (!aliveRef.current) return;
       const text = await sttUpload(blob);
+      if (!aliveRef.current) return;
       transcriptsRef.current[roundIndex] = [transcriptsRef.current[roundIndex], text]
         .filter(Boolean)
         .join(" ");
       setTranscripts([...transcriptsRef.current]);
       setRecState("idle");
     } catch (err) {
+      if (!aliveRef.current) return;
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setRecState("idle");
     }
@@ -68,6 +90,7 @@ export function FourThreeTwoScreen(props: { topic: ContentItem }) {
 
   async function finishRound() {
     if (recState === "recording") await toggleRecording();
+    if (!aliveRef.current) return;
     timer.pause();
     if (roundStartedRef.current) {
       roundStartedRef.current = false;
@@ -77,11 +100,14 @@ export function FourThreeTwoScreen(props: { topic: ContentItem }) {
       setPhase({ kind: "ae" });
       setAeLoading(true);
       try {
-        setAe(await fetchAeFeedback(transcriptsRef.current[0], props.topic.title));
+        const feedback = await fetchAeFeedback(transcriptsRef.current[0], props.topic.title);
+        if (!aliveRef.current) return;
+        setAe(feedback);
       } catch (err) {
+        if (!aliveRef.current) return;
         setErrorMsg(err instanceof Error ? err.message : String(err));
       } finally {
-        setAeLoading(false);
+        if (aliveRef.current) setAeLoading(false);
       }
     } else if (roundIndex < ROUNDS.length - 1) {
       startRound(roundIndex + 1);

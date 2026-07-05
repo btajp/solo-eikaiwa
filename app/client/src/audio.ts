@@ -49,17 +49,22 @@ export async function playBlob(blob: Blob): Promise<void> {
   const audio = new Audio(url);
   currentAudio = audio;
   currentUrl = url;
-  await new Promise<void>((resolve, reject) => {
-    audio.onended = () => resolve();
-    // デコード失敗等で onended が発火しない場合に "speaking" のまま固まらないよう、
-    // reject して呼び出し側（App.tsxの既存catch）にエラーを伝搬させ復帰させる
-    audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error("audio playback failed")); };
-    audio.play().catch((err) => { URL.revokeObjectURL(url); reject(err instanceof Error ? err : new Error(String(err))); });
-  });
-  URL.revokeObjectURL(url);
-  if (currentAudio === audio) {
-    currentAudio = null;
-    currentUrl = null;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      audio.onended = () => resolve();
+      // デコード失敗等で onended が発火しない場合に "speaking" のまま固まらないよう、
+      // reject して呼び出し側（App.tsxの既存catch）にエラーを伝搬させ復帰させる
+      audio.onerror = () => reject(new Error("audio playback failed"));
+      audio.play().catch((err) => reject(err instanceof Error ? err : new Error(String(err))));
+    });
+  } finally {
+    // 成功時・失敗時どちらでも url を解放しレジストリを掃除する（失敗時だけ登録が
+    // 残って stopPlayback() が古い Audio を掴んだままになる不整合を防ぐ）
+    URL.revokeObjectURL(url);
+    if (currentAudio === audio) {
+      currentAudio = null;
+      currentUrl = null;
+    }
   }
 }
 
