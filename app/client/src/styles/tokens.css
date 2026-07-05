@@ -1,0 +1,54 @@
+/* デザイントークン — 静かなフォーカス系。値の変更はこのファイルでのみ行う */
+:root {
+  /* 配色: ウォームグレー3層 + テキスト2階調 + アクセント1色 + 情報色（彩度控えめ） */
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --border: #e7e4df;
+  --text: #1f1e1c;
+  --text-muted: #6f6b64;
+  --accent: #5558c8;
+  --accent-soft: #ecedfa;
+  --on-accent: #ffffff;
+  --ok: #33683f;
+  --ok-soft: #e7f2ea;
+  --warn: #8a5d14;
+  --warn-soft: #f7edd8;
+  --danger: #a03d33;
+  --danger-soft: #f7e5e2;
+
+  /* タイポグラフィ（システムフォントのみ） */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 17px;   /* 英文チャンク・音読素材はこれ以上 */
+  --fs-xl: 22px;
+  --lh-reading: 1.7;
+
+  /* スケール */
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --shadow-1: 0 1px 2px rgba(28, 25, 20, 0.05), 0 1px 1px rgba(28, 25, 20, 0.03);
+  --shadow-2: 0 4px 12px rgba(28, 25, 20, 0.07), 0 1px 3px rgba(28, 25, 20, 0.05);
+  --ease: 150ms ease-out;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #181716;
+    --surface: #201f1d;
+    --border: #363330;
+    --text: #edeae5;
+    --text-muted: #a29d95;
+    --accent: #8f93ee;
+    --accent-soft: #2b2c49;
+    --on-accent: #14142a;
+    --ok: #86c295;
+    --ok-soft: #22331f;
+    --warn: #d9ab61;
+    --warn-soft: #3a301b;
+    --danger: #e08d81;
+    --danger-soft: #3f2623;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+}
