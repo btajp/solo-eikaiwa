@@ -16,7 +16,7 @@
 - **既存の HTTP 契約・既存テスト（42件）を壊さない。全変更は additive**。既存テストファイルの変更は「テスト追加」と「本計画が明示する強化（stt の toEqual 化）」のみ
 - データはリポジトリ内プレーンファイル: コンテンツは `content/`、進捗は `data/progress/`（gitignore しない）
 - チャンクブロックは M3 で実装するため、本計画では「説明＋タイマーのみのプレースホルダ」として扱う
-- コミットは Conventional Commits（日本語可）。`00-` で始まるディレクトリはコード・ドキュメント・コミットに一切登場させない
+- コミットは Conventional Commits（日本語可）
 - クライアントのゲートは `cd app/client && bun run build`（tsc --noEmit && vite build）。サーバのゲートは `cd app && bun test` と `bun run typecheck`
 
 ## File Structure（このプランで作る/変えるもの）

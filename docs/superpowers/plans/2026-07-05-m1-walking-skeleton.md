@@ -17,7 +17,7 @@
 - データはすべてリポジトリ内プレーンファイル。`data/recordings/`・`data/tts-cache/`・`models/` は gitignore（spec §4.1, §6.1）
 - セッションログは `data/sessions/YYYY-MM-DD.jsonl` に JSONL 追記（クラッシュ耐性、spec §4.5）
 - whisper は英語専用モード（`-l en`）、モデルは `ggml-large-v3-turbo`
-- コミットは Conventional Commits（日本語本文可）。`00-` で始まるディレクトリはコード・ドキュメント・コミットに一切登場させない
+- コミットは Conventional Commits（日本語本文可）
 - テストは `bun test`（server 側）。外部プロセス・外部APIに依存する処理は関数注入でモック可能に設計する
 
 ## File Structure（このプランで作るもの）

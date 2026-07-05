@@ -14,7 +14,7 @@
 - **additive only**: 既存103テスト・既存HTTP契約は不変（StartScreen/App/SessionRunner の内部 prop・文言変更は sanctioned。`Menu.minutes` の型は `60 | 30` → `number` に広げる = 受け入れ側互換の widening で、クライアント型は既に `number`）
 - **ゲーミフィケーションは情報的フィードバックのみ**: バッジ・ポイント・連続日数の喪失演出・比較要素を実装しない（第3弾リサーチの検証済み設計制約）。カレンダーは実施日ドットの表示だけ
 - アンカーは1行のみ・詳細化させない（if-then 形式の実証設計則: 詳細化で効果半減）
-- Conventional Commits（日本語可）。`00-` で始まるディレクトリは一切登場させない
+- Conventional Commits（日本語可）
 - ゲート: `cd app && bun test`・`bun run typecheck`・`cd app/client && bun run build`
 
 ## 実コード確認結果（Task 2 の前提）
