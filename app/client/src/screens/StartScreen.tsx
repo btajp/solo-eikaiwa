@@ -63,7 +63,6 @@ function PracticeCalendar({ days }: { days: string[] }) {
     <div className="card">
       <div className="calendar-head">
         <h3>練習日</h3>
-        <span className="text-sm text-muted">直近{weekCount}週</span>
       </div>
       <div className="cal" ref={calRef}>
         <div className="cal-weekdays">
