@@ -26,6 +26,20 @@ cd app/client && bun run dev # UI :5173（/api をプロキシ）
 
 ブラウザで http://localhost:5173 を開き、ボタンをクリックして英語で話す。
 
+## 使い方
+
+ブラウザで http://localhost:5173 を開くと3つのモードを選べます:
+
+- **今日のセッション（60分）** — 研究ベースの5ブロック構成: チャンク(8分・M3で本実装) → 4/3/2 流暢性トレーニング(16分) → 実務ロールプレイ(20分) → シャドーイング(8分) → 振り返り(5分)
+- **今日のセッション（30分・短縮版）** — チャンク(6分) → 4/3/2(12分) → ロールプレイ(10分) → 振り返り(2分)
+- **自由会話のみ** — M1 の会話ループ
+
+トピックは `content/topics/*.md`、ロールプレイのシナリオは `content/scenarios/*.md` にあり、
+Markdown ファイルを追加するだけでローテーションに入ります（frontmatter: id / kind / title / title_ja、本文の `- ` 行がヒント）。
+選択は least-recently-used で自動ローテーションされ、`data/progress/` に使用履歴と当日メニューが記録されます。
+
+方法論の根拠は [設計ドキュメント](docs/superpowers/specs/2026-07-05-learn-english-system-design.md) §5 を参照。
+
 ## テスト
 
 ```bash
