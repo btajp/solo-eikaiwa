@@ -31,7 +31,7 @@ type PrepState = "loading" | "ready" | "error";
  * 準備フェーズ（チャンク＋アウトライン＋モデル聴取）→ 同じ話を 2分→(AE)→1.5分→1分。
  * ラウンド秒数は menu params (roundsSec) が正で、流暢性の伸びに応じてサーバ側で較正する。
  */
-export function FourThreeTwoScreen(props: { topic: ContentItem; sessionId: string; roundsSec?: number[] }) {
+export function FourThreeTwoScreen(props: { topic: ContentItem; sessionId: string; blockId: string; roundsSec?: number[] }) {
   const roundsSec =
     props.roundsSec && props.roundsSec.length >= 2 && props.roundsSec.every((s) => s > 0)
       ? props.roundsSec
@@ -78,6 +78,7 @@ export function FourThreeTwoScreen(props: { topic: ContentItem; sessionId: strin
         roundStartedRef.current = false;
         const idx = roundIndexRef.current;
         sendSessionEvent("round_end", props.sessionId, {
+          blockId: props.blockId,
           block: "four-three-two",
           round: idx + 1,
           aborted: true,
@@ -124,12 +125,13 @@ export function FourThreeTwoScreen(props: { topic: ContentItem; sessionId: strin
     setErrorMsg("");
     if (recState === "idle") {
       try {
+        stopPlayback();
         await recorderRef.current.start();
         setRecState("recording");
         if (!timer.running && !timer.expired) {
           timer.start();
           roundStartedRef.current = true;
-          sendSessionEvent("round_start", props.sessionId, { block: "four-three-two", round: roundIndex + 1 });
+          sendSessionEvent("round_start", props.sessionId, { blockId: props.blockId, block: "four-three-two", round: roundIndex + 1 });
         }
       } catch (err) {
         setErrorMsg(`マイクにアクセスできません: ${err instanceof Error ? err.message : String(err)}`);
@@ -162,6 +164,7 @@ export function FourThreeTwoScreen(props: { topic: ContentItem; sessionId: strin
     if (roundStartedRef.current) {
       roundStartedRef.current = false;
       sendSessionEvent("round_end", props.sessionId, {
+        blockId: props.blockId,
         block: "four-three-two",
         round: roundIndex + 1,
         transcript: transcriptsRef.current[roundIndex],

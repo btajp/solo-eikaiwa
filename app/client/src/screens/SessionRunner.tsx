@@ -107,7 +107,7 @@ function BlockBody({ block, sessionId }: { block: MenuBlock; sessionId: string }
       return block.params.topic ? <WarmupReadingScreen topic={block.params.topic} /> : <p>トピックがありません</p>;
     case "four-three-two":
       return block.params.topic ? (
-        <FourThreeTwoScreen topic={block.params.topic} sessionId={sessionId} roundsSec={block.params.roundsSec} />
+        <FourThreeTwoScreen topic={block.params.topic} sessionId={sessionId} blockId={block.id} roundsSec={block.params.roundsSec} />
       ) : (
         <p>トピックがありません</p>
       );
