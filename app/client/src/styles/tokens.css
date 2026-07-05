@@ -6,9 +6,15 @@
   --border: #e5e1da;
   --text: #1f1e1c;
   --text-muted: #6f6b64;
-  --accent: #5558c8;
-  --accent-soft: #ecedfa;
+  --accent: #1e9c5a;
+  --accent-soft: #e4f4ea;
   --on-accent: #ffffff;
+
+  /* ドリル用アイコンタイル（soft背景 / アイコン色） */
+  --tile-green-bg: #e4f4ea;   --tile-green-fg: #1e9c5a;
+  --tile-purple-bg: #efeafb;  --tile-purple-fg: #7c5cd6;
+  --tile-orange-bg: #fdeede;  --tile-orange-fg: #d9791f;
+  --tile-blue-bg: #e5f0fb;    --tile-blue-fg: #2f7cd6;
   --ok: #33683f;
   --ok-soft: #e7f2ea;
   --warn: #8a5d14;
@@ -39,9 +45,14 @@
     --border: #363330;
     --text: #edeae5;
     --text-muted: #a29d95;
-    --accent: #8f93ee;
-    --accent-soft: #2b2c49;
-    --on-accent: #14142a;
+    --accent: #4ec584;
+    --accent-soft: #1d3527;
+    --on-accent: #0c1f14;
+
+    --tile-green-bg: #1d3527;  --tile-green-fg: #4ec584;
+    --tile-purple-bg: #2a2440; --tile-purple-fg: #a992e8;
+    --tile-orange-bg: #3a2c1a; --tile-orange-fg: #e8a55c;
+    --tile-blue-bg: #1c2d40;   --tile-blue-fg: #6aa8e8;
     --ok: #86c295;
     --ok-soft: #22331f;
     --warn: #d9ab61;

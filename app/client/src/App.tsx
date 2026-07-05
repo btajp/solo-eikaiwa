@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getHealth, sessionEnd, sessionEndKeepalive, sessionStart, type Health } from "./api";
+import { fetchPracticeDays, getHealth, sessionEnd, sessionEndKeepalive, sessionStart, type Health } from "./api";
 import { FreeTalkScreen } from "./screens/FreeTalkScreen";
 import { LibraryScreen } from "./screens/LibraryScreen";
 import { SessionRunner, type MenuSource } from "./screens/SessionRunner";
@@ -42,25 +42,30 @@ export function App() {
     else setMode({ kind: "session", source: { type: "quick", drill: sel.drill } });
   }
 
+  const navItems: Array<{ key: string; icon: string; label: string; active: boolean; go: () => void }> = [
+    { key: "home", icon: "🏠", label: "ホーム", active: mode.kind === "start", go: () => setMode({ kind: "start" }) },
+    { key: "free", icon: "💬", label: "自由会話", active: mode.kind === "free", go: () => setMode({ kind: "free" }) },
+    { key: "library", icon: "📚", label: "ライブラリ", active: mode.kind === "library", go: () => setMode({ kind: "library" }) },
+  ];
+
   return (
-    <>
-      <header className="app-topbar">
-        <div className="topbar-inner">
-          <h1 className="app-brand"><span className="brand-mark" aria-hidden="true" />learn-english</h1>
-          <span className="app-header-spacer" />
-          {mode.kind === "session" ? (
-            <Button variant="ghost" onClick={() => setMode({ kind: "start" })}>← メニューに戻る</Button>
-          ) : (
-            <nav className="topbar-nav">
-              {mode.kind !== "start" && (
-                <Button variant="ghost" onClick={() => setMode({ kind: "start" })}>← 戻る</Button>
-              )}
-              <Button variant="secondary" onClick={() => setMode({ kind: "free" })}>💬 自由会話</Button>
-              <Button variant="secondary" onClick={() => setMode({ kind: "library" })}>📚 ライブラリ</Button>
-            </nav>
-          )}
-        </div>
-      </header>
+    <div className="shell">
+      <aside className="sidebar">
+        <h1 className="app-brand"><span className="brand-mark" aria-hidden="true" />learn-english</h1>
+        <nav className="side-nav">
+          {navItems.map((n) => (
+            <button key={n.key} className={`side-item${n.active ? " is-active" : ""}`} onClick={n.go}>
+              <span className="side-icon" aria-hidden="true">{n.icon}</span>
+              {n.label}
+            </button>
+          ))}
+        </nav>
+        {mode.kind === "session" && (
+          <Button variant="secondary" onClick={() => setMode({ kind: "start" })}>← メニューに戻る</Button>
+        )}
+        <div className="sidebar-spacer" />
+        <PracticeStat />
+      </aside>
       <main className="app">
       {serverDown && (
         <Banner kind="error">APIサーバに接続できません — `cd app && bun run dev` で起動してください</Banner>
@@ -86,6 +91,30 @@ export function App() {
       )}
       {mode.kind === "library" && <LibraryScreen />}
       </main>
-    </>
+    </div>
+  );
+}
+
+/** サイドバー下部の練習実績（情報表示のみ — 連続日数・喪失演出は置かない） */
+function PracticeStat() {
+  const [days, setDays] = useState<string[]>([]);
+  const fetchedRef = useRef(false);
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    fetchPracticeDays().then(setDays).catch(() => {});
+  }, []);
+  const now = new Date();
+  const weekAgo = new Date(now);
+  weekAgo.setDate(weekAgo.getDate() - 6);
+  const p = (n: number) => String(n).padStart(2, "0");
+  const ymd = (d: Date) => `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  const thisWeek = days.filter((d) => d >= ymd(weekAgo) && d <= ymd(now)).length;
+  return (
+    <div className="stat-box">
+      <div className="stat-title">練習記録</div>
+      <div className="stat-main">今週 {thisWeek}<span className="stat-unit">日</span></div>
+      <div className="stat-sub">累計 {days.length}日</div>
+    </div>
   );
 }
