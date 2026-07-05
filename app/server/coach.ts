@@ -95,7 +95,15 @@ export async function generatePrepPack(
   const prompt = `Topic: ${args.topicTitle}\nHint angles:\n${args.hints.map((h) => `- ${h}`).join("\n")}`;
   const { text } = await runner(prompt, undefined, { systemPrompt: PREP_SYSTEM });
   const parsed = extractJson<PrepPack>(text);
-  if (parsed && Array.isArray(parsed.chunks) && Array.isArray(parsed.outline)) return parsed;
+  if (parsed && Array.isArray(parsed.chunks) && Array.isArray(parsed.outline)) {
+    // Sanitize chunks: keep only items where both en and ja are strings
+    const sanitizedChunks = parsed.chunks
+      .filter((item) => typeof item?.en === "string" && item.en && typeof item?.ja === "string")
+      .map((item) => ({ en: item.en, ja: item.ja }));
+    // Sanitize outline: keep only string elements
+    const sanitizedOutline = parsed.outline.filter((el) => typeof el === "string");
+    return { chunks: sanitizedChunks, outline: sanitizedOutline };
+  }
   // パース失敗時のフォールバック: チャンクなし・素のテキストをアウトラインとして表示できる形
   return { chunks: [], outline: [text] };
 }

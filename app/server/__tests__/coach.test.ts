@@ -119,6 +119,24 @@ describe("generatePrepPack", () => {
     expect(result.chunks).toEqual([]);
     expect(result.outline.join(" ")).toContain("just prose");
   });
+
+  test("不正な項目をサニタイズ: 無効なchunksと非文字列outlineを除外", async () => {
+    const malformed = {
+      chunks: [
+        { en: "The main problem", ja: "一番の問題" },  // valid
+        { en: 123, ja: "wrong" },                      // en not string
+        { en: "only english" },                        // ja missing
+        "junk",                                        // not an object
+      ],
+      outline: ["good", 42, null],                    // 42 and null are not strings
+    };
+    const { runner } = runnerReturning(JSON.stringify(malformed));
+    const result = await generatePrepPack({ topicTitle: "t", hints: [] }, runner);
+    // Only the fully valid chunk should remain
+    expect(result.chunks).toEqual([{ en: "The main problem", ja: "一番の問題" }]);
+    // Only "good" string should remain in outline
+    expect(result.outline).toEqual(["good"]);
+  });
 });
 
 describe("roleplayPrompt", () => {
