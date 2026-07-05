@@ -83,6 +83,12 @@ function readJsonSafe<T>(file: string): T | undefined {
   }
 }
 
+/** JSONとしては妥当でも Menu の形になっていないキャッシュ（手動編集・古いフォーマット等）を弾く */
+function isValidMenuShape(value: unknown): value is Menu {
+  const blocks = (value as Partial<Menu> | undefined)?.blocks;
+  return Array.isArray(blocks) && blocks.length > 0;
+}
+
 export type MenuDeps = {
   topicsDir?: string;
   scenariosDir?: string;
@@ -101,7 +107,10 @@ export function buildTodayMenu(minutes: 60 | 30, deps: MenuDeps = {}): Menu {
   // 同日・同構成なら同一メニューを返す（リロードでトピックが変わらない・使用記録が重ならない）
   const cacheFile = path.join(menuCacheDir, `menu-${ymd}-${minutes}.json`);
   const cached = readJsonSafe<Menu>(cacheFile);
-  if (cached) return cached;
+  if (cached) {
+    if (isValidMenuShape(cached)) return cached;
+    console.warn(`[menu] cached menu has unexpected shape, rebuilding: ${cacheFile}`);
+  }
 
   const usage: UsageMap = readJsonSafe<UsageMap>(usageFile) ?? {};
   const topics = loadContent(topicsDir);

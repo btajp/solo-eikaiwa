@@ -142,6 +142,27 @@ describe("buildTodayMenu", () => {
     expect(rewritten).toEqual(menu);
   });
 
+  test("キャッシュが妥当なJSONでもMenuの形でない（blocksが配列でない/空）なら再構築して上書きする", () => {
+    const dirs = makeContentDirs();
+    mkdirSync(dirs.menuCacheDir, { recursive: true });
+    const cacheFile = path.join(dirs.menuCacheDir, "menu-2026-07-05-60.json");
+    writeFileSync(cacheFile, JSON.stringify({ minutes: 60, date: "2026-07-05", blocks: "not-an-array" }));
+    const menu = buildTodayMenu(60, { ...dirs, today: JULY5 });
+    expect(menu.date).toBe("2026-07-05");
+    expect(menu.blocks.length).toBe(5);
+    const rewritten = JSON.parse(readFileSync(cacheFile, "utf8")) as typeof menu;
+    expect(rewritten).toEqual(menu);
+  });
+
+  test("キャッシュのblocksが空配列でも再構築する", () => {
+    const dirs = makeContentDirs();
+    mkdirSync(dirs.menuCacheDir, { recursive: true });
+    const cacheFile = path.join(dirs.menuCacheDir, "menu-2026-07-05-60.json");
+    writeFileSync(cacheFile, JSON.stringify({ minutes: 60, date: "2026-07-05", blocks: [] }));
+    const menu = buildTodayMenu(60, { ...dirs, today: JULY5 });
+    expect(menu.blocks.length).toBe(5);
+  });
+
   test("破損した使用状況ファイルは空として扱い、メニューは構築され新規記録が作られる", () => {
     const dirs = makeContentDirs();
     writeFileSync(dirs.usageFile, "{ broken usage json");

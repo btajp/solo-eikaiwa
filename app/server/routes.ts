@@ -125,6 +125,25 @@ async function handleSessionEvent(req: Request, deps: RouteDeps): Promise<Respon
   return json({ ok: true });
 }
 
+/**
+ * ボディは任意（後方互換: 空ボディ・不正JSONでも従来どおり sessionId 無しとして扱い 200 を返す）。
+ * クライアント側で mint したアプリレベルの session UUID を受け取り、以後のライフサイクル/
+ * ブロック/ラウンドイベントと突き合わせられるようにする。
+ */
+async function handleSessionStart(req: Request, deps: RouteDeps): Promise<Response> {
+  let sessionId: string | undefined;
+  try {
+    const body = (await req.json()) as { sessionId?: string };
+    if (typeof body?.sessionId === "string" && body.sessionId) sessionId = body.sessionId;
+  } catch {
+    // ボディなし・不正JSONは従来どおり（sessionId無し）として扱う
+  }
+  appendEvent(deps.logFile(), {
+    ts: new Date().toISOString(), type: "session_start", sessionId: sessionId ?? "pending",
+  });
+  return json({ ok: true });
+}
+
 async function handleSessionEnd(req: Request, deps: RouteDeps): Promise<Response> {
   const parsed = await parseJsonBody<{ sessionId?: string }>(req);
   if (!parsed.ok) return parsed.response;
@@ -143,10 +162,7 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
       if (req.method === "POST" && url.pathname === "/api/stt") return await handleStt(req, deps);
       if (req.method === "POST" && url.pathname === "/api/tts") return await handleTts(req, deps);
       if (req.method === "POST" && url.pathname === "/api/converse") return await handleConverse(req, deps);
-      if (req.method === "POST" && url.pathname === "/api/session/start") {
-        appendEvent(deps.logFile(), { ts: new Date().toISOString(), type: "session_start", sessionId: "pending" });
-        return json({ ok: true });
-      }
+      if (req.method === "POST" && url.pathname === "/api/session/start") return await handleSessionStart(req, deps);
       if (req.method === "POST" && url.pathname === "/api/session/end") return await handleSessionEnd(req, deps);
       if (req.method === "GET" && url.pathname === "/api/menu/today") return handleMenuToday(url, deps);
       if (req.method === "POST" && url.pathname === "/api/feedback/ae") return await handleAeFeedback(req, deps);

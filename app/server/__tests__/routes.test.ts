@@ -207,6 +207,34 @@ describe("routes: session", () => {
     expect(events.map((e) => e.type)).toEqual(["session_start"]);
   });
 
+  test("POST /api/session/start はボディの sessionId をログする（追加・後方互換）", async () => {
+    const { deps, logFile } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/session/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sessionId: "app-uuid-1" }),
+    }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    const events = readEvents(logFile);
+    expect(events).toEqual([expect.objectContaining({ type: "session_start", sessionId: "app-uuid-1" })]);
+  });
+
+  test("POST /api/session/start は不正なJSONボディでも従来どおり200で動く（500にならない）", async () => {
+    const { deps, logFile } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/session/start", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{not valid json",
+    }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    const events = readEvents(logFile);
+    expect(events).toEqual([expect.objectContaining({ type: "session_start", sessionId: "pending" })]);
+  });
+
   test("POST /api/session/end は {ok:true} を返し session_end をログする", async () => {
     const { deps, logFile } = makeTestDeps();
     const handler = makeFetchHandler(deps);
@@ -324,6 +352,29 @@ describe("routes: session/event", () => {
     const events = readEvents(logFile);
     expect(events).toEqual([
       expect.objectContaining({ type: "block_start", meta: { blockId: "b2", kind: "four-three-two" } }),
+    ]);
+  });
+
+  test("round_end は transcript/elapsedSec を含む meta がそのままJSONLに残る（自由形式）", async () => {
+    const { deps, logFile } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/session/event", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        type: "round_end",
+        sessionId: "app-uuid-1",
+        meta: { block: "four-three-two", round: 1, transcript: "I go to work every day.", elapsedSec: 231 },
+      }),
+    }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    const events = readEvents(logFile);
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "round_end",
+        sessionId: "app-uuid-1",
+        meta: { block: "four-three-two", round: 1, transcript: "I go to work every day.", elapsedSec: 231 },
+      }),
     ]);
   });
 
