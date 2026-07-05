@@ -1,0 +1,16 @@
+{
+  "name": "learn-english-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch server/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.6.0"
+  }
+}
