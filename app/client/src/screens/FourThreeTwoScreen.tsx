@@ -5,6 +5,11 @@ import {
 } from "../api";
 import { playBlob, Recorder, stopPlayback } from "../audio";
 import { formatMmSs, useCountdown } from "../useCountdown";
+import { Banner } from "../ui/Banner";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { ChunkList } from "../ui/ChunkList";
+import { TimerChip } from "../ui/TimerChip";
 
 /** メニュー params に roundsSec が無い場合（当日分の古いキャッシュ等）のフォールバック */
 const DEFAULT_ROUNDS_SEC = [120, 90, 60];
@@ -237,148 +242,133 @@ export function FourThreeTwoScreen(props: { topic: ContentItem; sessionId: strin
 
   if (phase.kind === "prep") {
     return (
-      <div>
-        <h3>準備 — {props.topic.title}</h3>
-        {props.topic.titleJa && <p style={{ color: "#666" }}>{props.topic.titleJa}</p>}
-        <p style={{ color: "#666" }}>
-          これから同じ話を {roundsSec.map(minLabel).join("→")} で{roundsSec.length}回話します。まず使えそうな表現と骨組みを確認してください（目安 {minLabel(PREP_SECONDS)}）。
-        </p>
-        <p style={{ fontVariantNumeric: "tabular-nums" }}>⏱ 準備 {formatMmSs(prepTimer.remaining)}{prepTimer.expired && " — そろそろ始めましょう"}</p>
-        <ul>
+      <div className="stack">
+        <Card header={`準備 — ${props.topic.title}`}>
+          {props.topic.titleJa && <p className="text-muted">{props.topic.titleJa}</p>}
+          <p className="text-muted">
+            これから同じ話を {roundsSec.map(minLabel).join("→")} で{roundsSec.length}回話します。まず使えそうな表現と骨組みを確認してください（目安 {minLabel(PREP_SECONDS)}）。
+          </p>
+          <TimerChip remaining={prepTimer.remaining} expired={prepTimer.expired} note="そろそろ始めましょう" />
+        </Card>
+        <ul className="text-muted">
           {props.topic.hints.map((h, i) => (
             <li key={i}>{h}</li>
           ))}
         </ul>
         {prepState === "loading" && <p>コーチが表現チャンクを用意しています…</p>}
         {prepState === "error" && (
-          <p style={{ color: "crimson" }}>
-            {errorMsg} <button onClick={loadPrep}>再試行</button>
-          </p>
+          <Banner kind="error" action={<Button onClick={loadPrep}>再試行</Button>}>
+            {errorMsg}
+          </Banner>
         )}
         {prepState === "ready" && prep && (
-          <div>
-            {prep.chunks.length > 0 && (
-              <div>
-                <h4>使える表現</h4>
-                <ul>
-                  {prep.chunks
-                    .filter((c) => typeof c.en === "string" && c.en)
-                    .map((c, i) => (
-                      <li key={i}>
-                        <button
-                          onClick={() => playChunk(i, c.en)}
-                          disabled={playingIdx !== null}
-                          style={{ marginRight: "0.5rem", cursor: "pointer" }}
-                          aria-label={`「${c.en}」を再生`}
-                        >
-                          {playingIdx === i ? "…" : "🔊"}
-                        </button>
-                        <strong>{c.en}</strong>
-                        {c.ja && <span style={{ color: "#666" }}> — {c.ja}</span>}
-                      </li>
-                    ))}
-                </ul>
-              </div>
+          <div className="stack">
+            {prep.chunks.filter((c) => typeof c.en === "string" && c.en).length > 0 && (
+              <ChunkList chunks={prep.chunks.filter((c) => typeof c.en === "string" && c.en)} playingIdx={playingIdx} onPlay={playChunk} />
             )}
             {prep.outline.length > 0 && (
-              <div>
-                <h4>話の骨組み</h4>
+              <Card header="話の骨組み">
                 <ol>
                   {prep.outline.map((o, i) => (
                     <li key={i}>{o}</li>
                   ))}
                 </ol>
-              </div>
+              </Card>
             )}
           </div>
         )}
-        <p>
-          <button
-            onClick={playModelTalk}
-            disabled={modelState === "script" || modelState === "audio" || modelState === "playing"}
-            style={{ padding: "0.6rem 1.2rem" }}
-          >
+        <div className="start-row">
+          <Button onClick={playModelTalk} disabled={modelState === "script" || modelState === "audio" || modelState === "playing"}>
             {modelState === "script" && "✍ 原稿を作成中…"}
             {modelState === "audio" && "🎙 音声を生成中…"}
             {modelState === "ready" && "🎧 モデルトークを聞く（任意）"}
             {modelState === "playing" && "🔊 再生中…"}
             {modelState === "error" && "🎧 モデルトーク（再試行）"}
-          </button>{" "}
-          <button onClick={() => startRound(0)} style={{ padding: "0.6rem 1.2rem" }}>
+          </Button>
+          <Button variant="primary" onClick={() => startRound(0)}>
             Round 1 を始める（{minLabel(roundsSec[0])}）→
-          </button>
-        </p>
+          </Button>
+        </div>
         {modelText && (
-          <details open style={{ marginTop: "0.5rem" }}>
-            <summary style={{ cursor: "pointer", color: "#666" }}>モデルトーク本文</summary>
-            <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}>{modelText}</p>
+          <details open>
+            <summary className="text-muted">モデルトーク本文</summary>
+            <p className="reading-text">{modelText}</p>
           </details>
         )}
-        {prepState !== "error" && errorMsg && <p style={{ color: "crimson" }}>{errorMsg}</p>}
+        {prepState !== "error" && errorMsg && <Banner kind="error">{errorMsg}</Banner>}
       </div>
     );
   }
 
   if (phase.kind === "ae") {
     return (
-      <div>
-        <h3>フィードバック（読んだら Round 2 へ）</h3>
+      <Card header="フィードバック（読んだら Round 2 へ）">
         {aeLoading && <p>コーチがフィードバックを書いています…</p>}
         {aeSkippedNoRecording && <p>録音がなかったのでフィードバックはありません</p>}
         {ae && (
           <div>
-            {ae.praise && <p>👏 {ae.praise}</p>}
+            {ae.praise && <Banner kind="info">👏 {ae.praise}</Banner>}
             <ul>
               {ae.items.map((item, i) => (
-                <li key={i} style={{ marginBottom: "0.6rem" }}>
+                <li key={i} className="ae-item">
                   {item.quote && (
                     <div>
                       <s>{item.quote}</s> → <strong>{item.better}</strong> <em>({item.issue})</em>
                     </div>
                   )}
-                  <div>{item.why_ja}</div>
+                  <div className="ae-why">{item.why_ja}</div>
                 </li>
               ))}
             </ul>
           </div>
         )}
-        {errorMsg && <p style={{ color: "crimson" }}>{errorMsg}</p>}
-        <button onClick={() => startRound(1)} disabled={aeLoading} style={{ padding: "0.6rem 1.2rem" }}>
+        {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
+        <Button variant="primary" onClick={() => startRound(1)} disabled={aeLoading}>
           Round 2 を始める（{minLabel(roundsSec[1])}）
-        </button>
-      </div>
+        </Button>
+      </Card>
     );
   }
 
   if (phase.kind === "done") {
-    return <p>4/3/2 完了！同じ話を{roundsSec.length}回、少しずつ速く話せました。</p>;
+    return (
+      <Card>
+        <p>4/3/2 完了！同じ話を{roundsSec.length}回、少しずつ速く話せました。</p>
+      </Card>
+    );
   }
 
   return (
-    <div>
+    <div className="round-stage">
       <h3>
         Round {roundIndex + 1}（{minLabel(roundsSec[roundIndex])}） — {props.topic.title}
       </h3>
-      <p style={{ color: "#666" }}>{LISTENERS[roundIndex % LISTENERS.length]}</p>
-      <ul>
+      <p className="text-muted">{LISTENERS[roundIndex % LISTENERS.length]}</p>
+      <ul className="text-sm text-muted">
         {props.topic.hints.map((h, i) => (
           <li key={i}>{h}</li>
         ))}
       </ul>
-      <p style={{ fontSize: "2rem", fontVariantNumeric: "tabular-nums" }}>
-        ⏱ {formatMmSs(timer.remaining)} {timer.expired && "— 時間切れ！"}
-      </p>
-      <button onClick={toggleRecording} disabled={recState === "transcribing"} style={{ padding: "0.6rem 1.2rem" }}>
-        {recState === "recording" ? "⏹ 録音を止める" : recState === "transcribing" ? "📝 文字起こし中…" : "🎙 話し始める"}
-      </button>{" "}
-      <button onClick={finishRound} disabled={recState === "transcribing"} style={{ padding: "0.6rem 1.2rem" }}>
-        このラウンドを終える →
-      </button>
-      {errorMsg && <p style={{ color: "crimson" }}>{errorMsg}</p>}
+      <div className={`round-timer${timer.expired ? " is-expired" : ""}`}>
+        {formatMmSs(timer.remaining)} {timer.expired && <span className="text-sm">— 時間切れ！</span>}
+      </div>
+      <div className="round-actions">
+        <button
+          className={`btn btn-primary btn-lg record-btn${recState === "recording" ? " is-recording" : ""}`}
+          onClick={toggleRecording}
+          disabled={recState === "transcribing"}
+        >
+          {recState === "recording" ? "⏹ 録音を止める" : recState === "transcribing" ? "📝 文字起こし中…" : "🎙 話し始める"}
+        </button>
+        <Button onClick={finishRound} disabled={recState === "transcribing"}>
+          このラウンドを終える →
+        </Button>
+      </div>
+      {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
       {transcripts[roundIndex] && (
-        <p style={{ whiteSpace: "pre-wrap" }}>
+        <Card className="reading-text">
           <strong>You:</strong> {transcripts[roundIndex]}
-        </p>
+        </Card>
       )}
     </div>
   );

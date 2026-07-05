@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { prefetchModelTalkAudio, type ContentItem } from "../api";
 import { playBlob, stopPlayback } from "../audio";
+import { Banner } from "../ui/Banner";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
 
 type State = "script" | "audio" | "ready" | "playing" | "error";
 
@@ -57,23 +60,23 @@ export function ShadowingScreen(props: { topic: ContentItem }) {
   }
 
   return (
-    <div>
-      <p style={{ color: "#666" }}>
+    <div className="stack">
+      <p className="text-muted">
         音声に少し遅れてかぶせるように声に出して繰り返します（シャドーイング）。まず1回聞くだけでもOK。
       </p>
-      {state === "script" && <p>✍ コーチがモデルトークを書いています…</p>}
-      {state === "audio" && <p>🎙 音声を生成しています…</p>}
+      {state === "script" && <p className="text-muted">✍ コーチがモデルトークを書いています…</p>}
+      {state === "audio" && <p className="text-muted">🎙 音声を生成しています…</p>}
       {state === "error" && (
-        <p style={{ color: "crimson" }}>
-          {errorMsg} <button onClick={prepare}>再試行</button>
-        </p>
+        <Banner kind="error" action={<Button onClick={prepare}>再試行</Button>}>
+          {errorMsg}
+        </Banner>
       )}
       {(state === "ready" || state === "playing") && (
-        <div>
-          <button onClick={play} disabled={state === "playing"} style={{ padding: "0.6rem 1.2rem" }}>
+        <div className="stack">
+          <Button variant="primary" onClick={play} disabled={state === "playing"}>
             {state === "playing" ? "🔊 再生中…" : "▶ 再生（何度でも）"}
-          </button>
-          <p style={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}>{text}</p>
+          </Button>
+          <Card className="reading-text">{text}</Card>
         </div>
       )}
     </div>

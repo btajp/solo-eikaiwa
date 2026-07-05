@@ -31,12 +31,12 @@ export function ReflectionScreen() {
   return (
     <div className="stack">
       {reflection.goodPhrases.length > 0 && (
-        <Card header="👏 良かった表現">
+        <Card header={<h3>👏 良かった表現</h3>}>
           <ul>{reflection.goodPhrases.map((p, i) => <li key={i}>{p}</li>)}</ul>
         </Card>
       )}
       {reflection.fixes.length > 0 && (
-        <Card header="✏️ 直したい表現">
+        <Card header={<h3>✏️ 直したい表現</h3>}>
           <ul>
             {reflection.fixes.map((f, i) => (
               <li key={i}><s>{f.original}</s> → <strong>{f.better}</strong></li>
@@ -44,7 +44,7 @@ export function ReflectionScreen() {
           </ul>
         </Card>
       )}
-      <Card header="📝 明日へ">
+      <Card header={<h3>📝 明日へ</h3>}>
         <p>{reflection.noteForTomorrow_ja}</p>
       </Card>
     </div>

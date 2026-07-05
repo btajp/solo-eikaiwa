@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchPrepPack, playTtsCached, type ContentItem, type PrepPack } from "../api";
 import { stopPlayback } from "../audio";
+import { Banner } from "../ui/Banner";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { ChunkList } from "../ui/ChunkList";
 
 type State = "loading" | "ready" | "error";
 
@@ -61,58 +65,36 @@ export function WarmupReadingScreen(props: { topic: ContentItem }) {
   const chunks = prep?.chunks.filter((c) => typeof c.en === "string" && c.en) ?? [];
 
   return (
-    <div>
-      <p style={{ color: "#666" }}>
+    <div className="stack">
+      <p className="text-muted">
         声に出して読みましょう（各フレーズ2回ずつ）。🔊でお手本を聞けます。このあとの 4/3/2 で実際に使います。
       </p>
       {state === "loading" && <p>コーチが表現チャンクを用意しています…</p>}
       {state === "error" && (
         <div>
-          <p style={{ color: "crimson" }}>
-            {errorMsg} <button onClick={load}>再試行</button>
-          </p>
+          <Banner kind="error" action={<Button onClick={load}>再試行</Button>}>
+            {errorMsg}
+          </Banner>
           {props.topic.hints.length > 0 && (
             <div>
               <h4>代わりにこちらを声に出して読みましょう</h4>
-              <ul>
-                {props.topic.hints.map((h, i) => (
-                  <li key={i}>{h}</li>
-                ))}
-              </ul>
+              <ChunkList chunks={props.topic.hints.map((h) => ({ en: h }))} playingIdx={null} />
             </div>
           )}
         </div>
       )}
       {state === "ready" && prep && (
-        <div>
-          {chunks.length > 0 && (
-            <ul>
-              {chunks.map((c, i) => (
-                <li key={i} style={{ marginBottom: "0.4rem" }}>
-                  <button
-                    onClick={() => playChunk(i, c.en)}
-                    disabled={playingIdx !== null}
-                    style={{ marginRight: "0.5rem", cursor: "pointer" }}
-                    aria-label={`「${c.en}」を再生`}
-                  >
-                    {playingIdx === i ? "…" : "🔊"}
-                  </button>
-                  <strong>{c.en}</strong>
-                  {c.ja && <div style={{ color: "#666", marginLeft: "2.2rem" }}>{c.ja}</div>}
-                </li>
-              ))}
-            </ul>
-          )}
-          {playErr && <p style={{ color: "crimson" }}>{playErr}</p>}
+        <div className="stack">
+          {chunks.length > 0 && <ChunkList chunks={chunks} playingIdx={playingIdx} onPlay={playChunk} />}
+          {playErr && <Banner kind="error">{playErr}</Banner>}
           {prep.outline.length > 0 && (
-            <div>
-              <h4>今日の話の骨組み</h4>
+            <Card header="今日の話の骨組み">
               <ol>
                 {prep.outline.map((o, i) => (
                   <li key={i}>{o}</li>
                 ))}
               </ol>
-            </div>
+            </Card>
           )}
         </div>
       )}

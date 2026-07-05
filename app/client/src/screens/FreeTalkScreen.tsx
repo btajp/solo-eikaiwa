@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { converse, sttUpload, ttsFetch } from "../api";
 import { playBlob, Recorder, stopPlayback } from "../audio";
+import { Banner } from "../ui/Banner";
+import { Button } from "../ui/Button";
 
 type Turn = { role: "you" | "ai"; text: string };
 type Status = "idle" | "recording" | "transcribing" | "thinking" | "speaking" | "error";
@@ -76,21 +78,20 @@ export function FreeTalkScreen(props: { scenarioId?: string; onSessionId?: (id: 
 
   return (
     <div>
-      <div style={{ margin: "1rem 0" }}>
-        <button
-          onClick={onMainButton}
-          disabled={status === "transcribing" || status === "thinking" || status === "speaking"}
-          style={{ fontSize: "1.1rem", padding: "0.8rem 1.4rem", cursor: "pointer" }}
-        >
-          {LABELS[status]}
-        </button>
-      </div>
-      {errorMsg && <p style={{ color: "crimson" }}>{errorMsg}</p>}
-      <section>
+      <Button
+        variant="primary"
+        size="lg"
+        onClick={onMainButton}
+        disabled={status === "transcribing" || status === "thinking" || status === "speaking"}
+      >
+        {LABELS[status]}
+      </Button>
+      {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
+      <section className="chat">
         {turns.map((t, i) => (
-          <p key={i} style={{ whiteSpace: "pre-wrap" }}>
-            <strong>{t.role === "you" ? "You" : "AI"}:</strong> {t.text}
-          </p>
+          <div key={i} className={`chat-row ${t.role === "you" ? "you" : "ai"}`}>
+            <div className={`bubble ${t.role === "you" ? "bubble-you" : "bubble-ai"}`}>{t.text}</div>
+          </div>
         ))}
       </section>
     </div>
