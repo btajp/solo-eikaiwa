@@ -2,8 +2,19 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { converseTurn } from "../converse";
+import { converseTurn, makeClaudeRunner } from "../converse";
 import { readEvents } from "../session-log";
+import type { query } from "@anthropic-ai/claude-agent-sdk";
+
+// Minimal fake message shapes; only the fields runClaudeTurn actually reads are populated.
+function fakeQuery(messages: unknown[]): typeof query {
+  return (() => {
+    async function* gen() {
+      for (const m of messages) yield m;
+    }
+    return gen();
+  }) as unknown as typeof query;
+}
 
 describe("converse", () => {
   test("初回ターン: resume無しで runner を呼び、2イベントをログし、sessionId を返す", async () => {
@@ -38,5 +49,56 @@ describe("converse", () => {
 
     await converseTurn({ userText: "second turn", sessionId: "claude-sess-1", runner: fakeRunner, logFile });
     expect(calls[0].resumeId).toBe("claude-sess-1");
+  });
+});
+
+describe("makeClaudeRunner", () => {
+  test("成功ストリーム: init で session_id を捕捉し、success の result を返す", async () => {
+    const runner = makeClaudeRunner(
+      fakeQuery([
+        { type: "system", subtype: "init", session_id: "sess-abc" },
+        { type: "result", subtype: "success", result: "Hello there!" },
+      ]),
+    );
+
+    const r = await runner("hi");
+    expect(r).toEqual({ text: "Hello there!", sessionId: "sess-abc" });
+  });
+
+  test("エラーサブタイプの result: errors 詳細を含めて reject する", async () => {
+    const runner = makeClaudeRunner(
+      fakeQuery([
+        { type: "system", subtype: "init", session_id: "sess-abc" },
+        { type: "result", subtype: "error_during_execution", errors: ["boom"], stop_reason: null },
+      ]),
+    );
+
+    await expect(runner("hi")).rejects.toThrow(/error_during_execution/);
+  });
+
+  test("result が一度も来ないストリーム: empty で reject する", async () => {
+    const runner = makeClaudeRunner(
+      fakeQuery([{ type: "system", subtype: "init", session_id: "sess-abc" }]),
+    );
+
+    await expect(runner("hi")).rejects.toThrow(/empty/);
+  });
+});
+
+describe("converseTurn error path", () => {
+  test("runner が throw した場合: converseTurn も reject し、ログに user_utterance と error が残る", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "conv-"));
+    const logFile = path.join(dir, "log.jsonl");
+    const failingRunner = async (): Promise<{ text: string; sessionId: string }> => {
+      throw new Error("boom from runner");
+    };
+
+    await expect(
+      converseTurn({ userText: "hello", runner: failingRunner, logFile }),
+    ).rejects.toThrow("boom from runner");
+
+    const events = readEvents(logFile);
+    expect(events.map((e) => e.type)).toEqual(["user_utterance", "error"]);
+    expect(events[1].text).toBe("boom from runner");
   });
 });
