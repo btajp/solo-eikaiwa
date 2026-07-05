@@ -68,8 +68,19 @@ export function pickNext(items: ContentItem[], usage: UsageMap, todayYmd: string
 
 function markUsed(usage: UsageMap, id: string, ymd: string): void {
   const dates = usage[id] ?? [];
-  if (dates[dates.length - 1] !== ymd) dates.push(ymd);
+  if (!dates.includes(ymd)) dates.push(ymd);
   usage[id] = dates.slice(-7);
+}
+
+/** JSON ファイルを読み込む。存在しない・パース失敗時は警告のみで undefined を返す（呼び出し側でフォールバック） */
+function readJsonSafe<T>(file: string): T | undefined {
+  if (!existsSync(file)) return undefined;
+  try {
+    return JSON.parse(readFileSync(file, "utf8")) as T;
+  } catch {
+    console.warn(`[menu] failed to parse JSON, ignoring: ${file}`);
+    return undefined;
+  }
 }
 
 export type MenuDeps = {
@@ -89,13 +100,10 @@ export function buildTodayMenu(minutes: 60 | 30, deps: MenuDeps = {}): Menu {
 
   // 同日・同構成なら同一メニューを返す（リロードでトピックが変わらない・使用記録が重ならない）
   const cacheFile = path.join(menuCacheDir, `menu-${ymd}-${minutes}.json`);
-  if (existsSync(cacheFile)) {
-    return JSON.parse(readFileSync(cacheFile, "utf8")) as Menu;
-  }
+  const cached = readJsonSafe<Menu>(cacheFile);
+  if (cached) return cached;
 
-  const usage: UsageMap = existsSync(usageFile)
-    ? (JSON.parse(readFileSync(usageFile, "utf8")) as UsageMap)
-    : {};
+  const usage: UsageMap = readJsonSafe<UsageMap>(usageFile) ?? {};
   const topics = loadContent(topicsDir);
   const scenarios = loadContent(scenariosDir);
 

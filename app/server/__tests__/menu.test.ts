@@ -129,4 +129,38 @@ describe("buildTodayMenu", () => {
     expect(usage.t1).toEqual(["2026-07-05"]); // 1回だけ
     expect(existsSync(path.join(dirs.menuCacheDir, "menu-2026-07-05-60.json"))).toBe(true);
   });
+
+  test("破損したキャッシュファイルは無視して再構築し、正しいJSONで上書きする", () => {
+    const dirs = makeContentDirs();
+    mkdirSync(dirs.menuCacheDir, { recursive: true });
+    const cacheFile = path.join(dirs.menuCacheDir, "menu-2026-07-05-60.json");
+    writeFileSync(cacheFile, "{ this is not valid json");
+    const menu = buildTodayMenu(60, { ...dirs, today: JULY5 });
+    expect(menu.date).toBe("2026-07-05");
+    expect(menu.blocks.length).toBe(5);
+    const rewritten = JSON.parse(readFileSync(cacheFile, "utf8")) as typeof menu;
+    expect(rewritten).toEqual(menu);
+  });
+
+  test("破損した使用状況ファイルは空として扱い、メニューは構築され新規記録が作られる", () => {
+    const dirs = makeContentDirs();
+    writeFileSync(dirs.usageFile, "{ broken usage json");
+    const menu = buildTodayMenu(60, { ...dirs, today: JULY5 });
+    expect(menu.date).toBe("2026-07-05");
+    const usage = JSON.parse(readFileSync(dirs.usageFile, "utf8")) as UsageMap;
+    expect(usage.t1).toEqual(["2026-07-05"]);
+    expect(usage.s1).toEqual(["2026-07-05"]);
+  });
+
+  test("同日に60分版→30分版と続けて構築しても、各アイテムの使用日に同日が重複記録されない", () => {
+    const dirs = makeContentDirs();
+    buildTodayMenu(60, { ...dirs, today: JULY5 });
+    const menu30 = buildTodayMenu(30, { ...dirs, today: JULY5 });
+    expect(menu30.date).toBe("2026-07-05");
+    const usage = JSON.parse(readFileSync(dirs.usageFile, "utf8")) as UsageMap;
+    for (const dates of Object.values(usage)) {
+      const todayCount = dates.filter((d) => d === "2026-07-05").length;
+      expect(todayCount).toBeLessThanOrEqual(1);
+    }
+  });
 });
