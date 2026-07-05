@@ -1,7 +1,7 @@
 import path from "node:path";
 import { mkdirSync } from "node:fs";
 import { RECORDINGS_DIR } from "./paths";
-import { appendEvent } from "./session-log";
+import { appendEvent, isErrorLogged } from "./session-log";
 import { transcribeAudio } from "./stt";
 import { synthesize } from "./tts";
 import { converseTurn } from "./converse";
@@ -93,13 +93,15 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
       return json({ error: "not found" }, 404);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      try {
-        appendEvent(deps.logFile(), {
-          ts: new Date().toISOString(), type: "error", sessionId: "server", text: message,
-        });
-      } catch (logErr) {
-        // ロギング自体の失敗で「常に{error}JSONを返す」保証を崩さないためのガード
-        console.error(`routes: failed to append error event: ${String(logErr)}`);
+      if (!isErrorLogged(err)) {
+        try {
+          appendEvent(deps.logFile(), {
+            ts: new Date().toISOString(), type: "error", sessionId: "server", text: message,
+          });
+        } catch (logErr) {
+          // ロギング自体の失敗で「常に{error}JSONを返す」保証を崩さないためのガード
+          console.error(`routes: failed to append error event: ${String(logErr)}`);
+        }
       }
       return json({ error: message }, 500);
     }

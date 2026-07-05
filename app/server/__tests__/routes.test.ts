@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { makeFetchHandler, type RouteDeps } from "../routes";
-import { readEvents } from "../session-log";
+import { markErrorLogged, readEvents } from "../session-log";
 
 const FAKE_HEALTH = { ok: true, whisper: true, ffmpeg: true, claude: true, ttsKey: true, modelFile: true };
 
@@ -275,5 +275,26 @@ describe("routes: 404 と 500", () => {
     );
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "boom from dep" });
+  });
+
+  test("マーカー付きエラー（converseTurnが記録済み）は最上位catchで二重記録しない", async () => {
+    const { deps, logFile } = makeTestDeps({
+      converse: (async () => {
+        const err = new Error("already logged downstream");
+        markErrorLogged(err);
+        throw err;
+      }) as RouteDeps["converse"],
+    });
+    const handler = makeFetchHandler(deps);
+    const res = await handler(
+      new Request("http://localhost/api/converse", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ userText: "hi" }),
+      }),
+    );
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "already logged downstream" });
+    expect(readEvents(logFile)).toEqual([]); // 二重記録されていない
   });
 });

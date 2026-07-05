@@ -4,7 +4,7 @@ import path from "node:path";
 import { tmpdir } from "node:os";
 import { mkdtempSync, rmSync } from "node:fs";
 import { TTS_CACHE_DIR } from "./paths";
-import type { SpawnFn } from "./stt";
+import { realSpawn, type SpawnFn } from "./spawn";
 
 const TTS_MODEL = "gpt-4o-mini-tts";
 const DEFAULT_VOICE = "alloy";
@@ -19,13 +19,6 @@ export type SynthesizeOpts = {
 
 export function cacheKeyFor(model: string, voice: string, text: string): string {
   return createHash("sha256").update(`${model}|${voice}|${text}`).digest("hex");
-}
-
-async function realSpawn(cmd: string[]): Promise<{ exitCode: number; stderr: string }> {
-  const proc = Bun.spawn(cmd, { stdout: "ignore", stderr: "pipe" });
-  const stderr = await new Response(proc.stderr).text();
-  const exitCode = await proc.exited;
-  return { exitCode, stderr };
 }
 
 async function synthesizeOpenAI(

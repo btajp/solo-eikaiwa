@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { appendEvent, readEvents, type SessionEvent } from "../session-log";
@@ -20,5 +20,16 @@ describe("session-log", () => {
 
   test("readEvents は存在しないファイルで空配列を返す", () => {
     expect(readEvents("/nonexistent/nope.jsonl")).toEqual([]);
+  });
+
+  test("readEvents は不正な行をスキップして残りを返す（クラッシュ耐性）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "sess-"));
+    const file = path.join(dir, "log.jsonl");
+    const good1 = JSON.stringify({ ts: "t1", type: "session_start", sessionId: "s1" });
+    const good2 = JSON.stringify({ ts: "t2", type: "user_utterance", sessionId: "s1", text: "hi" });
+    writeFileSync(file, `${good1}\n{truncated...\n${good2}\n`, "utf8");
+    const events = readEvents(file);
+    expect(events).toHaveLength(2);
+    expect(events[1].text).toBe("hi");
   });
 });

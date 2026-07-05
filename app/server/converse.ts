@@ -1,5 +1,5 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { appendEvent } from "./session-log";
+import { appendEvent, markErrorLogged } from "./session-log";
 import { sessionLogPath } from "./paths";
 
 export const PARTNER_SYSTEM_PROMPT = `You are an English conversation partner for a Japanese IT professional (CEFR A2-B1).
@@ -68,6 +68,7 @@ export async function converseTurn(args: {
     appendEvent(logFile, {
       ts: now(), type: "error", sessionId: args.sessionId ?? "pending", text: message,
     });
+    markErrorLogged(err);
     throw err;
   }
 

@@ -2,17 +2,10 @@ import path from "node:path";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { MODELS_DIR } from "./paths";
+import { realSpawn, type SpawnFn } from "./spawn";
+export type { SpawnFn } from "./spawn";
 
 export const WHISPER_MODEL_PATH = path.join(MODELS_DIR, "ggml-large-v3-turbo.bin");
-
-export type SpawnFn = (cmd: string[]) => Promise<{ exitCode: number; stderr: string }>;
-
-async function realSpawn(cmd: string[]): Promise<{ exitCode: number; stderr: string }> {
-  const proc = Bun.spawn(cmd, { stdout: "ignore", stderr: "pipe" });
-  const stderr = await new Response(proc.stderr).text();
-  const exitCode = await proc.exited;
-  return { exitCode, stderr };
-}
 
 export function buildWhisperArgs(modelPath: string, wavPath: string, outBase: string): string[] {
   return ["-m", modelPath, "-f", wavPath, "-l", "en", "-oj", "-of", outBase, "-np"];

@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { converseTurn, makeClaudeRunner } from "../converse";
-import { readEvents } from "../session-log";
+import { converseTurn, makeClaudeRunner, PARTNER_SYSTEM_PROMPT } from "../converse";
+import { isErrorLogged, readEvents } from "../session-log";
 import type { query } from "@anthropic-ai/claude-agent-sdk";
 
 // Minimal fake message shapes; only the fields runClaudeTurn actually reads are populated.
@@ -100,5 +100,53 @@ describe("converseTurn error path", () => {
     const events = readEvents(logFile);
     expect(events.map((e) => e.type)).toEqual(["user_utterance", "error"]);
     expect(events[1].text).toBe("boom from runner");
+  });
+
+  test("converseTurn が記録した error は isErrorLogged マーカーが付く", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "conv-"));
+    const logFile = path.join(dir, "log.jsonl");
+    const failingRunner = async () => { throw new Error("runner down"); };
+    let caught: unknown;
+    try {
+      await converseTurn({ userText: "hi", runner: failingRunner, logFile });
+    } catch (err) {
+      caught = err;
+    }
+    expect(isErrorLogged(caught)).toBe(true);
+  });
+});
+
+describe("makeClaudeRunner: SDK呼び出し引数のパススルー", () => {
+  function capturingQuery() {
+    const calls: Array<{ prompt: string; options: Record<string, unknown> }> = [];
+    const fakeQuery = ((args: { prompt: string; options: Record<string, unknown> }) => {
+      calls.push(args);
+      return (async function* () {
+        yield { type: "system", subtype: "init", session_id: "sess-x" };
+        yield { type: "result", subtype: "success", result: "ok" };
+      })();
+    }) as unknown as typeof query;
+    return { calls, fakeQuery };
+  }
+
+  test("初回ターン: resume なし・規定オプションが query に渡る", async () => {
+    const { calls, fakeQuery } = capturingQuery();
+    const runner = makeClaudeRunner(fakeQuery);
+    await runner("first turn");
+    expect(calls[0].prompt).toBe("first turn");
+    expect(calls[0].options).not.toHaveProperty("resume");
+    expect(calls[0].options).toMatchObject({
+      systemPrompt: PARTNER_SYSTEM_PROMPT,
+      model: "sonnet",
+      allowedTools: [],
+      maxTurns: 1,
+    });
+  });
+
+  test("2ターン目: resumeId が options.resume として渡る", async () => {
+    const { calls, fakeQuery } = capturingQuery();
+    const runner = makeClaudeRunner(fakeQuery);
+    await runner("second turn", "sess-x");
+    expect(calls[0].options).toMatchObject({ resume: "sess-x" });
   });
 });

@@ -63,15 +63,19 @@ describe("stt", () => {
   });
 
   test("transcribeAudio は注入したspawnFnでffmpeg→whisperの順に実行し、結果テキストを返す", async () => {
+    const inputPath = "/in/input.webm";
     const { spawnFn, calls } = makeFakeSpawn({});
 
-    const text = await transcribeAudio("/in/input.webm", { spawnFn });
+    const text = await transcribeAudio(inputPath, { spawnFn });
 
     expect(text).toBe("Hi.");
     expect(calls.length).toBe(2);
-    expect(calls[0][0]).toBe("ffmpeg");
-    expect(calls[0]).toContain("-ar");
-    expect(calls[0]).toContain("16000");
+    expect(calls[0]).toEqual([
+      "ffmpeg", "-i", inputPath,
+      "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
+      expect.stringMatching(/in\.wav$/),
+      "-y",
+    ]);
     expect(calls[1]).toContain("-l");
     expect(calls[1]).toContain("en");
     expect(calls[1]).toContain("-oj");
