@@ -185,3 +185,15 @@ describe("buildTodayMenu", () => {
     }
   });
 });
+
+describe("four-three-two の roundsSec", () => {
+  test("60分・30分とも roundsSec は [120, 90, 60]（スキャフォールド較正値）", () => {
+    const dirs = makeContentDirs();
+    const m60 = buildTodayMenu(60, { ...dirs, today: JULY5 });
+    const ftt60 = m60.blocks.find((b) => b.kind === "four-three-two")!;
+    expect(ftt60.params.roundsSec).toEqual([120, 90, 60]);
+    const m30 = buildTodayMenu(30, { ...dirs, today: JULY5 });
+    const ftt30 = m30.blocks.find((b) => b.kind === "four-three-two")!;
+    expect(ftt30.params.roundsSec).toEqual([120, 90, 60]);
+  });
+});

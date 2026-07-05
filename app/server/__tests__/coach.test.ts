@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  extractJson, generateAeFeedback, generateModelTalk, generateReflection, roleplayPrompt,
-  type AeFeedback,
+  extractJson, generateAeFeedback, generateModelTalk, generatePrepPack, generateReflection, roleplayPrompt,
+  type AeFeedback, type PrepPack,
 } from "../coach";
 import type { ClaudeRunner } from "../converse";
 import type { SessionEvent } from "../session-log";
@@ -86,6 +86,38 @@ describe("generateReflection", () => {
     const result = await generateReflection({ events: [] }, runner);
     expect(result.goodPhrases).toEqual([]);
     expect(result.noteForTomorrow_ja).toContain("just prose");
+  });
+});
+
+describe("generatePrepPack", () => {
+  const valid: PrepPack = {
+    chunks: [
+      { en: "The main problem we had was ...", ja: "一番の問題は…でした" },
+      { en: "What worked well was ...", ja: "うまくいったのは…です" },
+    ],
+    outline: ["Opening: what the topic is", "Point 1", "Wrap-up"],
+  };
+
+  test("正常系: JSONを構造化して返し、topicとhintsがプロンプトに入る", async () => {
+    const { runner, seen } = runnerReturning(JSON.stringify(valid));
+    const result = await generatePrepPack({ topicTitle: "Zero trust", hints: ["definition — 定義", "example — 例"] }, runner);
+    expect(result).toEqual(valid);
+    expect(seen[0].prompt).toContain("Zero trust");
+    expect(seen[0].prompt).toContain("definition");
+    expect(seen[0].systemPrompt).toContain("STRICT JSON");
+  });
+
+  test("```フェンス付きJSONでも取り出す", async () => {
+    const { runner } = runnerReturning("```json\n" + JSON.stringify(valid) + "\n```");
+    const result = await generatePrepPack({ topicTitle: "t", hints: [] }, runner);
+    expect(result.chunks).toHaveLength(2);
+  });
+
+  test("パース失敗時は素のテキストをoutlineに包むフォールバック（chunksは空）", async () => {
+    const { runner } = runnerReturning("just prose, no json");
+    const result = await generatePrepPack({ topicTitle: "t", hints: [] }, runner);
+    expect(result.chunks).toEqual([]);
+    expect(result.outline.join(" ")).toContain("just prose");
   });
 });
 

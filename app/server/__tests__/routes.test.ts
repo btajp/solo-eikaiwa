@@ -43,6 +43,10 @@ function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
       topicId === "known-topic" ? { text: "model talk" } : null) as RouteDeps["modelTalk"],
     reflection: (async () => FAKE_REFLECTION) as RouteDeps["reflection"],
     scenarioPrompt: ((id: string) => (id === "known-scenario" ? "ROLEPLAY PROMPT" : null)) as RouteDeps["scenarioPrompt"],
+    prepPack: (async () => ({
+      chunks: [{ en: "The main problem was ...", ja: "一番の問題は…" }],
+      outline: ["Opening"],
+    })) as RouteDeps["prepPack"],
     ...overrides,
   };
   return { deps, logFile, recordingsDir };
@@ -505,5 +509,47 @@ describe("routes: 404 と 500", () => {
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "already logged downstream" });
     expect(readEvents(logFile)).toEqual([]); // 二重記録されていない
+  });
+});
+
+describe("routes: coach/prep", () => {
+  test("topicId欠落は400", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/coach/prep", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}),
+    }));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("topicId");
+  });
+
+  test("未知のtopicIdは404", async () => {
+    const { deps } = makeTestDeps({ prepPack: (async () => null) as RouteDeps["prepPack"] });
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/coach/prep", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topicId: "nope" }),
+    }));
+    expect(res.status).toBe(404);
+  });
+
+  test("正常系はPrepPackを返す", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/coach/prep", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ topicId: "zero-trust" }),
+    }));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { chunks: Array<{ en: string; ja: string }>; outline: string[] };
+    expect(body.chunks[0].en).toContain("problem");
+    expect(body.outline).toEqual(["Opening"]);
+  });
+
+  test("不正JSONボディは400", async () => {
+    const { deps } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const res = await handler(new Request("http://localhost/api/coach/prep", {
+      method: "POST", headers: { "content-type": "application/json" }, body: "{oops",
+    }));
+    expect(res.status).toBe(400);
   });
 });

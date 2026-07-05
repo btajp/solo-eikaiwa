@@ -77,6 +77,29 @@ export async function generateReflection(
   return { goodPhrases: [], fixes: [], noteForTomorrow_ja: text };
 }
 
+export type PrepPack = { chunks: Array<{ en: string; ja: string }>; outline: string[] };
+
+const PREP_SYSTEM = `You prepare a Japanese IT professional (CEFR A2-B1) for a short English monologue.
+You receive a topic and hint angles. Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:
+{"chunks":[{"en":"<reusable spoken chunk or sentence starter, B1 level>","ja":"<自然な日本語訳>"}],"outline":["<short English bullet>"]}
+Rules:
+- 6-8 chunks. Each must be something the learner can say aloud as-is and reuse in similar talks
+  (e.g. "The main problem we had was ...", "What worked well was ...", "Let me give you an example.").
+- Prefer sentence starters and connectors over topic-specific full sentences.
+- outline: 3-4 bullets forming a simple talk skeleton (opening → 1-2 points → wrap-up), tied to the given hints.`;
+
+export async function generatePrepPack(
+  args: { topicTitle: string; hints: string[] },
+  runner: ClaudeRunner = defaultRunner,
+): Promise<PrepPack> {
+  const prompt = `Topic: ${args.topicTitle}\nHint angles:\n${args.hints.map((h) => `- ${h}`).join("\n")}`;
+  const { text } = await runner(prompt, undefined, { systemPrompt: PREP_SYSTEM });
+  const parsed = extractJson<PrepPack>(text);
+  if (parsed && Array.isArray(parsed.chunks) && Array.isArray(parsed.outline)) return parsed;
+  // パース失敗時のフォールバック: チャンクなし・素のテキストをアウトラインとして表示できる形
+  return { chunks: [], outline: [text] };
+}
+
 export function roleplayPrompt(scenario: { title: string; hints: string[] }): string {
   return `You are an English roleplay partner for a Japanese IT professional (CEFR A2-B1).
 Scenario: ${scenario.title}

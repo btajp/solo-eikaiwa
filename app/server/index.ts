@@ -4,7 +4,7 @@ import { synthesize } from "./tts";
 import { converseTurn } from "./converse";
 import { checkHealth } from "./health";
 import { buildTodayMenu, loadContent } from "./menu";
-import { generateAeFeedback, generateModelTalk, generateReflection, roleplayPrompt } from "./coach";
+import { generateAeFeedback, generateModelTalk, generatePrepPack, generateReflection, roleplayPrompt } from "./coach";
 import { readEvents } from "./session-log";
 import { makeFetchHandler, type RouteDeps } from "./routes";
 
@@ -30,6 +30,11 @@ const realDeps: RouteDeps = {
   scenarioPrompt: (scenarioId) => {
     const sc = loadContent(SCENARIOS_DIR).find((s) => s.id === scenarioId);
     return sc ? roleplayPrompt(sc) : null;
+  },
+  prepPack: async (topicId) => {
+    const topic = loadContent(TOPICS_DIR).find((t) => t.id === topicId);
+    if (!topic) return null;
+    return generatePrepPack({ topicTitle: topic.title, hints: topic.hints });
   },
 };
 

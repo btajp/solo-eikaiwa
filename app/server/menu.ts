@@ -9,6 +9,9 @@ export type Menu = { minutes: 60 | 30; date: string; blocks: MenuBlock[] };
 /** id → 使用日(YYYY-MM-DD)の配列。新しい日付が末尾、最大7件保持 */
 export type UsageMap = Record<string, string[]>;
 
+/** 4/3/2 ブロックのラウンド秒数。スキャフォールド較正値（流暢性が伸びたら [180,120,90] → [240,180,120] へ戻す） */
+export const FTT_ROUNDS_SEC: readonly number[] = [120, 90, 60];
+
 export function parseContentFile(text: string): ContentItem | null {
   const m = text.match(/^---\n([\s\S]*?)\n---/);
   if (!m) return null;
@@ -133,14 +136,14 @@ export function buildTodayMenu(minutes: 60 | 30, deps: MenuDeps = {}): Menu {
     minutes === 60
       ? [
           { id: "b1", kind: "chunk-placeholder", title: chunkTitle, minutes: 8, params: {} },
-          { id: "b2", kind: "four-three-two", title: `4/3/2: ${mainTopic.title}`, minutes: 16, params: { topic: mainTopic } },
+          { id: "b2", kind: "four-three-two", title: `4/3/2: ${mainTopic.title}`, minutes: 16, params: { topic: mainTopic, roundsSec: [...FTT_ROUNDS_SEC] } },
           { id: "b3", kind: "roleplay", title: `実務ロールプレイ: ${scenario.title}`, minutes: 20, params: { scenario } },
           { id: "b4", kind: "shadowing", title: `シャドーイング: ${shadowTopic.title}`, minutes: 8, params: { topic: shadowTopic } },
           { id: "b5", kind: "reflection", title: "振り返り", minutes: 5, params: {} },
         ]
       : [
           { id: "b1", kind: "chunk-placeholder", title: chunkTitle, minutes: 6, params: {} },
-          { id: "b2", kind: "four-three-two", title: `4/3/2: ${mainTopic.title}`, minutes: 12, params: { topic: mainTopic } },
+          { id: "b2", kind: "four-three-two", title: `4/3/2: ${mainTopic.title}`, minutes: 12, params: { topic: mainTopic, roundsSec: [...FTT_ROUNDS_SEC] } },
           { id: "b3", kind: "roleplay", title: `実務ロールプレイ: ${scenario.title}`, minutes: 10, params: { scenario } },
           { id: "b4", kind: "reflection", title: "振り返り", minutes: 2, params: {} },
         ];

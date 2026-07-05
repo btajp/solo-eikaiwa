@@ -7,7 +7,7 @@ import { synthesize } from "./tts";
 import { converseTurn } from "./converse";
 import { checkHealth } from "./health";
 import type { Menu } from "./menu";
-import type { AeFeedback, Reflection } from "./coach";
+import type { AeFeedback, Reflection, PrepPack } from "./coach";
 
 /**
  * HTTP ハンドラが依存する副作用を注入可能にする境界。
@@ -28,6 +28,8 @@ export type RouteDeps = {
   reflection: () => Promise<Reflection>;
   /** 未知の scenarioId は null（ルートは400を返す） */
   scenarioPrompt: (scenarioId: string) => string | null;
+  /** 未知の topicId は null（ルートは404を返す） */
+  prepPack: (topicId: string) => Promise<PrepPack | null>;
 };
 
 function json(data: unknown, status = 200): Response {
@@ -106,6 +108,15 @@ async function handleModelTalk(req: Request, deps: RouteDeps): Promise<Response>
   return json(talk);
 }
 
+async function handlePrep(req: Request, deps: RouteDeps): Promise<Response> {
+  const parsed = await parseJsonBody<{ topicId?: string }>(req);
+  if (!parsed.ok) return parsed.response;
+  if (!parsed.body.topicId?.trim()) return json({ error: "topicId is required" }, 400);
+  const pack = await deps.prepPack(parsed.body.topicId);
+  if (!pack) return json({ error: "unknown topicId" }, 404);
+  return json(pack);
+}
+
 const BLOCK_EVENT_TYPES = ["block_start", "block_end", "round_start", "round_end"] as const;
 type BlockEventType = (typeof BLOCK_EVENT_TYPES)[number];
 
@@ -167,6 +178,7 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
       if (req.method === "GET" && url.pathname === "/api/menu/today") return handleMenuToday(url, deps);
       if (req.method === "POST" && url.pathname === "/api/feedback/ae") return await handleAeFeedback(req, deps);
       if (req.method === "POST" && url.pathname === "/api/coach/model-talk") return await handleModelTalk(req, deps);
+      if (req.method === "POST" && url.pathname === "/api/coach/prep") return await handlePrep(req, deps);
       if (req.method === "POST" && url.pathname === "/api/coach/reflection") return json(await deps.reflection());
       if (req.method === "POST" && url.pathname === "/api/session/event") return await handleSessionEvent(req, deps);
       return json({ error: "not found" }, 404);
