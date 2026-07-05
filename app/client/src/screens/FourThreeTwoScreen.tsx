@@ -120,9 +120,10 @@ export function FourThreeTwoScreen(props: { topic: ContentItem; sessionId: strin
 
   async function playModelTalk() {
     setErrorMsg("");
-    setModelState("playing");
     try {
-      const { text, blob } = await prefetchModelTalkAudio(props.topic.id);
+      const { text, blob } = await prefetchModelTalkAudio(props.topic.id, (stage) => {
+        if (aliveRef.current) setModelState(stage);
+      });
       if (!aliveRef.current) return;
       setModelText(text);
       await playBlob(blob);

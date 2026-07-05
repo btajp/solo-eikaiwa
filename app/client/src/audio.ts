@@ -45,6 +45,7 @@ let currentAudio: HTMLAudioElement | null = null;
 let currentUrl: string | null = null;
 
 export async function playBlob(blob: Blob): Promise<void> {
+  stopPlayback();
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   currentAudio = audio;
