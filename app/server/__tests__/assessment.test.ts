@@ -82,6 +82,33 @@ describe("assessment / makeAssembleMonthData", () => {
   });
 });
 
+describe("assessment / worstCategories の閾値", () => {
+  test("評価5文以上かつbad率>0のカテゴリだけがワースト3に入る", () => {
+    const db = openDb(":memory:");
+    // カテゴリ10: 6文評価済み（bad2/good4 → bad率>0・閾値超え）
+    // カテゴリ20: 2文評価済み（bad2 → bad率1.0 だが閾値未満）
+    // カテゴリ30: 5文評価済み・全good（bad率0 → 除外）
+    const many: Sentence[] = [];
+    for (let i = 1; i <= 6; i++) many.push({ no: 100 + i, category_no: 10, category: "仮定法", domain: "daily", en: `A${i}.`, ja: "", note: "" });
+    for (let i = 1; i <= 2; i++) many.push({ no: 200 + i, category_no: 20, category: "関係詞", domain: "it", en: `B${i}.`, ja: "", note: "" });
+    for (let i = 1; i <= 5; i++) many.push({ no: 300 + i, category_no: 30, category: "比較", domain: "business", en: `C${i}.`, ja: "", note: "" });
+    for (let i = 1; i <= 6; i++) seedSrs(db, 100 + i, i <= 2 ? "bad" : "good");
+    for (let i = 1; i <= 2; i++) seedSrs(db, 200 + i, "bad");
+    for (let i = 1; i <= 5; i++) seedSrs(db, 300 + i, "good");
+
+    const assemble = makeAssembleMonthData({
+      db, sentences: many,
+      metricsSummary: () => ({ days: [], level: { current: 13, history: [] } }),
+      currentLevel: () => 13,
+      placementLatest: () => null,
+    });
+    const data = assemble("2026-07-06");
+    expect(data.worstCategories).toHaveLength(1);
+    expect(data.worstCategories[0]).toMatchObject({ categoryNo: 10, category: "仮定法", reviewed: 6 });
+    expect(data.worstCategories[0].badRate).toBeCloseTo(2 / 6, 5);
+  });
+});
+
 describe("assessment / generateMonthlyReport", () => {
   test("runner のテキストを trim して返す", async () => {
     const fake: ClaudeRunner = async () => ({ text: "  今月の振り返り。\n良い調子です。 \n", sessionId: "s" });
