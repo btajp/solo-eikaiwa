@@ -27,9 +27,6 @@ export type SentenceStore = {
   find(no: number): Sentence | undefined;
 };
 
-/** 固定間隔ラダー（index = stage）。検証済みリサーチ: 均等〜長め固定で十分、拡張間隔に実証優位なし */
-export const LADDER = [1, 3, 7, 14, 30, 60] as const;
-
 /** サーバのローカル日付 YYYY-MM-DD（UTC罠回避のため toISOString は使わない） */
 export function localYmd(d: Date = new Date()): string {
   const p = (n: number) => String(n).padStart(2, "0");
@@ -39,6 +36,19 @@ export function localYmd(d: Date = new Date()): string {
 export function addDaysYmd(ymd: string, days: number): string {
   const [y, m, d] = ymd.split("-").map(Number);
   return localYmd(new Date(y, m - 1, d + days));
+}
+
+/** 固定間隔ラダー（index = stage）。検証済みリサーチ: 均等〜長め固定で十分、拡張間隔に実証優位なし */
+export const LADDER = [1, 3, 7, 14, 30, 60] as const;
+
+/** stage×grade → 次の stage と due。例文・収集チャンク共通の SRS 遷移（LADDER 準拠） */
+export function srsTransition(stage: number, grade: Grade, today: string): { stage: number; due: string } {
+  if (grade === "good") {
+    const s = Math.min(stage + 1, LADDER.length - 1);
+    return { stage: s, due: addDaysYmd(today, LADDER[s]) };
+  }
+  if (grade === "soso") return { stage, due: addDaysYmd(today, 1) };
+  return { stage: Math.max(stage - 1, 0), due: addDaysYmd(today, 1) };
 }
 
 const DOMAINS = ["daily", "business", "it"] as const;
@@ -125,26 +135,14 @@ export function makeSentenceStore(
     grade(no, grade, today = localYmd()) {
       if (!byNo.has(no)) return null;
       const row = db.query<SrsRow, [number]>("SELECT * FROM sentence_srs WHERE no = ?").get(no);
-      const stage = row?.stage ?? 0;
-      let newStage: number;
-      let due: string;
-      if (grade === "good") {
-        newStage = Math.min(stage + 1, LADDER.length - 1);
-        due = addDaysYmd(today, LADDER[newStage]);
-      } else if (grade === "soso") {
-        newStage = stage;
-        due = addDaysYmd(today, 1);
-      } else {
-        newStage = Math.max(stage - 1, 0);
-        due = addDaysYmd(today, 1);
-      }
+      const t = srsTransition(row?.stage ?? 0, grade, today);
       db.run(
         `INSERT INTO sentence_srs (no, stage, due, last_grade, reviews) VALUES (?, ?, ?, ?, 1)
          ON CONFLICT(no) DO UPDATE SET stage = excluded.stage, due = excluded.due,
            last_grade = excluded.last_grade, reviews = sentence_srs.reviews + 1`,
-        [no, newStage, due, grade],
+        [no, t.stage, t.due, grade],
       );
-      return { no, stage: newStage, due };
+      return { no, stage: t.stage, due: t.due };
     },
 
     getExplanation(no) {

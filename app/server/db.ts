@@ -69,6 +69,19 @@ export function openDb(dbPath: string = DEFAULT_DB_PATH): Database {
     text TEXT NOT NULL,
     created TEXT NOT NULL
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS collected_chunks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created TEXT NOT NULL,
+    source TEXT NOT NULL,
+    prompt_text TEXT NOT NULL,
+    en TEXT NOT NULL,
+    norm_en TEXT NOT NULL UNIQUE,
+    note TEXT NOT NULL DEFAULT '',
+    stage INTEGER NOT NULL DEFAULT 0,
+    due TEXT NOT NULL,
+    last_grade TEXT,
+    reviews INTEGER NOT NULL DEFAULT 0
+  )`);
   return db;
 }
 
