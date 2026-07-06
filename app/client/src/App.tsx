@@ -58,6 +58,7 @@ export function App() {
 
   const navItems: Array<{ key: string; icon: string; label: string; active: boolean; go: () => void }> = [
     { key: "home", icon: "🏠", label: t.nav.home, active: mode.kind === "start", go: () => setMode({ kind: "start" }) },
+    { key: "placement", icon: "📐", label: t.nav.placement, active: mode.kind === "placement", go: () => setMode({ kind: "placement" }) },
     { key: "free", icon: "💬", label: t.nav.free, active: mode.kind === "free", go: () => setMode({ kind: "free" }) },
     { key: "library", icon: "📚", label: t.nav.library, active: mode.kind === "library", go: () => setMode({ kind: "library" }) },
     { key: "sentences", icon: "📖", label: t.nav.sentences, active: mode.kind === "sentences", go: () => setMode({ kind: "sentences" }) },

@@ -11,7 +11,7 @@ export function saveLang(lang: Lang): void {
 }
 
 type Strings = {
-  nav: { home: string; free: string; library: string; sentences: string; progress: string };
+  nav: { home: string; placement: string; free: string; library: string; sentences: string; progress: string };
   stat: { title: string; thisWeekUnit: string; total: (n: number) => string };
   hero: { title: string; date: (d: Date) => string };
   quick: { label: string; note: string };
@@ -93,7 +93,7 @@ const WEEKDAYS_JA = ["日", "月", "火", "水", "木", "金", "土"];
 
 export const STR: Record<Lang, Strings> = {
   en: {
-    nav: { home: "Home", free: "Free Talk", library: "Library", sentences: "300 Sentences", progress: "Progress" },
+    nav: { home: "Home", placement: "Level Check", free: "Free Talk", library: "Library", sentences: "300 Sentences", progress: "Progress" },
     stat: { title: "Practice log", thisWeekUnit: "days this week", total: (n) => `${n} days total` },
     hero: {
       title: "Ready to practice your English?",
@@ -192,7 +192,7 @@ export const STR: Record<Lang, Strings> = {
     },
   },
   ja: {
-    nav: { home: "ホーム", free: "自由会話", library: "ライブラリ", sentences: "暗記例文300", progress: "進捗" },
+    nav: { home: "ホーム", placement: "レベル測定", free: "自由会話", library: "ライブラリ", sentences: "暗記例文300", progress: "進捗" },
     stat: { title: "練習記録", thisWeekUnit: "日（今週）", total: (n) => `累計 ${n}日` },
     hero: {
       title: "今日も英語を話しましょう",
