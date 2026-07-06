@@ -27,7 +27,7 @@ function makeFakeSpawn(options: {
       const outBase = cmd[ofIndex + 1];
       writeFileSync(
         `${outBase}.json`,
-        options.whisperJson ?? JSON.stringify({ transcription: [{ text: " Hi." }] }),
+        options.whisperJson ?? JSON.stringify({ transcription: [{ text: " Hi.", offsets: { from: 0, to: 800 } }] }),
       );
     }
     return whisperResult;
@@ -48,27 +48,37 @@ describe("stt", () => {
     ]);
   });
 
-  test("parseWhisperJson は transcription の text を結合して trim する", () => {
+  test("parseWhisperJson は text と segments を両方返す", () => {
     const json = JSON.stringify({
       transcription: [
-        { text: " Hello, my name is", offsets: { from: 0, to: 1200 } },
-        { text: " Shin.", offsets: { from: 1200, to: 2000 } },
+        { text: " Hello there", offsets: { from: 0, to: 1200 } },
+        { text: " how are you", offsets: { from: 1500, to: 2800 } },
       ],
     });
-    expect(parseWhisperJson(json)).toBe("Hello, my name is Shin.");
+    expect(parseWhisperJson(json)).toEqual({
+      text: "Hello there how are you",
+      segments: [
+        { fromMs: 0, toMs: 1200, text: " Hello there" },
+        { fromMs: 1500, toMs: 2800, text: " how are you" },
+      ],
+    });
   });
 
-  test("parseWhisperJson は transcription が無ければ空文字", () => {
-    expect(parseWhisperJson("{}")).toBe("");
+  test("parseWhisperJson は offsets 欠落を 0 で補い、transcription 欠落は空を返す", () => {
+    expect(parseWhisperJson(JSON.stringify({ transcription: [{ text: "Hi" }] }))).toEqual({
+      text: "Hi",
+      segments: [{ fromMs: 0, toMs: 0, text: "Hi" }],
+    });
+    expect(parseWhisperJson(JSON.stringify({}))).toEqual({ text: "", segments: [] });
   });
 
   test("transcribeAudio は注入したspawnFnでffmpeg→whisperの順に実行し、結果テキストを返す", async () => {
     const inputPath = "/in/input.webm";
     const { spawnFn, calls } = makeFakeSpawn({});
 
-    const text = await transcribeAudio(inputPath, { spawnFn });
+    const result = await transcribeAudio(inputPath, { spawnFn });
 
-    expect(text).toBe("Hi.");
+    expect(result.text).toBe("Hi.");
     expect(calls.length).toBe(2);
     expect(calls[0]).toEqual([
       "ffmpeg", "-i", inputPath,

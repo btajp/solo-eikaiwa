@@ -11,10 +11,20 @@ export function buildWhisperArgs(modelPath: string, wavPath: string, outBase: st
   return ["-m", modelPath, "-f", wavPath, "-l", "en", "-oj", "-of", outBase, "-np"];
 }
 
-export function parseWhisperJson(jsonText: string): string {
-  const data = JSON.parse(jsonText) as { transcription?: Array<{ text: string }> };
-  if (!data.transcription) return "";
-  return data.transcription.map((s) => s.text).join("").trim();
+export type SttSegment = { fromMs: number; toMs: number; text: string };
+export type Transcription = { text: string; segments: SttSegment[] };
+
+export function parseWhisperJson(jsonText: string): Transcription {
+  const data = JSON.parse(jsonText) as {
+    transcription?: Array<{ text: string; offsets?: { from?: number; to?: number } }>;
+  };
+  if (!data.transcription) return { text: "", segments: [] };
+  const segments: SttSegment[] = data.transcription.map((s) => ({
+    fromMs: typeof s.offsets?.from === "number" ? s.offsets.from : 0,
+    toMs: typeof s.offsets?.to === "number" ? s.offsets.to : 0,
+    text: s.text,
+  }));
+  return { text: segments.map((s) => s.text).join("").trim(), segments };
 }
 
 function whisperBin(): string {
@@ -25,7 +35,7 @@ function whisperBin(): string {
 export async function transcribeAudio(
   inputPath: string,
   opts: { spawnFn?: SpawnFn } = {},
-): Promise<string> {
+): Promise<Transcription> {
   const spawn = opts.spawnFn ?? realSpawn;
   const work = mkdtempSync(path.join(tmpdir(), "stt-"));
   try {

@@ -40,7 +40,7 @@ function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
   const logFile = path.join(dir, "log.jsonl");
   const recordingsDir = path.join(dir, "recordings");
   const deps: RouteDeps = {
-    transcribe: (async (_inputPath: string) => "fake transcript") as RouteDeps["transcribe"],
+    transcribe: (async (_inputPath: string) => ({ text: "fake transcript", segments: [] })) as RouteDeps["transcribe"],
     synthesize: (async (_text: string) => ({
       audio: new Uint8Array([1, 2, 3]),
       mime: "audio/mpeg",

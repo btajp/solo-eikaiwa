@@ -10,7 +10,7 @@ say -v Samantha -o "$TMP/hello.aiff" "Hello, this is a smoke test for the speech
 
 cd app && bun -e "
 import { transcribeAudio } from './server/stt';
-const text = await transcribeAudio('$TMP/hello.aiff');
+const { text } = await transcribeAudio('$TMP/hello.aiff');
 console.log('TRANSCRIPT:', text);
 if (!/smoke test/i.test(text)) { console.error('FAIL: 期待した語が含まれない'); process.exit(1); }
 console.log('SMOKE OK');
