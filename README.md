@@ -91,22 +91,31 @@ OPENAI_API_KEY=$YOUR_OPENAI_KEY_ENV_VAR
 
 ### 起動: 常駐（推奨）
 
-launchd の LaunchAgent として API サーバを常駐させ、ビルド済みクライアントを共有 Caddy デーモンが静的配信します。ログイン時に自動起動し、クラッシュ時は自動再起動。
+2つの常駐プロセスで動きます。**API サーバ**（launchd の LaunchAgent・ポート3111）と、ビルド済みクライアントの静的配信＋ `/api` プロキシを担う **Caddy** です。どちらもログイン時に自動起動し、クラッシュ時は自動再起動します。
+
+**① API サーバの常駐**（このリポジトリのスクリプトで完結）:
 
 ```bash
 ./scripts/install-daemon.sh   # クライアントビルド → LaunchAgent 登録 → ヘルスチェック
 ```
 
-初回、または Caddyfile を変更した場合のみ、共有 Caddy デーモンへの反映を手動実行（sudo が必要なため自動化していません）:
+**② Caddy の用意**（マシンごとに初回のみ）。API サーバはクライアントを配信しないため、ブラウザの入口には Caddy が必要です。Homebrew の Caddy を常駐サービスにする例:
 
 ```bash
-sudo launchctl kickstart -k system/com.local.https.caddy
+brew install caddy
+# 1. このリポジトリの Caddyfile 内 root のパスを自分のチェックアウト先に合わせて編集
+# 2. Homebrew の Caddyfile（/opt/homebrew/etc/Caddyfile）に import 行を追加:
+#      import /path/to/learn-english/Caddyfile
+brew services start caddy    # ログイン時自動起動の常駐サービスとして登録
+caddy trust                  # ローカルCA証明書をキーチェーンへ登録（初回のみ・要パスワード）
+echo "127.0.0.1 learn-english" | sudo tee -a /etc/hosts   # https://learn-english 用
 ```
 
-ブラウザで https://learn-english を開く。
+ブラウザで https://learn-english を開く（hosts を編集しない場合は https://learn-english.localhost — Chrome 系なら hosts 不要）。
 
 - 状態確認: `./scripts/status-daemon.sh` / 停止・解除: `./scripts/uninstall-daemon.sh`
-- クライアントのコードを変更したら再ビルドが必要（`./scripts/install-daemon.sh` 再実行が簡単）
+- コードを更新したら `./scripts/install-daemon.sh` を再実行（再ビルド＋デーモン再起動が一括で済む）
+- Caddyfile を変更したら Caddy に再読み込みさせる: brew services 構成なら `brew services restart caddy`、共有 Caddy デーモン構成なら `sudo launchctl kickstart -k system/com.local.https.caddy`
 - Firefox で証明書警告が出る場合: `about:config` で `security.enterprise_roots.enabled` を `true` に（Firefox は macOS キーチェーンを標準では参照しないため）
 
 ### 起動: 開発
