@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   extractJson, generateAeFeedback, generateModelTalk, generatePhraseHints, generatePrepPack, generateReflection, generateUtteranceTranslation, roleplayPrompt,
-  type AeFeedback,
+  type AeFeedback, type PrepPack,
 } from "../coach";
 import type { ClaudeRunner } from "../converse";
 import type { SessionEvent } from "../session-log";
@@ -91,13 +91,14 @@ describe("generateReflection", () => {
 
 describe("generatePrepPack", () => {
   // LLM の生JSON出力を模したフィクスチャ（hintDefault はサーバ側で args.hintLang から計算される別物なので含めない）
+  // satisfies で chunks/outline の形状ドリフトはコンパイル時に検出する
   const valid = {
     chunks: [
       { en: "The main problem we had was ...", ja: "一番の問題は…でした" },
       { en: "What worked well was ...", ja: "うまくいったのは…です" },
     ],
     outline: ["Opening: what the topic is", "Point 1", "Wrap-up"],
-  };
+  } satisfies Omit<PrepPack, "hintDefault">;
 
   test("正常系: JSONを構造化して返し、topicとhintsがプロンプトに入る", async () => {
     const { runner, seen } = runnerReturning(JSON.stringify(valid));
