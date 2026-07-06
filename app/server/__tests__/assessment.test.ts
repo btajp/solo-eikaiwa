@@ -105,7 +105,7 @@ describe("assessment / worstCategories の閾値", () => {
     const data = assemble("2026-07-06");
     expect(data.worstCategories).toHaveLength(1);
     expect(data.worstCategories[0]).toMatchObject({ categoryNo: 10, category: "仮定法", reviewed: 6 });
-    expect(data.worstCategories[0].badRate).toBeCloseTo(2 / 6, 5);
+    expect(data.worstCategories[0].badRate).toBe(0.333); // 実装は3桁丸め
   });
 });
 
