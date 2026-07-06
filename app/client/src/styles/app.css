@@ -134,6 +134,20 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 .drill-title { font-size: var(--fs-md); font-weight: 650; }
 .drill-min { font-size: var(--fs-sm); color: var(--text-muted); }
 .start-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+/* レベル測定の導線: 練習メニュー(drill-card)と区別するためアクセント地のcalloutにする */
+.placement-callout {
+  display: flex; align-items: center; gap: var(--sp-3); width: 100%;
+  background: var(--accent-soft); border: 1px solid transparent; border-radius: var(--radius-md);
+  padding: var(--sp-3) var(--sp-4); cursor: pointer; font: inherit; text-align: left;
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+.placement-callout:hover { border-color: var(--accent); box-shadow: var(--shadow-1); }
+.placement-callout .drill-title { color: var(--accent); }
+.placement-callout-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; flex: none; font-size: 20px;
+  background: var(--surface); border-radius: var(--radius-sm);
+}
 .calendar-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: var(--sp-3); }
 .calendar-head h3 { font-size: var(--fs-md); margin: 0; }
 /* GitHub風: 列=週(8本)・各列は上から月→日の7日 */

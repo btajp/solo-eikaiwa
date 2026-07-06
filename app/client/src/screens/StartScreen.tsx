@@ -154,6 +154,9 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
         <h2 className="hero-title">{t.hero.title}</h2>
       </div>
 
+      {/* 未測定の測定導線は「最初の一歩」なのでヒーロー直下。練習メニュー群とは別物として扱う */}
+      {placementCard === "new" && <PlacementCallout kind="new" tp={tp} onGo={() => props.onSelect({ type: "placement" })} />}
+
       <div>
         <p className="section-label">{t.quick.label} <span className="section-note">{t.quick.note}</span></p>
         <div className="drill-grid">
@@ -195,16 +198,7 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
         </div>
       </div>
 
-      {placementCard !== "none" && (
-        <button className="drill-card" onClick={() => props.onSelect({ type: "placement" })}>
-          <span className="drill-icon c-purple" aria-hidden="true">📐</span>
-          <span className="drill-body">
-            <span className="drill-title">{placementCard === "new" ? tp.cardTitleNew : tp.cardTitleMonthly}</span>
-            <span className="drill-desc">{placementCard === "new" ? tp.cardBodyNew : tp.cardBodyMonthly}</span>
-          </span>
-          <span className="drill-arrow" aria-hidden="true">→</span>
-        </button>
-      )}
+      {placementCard === "monthly" && <PlacementCallout kind="monthly" tp={tp} onGo={() => props.onSelect({ type: "placement" })} />}
 
       {summary?.proposal && (
         <ProposalCard
@@ -233,6 +227,25 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
         {t.cta(pickText.title, pickText.minutes)}
       </button>
     </div>
+  );
+}
+
+/** レベル測定への導線。練習メニューではなく「測定」なので drill-card とは別の見た目にする */
+function PlacementCallout(props: {
+  kind: "new" | "monthly";
+  tp: (typeof STR)["en"]["placement"];
+  onGo: () => void;
+}) {
+  const { kind, tp } = props;
+  return (
+    <button className="placement-callout" onClick={props.onGo}>
+      <span className="placement-callout-icon" aria-hidden="true">📐</span>
+      <span className="drill-body">
+        <span className="drill-title">{kind === "new" ? tp.cardTitleNew : tp.cardTitleMonthly}</span>
+        <span className="drill-desc">{kind === "new" ? tp.cardBodyNew : tp.cardBodyMonthly}</span>
+      </span>
+      <span className="drill-arrow" aria-hidden="true">→</span>
+    </button>
   );
 }
 
