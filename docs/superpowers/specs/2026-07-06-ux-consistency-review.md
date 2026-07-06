@@ -91,6 +91,8 @@
 - i18n.ts の神型 Strings → 画面別サブ辞書の合成に再構成。`drills: Record<string, …>` を union キーに戻して型検査を復活（P4 の8画面辞書化と同時実施が一石二鳥）
 - SentencesScreen（415行）→ PracticeTab / BrowseTab をファイル分割。行TTS再生イディオム5箇所をフック化
 
+R3 完了時の繰越観点（final review 由来）: ① db.ts が placement/assessment import 経由で LLM SDK を推移的に巻き込む（循環なし・実害なしだが、将来 converse.ts に db 系 import を足すと実循環化する伏線 — ストアと LLM ロジックの分離は R4/R5 規模）② GRADES 定数の重複（routes/sentences.ts / routes/chunks.ts — 単一ソース化の自然な置き場は type Grade を持つ sentences.ts）
+
 ### R5: 小粒（余裕があれば）
 - routes.test の Request 生成ボイラープレート113箇所 → post/get ヘルパ
 - 31日月の cached 無反応への UI フィードバック / kebab-case・空title 拒否テスト / rollback 実書き込み後経路テスト

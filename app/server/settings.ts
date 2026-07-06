@@ -11,7 +11,7 @@ function defaultFile(): string {
   return path.join(PROGRESS_DIR, "settings.json");
 }
 
-/** 存在しない・破損・不正形状はデフォルトにフォールバック（menu.ts の readJsonSafe と同方針） */
+/** 存在しない・破損・不正形状はデフォルトにフォールバック（rotation.ts の readJsonSafe と同方針） */
 export function readSettings(file: string = defaultFile()): Settings {
   if (!existsSync(file)) return { ...DEFAULT_SETTINGS };
   try {

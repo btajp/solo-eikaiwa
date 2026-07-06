@@ -30,7 +30,7 @@ export function categoryBadRates(db: Database, sentences: Sentence[]): CategoryR
 }
 
 /**
- * CLI(sentences): 生成対象カテゴリの選定。評価5文以上・bad率>0 のうち bad率降順（同率は reviewed降順）でワースト3。
+ * 苦手カテゴリのワースト選定（content-gen の生成対象選定と assessment の月次レポートが共用）。評価5文以上・bad率>0 のうち bad率降順（同率は reviewed降順）でワースト3。
  * categoryBadRates() は既にこの順で返すが、入力順序に依存しないようここでも明示的にソートする。
  */
 export function pickWorstCategories(rates: CategoryRate[], minReviewed = 5, top = 3): CategoryRate[] {
