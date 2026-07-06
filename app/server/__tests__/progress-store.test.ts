@@ -239,4 +239,19 @@ describe("progress-store: levelAction", () => {
     expect(store.levelAction("accept", undefined, T)).toBeNull();
     expect(store.levelAction("decline", undefined, T)).toBeNull();
   });
+  test("同一レベルへの set は no-op（xpIntoLevel維持・level_events未記録）", () => {
+    const { db, store } = freshStore();
+    store.addXp("block", 10, {}, T); // xpIntoLevel を 0 以外にしておく
+    const before = store.getSummary(T);
+    expect(before.level).toBe(13);
+    expect(before.xpIntoLevel).toBe(10);
+    const countBefore = db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM level_events").get()!.n;
+
+    const s = store.levelAction("set", 13, T)!;
+
+    expect(s.level).toBe(13);
+    expect(s.xpIntoLevel).toBe(10); // リセットされない
+    const countAfter = db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM level_events").get()!.n;
+    expect(countAfter).toBe(countBefore); // level_events 行が増えない
+  });
 });

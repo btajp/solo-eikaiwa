@@ -245,12 +245,16 @@ async function handleProgressLevel(req: Request, deps: RouteDeps): Promise<Respo
     return json({ error: `action must be one of: ${LEVEL_ACTIONS.join(", ")}` }, 400);
   }
   if (level !== undefined && typeof level !== "number") return json({ error: "level must be a number" }, 400);
+  // set がレベルを実際に変えたかどうかを判定するため、変異前のレベルを捕捉しておく
+  const previousLevel = action === "set" ? deps.progressStore.getLevel() : undefined;
   const s = deps.progressStore.levelAction(action as "accept" | "decline" | "set", level as number | undefined);
   if (!s) {
     return json({ error: action === "set" ? "level must be an integer between 1 and 999" : "no active proposal" }, 400);
   }
   // 明示的なレベル変更（accept/set）は当日中に反映させる。decline は据え置きなので無効化しない。
-  if (action !== "decline") deps.invalidateMenuCache();
+  // 同一レベルへの set は no-op なので無効化しない。
+  const setWasNoop = action === "set" && previousLevel === level;
+  if (action !== "decline" && !setWasNoop) deps.invalidateMenuCache();
   return json(s);
 }
 

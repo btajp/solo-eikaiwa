@@ -854,6 +854,29 @@ describe("routes: progress", () => {
     expect(declineRes.status).toBe(200);
     expect(invalidateCalls).toBe(2); // decline は無効化しない
   });
+  test("POST /api/progress/level: 同一レベルへの set はメニューキャッシュを無効化しない", async () => {
+    let invalidateCalls = 0;
+    const { deps } = makeTestDeps({
+      invalidateMenuCache: () => { invalidateCalls++; },
+      progressStore: {
+        getLevel: () => 13, getSummary: () => FAKE_SUMMARY,
+        addXp: () => FAKE_SUMMARY,
+        blockStart: () => ({ attemptId: 1 }),
+        levelAction: () => FAKE_SUMMARY, // 現状レベル(13)と同じ level=13 で set
+      } as RouteDeps["progressStore"],
+    });
+    const handler = makeFetchHandler(deps);
+
+    const noopRes = await handler(new Request("http://localhost/api/progress/level", {
+      method: "POST", body: JSON.stringify({ action: "set", level: 13 }) }));
+    expect(noopRes.status).toBe(200);
+    expect(invalidateCalls).toBe(0);
+
+    const changedRes = await handler(new Request("http://localhost/api/progress/level", {
+      method: "POST", body: JSON.stringify({ action: "set", level: 20 }) }));
+    expect(changedRes.status).toBe(200);
+    expect(invalidateCalls).toBe(1); // 実際にレベルが変わる set は無効化する
+  });
   test("POST /api/sentences/grade は srs-grade XP を付与する（good=2, soso=1）", async () => {
     const calls: Array<{ kind: string; amount: number }> = [];
     const { deps } = makeTestDeps({

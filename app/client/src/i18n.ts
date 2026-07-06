@@ -35,6 +35,7 @@ type Strings = {
     completionRate: (pct: number) => string;
     fttAborts: (n: number) => string;
     acceptUp: string; acceptDown: string; decline: string;
+    actionError: string;
   };
 };
 
@@ -79,6 +80,7 @@ export const STR: Record<Lang, Strings> = {
       completionRate: (pct) => `${pct}% of recent blocks completed`,
       fttAborts: (n) => `${n} of the last five 4/3/2 blocks were cut short`,
       acceptUp: "Level up", acceptDown: "Move down", decline: "Not now",
+      actionError: "Couldn't apply. Refreshed the latest state.",
     },
   },
   ja: {
@@ -117,6 +119,7 @@ export const STR: Record<Lang, Strings> = {
       completionRate: (pct) => `直近ブロックの完了率 ${pct}%`,
       fttAborts: (n) => `直近5回の4/3/2のうち${n}回が中断`,
       acceptUp: "レベルアップ", acceptDown: "レベルを下げる", decline: "今はしない",
+      actionError: "適用できませんでした。最新の状態に更新しました",
     },
   },
 };

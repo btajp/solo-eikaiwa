@@ -198,6 +198,8 @@ export function makeProgressStore(db: Database): ProgressStore {
       const row = ensureRow();
       if (action === "set") {
         if (level === undefined || !Number.isInteger(level) || level < 1 || level > 999) return null;
+        // 同一レベルへの set は no-op（xp_into_level を維持し、level_events も記録しない）
+        if (level === row.level) return summarize(row, today);
         recordLevelEvent("manual-set", row.level, level, null, today);
         row.level = level;
         row.xp_into_level = 0;

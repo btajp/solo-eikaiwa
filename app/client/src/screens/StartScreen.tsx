@@ -113,6 +113,7 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
   const t = STR[props.lang];
   const [days, setDays] = useState<string[]>([]);
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
+  const [proposalError, setProposalError] = useState(false);
   const aliveRef = useRef(true);
   const fetchedRef = useRef(false);
 
@@ -184,12 +185,20 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
 
       {summary?.proposal && (
         <ProposalCard
-          proposal={summary.proposal} lang={props.lang}
+          proposal={summary.proposal} lang={props.lang} error={proposalError}
           onAction={async (action) => {
+            setProposalError(false);
             try {
               setSummary(await progressLevelAction(action));
             } catch (err) {
               console.warn("level action failed:", err);
+              setProposalError(true);
+              // 提案カードが実状態と食い違わないよう、最新のsummaryに同期する（提案が消えていればカードも消える）
+              try {
+                setSummary(await fetchProgressSummary());
+              } catch (refetchErr) {
+                console.warn("progress summary refetch failed:", refetchErr);
+              }
             }
           }}
         />
@@ -206,7 +215,7 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
 
 /** 昇格/降格の提案カード。根拠を実値で開示する（研究制約: 情報的フィードバック・中立トーン） */
 function ProposalCard(props: {
-  proposal: LevelProposal; lang: Lang;
+  proposal: LevelProposal; lang: Lang; error: boolean;
   onAction: (action: "accept" | "decline") => void;
 }) {
   const t = STR[props.lang].progress;
@@ -216,7 +225,8 @@ function ProposalCard(props: {
   if (r.xpReached) lines.push(t.xpReached);
   if (typeof r.practicedDays14 === "number") lines.push(t.practicedDays(r.practicedDays14));
   if (typeof r.completionRate === "number") lines.push(t.completionRate(Math.round(r.completionRate * 100)));
-  if (typeof r.fttAborts === "number" && proposal.kind === "down") lines.push(t.fttAborts(r.fttAborts));
+  // 0回中断は根拠として提示する意味がないため、1回以上のときだけ表示する
+  if (typeof r.fttAborts === "number" && r.fttAborts > 0 && proposal.kind === "down") lines.push(t.fttAborts(r.fttAborts));
   return (
     <div className="card proposal-card">
       <h3>{proposal.kind === "up" ? t.upTitle : t.downTitle}</h3>
@@ -224,6 +234,7 @@ function ProposalCard(props: {
       <ul className="text-sm text-muted">
         {lines.map((l, i) => (<li key={i}>{l}</li>))}
       </ul>
+      {props.error && <div className="level-edit-error">{t.actionError}</div>}
       <div className="proposal-actions">
         <Button variant="primary" onClick={() => props.onAction("accept")}>
           {proposal.kind === "up" ? t.acceptUp : t.acceptDown}
