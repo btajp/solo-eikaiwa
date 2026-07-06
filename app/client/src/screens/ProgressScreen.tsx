@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
   fetchLatestMonthlyReport, fetchMetricsSummary, fetchMonthlyReportList, requestMonthlyReport,
-  type MetricsSummary, type MonthlyReport, type MonthlyReportPreview,
+  type MonthlyReport, type MonthlyReportPreview,
 } from "../api";
 import { STR, type Lang } from "../i18n";
+import { useLoad } from "../useLoad";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
-
-type LoadState = "loading" | "ready" | "error";
 
 function fmtMin(sec: number): string {
   return (sec / 60).toFixed(1);
@@ -25,41 +24,13 @@ function trendArrow(cur: number, prev: number): string {
 
 export function ProgressScreen({ lang }: { lang: Lang }) {
   const t = STR[lang].progress;
-  const [state, setState] = useState<LoadState>("loading");
-  const [summary, setSummary] = useState<MetricsSummary | null>(null);
-  const [errorMsg, setErrorMsg] = useState("");
-  const aliveRef = useRef(true);
-  const fetchedRef = useRef(false);
+  const { state, reload } = useLoad(() => fetchMetricsSummary(14));
 
-  useEffect(() => {
-    aliveRef.current = true;
-    if (!fetchedRef.current) {
-      fetchedRef.current = true;
-      load();
-    }
-    return () => { aliveRef.current = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function load() {
-    setState("loading");
-    setErrorMsg("");
-    try {
-      const s = await fetchMetricsSummary(14);
-      if (!aliveRef.current) return;
-      setSummary(s);
-      setState("ready");
-    } catch (err) {
-      if (!aliveRef.current) return;
-      setErrorMsg(err instanceof Error ? err.message : String(err));
-      setState("error");
-    }
+  if (state.status === "loading") return <p className="text-muted">{t.loading}</p>;
+  if (state.status === "error") {
+    return <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{state.error}</Banner>;
   }
-
-  if (state === "loading") return <p className="text-muted">{t.loading}</p>;
-  if (state === "error" || !summary) {
-    return <Banner kind="error" action={<Button onClick={load}>{t.retry}</Button>}>{errorMsg}</Banner>;
-  }
+  const summary = state.data;
 
   const days = summary.days;
   const hasData = days.some((d) => d.utterances > 0);

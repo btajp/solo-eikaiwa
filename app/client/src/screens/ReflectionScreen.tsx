@@ -1,33 +1,22 @@
-import { useEffect, useState } from "react";
-import { fetchReflection, type Reflection } from "../api";
+import { fetchReflection } from "../api";
+import { useLoad } from "../useLoad";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 
 export function ReflectionScreen() {
-  const [reflection, setReflection] = useState<Reflection | null>(null);
-  const [errorMsg, setErrorMsg] = useState("");
+  const { state, reload } = useLoad(fetchReflection);
 
-  function loadReflection() {
-    setErrorMsg("");
-    fetchReflection()
-      .then(setReflection)
-      .catch((err) => setErrorMsg(err instanceof Error ? err.message : String(err)));
-  }
-
-  useEffect(() => {
-    loadReflection();
-  }, []);
-
-  if (errorMsg) {
+  if (state.status === "error") {
     return (
       <div>
-        <Banner kind="error" action={<Button onClick={loadReflection}>再試行</Button>}>{errorMsg}</Banner>
+        <Banner kind="error" action={<Button onClick={reload}>再試行</Button>}>{state.error}</Banner>
       </div>
     );
   }
-  if (!reflection) return <p className="text-muted">コーチが今日のセッションを振り返っています…</p>;
+  if (state.status === "loading") return <p className="text-muted">コーチが今日のセッションを振り返っています…</p>;
 
+  const reflection = state.data;
   return (
     <div className="stack">
       {reflection.goodPhrases.length > 0 && (

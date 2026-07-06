@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
   deleteChunk, fetchChunks, fetchSentenceExplanation, fetchSentenceQueue, fetchSentences, gradeChunk, gradeSentence, playTtsCached,
-  type ChunkListItem, type QueueItem, type SentenceItem,
+  type ChunkListItem, type SentenceItem,
 } from "../api";
 import { stopPlayback } from "../audio";
 import { clozeText } from "../cloze";
 import { STR, type Lang } from "../i18n";
+import { useLoad } from "../useLoad";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -15,7 +16,6 @@ const HIDE_NOTE_KEY = "sentences.hideNote";
 
 type Tab = "practice" | "browse";
 type Phase = "prompt" | "cloze" | "answer";
-type LoadState = "loading" | "ready" | "error";
 
 function localYmd(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
@@ -33,8 +33,7 @@ function saveHideNote(v: boolean): void {
 /** 練習タブ: ja→（声に出す）→[歯抜け]→答えを見る→自動再生→自己評価、の産出リトリーバルフロー */
 function PracticeTab({ lang, hideNote }: { lang: Lang; hideNote: boolean }) {
   const t = STR[lang].sentences;
-  const [state, setState] = useState<LoadState>("loading");
-  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const load = useLoad(() => fetchSentenceQueue(NEW_PER_DAY));
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>("prompt");
   const [gradedCount, setGradedCount] = useState(0);
@@ -44,40 +43,15 @@ function PracticeTab({ lang, hideNote }: { lang: Lang; hideNote: boolean }) {
   // 「もっと詳しく」: null=未取得, "loading"=生成中, それ以外=解説テキスト
   const [explain, setExplain] = useState<string | null>(null);
   const aliveRef = useRef(true);
-  const fetchedRef = useRef(false);
 
   useEffect(() => {
     aliveRef.current = true;
-    if (!fetchedRef.current) {
-      fetchedRef.current = true;
-      load();
-    }
-    return () => {
-      aliveRef.current = false;
-      stopPlayback();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { aliveRef.current = false; stopPlayback(); };
   }, []);
 
-  async function load() {
-    setState("loading");
-    setErrorMsg("");
-    try {
-      const q = await fetchSentenceQueue(NEW_PER_DAY);
-      if (!aliveRef.current) return;
-      setQueue(q);
-      setIdx(0);
-      setPhase("prompt");
-      setState("ready");
-    } catch (err) {
-      if (!aliveRef.current) return;
-      setErrorMsg(err instanceof Error ? err.message : String(err));
-      setState("error");
-    }
-  }
-
+  const queue = load.state.status === "ready" ? load.state.data : [];
   const current = queue[idx];
-  const done = state === "ready" && !current;
+  const done = load.state.status === "ready" && !current;
 
   useEffect(() => {
     // 完了画面で「明日の復習予定数」を出す（情報表示のみ・失敗は無視）
@@ -123,9 +97,9 @@ function PracticeTab({ lang, hideNote }: { lang: Lang; hideNote: boolean }) {
     }
   }
 
-  if (state === "loading") return <p className="text-muted">{t.loading}</p>;
-  if (state === "error") {
-    return <Banner kind="error" action={<Button onClick={load}>{t.retry}</Button>}>{errorMsg}</Banner>;
+  if (load.state.status === "loading") return <p className="text-muted">{t.loading}</p>;
+  if (load.state.status === "error") {
+    return <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>{load.state.error}</Banner>;
   }
   if (done) {
     return (
@@ -217,51 +191,28 @@ function PracticeTab({ lang, hideNote }: { lang: Lang; hideNote: boolean }) {
 /** 一覧タブ: domainフィルタ + カテゴリ見出しでのブラウズ。SRS状態は情報表示のみ */
 function BrowseTab({ lang }: { lang: Lang }) {
   const t = STR[lang].sentences;
-  const [state, setState] = useState<LoadState>("loading");
-  const [items, setItems] = useState<SentenceItem[]>([]);
+  const load = useLoad(async () => {
+    const all = await fetchSentences();
+    // チャンクは補助セクション — 取得失敗でも例文一覧は表示する
+    let cs: ChunkListItem[] = [];
+    try { cs = await fetchChunks(); } catch { /* ignore */ }
+    return { items: all, chunks: cs };
+  });
   const [filter, setFilter] = useState<"all" | SentenceItem["domain"]>("all");
   const [playingNo, setPlayingNo] = useState<number | null>(null);
-  const [chunks, setChunks] = useState<ChunkListItem[]>([]);
   const [playingChunkId, setPlayingChunkId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [removedIds, setRemovedIds] = useState<number[]>([]);
   const aliveRef = useRef(true);
-  const fetchedRef = useRef(false);
 
   useEffect(() => {
     aliveRef.current = true;
-    if (!fetchedRef.current) {
-      fetchedRef.current = true;
-      load();
-    }
-    return () => {
-      aliveRef.current = false;
-      stopPlayback();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { aliveRef.current = false; stopPlayback(); };
   }, []);
 
-  async function load() {
-    setState("loading");
-    setErrorMsg("");
-    try {
-      const all = await fetchSentences();
-      if (!aliveRef.current) return;
-      setItems(all);
-      try {
-        const cs = await fetchChunks();
-        if (!aliveRef.current) return;
-        setChunks(cs);
-      } catch {
-        // チャンクは補助セクション — 取得失敗でも例文一覧は表示する
-      }
-      setState("ready");
-    } catch (err) {
-      if (!aliveRef.current) return;
-      setErrorMsg(err instanceof Error ? err.message : String(err));
-      setState("error");
-    }
-  }
+  const items = load.state.status === "ready" ? load.state.data.items : [];
+  const chunks = (load.state.status === "ready" ? load.state.data.chunks : []).filter((c) => !removedIds.includes(c.id));
 
   async function play(s: SentenceItem) {
     setPlayingNo(s.no);
@@ -296,7 +247,7 @@ function BrowseTab({ lang }: { lang: Lang }) {
     try {
       await deleteChunk(id);
       if (!aliveRef.current) return;
-      setChunks((cs) => cs.filter((c) => c.id !== id));
+      setRemovedIds((prev) => [...prev, id]);
     } catch (err) {
       if (!aliveRef.current) return;
       setErrorMsg(err instanceof Error ? err.message : String(err));
@@ -305,9 +256,9 @@ function BrowseTab({ lang }: { lang: Lang }) {
     }
   }
 
-  if (state === "loading") return <p className="text-muted">{t.loading}</p>;
-  if (state === "error") {
-    return <Banner kind="error" action={<Button onClick={load}>{t.retry}</Button>}>{errorMsg}</Banner>;
+  if (load.state.status === "loading") return <p className="text-muted">{t.loading}</p>;
+  if (load.state.status === "error") {
+    return <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>{load.state.error}</Banner>;
   }
   const shown = filter === "all" ? items : items.filter((s) => s.domain === filter);
   const categories = [...new Map(shown.map((s) => [s.category_no, s.category])).entries()]
