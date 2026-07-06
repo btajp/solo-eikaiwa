@@ -11,3 +11,6 @@ Roleplay setup:
 - The AI plays the pharmacist who asks about your symptoms
 - Goal: describe your symptoms, answer questions, and understand the instructions
 - Useful moves: say when it started, how strong it is, and ask about side effects
+> Hi, I'm not feeling well and I need some help.
+> I've had a headache and a sore throat since yesterday.
+> Could you recommend something for a cold?

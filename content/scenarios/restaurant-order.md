@@ -11,3 +11,6 @@ Roleplay setup:
 - The AI plays the server; later your order arrives wrong
 - Goal: ask questions about the menu, order, then politely point out the mix-up
 - Useful moves: ask for recommendations, mention what you cannot eat
+> Hi, could I see the menu, please?
+> What would you recommend here?
+> I'd like to order the pasta, please.

@@ -90,7 +90,7 @@ export function sessionEndKeepalive(sessionId: string): void {
   }).catch(() => {});
 }
 
-export type ContentItem = { id: string; kind: "topic" | "scenario"; title: string; titleJa: string; hints: string[] };
+export type ContentItem = { id: string; kind: "topic" | "scenario"; title: string; titleJa: string; hints: string[]; starters?: string[] };
 export type MenuBlock = { id: string; kind: string; title: string; minutes: number; params: { topic?: ContentItem; scenario?: ContentItem; roundsSec?: number[]; modelTalkMode?: "auto" | "button" | "none" } };
 export type Menu = { minutes: number; date: string; blocks: MenuBlock[] };
 export type AeItem = { quote: string; issue: string; better: string; why_ja: string };
