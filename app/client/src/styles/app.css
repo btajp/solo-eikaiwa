@@ -267,3 +267,7 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 .sentence-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .sentence-ja-sub { color: var(--text-muted); font-size: var(--fs-sm); }
 .sentence-srs { white-space: nowrap; }
+.sentence-cloze { font-size: var(--fs-lg); line-height: var(--lh-reading); font-weight: 600; letter-spacing: 0.02em; }
+.sentences-toolbar { align-items: center; }
+.hide-note-toggle { display: inline-flex; align-items: center; gap: var(--sp-1); margin-left: auto; cursor: pointer; user-select: none; }
+.hide-note-toggle input { accent-color: var(--accent); }

@@ -108,7 +108,7 @@ export function App() {
         </div>
       )}
       {mode.kind === "library" && <LibraryScreen />}
-      {mode.kind === "sentences" && <SentencesScreen />}
+      {mode.kind === "sentences" && <SentencesScreen lang={lang} />}
       {mode.kind === "placement" && <PlacementScreen lang={lang} onExit={() => setMode({ kind: "start" })} />}
       </main>
     </div>

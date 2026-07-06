@@ -4,17 +4,17 @@ import {
   type SentenceItem,
 } from "../api";
 import { stopPlayback } from "../audio";
+import { clozeText } from "../cloze";
+import { STR, type Lang } from "../i18n";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 
-const DOMAIN_LABEL: Record<SentenceItem["domain"], string> = {
-  daily: "日常", business: "ビジネス", it: "IT",
-};
 const NEW_PER_DAY = 10;
+const HIDE_NOTE_KEY = "sentences.hideNote";
 
 type Tab = "practice" | "browse";
-type Phase = "prompt" | "answer";
+type Phase = "prompt" | "cloze" | "answer";
 type LoadState = "loading" | "ready" | "error";
 
 function localYmd(d: Date): string {
@@ -22,8 +22,17 @@ function localYmd(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-/** 練習タブ: ja→（声に出す）→答えを見る→自動再生→自己評価、の産出リトリーバルフロー */
-function PracticeTab() {
+function loadHideNote(): boolean {
+  return localStorage.getItem(HIDE_NOTE_KEY) === "1";
+}
+
+function saveHideNote(v: boolean): void {
+  localStorage.setItem(HIDE_NOTE_KEY, v ? "1" : "0");
+}
+
+/** 練習タブ: ja→（声に出す）→[歯抜け]→答えを見る→自動再生→自己評価、の産出リトリーバルフロー */
+function PracticeTab({ lang, hideNote }: { lang: Lang; hideNote: boolean }) {
+  const t = STR[lang].sentences;
   const [state, setState] = useState<LoadState>("loading");
   const [queue, setQueue] = useState<SentenceItem[]>([]);
   const [idx, setIdx] = useState(0);
@@ -74,9 +83,9 @@ function PracticeTab() {
     fetchSentences()
       .then((all) => {
         if (!aliveRef.current) return;
-        const t = new Date();
-        t.setDate(t.getDate() + 1);
-        const tomorrow = localYmd(t);
+        const tmr = new Date();
+        tmr.setDate(tmr.getDate() + 1);
+        const tomorrow = localYmd(tmr);
         setDueTomorrow(all.filter((s) => s.srs && s.srs.due <= tomorrow).length);
       })
       .catch(() => {});
@@ -110,32 +119,42 @@ function PracticeTab() {
     }
   }
 
-  if (state === "loading") return <p className="text-muted">読み込み中…</p>;
+  if (state === "loading") return <p className="text-muted">{t.loading}</p>;
   if (state === "error") {
-    return <Banner kind="error" action={<Button onClick={load}>再試行</Button>}>{errorMsg}</Banner>;
+    return <Banner kind="error" action={<Button onClick={load}>{t.retry}</Button>}>{errorMsg}</Banner>;
   }
   if (done) {
     return (
       <Card>
-        <p className="sentence-done">今日の分は完了です（{gradedCount}文）</p>
+        <p className="sentence-done">{t.doneTitle(gradedCount)}</p>
         <p className="text-muted">
-          {dueTomorrow === null ? "" : `明日の復習予定: ${dueTomorrow}文。`}
-          思い出して声に出すことが定着の近道です。また明日。
+          {dueTomorrow === null ? "" : t.dueTomorrow(dueTomorrow)}
+          {t.doneBody}
         </p>
       </Card>
     );
   }
   return (
     <div className="stack">
-      <p className="text-sm text-muted">残り {queue.length - idx} 文（うち評価済み {gradedCount}）</p>
+      <p className="text-sm text-muted">{t.remaining(queue.length - idx, gradedCount)}</p>
       <Card>
         <p className="sentence-ja">{current.ja}</p>
-        <p className="text-sm text-muted">{current.note}</p>
+        {!hideNote && <p className="text-sm text-muted">{current.note}</p>}
         {phase === "prompt" && (
           <>
-            <p className="text-muted">↑ を英語で、まず声に出して言ってみる</p>
+            <p className="text-muted">{t.sayItFirst}</p>
             <div className="round-actions">
-              <Button variant="primary" size="lg" onClick={reveal}>答えを見る</Button>
+              <Button variant="secondary" onClick={() => setPhase("cloze")}>{t.showCloze}</Button>
+              <Button variant="primary" size="lg" onClick={reveal}>{t.showAnswer}</Button>
+            </div>
+          </>
+        )}
+        {phase === "cloze" && (
+          <>
+            <p className="sentence-cloze">{clozeText(current.en, current.no)}</p>
+            <p className="text-muted">{t.clozeHint}</p>
+            <div className="round-actions">
+              <Button variant="primary" size="lg" onClick={reveal}>{t.showAnswer}</Button>
             </div>
           </>
         )}
@@ -143,14 +162,14 @@ function PracticeTab() {
           <>
             <p className="sentence-en">{current.en}</p>
             <div className="round-actions">
-              <Button variant="ghost" onClick={() => playTtsCached(current.en).catch(() => {})} ariaLabel="もう一度再生">
-                🔊 もう一度聞く
+              <Button variant="ghost" onClick={() => playTtsCached(current.en).catch(() => {})} ariaLabel={t.playAgain}>
+                {t.playAgain}
               </Button>
             </div>
             <div className="grade-row">
-              <Button onClick={() => grade("good")} disabled={busy}>✅ 言えた</Button>
-              <Button onClick={() => grade("soso")} disabled={busy}>😕 あいまい</Button>
-              <Button onClick={() => grade("bad")} disabled={busy}>❌ 出てこない</Button>
+              <Button onClick={() => grade("good")} disabled={busy}>{t.gradeGood}</Button>
+              <Button onClick={() => grade("soso")} disabled={busy}>{t.gradeSoso}</Button>
+              <Button onClick={() => grade("bad")} disabled={busy}>{t.gradeBad}</Button>
             </div>
           </>
         )}
@@ -161,7 +180,8 @@ function PracticeTab() {
 }
 
 /** 一覧タブ: domainフィルタ + カテゴリ見出しでのブラウズ。SRS状態は情報表示のみ */
-function BrowseTab() {
+function BrowseTab({ lang }: { lang: Lang }) {
+  const t = STR[lang].sentences;
   const [state, setState] = useState<LoadState>("loading");
   const [items, setItems] = useState<SentenceItem[]>([]);
   const [filter, setFilter] = useState<"all" | SentenceItem["domain"]>("all");
@@ -210,9 +230,9 @@ function BrowseTab() {
     }
   }
 
-  if (state === "loading") return <p className="text-muted">読み込み中…</p>;
+  if (state === "loading") return <p className="text-muted">{t.loading}</p>;
   if (state === "error") {
-    return <Banner kind="error" action={<Button onClick={load}>再試行</Button>}>{errorMsg}</Banner>;
+    return <Banner kind="error" action={<Button onClick={load}>{t.retry}</Button>}>{errorMsg}</Banner>;
   }
   const shown = filter === "all" ? items : items.filter((s) => s.domain === filter);
   const categories = [...new Map(shown.map((s) => [s.category_no, s.category])).entries()]
@@ -226,7 +246,7 @@ function BrowseTab() {
             className={`filter-chip${filter === f ? " is-active" : ""}`}
             onClick={() => setFilter(f)}
           >
-            {f === "all" ? "すべて" : DOMAIN_LABEL[f]}
+            {f === "all" ? t.filterAll : t.domain[f]}
           </button>
         ))}
       </div>
@@ -239,7 +259,7 @@ function BrowseTab() {
                 variant="ghost"
                 onClick={() => play(s)}
                 disabled={playingNo !== null}
-                ariaLabel={`No.${s.no} を再生`}
+                ariaLabel={t.playAria(s.no)}
               >
                 {playingNo === s.no ? "🔊" : "▶"}
               </Button>
@@ -249,7 +269,7 @@ function BrowseTab() {
                 <span className="text-sm text-muted">{s.note}</span>
               </div>
               <span className="sentence-srs text-sm text-muted">
-                {s.srs ? `st${s.srs.stage} ・ ${s.srs.due.slice(5)}` : "未学習"}
+                {s.srs ? `st${s.srs.stage} ・ ${s.srs.due.slice(5)}` : t.srsNew}
               </span>
             </div>
           ))}
@@ -259,23 +279,37 @@ function BrowseTab() {
   );
 }
 
-export function SentencesScreen() {
+export function SentencesScreen({ lang }: { lang: Lang }) {
+  const t = STR[lang].sentences;
   const [tab, setTab] = useState<Tab>("practice");
+  const [hideNote, setHideNote] = useState(() => loadHideNote());
+
+  function toggleHideNote() {
+    setHideNote((v) => {
+      saveHideNote(!v);
+      return !v;
+    });
+  }
+
   return (
     <div className="stack">
       <div className="hero">
-        <h2 className="hero-title">暗記例文300</h2>
-        <p className="hero-date">日本語を見て、まず声に出す — 思い出す練習が記憶を作ります</p>
+        <h2 className="hero-title">{t.heroTitle}</h2>
+        <p className="hero-date">{t.heroDesc}</p>
       </div>
-      <div className="filter-row">
+      <div className="filter-row sentences-toolbar">
         <button className={`filter-chip${tab === "practice" ? " is-active" : ""}`} onClick={() => setTab("practice")}>
-          今日の練習
+          {t.tabPractice}
         </button>
         <button className={`filter-chip${tab === "browse" ? " is-active" : ""}`} onClick={() => setTab("browse")}>
-          一覧
+          {t.tabBrowse}
         </button>
+        <label className="hide-note-toggle text-sm text-muted">
+          <input type="checkbox" checked={hideNote} onChange={toggleHideNote} />
+          {t.hideNoteLabel}
+        </label>
       </div>
-      {tab === "practice" ? <PracticeTab /> : <BrowseTab />}
+      {tab === "practice" ? <PracticeTab lang={lang} hideNote={hideNote} /> : <BrowseTab lang={lang} />}
     </div>
   );
 }

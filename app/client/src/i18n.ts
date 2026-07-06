@@ -52,6 +52,25 @@ type Strings = {
     xpNote: string;
     micError: (detail: string) => string;
   };
+  sentences: {
+    heroTitle: string; heroDesc: string;
+    tabPractice: string; tabBrowse: string;
+    hideNoteLabel: string;
+    loading: string; retry: string;
+    remaining: (left: number, graded: number) => string;
+    sayItFirst: string;
+    showCloze: string; showAnswer: string;
+    clozeHint: string;
+    playAgain: string;
+    gradeGood: string; gradeSoso: string; gradeBad: string;
+    doneTitle: (n: number) => string;
+    dueTomorrow: (n: number) => string;
+    doneBody: string;
+    filterAll: string;
+    domain: { daily: string; business: string; it: string };
+    srsNew: string;
+    playAria: (no: number) => string;
+  };
 };
 
 const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -121,6 +140,26 @@ export const STR: Record<Lang, Strings> = {
       xpNote: "+10 XP for completing the check",
       micError: (detail) => `Can't access the microphone: ${detail}`,
     },
+    sentences: {
+      heroTitle: "300 Sentences",
+      heroDesc: "Read the Japanese, say it out loud first — recalling is what builds memory",
+      tabPractice: "Today's practice", tabBrowse: "Browse",
+      hideNoteLabel: "Hide hints",
+      loading: "Loading…", retry: "Retry",
+      remaining: (left, graded) => `${left} left (${graded} graded)`,
+      sayItFirst: "↑ Say it in English out loud first",
+      showCloze: "Show gaps", showAnswer: "Show answer",
+      clozeHint: "Fill the gaps out loud, then check the answer",
+      playAgain: "🔊 Play again",
+      gradeGood: "✅ Got it", gradeSoso: "😕 Shaky", gradeBad: "❌ Didn't come out",
+      doneTitle: (n) => `Done for today (${n} sentences)`,
+      dueTomorrow: (n) => `Due tomorrow: ${n}. `,
+      doneBody: "Recalling out loud is the shortest path to retention. See you tomorrow.",
+      filterAll: "All",
+      domain: { daily: "Daily", business: "Business", it: "IT" },
+      srsNew: "New",
+      playAria: (no) => `Play No.${no}`,
+    },
   },
   ja: {
     nav: { home: "ホーム", free: "自由会話", library: "ライブラリ", sentences: "暗記例文300" },
@@ -183,6 +222,26 @@ export const STR: Record<Lang, Strings> = {
       confirmError: "適用できませんでした。もう一度お試しください",
       xpNote: "測定完了で +10 XP",
       micError: (detail) => `マイクにアクセスできません: ${detail}`,
+    },
+    sentences: {
+      heroTitle: "暗記例文300",
+      heroDesc: "日本語を見て、まず声に出す — 思い出す練習が記憶を作ります",
+      tabPractice: "今日の練習", tabBrowse: "一覧",
+      hideNoteLabel: "ヒントを隠す",
+      loading: "読み込み中…", retry: "再試行",
+      remaining: (left, graded) => `残り ${left} 文（うち評価済み ${graded}）`,
+      sayItFirst: "↑ を英語で、まず声に出して言ってみる",
+      showCloze: "歯抜けを見る", showAnswer: "答えを見る",
+      clozeHint: "空欄を埋めながらもう一度声に出して、答え合わせへ",
+      playAgain: "🔊 もう一度聞く",
+      gradeGood: "✅ 言えた", gradeSoso: "😕 あいまい", gradeBad: "❌ 出てこない",
+      doneTitle: (n) => `今日の分は完了です（${n}文）`,
+      dueTomorrow: (n) => `明日の復習予定: ${n}文。`,
+      doneBody: "思い出して声に出すことが定着の近道です。また明日。",
+      filterAll: "すべて",
+      domain: { daily: "日常", business: "ビジネス", it: "IT" },
+      srsNew: "未学習",
+      playAria: (no) => `No.${no} を再生`,
     },
   },
 };
