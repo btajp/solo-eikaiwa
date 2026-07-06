@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { PROGRESS_DIR, SCENARIOS_DIR, TOPICS_DIR } from "./paths";
 import { DEFAULT_LEVEL, fttMiniRoundsSec, fttRoundsSec, prepParams, stageOf } from "./progression";
@@ -16,7 +16,8 @@ export type ContentItem = {
   domain: Domain; level: [number, number];
 };
 export type MenuBlock = { id: string; kind: BlockKind; title: string; minutes: number; params: Record<string, unknown> };
-export type Menu = { minutes: number; date: string; blocks: MenuBlock[] };
+/** level: メニュー構築時点のレベル。日次キャッシュの有効性判定（isValidMenuShape）に使う */
+export type Menu = { minutes: number; date: string; level: number; blocks: MenuBlock[] };
 /** id → 使用日(YYYY-MM-DD)の配列。新しい日付が末尾、最大7件保持 */
 export type UsageMap = Record<string, string[]>;
 
@@ -196,10 +197,14 @@ function saveRotation(usageFile: string, state: RotationState): void {
   writeFileSync(usageFile, JSON.stringify(state, null, 2));
 }
 
-/** JSONとしては妥当でも Menu の形になっていないキャッシュ（手動編集・古いフォーマット等）を弾く */
+/**
+ * JSONとしては妥当でも Menu の形になっていないキャッシュ（手動編集・古いフォーマット等）を弾く。
+ * level フィールドを必須にすることで、Phase B 以前（レベル付きファイル名時代）の
+ * キャッシュ本体が万一残っていても自動的に無効化され再構築される。
+ */
 function isValidMenuShape(value: unknown): value is Menu {
-  const blocks = (value as Partial<Menu> | undefined)?.blocks;
-  return Array.isArray(blocks) && blocks.length > 0;
+  const v = value as Partial<Menu> | undefined;
+  return Array.isArray(v?.blocks) && v.blocks.length > 0 && typeof v?.level === "number";
 }
 
 export type MenuDeps = {
@@ -221,8 +226,10 @@ export function buildTodayMenu(minutes: 60 | 30, deps: MenuDeps = {}): Menu {
 
   const level = deps.level ?? DEFAULT_LEVEL;
   const stage = stageOf(level);
-  // キャッシュキーに level を含める: レベル変更時は同日でも再構築（旧形式ファイル名は自然に無効化）
-  const cacheFile = path.join(menuCacheDir, `menu-${ymd}-${minutes}-lv${level}.json`);
+  // キャッシュキーに level は含めない: 自動昇格が同日中に何度も起きても当日のメニューは固定する
+  // （lv接尾辞ありのファイル名は誤って読まれない＝旧形式は自然に無効化される）。
+  // レベル変更を同日に反映したい場合は invalidateTodayMenuCache を呼ぶ（明示的な変更のみ）。
+  const cacheFile = path.join(menuCacheDir, `menu-${ymd}-${minutes}.json`);
   const cached = readJsonSafe<Menu>(cacheFile);
   if (cached) {
     if (isValidMenuShape(cached)) return cached;
@@ -262,10 +269,25 @@ export function buildTodayMenu(minutes: 60 | 30, deps: MenuDeps = {}): Menu {
           { id: "b4", kind: "reflection", title: "振り返り", minutes: 2, params: {} },
         ];
 
-  const menu: Menu = { minutes, date: ymd, blocks };
+  const menu: Menu = { minutes, date: ymd, level, blocks };
   mkdirSync(menuCacheDir, { recursive: true });
   writeFileSync(cacheFile, JSON.stringify(menu, null, 2));
   return menu;
+}
+
+/**
+ * 当日分の通しメニューキャッシュ（menu-<ymd>-*.json）を削除する。
+ * 自動昇格では呼ばない（次回ビルドまで反映を持ち越すのが仕様）。
+ * 明示的なレベル変更（accept/set）の直後にだけ呼び、その日のうちに新レベルを反映させる。
+ */
+export function invalidateTodayMenuCache(todayYmd?: string, cacheDir?: string): void {
+  const menuCacheDir = cacheDir ?? PROGRESS_DIR;
+  const ymd = todayYmd ?? new Date().toISOString().slice(0, 10);
+  if (!existsSync(menuCacheDir)) return;
+  const prefix = `menu-${ymd}-`;
+  for (const f of readdirSync(menuCacheDir)) {
+    if (f.startsWith(prefix) && f.endsWith(".json")) unlinkSync(path.join(menuCacheDir, f));
+  }
 }
 
 /**
@@ -303,5 +325,5 @@ export function buildQuickMenu(kind: QuickKind, deps: MenuDeps = {}): Menu {
   }
 
   saveRotation(usageFile, state);
-  return { minutes: block.minutes, date: ymd, blocks: [block] };
+  return { minutes: block.minutes, date: ymd, level, blocks: [block] };
 }

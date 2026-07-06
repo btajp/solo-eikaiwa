@@ -3,7 +3,7 @@ import { transcribeAudio } from "./stt";
 import { synthesize } from "./tts";
 import { converseTurn } from "./converse";
 import { checkHealth } from "./health";
-import { buildQuickMenu, buildTodayMenu, loadContent } from "./menu";
+import { buildQuickMenu, buildTodayMenu, invalidateTodayMenuCache, loadContent } from "./menu";
 import { generateAeFeedback, generateModelTalk, generatePrepPack, generateReflection, roleplayPrompt } from "./coach";
 import { listPracticeDays, readEvents } from "./session-log";
 import { readSettings, writeSettings } from "./settings";
@@ -55,6 +55,7 @@ const realDeps: RouteDeps = {
   saveSettings: (s) => writeSettings(s),
   sentenceStore,
   progressStore,
+  invalidateMenuCache: () => invalidateTodayMenuCache(),
 };
 
 Bun.serve({

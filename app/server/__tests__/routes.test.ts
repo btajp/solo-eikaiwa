@@ -10,11 +10,13 @@ const FAKE_HEALTH = { ok: true, whisper: true, ffmpeg: true, claude: true, ttsKe
 const FAKE_MENU = {
   minutes: 60 as const,
   date: "2026-07-05",
+  level: 13,
   blocks: [{ id: "b1", kind: "reflection", title: "振り返り", minutes: 5, params: {} }],
 };
 const FAKE_QUICK_MENU = {
   minutes: 6,
   date: "2026-07-05",
+  level: 13,
   blocks: [{ id: "q1", kind: "warmup-reading", title: "音読ウォームアップ", minutes: 6, params: {} }],
 };
 const FAKE_AE = { items: [{ quote: "q", issue: "i", better: "b", why_ja: "w" }], praise: "p" };
@@ -85,6 +87,7 @@ function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
       levelAction: (action: string, level?: number) =>
         action === "set" && Number.isInteger(level) && (level as number) >= 1 ? FAKE_SUMMARY : null,
     } as RouteDeps["progressStore"],
+    invalidateMenuCache: () => {},
     ...overrides,
   };
   return { deps, logFile, recordingsDir };
@@ -821,6 +824,35 @@ describe("routes: progress", () => {
     const badAction = await handler(new Request("http://localhost/api/progress/level", {
       method: "POST", body: JSON.stringify({ action: "reset" }) }));
     expect(badAction.status).toBe(400);
+  });
+  test("POST /api/progress/level: accept/set 成功時のみ当日メニューキャッシュを無効化し、declineでは呼ばない", async () => {
+    let invalidateCalls = 0;
+    const { deps } = makeTestDeps({
+      invalidateMenuCache: () => { invalidateCalls++; },
+      progressStore: {
+        getLevel: () => 13, getSummary: () => FAKE_SUMMARY,
+        addXp: () => FAKE_SUMMARY,
+        blockStart: () => ({ attemptId: 1 }),
+        // テスト目的で action を問わず成功させ、accept/decline それぞれのハンドラ分岐だけを見る
+        levelAction: () => FAKE_SUMMARY,
+      } as RouteDeps["progressStore"],
+    });
+    const handler = makeFetchHandler(deps);
+
+    const setRes = await handler(new Request("http://localhost/api/progress/level", {
+      method: "POST", body: JSON.stringify({ action: "set", level: 20 }) }));
+    expect(setRes.status).toBe(200);
+    expect(invalidateCalls).toBe(1);
+
+    const acceptRes = await handler(new Request("http://localhost/api/progress/level", {
+      method: "POST", body: JSON.stringify({ action: "accept" }) }));
+    expect(acceptRes.status).toBe(200);
+    expect(invalidateCalls).toBe(2);
+
+    const declineRes = await handler(new Request("http://localhost/api/progress/level", {
+      method: "POST", body: JSON.stringify({ action: "decline" }) }));
+    expect(declineRes.status).toBe(200);
+    expect(invalidateCalls).toBe(2); // decline は無効化しない
   });
   test("POST /api/sentences/grade は srs-grade XP を付与する（good=2, soso=1）", async () => {
     const calls: Array<{ kind: string; amount: number }> = [];

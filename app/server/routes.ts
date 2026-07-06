@@ -44,6 +44,8 @@ export type RouteDeps = {
   sentenceStore: SentenceStore;
   /** レベル/XPの進行状態（実体は progress-store.ts、テストはフェイク） */
   progressStore: ProgressStore;
+  /** 明示的なレベル変更（accept/set）後に当日の通しメニューキャッシュを無効化する（decline では呼ばない） */
+  invalidateMenuCache: () => void;
 };
 
 function json(data: unknown, status = 200): Response {
@@ -247,6 +249,8 @@ async function handleProgressLevel(req: Request, deps: RouteDeps): Promise<Respo
   if (!s) {
     return json({ error: action === "set" ? "level must be an integer between 1 and 999" : "no active proposal" }, 400);
   }
+  // 明示的なレベル変更（accept/set）は当日中に反映させる。decline は据え置きなので無効化しない。
+  if (action !== "decline") deps.invalidateMenuCache();
   return json(s);
 }
 

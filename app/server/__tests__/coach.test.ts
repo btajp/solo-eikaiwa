@@ -121,6 +121,20 @@ describe("generatePrepPack", () => {
     expect(result.outline.join(" ")).toContain("just prose");
   });
 
+  test("hintLang \"en\" は全chunkのjaを空にする（stage4+はLLM出力に頼らずサーバ側で決定的に空にする）", async () => {
+    const { runner } = runnerReturning(JSON.stringify(valid));
+    const result = await generatePrepPack({ topicTitle: "t", hints: [], hintLang: "en" }, runner);
+    expect(result.chunks).toHaveLength(valid.chunks.length);
+    expect(result.chunks.every((c) => c.ja === "")).toBe(true);
+    expect(result.chunks.map((c) => c.en)).toEqual(valid.chunks.map((c) => c.en));
+  });
+
+  test("chunkCount がシステムプロンプトの \"Exactly N chunks\" に反映される", async () => {
+    const { runner, seen } = runnerReturning(JSON.stringify(valid));
+    await generatePrepPack({ topicTitle: "t", hints: [], chunkCount: 4 }, runner);
+    expect(seen[0].systemPrompt).toContain("Exactly 4 chunks");
+  });
+
   test("不正な項目をサニタイズ: 無効なchunksと非文字列outlineを除外", async () => {
     const malformed = {
       chunks: [

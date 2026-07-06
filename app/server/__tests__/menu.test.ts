@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, exist
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
-  buildQuickMenu, buildTodayMenu, loadContent, parseContentFile, pickNext,
+  buildQuickMenu, buildTodayMenu, invalidateTodayMenuCache, loadContent, parseContentFile, pickNext,
   pickNextByDomain, QUICK_KINDS,
   type ContentItem, type Domain, type MenuDeps, type QuickKind, type RotationState, type UsageMap,
 } from "../menu";
@@ -161,13 +161,13 @@ describe("buildTodayMenu", () => {
     expect(second).toEqual(first);
     const state = JSON.parse(readFileSync(dirs.usageFile, "utf8")) as RotationState;
     expect(state.usage.t1).toEqual(["2026-07-05"]); // 1回だけ
-    expect(existsSync(path.join(dirs.menuCacheDir, `menu-2026-07-05-60-lv${DEFAULT_LEVEL}.json`))).toBe(true);
+    expect(existsSync(path.join(dirs.menuCacheDir, "menu-2026-07-05-60.json"))).toBe(true);
   });
 
   test("破損したキャッシュファイルは無視して再構築し、正しいJSONで上書きする", () => {
     const dirs = makeContentDirs();
     mkdirSync(dirs.menuCacheDir, { recursive: true });
-    const cacheFile = path.join(dirs.menuCacheDir, `menu-2026-07-05-60-lv${DEFAULT_LEVEL}.json`);
+    const cacheFile = path.join(dirs.menuCacheDir, "menu-2026-07-05-60.json");
     writeFileSync(cacheFile, "{ this is not valid json");
     const menu = buildTodayMenu(60, { ...dirs, today: JULY5 });
     expect(menu.date).toBe("2026-07-05");
@@ -179,7 +179,7 @@ describe("buildTodayMenu", () => {
   test("キャッシュが妥当なJSONでもMenuの形でない（blocksが配列でない/空）なら再構築して上書きする", () => {
     const dirs = makeContentDirs();
     mkdirSync(dirs.menuCacheDir, { recursive: true });
-    const cacheFile = path.join(dirs.menuCacheDir, `menu-2026-07-05-60-lv${DEFAULT_LEVEL}.json`);
+    const cacheFile = path.join(dirs.menuCacheDir, "menu-2026-07-05-60.json");
     writeFileSync(cacheFile, JSON.stringify({ minutes: 60, date: "2026-07-05", blocks: "not-an-array" }));
     const menu = buildTodayMenu(60, { ...dirs, today: JULY5 });
     expect(menu.date).toBe("2026-07-05");
@@ -191,10 +191,26 @@ describe("buildTodayMenu", () => {
   test("キャッシュのblocksが空配列でも再構築する", () => {
     const dirs = makeContentDirs();
     mkdirSync(dirs.menuCacheDir, { recursive: true });
-    const cacheFile = path.join(dirs.menuCacheDir, `menu-2026-07-05-60-lv${DEFAULT_LEVEL}.json`);
+    const cacheFile = path.join(dirs.menuCacheDir, "menu-2026-07-05-60.json");
     writeFileSync(cacheFile, JSON.stringify({ minutes: 60, date: "2026-07-05", blocks: [] }));
     const menu = buildTodayMenu(60, { ...dirs, today: JULY5 });
     expect(menu.blocks.length).toBe(5);
+  });
+
+  test("level フィールドの無い旧形式キャッシュ（Phase B 以前）は無効として再構築する", () => {
+    const dirs = makeContentDirs();
+    mkdirSync(dirs.menuCacheDir, { recursive: true });
+    const cacheFile = path.join(dirs.menuCacheDir, "menu-2026-07-05-60.json");
+    // blocks は妥当な形だが level フィールドが無い（旧形式）
+    writeFileSync(cacheFile, JSON.stringify({
+      minutes: 60, date: "2026-07-05",
+      blocks: [{ id: "b1", kind: "reflection", title: "old", minutes: 5, params: {} }],
+    }));
+    const menu = buildTodayMenu(60, { ...dirs, today: JULY5 });
+    expect(menu.blocks.length).toBe(5); // 旧キャッシュは使われず再構築された
+    expect(menu.level).toBe(DEFAULT_LEVEL);
+    const rewritten = JSON.parse(readFileSync(cacheFile, "utf8")) as typeof menu;
+    expect(rewritten).toEqual(menu);
   });
 
   test("破損した使用状況ファイルは空として扱い、メニューは構築され新規記録が作られる", () => {
@@ -359,22 +375,25 @@ describe("menu: レベル駆動", () => {
     expect(ftt.params.roundsSec).toEqual([120, 90, 60]);
   });
   test("modelTalkMode が stage に応じて params に載る（level 45 → button, 55 → none, 13 → auto）", () => {
-    const dirs = makeContentDirs();
+    // キャッシュは level を問わず同日1本なので、level ごとに別ディレクトリ（別キャッシュ）を使う
     for (const [level, mode] of [[45, "button"], [55, "none"], [13, "auto"]] as const) {
+      const dirs = makeContentDirs();
       const m = buildTodayMenu(60, { ...dirs, level, today: () => new Date("2026-07-06T09:00:00") });
       const ftt = m.blocks.find((b) => b.kind === "four-three-two")!;
       expect(ftt.params.modelTalkMode).toBe(mode);
     }
   });
-  test("キャッシュキーに level を含む: レベルが変わると同日でも再構築される", () => {
+  test("同日はレベルが変わってもキャッシュヒットし、当日のメニューは固定される（自動昇格の反映は翌日以降）", () => {
     const dirs = makeContentDirs();
     const today = () => new Date("2026-07-06T09:00:00");
     const m13 = buildTodayMenu(60, { ...dirs, level: 13, today });
+    const stateAfterFirst = readFileSync(dirs.usageFile, "utf8");
     const m21 = buildTodayMenu(60, { ...dirs, level: 21, today });
-    const f13 = m13.blocks.find((b) => b.kind === "four-three-two")!;
+    expect(m21).toEqual(m13); // レベルが変わっても同日はキャッシュヒットで同一メニュー
     const f21 = m21.blocks.find((b) => b.kind === "four-three-two")!;
-    expect(f13.params.roundsSec).toEqual([110, 85, 55]);
-    expect(f21.params.roundsSec).toEqual([120, 90, 60]);
+    expect(f21.params.roundsSec).toEqual([110, 85, 55]); // 構築時（level 13）の値のまま
+    // ローテーション状態が二重前進していないこと（キャッシュヒット時は pickNextByDomain/markUsed を再実行しない）
+    expect(readFileSync(dirs.usageFile, "utf8")).toBe(stateAfterFirst);
   });
 });
 
@@ -399,5 +418,41 @@ describe("menu: rotation state の防御（Phase A 持ち越し）", () => {
     const dirs = makeContentDirs();
     const m = buildTodayMenu(60, { ...dirs, usageFile, level: 13, today: () => new Date("2026-07-06T09:00:00") });
     expect(m.blocks.length).toBeGreaterThan(0);
+  });
+});
+
+describe("invalidateTodayMenuCache", () => {
+  test("当日分の menu-<ymd>-*.json だけ削除し、他日・無関係ファイルは残す", () => {
+    const dirs = makeContentDirs();
+    buildTodayMenu(60, { ...dirs, today: JULY5 });
+    buildTodayMenu(30, { ...dirs, today: JULY5 });
+    const otherDayFile = path.join(dirs.menuCacheDir, "menu-2026-07-04-60.json");
+    writeFileSync(otherDayFile, JSON.stringify({ minutes: 60, date: "2026-07-04", level: 13, blocks: [] }));
+    const unrelatedFile = path.join(dirs.menuCacheDir, "topic-usage.json");
+    writeFileSync(unrelatedFile, "{}");
+    expect(readdirSync(dirs.menuCacheDir).sort()).toEqual([
+      "menu-2026-07-04-60.json", "menu-2026-07-05-30.json", "menu-2026-07-05-60.json", "topic-usage.json",
+    ]);
+
+    invalidateTodayMenuCache("2026-07-05", dirs.menuCacheDir);
+
+    expect(readdirSync(dirs.menuCacheDir).sort()).toEqual(["menu-2026-07-04-60.json", "topic-usage.json"]);
+  });
+
+  test("キャッシュディレクトリが存在しなくても例外を投げない", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "menu-"));
+    expect(() => invalidateTodayMenuCache("2026-07-05", path.join(dir, "does-not-exist"))).not.toThrow();
+  });
+
+  test("無効化後の再構築はローテーションを再度前進させる（明示的変更は同日反映が優先）", () => {
+    const dirs = makeContentDirs();
+    const today = JULY5;
+    const first = buildTodayMenu(60, { ...dirs, level: 13, today });
+    invalidateTodayMenuCache("2026-07-05", dirs.menuCacheDir);
+    const second = buildTodayMenu(60, { ...dirs, level: 21, today });
+    const f2 = second.blocks.find((b) => b.kind === "four-three-two")!;
+    expect(f2.params.roundsSec).toEqual([120, 90, 60]); // 新レベルが即時反映される
+    expect(second.level).toBe(21);
+    expect(first.level).toBe(13);
   });
 });
