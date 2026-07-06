@@ -44,10 +44,14 @@ export const STOPWORDS: Set<string> = new Set([
 
 type Token = { text: string; isWord: boolean };
 
-/** 英字とアポストロフィの連なりを1語トークンとし、それ以外（空白・句読点）を区切りトークンとして保持 */
+/**
+ * Unicode文字（\p{L}）の連なりを1語トークンとし、それ以外（空白・句読点）を区切りトークンとして保持。
+ * アポストロフィは単語内部（両側が文字）のときだけ語に含める（例: "don't"）。
+ * 語の前後にある引用符としてのアポストロフィ（例: 'rollback'）は語に吸収しない。
+ */
 function tokenize(en: string): Token[] {
   const tokens: Token[] = [];
-  const re = /[A-Za-z']+/g;
+  const re = /\p{L}+(?:'\p{L}+)*/gu;
   let last = 0;
   for (let m = re.exec(en); m !== null; m = re.exec(en)) {
     if (m.index > last) tokens.push({ text: en.slice(last, m.index), isWord: false });

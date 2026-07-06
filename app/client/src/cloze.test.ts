@@ -60,4 +60,20 @@ describe("clozeText", () => {
   test("STOPWORDS は小文字で管理されている", () => {
     for (const w of STOPWORDS) expect(w).toBe(w.toLowerCase());
   });
+
+  test("no.50 実データ回帰: 非ASCII語（café）がトークン分断されず、丸ごとマスクまたは保持される", () => {
+    // sentences300.json no.50: "There might be a nice café near the station."
+    const en = "There might be a nice café near the station.";
+    const out = clozeText(en, 50);
+    // "café" がまとめてマスク／非マスクされていれば、"café" を除去した残りに「é」単体は残らない
+    expect(out.replace(/café/g, "")).not.toContain("é");
+  });
+
+  test("no.286 実データ回帰: 直線引用符は単語に吸収されず、両方とも出力に保存される", () => {
+    // sentences300.json no.286: "When you say 'rollback', do you mean the whole release?"
+    const en = "When you say 'rollback', do you mean the whole release?";
+    const out = clozeText(en, 286);
+    const quoteCount = (out.match(/'/g) ?? []).length;
+    expect(quoteCount).toBe(2);
+  });
 });
