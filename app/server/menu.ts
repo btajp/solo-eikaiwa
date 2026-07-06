@@ -3,7 +3,13 @@ import path from "node:path";
 import { PROGRESS_DIR, SCENARIOS_DIR, TOPICS_DIR } from "./paths";
 
 export type BlockKind = "chunk-placeholder" | "warmup-reading" | "four-three-two" | "roleplay" | "shadowing" | "reflection";
-export type ContentItem = { id: string; kind: "topic" | "scenario"; title: string; titleJa: string; hints: string[] };
+export type Domain = "daily" | "business" | "it";
+/** ドメインの巡回順（ラウンドロビンはこの順で次を探す） */
+export const DOMAINS: readonly Domain[] = ["daily", "business", "it"];
+export type ContentItem = {
+  id: string; kind: "topic" | "scenario"; title: string; titleJa: string; hints: string[];
+  domain: Domain; level: [number, number];
+};
 export type MenuBlock = { id: string; kind: BlockKind; title: string; minutes: number; params: Record<string, unknown> };
 export type Menu = { minutes: number; date: string; blocks: MenuBlock[] };
 /** id → 使用日(YYYY-MM-DD)の配列。新しい日付が末尾、最大7件保持 */
@@ -18,6 +24,26 @@ export const FTT_MINI_ROUNDS_SEC: readonly number[] = [120, 90];
 export type QuickKind = "warmup" | "ftt-mini" | "roleplay" | "shadowing";
 export const QUICK_KINDS: readonly QuickKind[] = ["warmup", "ftt-mini", "roleplay", "shadowing"];
 
+function parseDomain(raw: string | undefined): Domain {
+  if (raw === undefined) return "it";
+  if ((DOMAINS as readonly string[]).includes(raw)) return raw as Domain;
+  console.warn(`[menu] invalid domain "${raw}", falling back to "it"`);
+  return "it";
+}
+
+/** level: [min, max]（1..6, min<=max）。省略はデフォルト、不正は警告してデフォルト */
+function parseLevelRange(raw: string | undefined): [number, number] {
+  if (raw === undefined) return [1, 6];
+  const m = raw.match(/^\[\s*(\d+)\s*,\s*(\d+)\s*\]$/);
+  if (m) {
+    const min = Number(m[1]);
+    const max = Number(m[2]);
+    if (min >= 1 && max <= 6 && min <= max) return [min, max];
+  }
+  console.warn(`[menu] invalid level "${raw}", falling back to [1, 6]`);
+  return [1, 6];
+}
+
 export function parseContentFile(text: string): ContentItem | null {
   const m = text.match(/^---\n([\s\S]*?)\n---/);
   if (!m) return null;
@@ -31,7 +57,10 @@ export function parseContentFile(text: string): ContentItem | null {
   const hints = text.slice(m[0].length).split("\n")
     .filter((l) => l.trim().startsWith("- "))
     .map((l) => l.trim().slice(2));
-  return { id: fields.id, kind: fields.kind, title: fields.title, titleJa: fields.title_ja ?? "", hints };
+  return {
+    id: fields.id, kind: fields.kind, title: fields.title, titleJa: fields.title_ja ?? "", hints,
+    domain: parseDomain(fields.domain), level: parseLevelRange(fields.level),
+  };
 }
 
 export function loadContent(dir: string): ContentItem[] {

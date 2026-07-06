@@ -37,6 +37,7 @@ describe("parseContentFile / loadContent", () => {
     expect(item).toEqual({
       id: "abc", kind: "topic", title: "Hello Title", titleJa: "こんにちは",
       hints: ["first hint", "second hint"],
+      domain: "it", level: [1, 6],
     });
   });
 
@@ -51,13 +52,41 @@ describe("parseContentFile / loadContent", () => {
     const items = loadContent(topicsDir);
     expect(items.map((i) => i.id)).toEqual(["t1", "t2", "t3"]);
   });
+
+  test("domain と level をパースする", () => {
+    const item = parseContentFile(
+      `---\nid: abc\nkind: topic\ntitle: "T"\ntitle_ja: "t"\ndomain: daily\nlevel: [2, 4]\n---\n- hint\n`,
+    );
+    expect(item?.domain).toBe("daily");
+    expect(item?.level).toEqual([2, 4]);
+  });
+
+  test("domain / level 省略時はデフォルト（it / [1,6]）", () => {
+    const item = parseContentFile(
+      `---\nid: abc\nkind: topic\ntitle: "T"\ntitle_ja: "t"\n---\n- hint\n`,
+    );
+    expect(item?.domain).toBe("it");
+    expect(item?.level).toEqual([1, 6]);
+  });
+
+  test("不正な domain / level は警告してデフォルトにフォールバック", () => {
+    const bad = parseContentFile(
+      `---\nid: abc\nkind: topic\ntitle: "T"\ntitle_ja: "t"\ndomain: cooking\nlevel: [0, 9]\n---\n- hint\n`,
+    );
+    expect(bad?.domain).toBe("it");
+    expect(bad?.level).toEqual([1, 6]);
+    const reversed = parseContentFile(
+      `---\nid: abc\nkind: topic\ntitle: "T"\ntitle_ja: "t"\nlevel: [5, 2]\n---\n- hint\n`,
+    );
+    expect(reversed?.level).toEqual([1, 6]);
+  });
 });
 
 describe("pickNext", () => {
   const items: ContentItem[] = [
-    { id: "a", kind: "topic", title: "A", titleJa: "", hints: [] },
-    { id: "b", kind: "topic", title: "B", titleJa: "", hints: [] },
-    { id: "c", kind: "topic", title: "C", titleJa: "", hints: [] },
+    { id: "a", kind: "topic", title: "A", titleJa: "", hints: [], domain: "it", level: [1, 6] },
+    { id: "b", kind: "topic", title: "B", titleJa: "", hints: [], domain: "it", level: [1, 6] },
+    { id: "c", kind: "topic", title: "C", titleJa: "", hints: [], domain: "it", level: [1, 6] },
   ];
 
   test("未使用が最優先、同着は id 順", () => {
