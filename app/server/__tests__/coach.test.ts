@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  extractJson, generateAeFeedback, generateModelTalk, generatePrepPack, generateReflection, roleplayPrompt,
+  extractJson, generateAeFeedback, generateModelTalk, generatePhraseHints, generatePrepPack, generateReflection, roleplayPrompt,
   type AeFeedback, type PrepPack,
 } from "../coach";
 import type { ClaudeRunner } from "../converse";
@@ -151,6 +151,59 @@ describe("generatePrepPack", () => {
     expect(result.chunks).toEqual([{ en: "The main problem", ja: "一番の問題" }]);
     // Only "good" string should remain in outline
     expect(result.outline).toEqual(["good"]);
+  });
+});
+
+describe("generatePhraseHints", () => {
+  const valid = {
+    suggestions: [
+      { en: "I haven't tried that feature yet.", ja: "まだ試していない、の言い方" },
+      { en: "That's still on my to-do list.", ja: "これからやる予定、のニュアンス" },
+    ],
+  };
+
+  test("正常系: history がLearner/Partnerラベル付きでプロンプトに入り、jaTextも入る", async () => {
+    const { runner, seen } = runnerReturning(JSON.stringify(valid));
+    const result = await generatePhraseHints({
+      jaText: "その機能はまだ試していません",
+      history: [
+        { role: "ai", text: "Have you tried the new dashboard?" },
+        { role: "you", text: "Not yet." },
+      ],
+    }, runner);
+    expect(result).toEqual(valid);
+    expect(seen[0].prompt).toContain("Partner: Have you tried the new dashboard?");
+    expect(seen[0].prompt).toContain("Learner: Not yet.");
+    expect(seen[0].prompt).toContain("その機能はまだ試していません");
+    expect(seen[0].systemPrompt).toContain("STRICT JSON");
+  });
+
+  test("history省略時は会話部分を含めずjaTextのみプロンプトに入る", async () => {
+    const { runner, seen } = runnerReturning(JSON.stringify(valid));
+    await generatePhraseHints({ jaText: "少し考える時間をください" }, runner);
+    expect(seen[0].prompt).not.toContain("Recent conversation");
+    expect(seen[0].prompt).toContain("少し考える時間をください");
+  });
+
+  test("JSONパース失敗時は素のテキストを1件（ja空）に包むフォールバック", async () => {
+    const { runner } = runnerReturning("Sorry, here is some prose instead of JSON.");
+    const result = await generatePhraseHints({ jaText: "はい" }, runner);
+    expect(result.suggestions).toEqual([{ en: "Sorry, here is some prose instead of JSON.", ja: "" }]);
+  });
+
+  test("不正なsuggestion項目をサニタイズ: en欠落・非文字列・空文字を除外", async () => {
+    const malformed = {
+      suggestions: [
+        { en: "Could you give me a moment?", ja: "少し時間をもらう言い方" }, // valid
+        { en: 123, ja: "wrong" },                                          // en not string
+        { ja: "only japanese" },                                          // en missing
+        { en: "", ja: "empty en" },                                       // en falsy
+        "junk",                                                           // not an object
+      ],
+    };
+    const { runner } = runnerReturning(JSON.stringify(malformed));
+    const result = await generatePhraseHints({ jaText: "はい" }, runner);
+    expect(result.suggestions).toEqual([{ en: "Could you give me a moment?", ja: "少し時間をもらう言い方" }]);
   });
 });
 

@@ -90,7 +90,7 @@ export function sessionEndKeepalive(sessionId: string): void {
   }).catch(() => {});
 }
 
-export type ContentItem = { id: string; kind: "topic" | "scenario"; title: string; titleJa: string; hints: string[] };
+export type ContentItem = { id: string; kind: "topic" | "scenario"; title: string; titleJa: string; hints: string[]; starters?: string[] };
 export type MenuBlock = { id: string; kind: string; title: string; minutes: number; params: { topic?: ContentItem; scenario?: ContentItem; roundsSec?: number[]; modelTalkMode?: "auto" | "button" | "none" } };
 export type Menu = { minutes: number; date: string; blocks: MenuBlock[] };
 export type AeItem = { quote: string; issue: string; better: string; why_ja: string };
@@ -408,6 +408,33 @@ export async function fetchTalkExplanation(text: string): Promise<string> {
   });
   if (!res.ok) throw new Error(`talk explain failed: ${await extractErrorMessage(res)}`);
   return ((await res.json()) as { text: string }).text;
+}
+
+/** AI発話の日本語訳のみ（サーバ側で本文ハッシュキャッシュ・2回目以降は即返る） */
+export async function fetchUtteranceTranslation(text: string): Promise<string> {
+  const res = await fetch("/api/coach/translate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error(`translate failed: ${await extractErrorMessage(res)}`);
+  return ((await res.json()) as { text: string }).text;
+}
+
+export type PhraseHint = { en: string; ja: string };
+
+/** 言い方ヒント: 言いたい日本語＋直近履歴 → 使える英語表現2〜3個 */
+export async function fetchPhraseHints(
+  jaText: string,
+  history?: Array<{ role: "you" | "ai"; text: string }>,
+): Promise<PhraseHint[]> {
+  const res = await fetch("/api/coach/phrase-hint", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jaText, history }),
+  });
+  if (!res.ok) throw new Error(`phrase hint failed: ${await extractErrorMessage(res)}`);
+  return ((await res.json()) as { suggestions: PhraseHint[] }).suggestions;
 }
 
 export type PlacementTaskDef = {

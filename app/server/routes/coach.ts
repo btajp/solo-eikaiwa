@@ -18,6 +18,12 @@ export type CoachRoutesDeps = {
   explainTalk: (text: string) => Promise<{ text: string }>;
   /** モデルトーク解説のキャッシュ（実体は db.ts、テストはフェイク） */
   talkExplainCache: TalkExplainCache;
+  /** AI発話の日本語訳のみを生成（実体は coach.ts、テストはフェイク） */
+  translate: (text: string) => Promise<{ text: string }>;
+  /** 訳のハッシュキャッシュ（実体は db.ts の utterance_translations、テストはフェイク） */
+  translationCache: TalkExplainCache;
+  /** 言い方ヒント（会話コンテキスト付き・実体は coach.ts、テストはフェイク） */
+  phraseHint: (args: { jaText: string; history?: Array<{ role: "you" | "ai"; text: string }> }) => Promise<{ suggestions: Array<{ en: string; ja: string }> }>;
   /** 詰まった表現の収集チャンク（実体は chunks.ts、テストはフェイク） */
   chunkStore: ChunkStore;
 };
@@ -69,23 +75,46 @@ async function handlePrep(req: Request, deps: CoachRoutesDeps): Promise<Response
   return json(pack);
 }
 
-async function handleTalkExplain(req: Request, deps: CoachRoutesDeps): Promise<Response> {
+/** {text} を受け取りハッシュキャッシュ経由で {text} を返す共通ハンドラ（talk-explain / translate 共有） */
+async function respondHashCached(
+  req: Request,
+  cache: TalkExplainCache,
+  generate: (text: string) => Promise<{ text: string }>,
+  cacheWarnLabel: string,
+): Promise<Response> {
   const parsed = await parseJsonBody<{ text?: unknown }>(req);
   if (!parsed.ok) return parsed.response;
   const { text } = parsed.body;
   if (typeof text !== "string" || text.trim().length === 0) return json({ error: "text must be a non-empty string" }, 400);
   if (text.length > 3000) return json({ error: "text too long" }, 400);
   const hash = createHash("sha256").update(text).digest("hex");
-  const cached = deps.talkExplainCache.get(hash);
+  const cached = cache.get(hash);
   if (cached !== null) return json({ text: cached });
-  const generated = await deps.explainTalk(text);
-  // キャッシュ書き込み失敗は解説の返却を妨げない
+  const generated = await generate(text);
+  // キャッシュ書き込み失敗は返却を妨げない
   try {
-    deps.talkExplainCache.save(hash, generated.text, new Date().toISOString());
+    cache.save(hash, generated.text, new Date().toISOString());
   } catch (err) {
-    console.warn("[coach] talk explanation cache write failed, continuing:", String(err));
+    console.warn(cacheWarnLabel, String(err));
   }
   return json({ text: generated.text });
+}
+
+async function handlePhraseHint(req: Request, deps: CoachRoutesDeps): Promise<Response> {
+  const parsed = await parseJsonBody<{ jaText?: unknown; history?: unknown }>(req);
+  if (!parsed.ok) return parsed.response;
+  const { jaText, history } = parsed.body;
+  if (typeof jaText !== "string" || jaText.trim().length === 0) return json({ error: "jaText must be a non-empty string" }, 400);
+  if (jaText.length > 1000) return json({ error: "jaText too long" }, 400);
+  // 履歴は任意。role/text が揃った要素だけ残し、直近6件までに絞ってプロンプト肥大を防ぐ
+  const safeHistory = Array.isArray(history)
+    ? history
+        .filter((h): h is { role: "you" | "ai"; text: string } =>
+          !!h && typeof h === "object" && (h.role === "you" || h.role === "ai") && typeof h.text === "string")
+        .slice(-6)
+    : undefined;
+  const result = await deps.phraseHint({ jaText, history: safeHistory });
+  return json(result);
 }
 
 export function makeCoachRoutes(deps: CoachRoutesDeps): RouteEntry[] {
@@ -94,6 +123,10 @@ export function makeCoachRoutes(deps: CoachRoutesDeps): RouteEntry[] {
     exact("POST", "/api/coach/model-talk", (req) => handleModelTalk(req, deps)),
     exact("POST", "/api/coach/prep", (req) => handlePrep(req, deps)),
     exact("POST", "/api/coach/reflection", () => handleReflection(deps)),
-    exact("POST", "/api/coach/talk-explain", (req) => handleTalkExplain(req, deps)),
+    exact("POST", "/api/coach/talk-explain", (req) =>
+      respondHashCached(req, deps.talkExplainCache, deps.explainTalk, "[coach] talk explanation cache write failed, continuing:")),
+    exact("POST", "/api/coach/translate", (req) =>
+      respondHashCached(req, deps.translationCache, deps.translate, "[coach] translation cache write failed, continuing:")),
+    exact("POST", "/api/coach/phrase-hint", (req) => handlePhraseHint(req, deps)),
   ];
 }

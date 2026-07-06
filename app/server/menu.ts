@@ -14,6 +14,7 @@ export type Domain = "daily" | "business" | "it";
 export const DOMAINS: readonly Domain[] = ["daily", "business", "it"];
 export type ContentItem = {
   id: string; kind: "topic" | "scenario"; title: string; titleJa: string; hints: string[];
+  starters: string[];
   domain: Domain; level: [number, number];
 };
 export type MenuBlock = { id: string; kind: BlockKind; title: string; minutes: number; params: Record<string, unknown> };
@@ -65,8 +66,11 @@ export function parseContentFile(text: string): ContentItem | null {
   const hints = text.slice(m[0].length).split("\n")
     .filter((l) => l.trim().startsWith("- "))
     .map((l) => l.trim().slice(2));
+  const starters = text.slice(m[0].length).split("\n")
+    .filter((l) => l.trim().startsWith("> "))
+    .map((l) => l.trim().slice(2).trim());
   return {
-    id: fields.id, kind: fields.kind, title: fields.title, titleJa: fields.title_ja ?? "", hints,
+    id: fields.id, kind: fields.kind, title: fields.title, titleJa: fields.title_ja ?? "", hints, starters,
     domain: parseDomain(fields.domain), level: parseLevelRange(fields.level),
   };
 }

@@ -81,6 +81,54 @@ export async function generateTalkExplanation(
   return { text: text.trim() };
 }
 
+const TRANSLATE_SYSTEM = `You translate one short English line from a live conversation into natural Japanese for a Japanese learner (CEFR A2-B1).
+Reply with ONLY the Japanese translation — no English, no notes, no labels, no quotes — plain text on a single line.
+Do not correct or comment on the English; just translate its meaning naturally.
+Do not use any tools — reply directly with text only.`;
+
+/** AI発話の日本語訳のみを生成する（表現解説は付けない・routes 側で本文ハッシュをキーにキャッシュされる） */
+export async function generateUtteranceTranslation(
+  args: { text: string },
+  runner: ClaudeRunner = defaultRunner,
+): Promise<{ text: string }> {
+  const { text } = await runner(args.text, undefined, { systemPrompt: TRANSLATE_SYSTEM });
+  return { text: text.trim() };
+}
+
+export type PhraseHint = { en: string; ja: string };
+
+const PHRASE_HINT_SYSTEM = `You help a Japanese learner (CEFR A2-B1) say something in English during a live conversation.
+You receive: (1) what the learner wants to say, written in Japanese, and optionally (2) the recent conversation so far.
+Offer 2-3 natural English ways to express that meaning, matching the register of the conversation.
+Do NOT correct the learner and do NOT judge their level. Only provide the wording they asked for.
+Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:
+{"suggestions":[{"en":"<natural, speakable English phrase or short sentence>","ja":"<日本語で使い方やニュアンスを1文>"}]}
+Give 2 or 3 suggestions.
+Do not use any tools — reply directly with text only.`;
+
+/** 言い方ヒント: 言いたい日本語＋直近履歴から英語表現を2〜3個提案する（キャッシュしない） */
+export async function generatePhraseHints(
+  args: { jaText: string; history?: Array<{ role: "you" | "ai"; text: string }> },
+  runner: ClaudeRunner = defaultRunner,
+): Promise<{ suggestions: PhraseHint[] }> {
+  const context = (args.history ?? [])
+    .map((h) => `${h.role === "you" ? "Learner" : "Partner"}: ${h.text}`)
+    .join("\n");
+  const prompt = context
+    ? `Recent conversation:\n${context}\n\nThe learner wants to say (in Japanese):\n${args.jaText}`
+    : `The learner wants to say (in Japanese):\n${args.jaText}`;
+  const { text } = await runner(prompt, undefined, { systemPrompt: PHRASE_HINT_SYSTEM });
+  const parsed = extractJson<{ suggestions: PhraseHint[] }>(text);
+  if (parsed && Array.isArray(parsed.suggestions)) {
+    const suggestions = parsed.suggestions
+      .filter((s) => typeof s?.en === "string" && s.en && typeof s?.ja === "string")
+      .map((s) => ({ en: s.en, ja: s.ja }));
+    if (suggestions.length > 0) return { suggestions };
+  }
+  // パース失敗時のフォールバック: 素のテキストを1件に包んでUIに出せる形にする
+  return { suggestions: [{ en: text.trim(), ja: "" }] };
+}
+
 const MODEL_TALK_SYSTEM = `You produce a model monologue for an English learner (CEFR B1) to shadow.
 Rules: 120-150 words, spoken register, first person, plain high-frequency vocabulary, short sentences.
 No headings, no lists — just the monologue text.

@@ -11,3 +11,6 @@ Roleplay setup:
 - The AI plays the interviewer asking about your experience and motivation
 - Goal: introduce your background, give one concrete achievement story, and ask good questions
 - Useful moves: structure answers as situation → action → result
+> Thank you for having me today.
+> Let me start with a short introduction of my background.
+> I'd be happy to walk you through one of my recent projects.

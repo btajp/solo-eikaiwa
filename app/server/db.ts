@@ -87,6 +87,11 @@ export function openDb(dbPath: string = DEFAULT_DB_PATH): Database {
     text TEXT NOT NULL,
     created TEXT NOT NULL
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS utterance_translations (
+    hash TEXT PRIMARY KEY,
+    text TEXT NOT NULL,
+    created TEXT NOT NULL
+  )`);
   db.run(`CREATE TABLE IF NOT EXISTS monthly_reports (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ts TEXT NOT NULL,
@@ -103,22 +108,32 @@ export type TalkExplainCache = {
   save(hash: string, text: string, created: string): void;
 };
 
-export function makeTalkExplainCache(db: Database): TalkExplainCache {
+/** hash→text の単純キャッシュ実体（テーブル名だけが異なる複数キャッシュで共有する） */
+function makeHashTextCache(db: Database, table: string): TalkExplainCache {
   return {
     get(hash) {
       const row = db.query<{ text: string }, [string]>(
-        "SELECT text FROM talk_explanations WHERE hash = ?",
+        `SELECT text FROM ${table} WHERE hash = ?`,
       ).get(hash);
       return row?.text ?? null;
     },
     save(hash, text, created) {
       db.run(
-        `INSERT INTO talk_explanations (hash, text, created) VALUES (?, ?, ?)
+        `INSERT INTO ${table} (hash, text, created) VALUES (?, ?, ?)
          ON CONFLICT(hash) DO UPDATE SET text = excluded.text, created = excluded.created`,
         [hash, text, created],
       );
     },
   };
+}
+
+export function makeTalkExplainCache(db: Database): TalkExplainCache {
+  return makeHashTextCache(db, "talk_explanations");
+}
+
+/** AI発話の訳のキャッシュ（本文の sha256 をキーにする。talk_explanations とは別テーブル） */
+export function makeTranslationCache(db: Database): TalkExplainCache {
+  return makeHashTextCache(db, "utterance_translations");
 }
 
 type Row = { id: number; created_at: string; topic_id: string; topic_title: string; text: string };

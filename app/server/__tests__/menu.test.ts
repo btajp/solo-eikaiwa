@@ -38,7 +38,7 @@ describe("parseContentFile / loadContent", () => {
     );
     expect(item).toEqual({
       id: "abc", kind: "topic", title: "Hello Title", titleJa: "こんにちは",
-      hints: ["first hint", "second hint"],
+      hints: ["first hint", "second hint"], starters: [],
       domain: "it", level: [1, 6],
     });
   });
@@ -71,6 +71,14 @@ describe("parseContentFile / loadContent", () => {
     expect(item?.level).toEqual([1, 6]);
   });
 
+  test("starters（> 行）を hints と分けて抽出する", () => {
+    const item = parseContentFile(
+      `---\nid: abc\nkind: scenario\ntitle: "T"\ntitle_ja: "t"\n---\nRoleplay setup:\n- a hint\n> Hello there.\n> How are you today?\n`,
+    );
+    expect(item?.hints).toEqual(["a hint"]);
+    expect(item?.starters).toEqual(["Hello there.", "How are you today?"]);
+  });
+
   test("不正な domain / level は警告してデフォルトにフォールバック", () => {
     const bad = parseContentFile(
       `---\nid: abc\nkind: topic\ntitle: "T"\ntitle_ja: "t"\ndomain: cooking\nlevel: [0, 9]\n---\n- hint\n`,
@@ -86,9 +94,9 @@ describe("parseContentFile / loadContent", () => {
 
 describe("pickNext", () => {
   const items: ContentItem[] = [
-    { id: "a", kind: "topic", title: "A", titleJa: "", hints: [], domain: "it", level: [1, 6] },
-    { id: "b", kind: "topic", title: "B", titleJa: "", hints: [], domain: "it", level: [1, 6] },
-    { id: "c", kind: "topic", title: "C", titleJa: "", hints: [], domain: "it", level: [1, 6] },
+    { id: "a", kind: "topic", title: "A", titleJa: "", hints: [], starters: [], domain: "it", level: [1, 6] },
+    { id: "b", kind: "topic", title: "B", titleJa: "", hints: [], starters: [], domain: "it", level: [1, 6] },
+    { id: "c", kind: "topic", title: "C", titleJa: "", hints: [], starters: [], domain: "it", level: [1, 6] },
   ];
 
   test("未使用が最優先、同着は id 順", () => {
@@ -341,7 +349,7 @@ function freshState(): RotationState {
 
 describe("pickNextByDomain", () => {
   const mk = (id: string, domain: "daily" | "business" | "it", level: [number, number]): ContentItem =>
-    ({ id, kind: "topic", title: id, titleJa: "", hints: [], domain, level });
+    ({ id, kind: "topic", title: id, titleJa: "", hints: [], starters: [], domain, level });
   const items = [
     mk("d1", "daily", [1, 6]), mk("d2", "daily", [1, 6]),
     mk("b1", "business", [1, 6]),
