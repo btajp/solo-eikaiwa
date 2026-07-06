@@ -8,13 +8,15 @@ export type StartSelection =
   | { type: "library" };
 
 const QUICK_BUTTONS: Array<{ drill: QuickDrillKind; icon: string; tile: string; title: string; minutes: string; desc: string }> = [
-  { drill: "warmup", icon: "🔊", tile: "c-green", title: "音読ウォームアップ", minutes: "6分", desc: "今日の表現を声に出して準備" },
-  { drill: "ftt-mini", icon: "🗣", tile: "c-purple", title: "4/3/2ミニ", minutes: "8分", desc: "同じ話を2回、時間圧で流暢に" },
-  { drill: "roleplay", icon: "💼", tile: "c-orange", title: "実務ロールプレイ", minutes: "10分", desc: "会議・ベンダー対応を想定した練習" },
-  { drill: "shadowing", icon: "🎧", tile: "c-blue", title: "シャドーイング", minutes: "5分", desc: "聞こえた英語に重ねて言う" },
+  { drill: "warmup", icon: "🔊", tile: "c-green", title: "Read-Aloud Warm-up", minutes: "6 min", desc: "Read today's phrases out loud" },
+  { drill: "ftt-mini", icon: "🗣", tile: "c-purple", title: "4/3/2 Mini", minutes: "8 min", desc: "Tell the same story twice, faster" },
+  { drill: "roleplay", icon: "💼", tile: "c-orange", title: "Work Role-play", minutes: "10 min", desc: "Practice meetings and vendor talk" },
+  { drill: "shadowing", icon: "🎧", tile: "c-blue", title: "Shadowing", minutes: "5 min", desc: "Listen and repeat in real time" },
 ];
 
-const WEEKDAYS_JA = ["月", "火", "水", "木", "金", "土", "日"];
+const WEEKDAY_LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
+const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 /** ローカル日付の YYYY-MM-DD（カレンダー表示用） */
 function localYmd(d: Date): string {
@@ -62,12 +64,12 @@ function PracticeCalendar({ days }: { days: string[] }) {
   return (
     <div className="card">
       <div className="calendar-head">
-        <h3>練習日</h3>
+        <h3>Practice days</h3>
       </div>
       <div className="cal" ref={calRef}>
         <div className="cal-weekdays">
-          {WEEKDAYS_JA.map((w) => (
-            <span key={w}>{w}</span>
+          {WEEKDAY_LETTERS.map((w, i) => (
+            <span key={i}>{w}</span>
           ))}
         </div>
         {weeks.map((col, i) => {
@@ -93,8 +95,8 @@ function PracticeCalendar({ days }: { days: string[] }) {
         })}
       </div>
       <div className="cal-legend text-sm text-muted">
-        <span className="day is-done" /> 練習した日
-        <span className="day" /> 未実施
+        <span className="day is-done" /> Practiced
+        <span className="day" /> Not yet
       </div>
     </div>
   );
@@ -116,7 +118,7 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void }) 
   }, []);
 
   const today = new Date();
-  const dateLabel = `${today.getMonth() + 1}月${today.getDate()}日（${WEEKDAYS_JA[(today.getDay() + 6) % 7]}）`;
+  const dateLabel = `${WEEKDAYS_EN[today.getDay()]}, ${MONTHS_EN[today.getMonth()]} ${today.getDate()}`;
   // 今日のおすすめ: 日付で決まる決定的ローテーション（クイックドリル4種）
   const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
   const pick = QUICK_BUTTONS[dayOfYear % QUICK_BUTTONS.length];
@@ -125,11 +127,11 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void }) 
     <div className="stack">
       <div className="hero">
         <p className="hero-greet">👋 {dateLabel}</p>
-        <h2 className="hero-title">今日も英語を話しましょう</h2>
+        <h2 className="hero-title">Ready to practice your English?</h2>
       </div>
 
       <div>
-        <p className="section-label">クイックドリル（5〜10分） <span className="section-note">短くても毎日が正解</span></p>
+        <p className="section-label">Quick drills (5–10 min) <span className="section-note">short but daily wins</span></p>
         <div className="drill-grid">
           {QUICK_BUTTONS.map((q) => (
             <button key={q.drill} className="drill-card" onClick={() => props.onSelect({ type: "quick", drill: q.drill })}>
@@ -145,21 +147,21 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void }) 
       </div>
 
       <div>
-        <p className="section-label">強化セッション <span className="section-note">週1〜2回おすすめ</span></p>
+        <p className="section-label">Intensive sessions <span className="section-note">1–2 times a week</span></p>
         <div className="drill-grid">
           <button className="drill-card" onClick={() => props.onSelect({ type: "daily", minutes: 60 })}>
             <span className="drill-icon c-green" aria-hidden="true">📋</span>
             <span className="drill-body">
-              <span className="drill-title">通しセッション <span className="drill-min">60分</span></span>
-              <span className="drill-desc">5ブロックで総合的にしっかり練習</span>
+              <span className="drill-title">Full Session <span className="drill-min">60 min</span></span>
+              <span className="drill-desc">Five blocks of solid practice</span>
             </span>
             <span className="drill-arrow" aria-hidden="true">→</span>
           </button>
           <button className="drill-card" onClick={() => props.onSelect({ type: "daily", minutes: 30 })}>
             <span className="drill-icon c-blue" aria-hidden="true">⏱</span>
             <span className="drill-body">
-              <span className="drill-title">短縮版 <span className="drill-min">30分</span></span>
-              <span className="drill-desc">時間がある日の集中トレーニング</span>
+              <span className="drill-title">Short Session <span className="drill-min">30 min</span></span>
+              <span className="drill-desc">Focused training when you have time</span>
             </span>
             <span className="drill-arrow" aria-hidden="true">→</span>
           </button>
@@ -169,7 +171,7 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void }) 
       <PracticeCalendar days={days} />
 
       <button className="cta" onClick={() => props.onSelect({ type: "quick", drill: pick.drill })}>
-        今日の学習を始める — {pick.title}（{pick.minutes}）
+        Start today's practice — {pick.title} ({pick.minutes})
       </button>
     </div>
   );

@@ -44,10 +44,10 @@ export function App() {
   }
 
   const navItems: Array<{ key: string; icon: string; label: string; active: boolean; go: () => void }> = [
-    { key: "home", icon: "🏠", label: "ホーム", active: mode.kind === "start", go: () => setMode({ kind: "start" }) },
-    { key: "free", icon: "💬", label: "自由会話", active: mode.kind === "free", go: () => setMode({ kind: "free" }) },
-    { key: "library", icon: "📚", label: "ライブラリ", active: mode.kind === "library", go: () => setMode({ kind: "library" }) },
-    { key: "sentences", icon: "📖", label: "暗記例文300", active: mode.kind === "sentences", go: () => setMode({ kind: "sentences" }) },
+    { key: "home", icon: "🏠", label: "Home", active: mode.kind === "start", go: () => setMode({ kind: "start" }) },
+    { key: "free", icon: "💬", label: "Free Talk", active: mode.kind === "free", go: () => setMode({ kind: "free" }) },
+    { key: "library", icon: "📚", label: "Library", active: mode.kind === "library", go: () => setMode({ kind: "library" }) },
+    { key: "sentences", icon: "📖", label: "300 Sentences", active: mode.kind === "sentences", go: () => setMode({ kind: "sentences" }) },
   ];
 
   return (
@@ -115,9 +115,9 @@ function PracticeStat() {
   const thisWeek = days.filter((d) => d >= ymd(weekAgo) && d <= ymd(now)).length;
   return (
     <div className="stat-box">
-      <div className="stat-title">練習記録</div>
-      <div className="stat-main">今週 {thisWeek}<span className="stat-unit">日</span></div>
-      <div className="stat-sub">累計 {days.length}日</div>
+      <div className="stat-title">Practice log</div>
+      <div className="stat-main">{thisWeek}<span className="stat-unit">days this week</span></div>
+      <div className="stat-sub">{days.length} days total</div>
     </div>
   );
 }
