@@ -2,6 +2,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { Database } from "bun:sqlite";
 import { addDaysYmd, localYmd } from "./dates";
 import { makeClaudeRunner, type ClaudeRunner } from "./converse";
+import { pickWorstCategories } from "./content-gen";
 import type { Sentence } from "./sentences";
 import type { MetricsSummary } from "./metrics-aggregate";
 import type { PlacementResultRow } from "./placement";
@@ -105,9 +106,7 @@ export function makeAssembleMonthData(deps: AssembleDeps) {
       .map((r) => r.en);
 
     const p = deps.placementLatest();
-    const worst = categoryBadRates(deps.db, deps.sentences)
-      .filter((r) => r.reviewed >= 5 && r.badRate > 0)
-      .slice(0, 3);
+    const worst = pickWorstCategories(categoryBadRates(deps.db, deps.sentences));
 
     return {
       windowDays: 30,

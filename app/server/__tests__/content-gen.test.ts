@@ -1,8 +1,33 @@
 import { describe, expect, test } from "bun:test";
-import { parseContentFile } from "../menu";
-import type { Sentence } from "../sentences";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { openDb } from "../db";
+import { loadContent, parseContentFile } from "../menu";
+import { loadSentences, type Sentence } from "../sentences";
 import type { CategoryRate } from "../assessment";
-import { contentToMarkdown, pickWorstCategories, validateNewSentences } from "../content-gen";
+import type { ClaudeRunner } from "../converse";
+import {
+  contentToMarkdown, genSentences, genTopics, pickWorstCategories,
+  validateNewSentences, validateTopicCandidate,
+} from "../content-gen";
+
+/** 呼び出し順にレスポンスを返す fake ClaudeRunner（実Claude呼び出し・実content/への書き込みは一切しない） */
+function makeRunner(responses: string[]): ClaudeRunner {
+  let i = 0;
+  return async () => {
+    const text = responses[Math.min(i, responses.length - 1)];
+    i++;
+    return { text, sessionId: "fake" };
+  };
+}
+
+function seedSrs(db: ReturnType<typeof openDb>, no: number, lastGrade: string): void {
+  db.run(
+    "INSERT INTO sentence_srs (no, stage, due, last_grade, reviews) VALUES (?, 0, '2026-08-01', ?, 1)",
+    [no, lastGrade],
+  );
+}
 
 const EXISTING: Sentence[] = [
   { no: 1, category_no: 1, category: "現在形", domain: "daily", en: "I usually walk to work.", ja: "歩く", note: "" },
@@ -69,5 +94,226 @@ describe("content-gen / contentToMarkdown", () => {
     });
     expect(md).toContain("Roleplay setup:");
     expect(parseContentFile(md)!.kind).toBe("scenario");
+  });
+});
+
+describe("content-gen / validateTopicCandidate", () => {
+  const BASE = {
+    id: "hobby-cooking", title: "Cooking at home", titleJa: "家での料理",
+    domain: "daily", level: [2, 4] as [number, number],
+    hints: ["What you cook — 作るもの", "A recent mistake — 最近の失敗", "A favorite tool — お気に入りの道具", "Who you cook for — 誰のために"],
+  };
+
+  test("正常系はNewContentCandidateを返す", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-topic-valid-"));
+    const cand = validateTopicCandidate(BASE, "topic", new Set(), dir, 3);
+    expect(cand?.id).toBe("hobby-cooking");
+    expect(cand?.level).toEqual([2, 4]);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("domain不正はnull", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-topic-domain-"));
+    expect(validateTopicCandidate({ ...BASE, domain: "casual" }, "topic", new Set(), dir, 3)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("levelが現stageを含まないとnull", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-topic-level-"));
+    expect(validateTopicCandidate({ ...BASE, level: [4, 6] }, "topic", new Set(), dir, 1)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("hints欠落はnull", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-topic-hints-"));
+    expect(validateTopicCandidate({ ...BASE, hints: [] }, "topic", new Set(), dir, 3)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("既存id集合との衝突・ファイル衝突はnull", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-topic-dup-"));
+    expect(validateTopicCandidate(BASE, "topic", new Set(["hobby-cooking"]), dir, 3)).toBeNull();
+    writeFileSync(path.join(dir, "hobby-cooking.md"), "x");
+    expect(validateTopicCandidate(BASE, "topic", new Set(), dir, 3)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("content-gen / genSentences", () => {
+  const EXISTING5: Sentence[] = [1, 2, 3, 4, 5].map((no) => ({
+    no, category_no: 1, category: "現在形", domain: "daily",
+    en: `Existing sentence number ${no}.`, ja: "既存文", note: "",
+  }));
+
+  function setup() {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-sent-test-"));
+    const file = path.join(dir, "sentences.json");
+    writeFileSync(file, JSON.stringify(EXISTING5, null, 2) + "\n");
+    const db = openDb(":memory:");
+    for (const s of EXISTING5) seedSrs(db, s.no, s.no === 1 ? "bad" : "good"); // reviewed=5・badRate=0.2 で閾値超え
+    return { dir, file, db };
+  }
+
+  const VALID_BATCH = JSON.stringify({
+    sentences: [
+      { domain: "daily", en: "He walks the dog every morning.", ja: "毎朝犬の散歩", note: "現在形" },
+      { domain: "business", en: "Our team reviews the report weekly.", ja: "週次レビュー", note: "現在形" },
+      { domain: "it", en: "The service restarts automatically at midnight.", ja: "深夜に自動再起動", note: "現在形" },
+      { domain: "daily", en: "She always arrives early to class.", ja: "早めに到着", note: "現在形" },
+    ],
+  });
+
+  test("正常系: 4文が追記されnoが連番・loadSentencesで読める・pretty+末尾改行", async () => {
+    const { dir, file, db } = setup();
+    const logs: string[] = [];
+    await genSentences({ runner: makeRunner([VALID_BATCH]), sentencesFile: file, db, dry: false, log: (s) => logs.push(s) });
+
+    const after = loadSentences(file);
+    expect(after).toHaveLength(9);
+    expect(after.slice(5).map((s) => s.no)).toEqual([6, 7, 8, 9]);
+
+    const raw = readFileSync(file, "utf8");
+    expect(raw.endsWith("\n")).toBe(true);
+    expect(raw).toContain('\n    "no"'); // JSON.stringify(..., null, 2) の4スペースインデント（配列要素の中）
+    expect(logs.some((l) => l.startsWith("完了:"))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("既存と正規化重複するenは弾かれ再生成 → 2回目で成功", async () => {
+    const { dir, file, db } = setup();
+    const dupBatch = JSON.stringify({
+      sentences: [
+        { domain: "daily", en: "Existing sentence number 1!", ja: "重複", note: "" }, // no.1と正規化後に一致
+        { domain: "business", en: "Our team reviews the report weekly.", ja: "週次レビュー", note: "現在形" },
+        { domain: "it", en: "The service restarts automatically at midnight.", ja: "深夜に自動再起動", note: "現在形" },
+        { domain: "daily", en: "She always arrives early to class.", ja: "早めに到着", note: "現在形" },
+      ],
+    });
+    const logs: string[] = [];
+    await genSentences({
+      runner: makeRunner([dupBatch, VALID_BATCH]), sentencesFile: file, db, dry: false, log: (s) => logs.push(s),
+    });
+    expect(loadSentences(file)).toHaveLength(9);
+    expect(logs.some((l) => l.includes("検証NG"))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("不正出力が2回続くと書き込みゼロでthrow", async () => {
+    const { dir, file, db } = setup();
+    const invalidBatch = JSON.stringify({ sentences: [{ domain: "casual", en: "x", ja: "y", note: "z" }] });
+    const before = readFileSync(file, "utf8");
+    await expect(
+      genSentences({ runner: makeRunner([invalidBatch, invalidBatch]), sentencesFile: file, db, dry: false }),
+    ).rejects.toThrow();
+    expect(readFileSync(file, "utf8")).toBe(before);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("dry=trueは一切書かない", async () => {
+    const { dir, file, db } = setup();
+    const before = readFileSync(file, "utf8");
+    const logs: string[] = [];
+    await genSentences({ runner: makeRunner([VALID_BATCH]), sentencesFile: file, db, dry: true, log: (s) => logs.push(s) });
+    expect(readFileSync(file, "utf8")).toBe(before);
+    expect(logs.some((l) => l.includes("--dry"))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("データ不足時は何も書かず正常終了", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-sent-empty-"));
+    const file = path.join(dir, "sentences.json");
+    writeFileSync(file, JSON.stringify(EXISTING5, null, 2) + "\n");
+    const db = openDb(":memory:"); // srs未評価 → worst=[]
+    const before = readFileSync(file, "utf8");
+    const logs: string[] = [];
+    await genSentences({ runner: makeRunner([VALID_BATCH]), sentencesFile: file, db, dry: false, log: (s) => logs.push(s) });
+    expect(readFileSync(file, "utf8")).toBe(before);
+    expect(logs.some((l) => l.startsWith("データ不足"))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("content-gen / genTopics", () => {
+  function tempDirs() {
+    return {
+      topicsDir: mkdtempSync(path.join(tmpdir(), "gen-topics-")),
+      scenariosDir: mkdtempSync(path.join(tmpdir(), "gen-scenarios-")),
+    };
+  }
+  function cleanup(dirs: { topicsDir: string; scenariosDir: string }) {
+    rmSync(dirs.topicsDir, { recursive: true, force: true });
+    rmSync(dirs.scenariosDir, { recursive: true, force: true });
+  }
+  function contentJson(id: string, domain: string, overrides: Record<string, unknown> = {}) {
+    return JSON.stringify({
+      id, title: `Title ${id}`, titleJa: `タイトル${id}`, domain,
+      level: [2, 4], hints: ["a — あ", "b — い", "c — う", "d — え"],
+      ...overrides,
+    });
+  }
+
+  test("正常系: お題2+シナリオ1がtempDirsに書かれloadContentで読める", async () => {
+    const dirs = tempDirs();
+    const logs: string[] = [];
+    await genTopics({
+      runner: makeRunner([
+        contentJson("topic-one", "daily"),
+        contentJson("topic-two", "it"),
+        contentJson("scenario-one", "business"),
+      ]),
+      topicsDir: dirs.topicsDir, scenariosDir: dirs.scenariosDir, stage: 3, dry: false, log: (s) => logs.push(s),
+    });
+    expect(loadContent(dirs.topicsDir).map((c) => c.id).sort()).toEqual(["topic-one", "topic-two"]);
+    expect(loadContent(dirs.scenariosDir).map((c) => c.id)).toEqual(["scenario-one"]);
+    expect(logs.some((l) => l.startsWith("完了:"))).toBe(true);
+    cleanup(dirs);
+  });
+
+  test("id衝突時は書かない", async () => {
+    const dirs = tempDirs();
+    writeFileSync(path.join(dirs.topicsDir, "topic-one.md"), contentToMarkdown({
+      id: "topic-one", kind: "topic", title: "Existing", titleJa: "既存",
+      domain: "daily", level: [1, 6], hints: ["x — え"],
+    }));
+    await expect(
+      genTopics({
+        runner: makeRunner([contentJson("topic-one", "daily"), contentJson("topic-one", "daily")]),
+        topicsDir: dirs.topicsDir, scenariosDir: dirs.scenariosDir, stage: 3, dry: false,
+      }),
+    ).rejects.toThrow();
+    expect(readdirSync(dirs.topicsDir)).toEqual(["topic-one.md"]); // 既存ファイルのみ・新規追加なし
+    expect(readdirSync(dirs.scenariosDir)).toEqual([]);
+    cleanup(dirs);
+  });
+
+  test("不正候補が2回続くと先に検証済みの候補も含めて書き込みゼロ（オーファン無し）", async () => {
+    const dirs = tempDirs();
+    const invalidScenario = contentJson("bad-scenario", "casual"); // domain不正 → 厳格検証で拒否
+    await expect(
+      genTopics({
+        runner: makeRunner([
+          contentJson("topic-one", "daily"), contentJson("topic-two", "it"), invalidScenario, invalidScenario,
+        ]),
+        topicsDir: dirs.topicsDir, scenariosDir: dirs.scenariosDir, stage: 3, dry: false,
+      }),
+    ).rejects.toThrow();
+    expect(readdirSync(dirs.topicsDir)).toEqual([]);
+    expect(readdirSync(dirs.scenariosDir)).toEqual([]);
+    cleanup(dirs);
+  });
+
+  test("dry=trueは一切書かない", async () => {
+    const dirs = tempDirs();
+    const logs: string[] = [];
+    await genTopics({
+      runner: makeRunner([
+        contentJson("topic-one", "daily"), contentJson("topic-two", "it"), contentJson("scenario-one", "business"),
+      ]),
+      topicsDir: dirs.topicsDir, scenariosDir: dirs.scenariosDir, stage: 3, dry: true, log: (s) => logs.push(s),
+    });
+    expect(readdirSync(dirs.topicsDir)).toEqual([]);
+    expect(readdirSync(dirs.scenariosDir)).toEqual([]);
+    expect(logs.some((l) => l.includes("--dry"))).toBe(true);
+    cleanup(dirs);
   });
 });
