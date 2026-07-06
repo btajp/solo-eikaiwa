@@ -233,6 +233,10 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 .bubble { max-width: 85%; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-md); white-space: pre-wrap; line-height: 1.55; }
 .bubble-you { background: var(--accent-soft); border-bottom-right-radius: var(--radius-sm); }
 .bubble-ai { background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: var(--radius-sm); }
+/* AI発話の訳ボタン/訳文はバブルの右横でなく下段に全幅で折り返す */
+.chat-row.ai { flex-wrap: wrap; }
+.chat-translate { flex-basis: 100%; }
+.chat-translate .sentence-explain { max-width: 85%; }
 
 /* 4/3/2 ラウンド */
 .round-stage { text-align: center; padding: var(--sp-5) 0; }
