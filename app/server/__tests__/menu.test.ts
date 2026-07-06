@@ -297,6 +297,42 @@ describe("buildQuickMenu", () => {
   test("QUICK_KINDS は4種", () => {
     expect(QUICK_KINDS).toEqual(["warmup", "ftt-mini", "roleplay", "shadowing"]);
   });
+
+  test("roleplay: domain 指定でそのドメインのシナリオだけが選ばれ、カーソルは動かない", () => {
+    const { topicsDir, scenariosDir, usageFile, menuCacheDir } = makeContentDirs();
+    // s1=daily(タグ付き), s2=タグなし(既定 it)
+    writeFileSync(
+      path.join(scenariosDir, "s1.md"),
+      `---\nid: s1\nkind: scenario\ntitle: "Daily One"\ntitle_ja: "ja-s1"\ndomain: daily\nlevel: [1, 3]\n---\nSetup:\n- You are at a cafe\n`,
+    );
+    const deps: MenuDeps = { topicsDir, scenariosDir, usageFile, menuCacheDir, today: JULY5, domain: "daily" };
+    const m = buildQuickMenu("roleplay", deps);
+    expect((m.blocks[0].params.scenario as { id: string }).id).toBe("s1");
+    expect(m.blocks[0].title).toBe("日常ロールプレイ: Daily One");
+    const state = JSON.parse(readFileSync(usageFile, "utf8")) as RotationState;
+    expect(state.lastDomain.scenario).toBe(""); // 明示指定はラウンドロビンに影響しない
+  });
+
+  test("roleplay: domain 指定で帯域外しかない場合はドメイン内全体にフォールバックする", () => {
+    const { topicsDir, scenariosDir, usageFile, menuCacheDir } = makeContentDirs();
+    writeFileSync(
+      path.join(scenariosDir, "s1.md"),
+      `---\nid: s1\nkind: scenario\ntitle: "Hard Business"\ntitle_ja: "ja-s1"\ndomain: business\nlevel: [5, 6]\n---\nSetup:\n- Negotiate a contract\n`,
+    );
+    // DEFAULT_LEVEL=13 → stage2。business は帯域外の s1 のみ → フォールバックで s1 が選ばれる
+    const deps: MenuDeps = { topicsDir, scenariosDir, usageFile, menuCacheDir, today: JULY5, domain: "business" };
+    const m = buildQuickMenu("roleplay", deps);
+    expect((m.blocks[0].params.scenario as { id: string }).id).toBe("s1");
+    expect(m.blocks[0].title).toBe("ビジネスロールプレイ: Hard Business");
+  });
+
+  test("roleplay: domain 省略時は従来どおりラウンドロビンでカーソルが進む", () => {
+    const { topicsDir, scenariosDir, usageFile, menuCacheDir } = makeContentDirs();
+    const deps: MenuDeps = { topicsDir, scenariosDir, usageFile, menuCacheDir, today: JULY5 };
+    buildQuickMenu("roleplay", deps);
+    const state = JSON.parse(readFileSync(usageFile, "utf8")) as RotationState;
+    expect(state.lastDomain.scenario).not.toBe("");
+  });
 });
 
 function freshState(): RotationState {

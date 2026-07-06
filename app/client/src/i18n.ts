@@ -16,11 +16,10 @@ type Strings = {
   hero: { title: string; date: (d: Date) => string };
   quick: { label: string; note: string };
   intensive: { label: string; note: string };
-  drills: Record<"warmup" | "ftt-mini" | "roleplay" | "shadowing", { title: string; minutes: string; desc: string }>;
+  drills: Record<string, { title: string; minutes: string; desc: string }>;
   fullSession: { title: string; minutes: string; desc: string };
   shortSession: { title: string; minutes: string; desc: string };
   calendar: { title: string; practiced: string; notYet: string };
-  cta: (title: string, minutes: string) => string;
   freeTalk: { title: string; desc: string };
   progress: {
     levelLabel: (n: number) => string;
@@ -104,13 +103,14 @@ export const STR: Record<Lang, Strings> = {
     drills: {
       warmup: { title: "Read-Aloud Warm-up", minutes: "6 min", desc: "Read today's phrases out loud" },
       "ftt-mini": { title: "4/3/2 Mini", minutes: "8 min", desc: "Tell the same story twice, faster" },
-      roleplay: { title: "Work Role-play", minutes: "10 min", desc: "Practice meetings and vendor talk" },
       shadowing: { title: "Shadowing", minutes: "5 min", desc: "Listen and repeat in real time" },
+      "roleplay-daily": { title: "Daily Role-play", minutes: "10 min", desc: "Restaurants, travel, small talk" },
+      "roleplay-business": { title: "Business Role-play", minutes: "10 min", desc: "Meetings, scheduling, workplace talk" },
+      "roleplay-it": { title: "IT Role-play", minutes: "10 min", desc: "Tech discussions, incidents, vendors" },
     },
     fullSession: { title: "Full Session", minutes: "60 min", desc: "Five blocks of solid practice" },
     shortSession: { title: "Short Session", minutes: "30 min", desc: "Focused training when you have time" },
     calendar: { title: "Practice days", practiced: "Practiced", notYet: "Not yet" },
-    cta: (title, minutes) => `Start today's practice — ${title} (${minutes})`,
     freeTalk: { title: "Free Talk", desc: "Talk about anything in English — press the button to start and stop recording" },
     progress: {
       levelLabel: (n) => `Lv ${n}`,
@@ -203,13 +203,14 @@ export const STR: Record<Lang, Strings> = {
     drills: {
       warmup: { title: "音読ウォームアップ", minutes: "6分", desc: "今日の表現を声に出して準備" },
       "ftt-mini": { title: "4/3/2ミニ", minutes: "8分", desc: "同じ話を2回、時間圧で流暢に" },
-      roleplay: { title: "実務ロールプレイ", minutes: "10分", desc: "会議・ベンダー対応を想定した練習" },
       shadowing: { title: "シャドーイング", minutes: "5分", desc: "聞こえた英語に重ねて言う" },
+      "roleplay-daily": { title: "日常ロールプレイ", minutes: "10分", desc: "レストラン・旅行・雑談の場面練習" },
+      "roleplay-business": { title: "ビジネスロールプレイ", minutes: "10分", desc: "会議・日程調整・職場の会話" },
+      "roleplay-it": { title: "ITロールプレイ", minutes: "10分", desc: "技術討議・障害対応・ベンダー対応" },
     },
     fullSession: { title: "通しセッション", minutes: "60分", desc: "5ブロックで総合的にしっかり練習" },
     shortSession: { title: "短縮版", minutes: "30分", desc: "時間がある日の集中トレーニング" },
     calendar: { title: "練習日", practiced: "練習した日", notYet: "未実施" },
-    cta: (title, minutes) => `今日の学習を始める — ${title}（${minutes}）`,
     freeTalk: { title: "自由会話", desc: "英語でなんでも話しかけてください — 録音ボタンで開始・停止" },
     progress: {
       levelLabel: (n) => `Lv ${n}`,

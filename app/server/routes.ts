@@ -7,7 +7,7 @@ import { transcribeAudio } from "./stt";
 import { synthesize } from "./tts";
 import { converseTurn } from "./converse";
 import { checkHealth } from "./health";
-import { BLOCK_KINDS, QUICK_KINDS, type Menu, type QuickKind } from "./menu";
+import { BLOCK_KINDS, DOMAINS, QUICK_KINDS, type Domain, type Menu, type QuickKind } from "./menu";
 import type { AeFeedback, Reflection, PrepPack } from "./coach";
 import type { Settings } from "./settings";
 import type { LibraryStore } from "./db";
@@ -41,7 +41,7 @@ export type RouteDeps = {
   scenarioPrompt: (scenarioId: string) => string | null;
   /** 未知の topicId は null（ルートは404を返す） */
   prepPack: (topicId: string) => Promise<PrepPack | null>;
-  buildQuick: (kind: QuickKind) => Menu;
+  buildQuick: (kind: QuickKind, domain?: Domain) => Menu;
   practiceDays: () => string[];
   getSettings: () => Settings;
   saveSettings: (s: Settings) => void;
@@ -138,7 +138,12 @@ function handleMenuQuick(url: URL, deps: RouteDeps): Response {
   if (!(QUICK_KINDS as readonly string[]).includes(kind)) {
     return json({ error: `kind must be one of: ${QUICK_KINDS.join(", ")}` }, 400);
   }
-  return json(deps.buildQuick(kind as QuickKind));
+  // domain はロールプレイのドメイン明示指定（任意・additive）
+  const domainRaw = url.searchParams.get("domain");
+  if (domainRaw !== null && !(DOMAINS as readonly string[]).includes(domainRaw)) {
+    return json({ error: `domain must be one of: ${DOMAINS.join(", ")}` }, 400);
+  }
+  return json(deps.buildQuick(kind as QuickKind, (domainRaw as Domain | null) ?? undefined));
 }
 
 async function handleSettingsPut(req: Request, deps: RouteDeps): Promise<Response> {

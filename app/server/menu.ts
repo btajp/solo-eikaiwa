@@ -112,6 +112,21 @@ export function filterInBand(items: ContentItem[], stage: number): ContentItem[]
   return inBand.length > 0 ? inBand : items;
 }
 
+/** ドメイン明示指定の選択。帯域内→ドメイン全体の順で選び、ラウンドロビンのカーソルは動かさない */
+export function pickInDomain(
+  items: ContentItem[], state: RotationState, todayYmd: string, stage: number, domain: Domain,
+): ContentItem {
+  const inDomain = items.filter((it) => it.domain === domain);
+  if (inDomain.length === 0) throw new Error(`no content items for domain: ${domain}`);
+  return pickNext(filterInBand(inDomain, stage), state.usage, todayYmd);
+}
+
+/** ロールプレイのタイトル接頭辞は選ばれたシナリオの実ドメインで付ける */
+export function roleplayTitle(scenario: ContentItem): string {
+  const label = scenario.domain === "daily" ? "日常" : scenario.domain === "business" ? "ビジネス" : "IT";
+  return `${label}ロールプレイ: ${scenario.title}`;
+}
+
 /**
  * 帯域フィルタ → ドメインラウンドロビン → LRU の選択（スペック §7.3）。
  * stage 適合プール（空なら全体にフォールバック）から、前回ドメインの次を優先して
@@ -210,6 +225,8 @@ export type MenuDeps = {
   today?: () => Date;
   /** 利用者レベル（1〜）。省略時 DEFAULT_LEVEL。stage・4/3/2秒数・準備支援を駆動する */
   level?: number;
+  /** クイックロールプレイのドメイン明示指定。省略時はラウンドロビン */
+  domain?: Domain;
 };
 
 export function buildTodayMenu(minutes: 60 | 30, deps: MenuDeps = {}): Menu {
@@ -253,14 +270,14 @@ export function buildTodayMenu(minutes: 60 | 30, deps: MenuDeps = {}): Menu {
       ? [
           { id: "b1", kind: "warmup-reading", title: warmupTitle, minutes: 8, params: { topic: mainTopic } },
           { id: "b2", kind: "four-three-two", title: `4/3/2: ${mainTopic.title}`, minutes: 16, params: { topic: mainTopic, roundsSec: fttRoundsSec(level), modelTalkMode: prepParams(stage).modelTalk } },
-          { id: "b3", kind: "roleplay", title: `実務ロールプレイ: ${scenario.title}`, minutes: 20, params: { scenario } },
+          { id: "b3", kind: "roleplay", title: roleplayTitle(scenario), minutes: 20, params: { scenario } },
           { id: "b4", kind: "shadowing", title: `シャドーイング: ${shadowTopic.title}`, minutes: 8, params: { topic: shadowTopic } },
           { id: "b5", kind: "reflection", title: "振り返り", minutes: 5, params: {} },
         ]
       : [
           { id: "b1", kind: "warmup-reading", title: warmupTitle, minutes: 6, params: { topic: mainTopic } },
           { id: "b2", kind: "four-three-two", title: `4/3/2: ${mainTopic.title}`, minutes: 12, params: { topic: mainTopic, roundsSec: fttRoundsSec(level), modelTalkMode: prepParams(stage).modelTalk } },
-          { id: "b3", kind: "roleplay", title: `実務ロールプレイ: ${scenario.title}`, minutes: 10, params: { scenario } },
+          { id: "b3", kind: "roleplay", title: roleplayTitle(scenario), minutes: 10, params: { scenario } },
           { id: "b4", kind: "reflection", title: "振り返り", minutes: 2, params: {} },
         ];
 
@@ -301,9 +318,13 @@ export function buildQuickMenu(kind: QuickKind, deps: MenuDeps = {}): Menu {
 
   let block: MenuBlock;
   if (kind === "roleplay") {
-    const scenario = pickNextByDomain(loadContent(scenariosDir), state, ymd, stage, "scenario");
+    const all = loadContent(scenariosDir);
+    // ドメイン明示時はそのドメイン内から（ラウンドロビンのカーソル不変）、省略時は従来のローテーション
+    const scenario = deps.domain
+      ? pickInDomain(all, state, ymd, stage, deps.domain)
+      : pickNextByDomain(all, state, ymd, stage, "scenario");
     markUsed(state.usage, scenario.id, ymd);
-    block = { id: "q1", kind: "roleplay", title: `実務ロールプレイ: ${scenario.title}`, minutes: 10, params: { scenario } };
+    block = { id: "q1", kind: "roleplay", title: roleplayTitle(scenario), minutes: 10, params: { scenario } };
   } else {
     const topic = pickNextByDomain(loadContent(topicsDir), state, ymd, stage, "topic");
     markUsed(state.usage, topic.id, ymd);

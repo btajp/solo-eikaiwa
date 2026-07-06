@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   fetchMenu, fetchQuickMenu, progressBlockStart, progressBlockXp, sendSessionEvent,
-  type Menu, type MenuBlock, type QuickDrillKind,
+  type Menu, type MenuBlock, type QuickDrillKind, type RoleplayDomain,
 } from "../api";
 import { useCountdown } from "../useCountdown";
 import { Banner } from "../ui/Banner";
@@ -15,7 +15,9 @@ import { RoleplayScreen } from "./RoleplayScreen";
 import { ShadowingScreen } from "./ShadowingScreen";
 import { WarmupReadingScreen } from "./WarmupReadingScreen";
 
-export type MenuSource = { type: "daily"; minutes: 60 | 30 } | { type: "quick"; drill: QuickDrillKind };
+export type MenuSource =
+  | { type: "daily"; minutes: 60 | 30 }
+  | { type: "quick"; drill: QuickDrillKind; domain?: RoleplayDomain };
 
 /** メニューを取得し、ブロックを順番に進行させる。ブロックタイマーと進行イベント記録を持つ */
 export function SessionRunner(props: { source: MenuSource; sessionId: string; onExit: () => void }) {
@@ -42,7 +44,9 @@ export function SessionRunner(props: { source: MenuSource; sessionId: string; on
 
   function loadMenu() {
     setErrorMsg("");
-    const fetching = props.source.type === "daily" ? fetchMenu(props.source.minutes) : fetchQuickMenu(props.source.drill);
+    const fetching = props.source.type === "daily"
+      ? fetchMenu(props.source.minutes)
+      : fetchQuickMenu(props.source.drill, props.source.domain);
     fetching
       .then((m) => {
         setMenu(m);

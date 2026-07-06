@@ -55,7 +55,7 @@ const realDeps: RouteDeps = {
     const p = prepParams(stageOf(progressStore.getLevel()));
     return generatePrepPack({ topicTitle: topic.title, hints: topic.hints, chunkCount: p.chunkCount, hintLang: p.hintLang });
   },
-  buildQuick: (kind) => buildQuickMenu(kind, { level: progressStore.getLevel() }),
+  buildQuick: (kind, domain) => buildQuickMenu(kind, { level: progressStore.getLevel(), domain }),
   practiceDays: () => listPracticeDays(),
   getSettings: () => readSettings(),
   saveSettings: (s) => writeSettings(s),

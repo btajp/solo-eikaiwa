@@ -173,9 +173,11 @@ export function sendSessionEvent(
 }
 
 export type QuickDrillKind = "warmup" | "ftt-mini" | "roleplay" | "shadowing";
+export type RoleplayDomain = "daily" | "business" | "it";
 
-export async function fetchQuickMenu(kind: QuickDrillKind): Promise<Menu> {
-  const res = await fetch(`/api/menu/quick?kind=${kind}`);
+export async function fetchQuickMenu(kind: QuickDrillKind, domain?: RoleplayDomain): Promise<Menu> {
+  const q = domain ? `&domain=${domain}` : "";
+  const res = await fetch(`/api/menu/quick?kind=${kind}${q}`);
   if (!res.ok) throw new Error(`quick menu failed: ${await extractErrorMessage(res)}`);
   return res.json();
 }
