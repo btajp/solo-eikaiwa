@@ -1,4 +1,5 @@
-import { DOMAINS, QUICK_KINDS, type Domain, type Menu, type QuickKind } from "../menu";
+import { QUICK_KINDS, type Menu, type QuickKind } from "../menu";
+import { DOMAINS, type Domain } from "../content";
 import { json, exact, type RouteEntry } from "./http";
 
 export type MenuRoutesDeps = {

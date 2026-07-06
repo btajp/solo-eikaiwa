@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "n
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { openDb } from "../db";
-import { loadContent, parseContentFile } from "../menu";
+import { loadContent, parseContentFile } from "../content";
 import { loadSentences, type Sentence } from "../sentences";
 import type { CategoryRate } from "../assessment";
 import type { ClaudeRunner } from "../converse";

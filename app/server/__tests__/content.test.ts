@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DOMAINS, loadContent } from "../menu";
+import { DOMAINS, loadContent } from "../content";
 import { SCENARIOS_DIR, TOPICS_DIR } from "../paths";
 
 /** リポジトリ実コンテンツの整合性（frontmatter タグの網羅チェック） */

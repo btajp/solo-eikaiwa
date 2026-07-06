@@ -1,9 +1,10 @@
-import { ensureDirs, RECORDINGS_DIR, SCENARIOS_DIR, TOPICS_DIR, sessionLogPath } from "./paths";
+import { ensureDirs, RECORDINGS_DIR, sessionLogPath } from "./paths";
 import { transcribeAudio } from "./stt";
 import { synthesize } from "./tts";
 import { converseTurn } from "./converse";
 import { checkHealth } from "./health";
-import { buildQuickMenu, buildTodayMenu, invalidateTodayMenuCache, loadContent } from "./menu";
+import { buildQuickMenu, buildTodayMenu, invalidateTodayMenuCache } from "./menu";
+import { findScenario, findTopic } from "./content";
 import { generateAeFeedback, generateModelTalk, generatePhraseHints, generatePrepPack, generateReflection, generateSentenceExplanation, generateTalkExplanation, generateUtteranceTranslation, roleplayPrompt } from "./coach";
 import { listPracticeDays, readEvents } from "./session-log";
 import { readSettings, writeSettings } from "./settings";
@@ -48,7 +49,7 @@ const realDeps: RouteDeps = {
   buildMenu: (minutes) => buildTodayMenu(minutes, { level: progressStore.getLevel() }),
   aeFeedback: (args) => generateAeFeedback(args),
   modelTalk: async (topicId) => {
-    const topic = loadContent(TOPICS_DIR).find((t) => t.id === topicId);
+    const topic = findTopic(topicId);
     if (!topic) return null;
     const talk = await generateModelTalk({ topicTitle: topic.title, hints: topic.hints });
     return { text: talk.text, topicTitle: topic.title };
@@ -56,11 +57,11 @@ const realDeps: RouteDeps = {
   libraryStore,
   reflection: () => generateReflection({ events: readEvents(sessionLogPath(new Date())) }),
   scenarioPrompt: (scenarioId) => {
-    const sc = loadContent(SCENARIOS_DIR).find((s) => s.id === scenarioId);
+    const sc = findScenario(scenarioId);
     return sc ? roleplayPrompt(sc) : null;
   },
   prepPack: async (topicId) => {
-    const topic = loadContent(TOPICS_DIR).find((t) => t.id === topicId);
+    const topic = findTopic(topicId);
     if (!topic) return null;
     const p = prepParams(stageOf(progressStore.getLevel()));
     return generatePrepPack({ topicTitle: topic.title, hints: topic.hints, chunkCount: p.chunkCount, hintLang: p.hintLang });

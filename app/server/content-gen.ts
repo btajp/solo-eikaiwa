@@ -6,7 +6,7 @@ import { normalizeEn } from "./chunks";
 import { extractJson } from "./coach";
 import { categoryBadRates, type CategoryRate } from "./assessment";
 import type { ClaudeRunner } from "./converse";
-import { loadContent } from "./menu";
+import { loadContent } from "./content";
 import { loadSentences, type Sentence } from "./sentences";
 
 const ORIGINALITY = "All output must be completely original — do not copy or adapt sentences from existing textbooks or courses.";
