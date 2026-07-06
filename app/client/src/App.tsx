@@ -53,7 +53,7 @@ export function App() {
     else if (sel.type === "library") setMode({ kind: "library" });
     else if (sel.type === "placement") setMode({ kind: "placement" });
     else if (sel.type === "daily") setMode({ kind: "session", source: { type: "daily", minutes: sel.minutes } });
-    else setMode({ kind: "session", source: { type: "quick", drill: sel.drill } });
+    else setMode({ kind: "session", source: { type: "quick", drill: sel.drill, domain: sel.domain } });
   }
 
   const navItems: Array<{ key: string; icon: string; label: string; active: boolean; go: () => void }> = [
