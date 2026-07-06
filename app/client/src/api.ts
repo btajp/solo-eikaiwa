@@ -421,6 +421,22 @@ export async function fetchUtteranceTranslation(text: string): Promise<string> {
   return ((await res.json()) as { text: string }).text;
 }
 
+export type PhraseHint = { en: string; ja: string };
+
+/** 言い方ヒント: 言いたい日本語＋直近履歴 → 使える英語表現2〜3個 */
+export async function fetchPhraseHints(
+  jaText: string,
+  history?: Array<{ role: "you" | "ai"; text: string }>,
+): Promise<PhraseHint[]> {
+  const res = await fetch("/api/coach/phrase-hint", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jaText, history }),
+  });
+  if (!res.ok) throw new Error(`phrase hint failed: ${await extractErrorMessage(res)}`);
+  return ((await res.json()) as { suggestions: PhraseHint[] }).suggestions;
+}
+
 export type PlacementTaskDef = {
   id: string; durationSec: number; instructionEn: string; instructionJa: string; promptText: string;
 };

@@ -226,6 +226,14 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
   .stat-box { margin-left: auto; display: flex; gap: var(--sp-2); align-items: baseline; }
 }
 
+/* 言い方ヒント */
+.phrase-hint { margin: var(--sp-3) 0; }
+.phrase-hint input[type="text"] {
+  width: 100%; font: inherit; padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text);
+}
+
 /* 会話（チャットバブル） */
 .chat { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-4); }
 .chat-row { display: flex; }

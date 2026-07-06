@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { converse, fetchUtteranceTranslation, sttUpload, ttsFetch } from "../api";
+import { converse, fetchPhraseHints, fetchUtteranceTranslation, sttUpload, ttsFetch, type PhraseHint } from "../api";
 import { playBlob, Recorder, stopPlayback } from "../audio";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
@@ -28,6 +28,10 @@ export function FreeTalkScreen(props: { scenarioId?: string; onSessionId?: (id: 
   const aliveRef = useRef(true);
   // AI発話ごとの訳。キーは turns の index。値: undefined=未取得, "loading"=取得中, それ以外=訳文
   const [translations, setTranslations] = useState<Record<number, string>>({});
+  const [hintInput, setHintInput] = useState("");
+  // 言い方ヒント。null=未取得, "loading"=取得中, 配列=提案結果
+  const [hints, setHints] = useState<PhraseHint[] | "loading" | null>(null);
+  const [hintError, setHintError] = useState("");
 
   // 録音中/再生中に画面を離脱してもマイク・音声が解放されるよう、アンマウント時に停止する
   useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; recorderRef.current.cancel(); stopPlayback(); }; }, []);
@@ -89,6 +93,22 @@ export function FreeTalkScreen(props: { scenarioId?: string; onSessionId?: (id: 
     }
   }
 
+  async function requestHints() {
+    const jaText = hintInput.trim();
+    if (!jaText) return;
+    setHintError("");
+    setHints("loading");
+    try {
+      const suggestions = await fetchPhraseHints(jaText, turns.slice(-6));
+      if (aliveRef.current) setHints(suggestions);
+    } catch {
+      if (aliveRef.current) {
+        setHints(null);
+        setHintError("ヒントを取得できませんでした。もう一度お試しください。");
+      }
+    }
+  }
+
   return (
     <div>
       <Button
@@ -100,6 +120,38 @@ export function FreeTalkScreen(props: { scenarioId?: string; onSessionId?: (id: 
         {LABELS[status]}
       </Button>
       {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
+      <div className="phrase-hint stack">
+        <label className="text-sm text-muted" htmlFor="phrase-hint-input">
+          うまく言えないときは、言いたいことを日本語で入力すると英語の言い方を提案します
+        </label>
+        <input
+          id="phrase-hint-input"
+          type="text"
+          value={hintInput}
+          onChange={(e) => setHintInput(e.target.value)}
+          placeholder="例: その機能はまだ試していません"
+        />
+        <Button variant="secondary" onClick={requestHints} disabled={hints === "loading" || !hintInput.trim()}>
+          💡 言い方のヒント
+        </Button>
+        {hints === "loading" && <p className="text-sm text-muted">言い方を考えています…</p>}
+        {hintError && (
+          <p className="sentence-explain text-sm">
+            {hintError}
+            <Button variant="ghost" onClick={requestHints}>再試行</Button>
+          </p>
+        )}
+        {Array.isArray(hints) && (
+          <div className="stack">
+            {hints.map((h, i) => (
+              <div key={i} className="sentence-explain text-sm">
+                <div>{h.en}</div>
+                {h.ja && <div className="text-muted">{h.ja}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <section className="chat">
         {turns.map((t, i) => (
           <div key={i} className={`chat-row ${t.role === "you" ? "you" : "ai"}`}>
