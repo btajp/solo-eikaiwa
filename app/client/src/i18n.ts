@@ -195,6 +195,11 @@ type ListeningScreenStrings = { listeningScreen: {
   showScript: string; scriptLoading: string;
   explainMore: string; explainLoading: string; explainError: string;
 } };
+type FeedbackRowStrings = { feedbackRow: {
+  prompt: string; notePlaceholder: string;
+  hard: string; justRight: string; easy: string;
+  thanks: string; retryHint: string;
+} };
 
 type Strings =
   & NavStrings & UiScaleStrings & AppShellStrings & SupportStrings & StatStrings & HeroStrings
@@ -203,7 +208,7 @@ type Strings =
   & MenuTitleStrings & SessionStrings
   & WarmupStrings & Ftt432Strings & ReflectionStrings & ChunkListStrings
   & ShadowingStrings & LibraryStrings & RoleplayStrings & FreeTalkScreenStrings & ListeningScreenStrings
-  & LevelChipStrings;
+  & LevelChipStrings & FeedbackRowStrings;
 
 const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -437,6 +442,13 @@ export const STR: Record<Lang, Strings> = {
       explainMore: "💡 Translation & notes", explainLoading: "Writing the translation and notes…",
       explainError: "Couldn't load the explanation. Please try again.",
     },
+    feedbackRow: {
+      prompt: "How was that? (optional)",
+      notePlaceholder: "One-line note (optional)",
+      hard: "Too hard", justRight: "Just right", easy: "Too easy",
+      thanks: "Thanks — noted.",
+      retryHint: "Couldn't save. Tap again to retry.",
+    },
   },
   ja: {
     nav: {
@@ -664,6 +676,13 @@ export const STR: Record<Lang, Strings> = {
       showScript: "📄 スクリプトを表示", scriptLoading: "スクリプトを読み込み中…",
       explainMore: "💡 日本語訳と解説", explainLoading: "日本語訳と解説を書いています…",
       explainError: "解説を取得できませんでした。もう一度お試しください。",
+    },
+    feedbackRow: {
+      prompt: "今のはどうでしたか？（任意）",
+      notePlaceholder: "ひとことメモ（任意）",
+      hard: "キツい", justRight: "ちょうどいい", easy: "簡単",
+      thanks: "ありがとう、記録しました。",
+      retryHint: "保存できませんでした。もう一度タップしてください。",
     },
   },
 };
