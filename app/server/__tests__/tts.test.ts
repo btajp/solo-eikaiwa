@@ -52,7 +52,7 @@ describe("tts", () => {
     await Bun.write(path.join(bundledDir, `${key}.mp3`), new Uint8Array([7, 7, 7]));
     const spawned: string[][] = [];
     const r = await withNoApiKey(() =>
-      synthesize("Bundled sentence", { bundledDir, spawnFn: makeFakeSpawn(spawned) }),
+      synthesize("Bundled sentence", { bundledDir, spawnFn: makeFakeSpawn(spawned), env: {} }),
     );
     expect(r.engine).toBe("openai");
     expect(Array.from(r.audio)).toEqual([7, 7, 7]);
@@ -67,7 +67,7 @@ describe("tts", () => {
     const fakeFetch = (async () => {
       throw new Error("API must not be called when bundled audio exists");
     }) as unknown as typeof fetch;
-    const r = await synthesize("Bundled first", { apiKey: "sk-test", bundledDir, cacheDir, fetchFn: fakeFetch });
+    const r = await synthesize("Bundled first", { apiKey: "sk-test", bundledDir, cacheDir, fetchFn: fakeFetch, env: {} });
     expect(r.engine).toBe("openai");
     expect(Array.from(r.audio)).toEqual([5]);
   });
@@ -80,8 +80,8 @@ describe("tts", () => {
       return new Response(new Uint8Array([1, 2, 3]), { status: 200 });
     }) as unknown as typeof fetch;
 
-    const r1 = await synthesize("Hello there", { apiKey: "sk-test", cacheDir, fetchFn: fakeFetch });
-    const r2 = await synthesize("Hello there", { apiKey: "sk-test", cacheDir, fetchFn: fakeFetch });
+    const r1 = await synthesize("Hello there", { apiKey: "sk-test", cacheDir, fetchFn: fakeFetch, env: {} });
+    const r2 = await synthesize("Hello there", { apiKey: "sk-test", cacheDir, fetchFn: fakeFetch, env: {} });
     expect(calls).toBe(1);
     expect(r1.engine).toBe("openai");
     expect(r1.mime).toBe("audio/mpeg");
@@ -106,7 +106,7 @@ describe("tts", () => {
     const spawned: string[][] = [];
 
     const r = await synthesize("Hello", {
-      apiKey: "sk-test", cacheDir, fetchFn: fakeFetch, spawnFn: makeFakeSpawn(spawned),
+      apiKey: "sk-test", cacheDir, fetchFn: fakeFetch, spawnFn: makeFakeSpawn(spawned), env: {},
     });
     expect(r.engine).toBe("say");
     expect(Array.from(r.audio)).toEqual([9, 9]);
@@ -121,7 +121,7 @@ describe("tts", () => {
     const spawned: string[][] = [];
 
     const r = await synthesize("Hello", {
-      apiKey: "sk-test", cacheDir, fetchFn: fakeFetch, spawnFn: makeFakeSpawn(spawned),
+      apiKey: "sk-test", cacheDir, fetchFn: fakeFetch, spawnFn: makeFakeSpawn(spawned), env: {},
     });
     expect(r.engine).toBe("say");
     expect(Array.from(r.audio)).toEqual([9, 9]);
@@ -133,7 +133,7 @@ describe("tts", () => {
     const fakeSpawn = async (_cmd: string[]) => ({ exitCode: 1, stderr: "say not available" });
 
     await expect(
-      synthesize("Hello", { apiKey: "sk-test", cacheDir, fetchFn: fakeFetch, spawnFn: fakeSpawn }),
+      synthesize("Hello", { apiKey: "sk-test", cacheDir, fetchFn: fakeFetch, spawnFn: fakeSpawn, env: {} }),
     ).rejects.toThrow();
   });
 
@@ -148,7 +148,7 @@ describe("tts", () => {
     }) as unknown as typeof fetch;
 
     const r = await synthesize("Cache write failure text", {
-      apiKey: "sk-test", cacheDir: cacheDirAsFile, fetchFn: fakeFetch,
+      apiKey: "sk-test", cacheDir: cacheDirAsFile, fetchFn: fakeFetch, env: {},
     });
     expect(r.engine).toBe("openai");
     expect(Array.from(r.audio)).toEqual([4, 2, 0]);

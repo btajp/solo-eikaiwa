@@ -203,7 +203,7 @@ ollama pull qwen3:30b-instruct   # Qwen3-30B-A3B-Instruct（MoE・約18GB・RAM 
 
 ### ローカル TTS の例: kokoro-fastapi（Apple Silicon Mac）
 
-[kokoro-fastapi](https://github.com/remsky/Kokoro-FastAPI) は Kokoro-82M を OpenAI 互換 API で提供する軽量サーバ。Docker が最も手軽（**実装時に最新の起動方法を公式 README で確認すること**）:
+[kokoro-fastapi](https://github.com/remsky/Kokoro-FastAPI) は Kokoro-82M を OpenAI 互換 API で提供する軽量サーバ。Docker が最も手軽（**導入時に最新の起動方法を公式 README で確認すること**）:
 
 ```bash
 # CPU（Docker Desktop for Mac は Linux コンテナに Apple GPU を渡せないため CPU 実行になる）
@@ -211,7 +211,7 @@ docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest
 # 起動確認: ブラウザで http://localhost:8880/web を開く
 ```
 
-Apple Silicon の MPS 加速で速くしたい場合は、Docker ではなくリポジトリの手順に沿って `uv` でネイティブ実行する（詳細は公式 README・**実装時に確認**）。Kokoro-82M は小型モデルで、Apple Silicon の CPU でも短文なら概ねリアルタイム（RTF < 1・1文あたり数百 ms〜1〜2 秒程度）。
+Apple Silicon の MPS 加速で速くしたい場合は、Docker ではなくリポジトリの手順に沿って `uv` でネイティブ実行する（詳細は公式 README・**導入時に確認**）。Kokoro-82M は小型モデルで、Apple Silicon の CPU でも短文なら概ねリアルタイム（RTF < 1・1文あたり数百 ms〜1〜2 秒程度）。
 
 設定は「⚙️ 設定 → 音声（TTS）」で **Base URL `http://localhost:8880/v1`・モデル `kokoro`・voice `af_sky`**（54種の voice から選択・日英中対応）を保存すれば完了。kokoro-fastapi は鍵不要なので「TTS API キーなし」表示のままで正常。
 
