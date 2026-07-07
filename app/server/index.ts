@@ -50,7 +50,7 @@ const realDeps: RouteDeps = {
   logFile: () => sessionLogPath(new Date()),
   recordingsDir: RECORDINGS_DIR,
   buildMenu: (minutes) => buildTodayMenu(minutes, { level: progressStore.getLevel() }),
-  aeFeedback: (args) => generateAeFeedback(args),
+  aeFeedback: (args) => generateAeFeedback({ ...args, stage: stageOf(progressStore.getLevel()) }),
   modelTalk: async (topicId) => {
     const topic = findTopic(topicId);
     if (!topic) return null;

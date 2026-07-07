@@ -38,7 +38,7 @@ describe("generateAeFeedback", () => {
 
   test("正常系: JSONを構造化して返し、transcriptとtopicがプロンプトに入る", async () => {
     const { runner, seen } = runnerReturning(JSON.stringify(valid));
-    const result = await generateAeFeedback({ transcript: "I go yesterday to office", topicTitle: "My week" }, runner);
+    const result = await generateAeFeedback({ transcript: "I go yesterday to office", topicTitle: "My week", stage: 5 }, runner);
     expect(result).toEqual(valid);
     expect(seen[0].prompt).toContain("I go yesterday to office");
     expect(seen[0].prompt).toContain("My week");
@@ -47,9 +47,30 @@ describe("generateAeFeedback", () => {
 
   test("JSONパース失敗時は素のテキストを1itemに包むフォールバック", async () => {
     const { runner } = runnerReturning("Sorry, here is some prose feedback instead.");
-    const result = await generateAeFeedback({ transcript: "t", topicTitle: "x" }, runner);
+    const result = await generateAeFeedback({ transcript: "t", topicTitle: "x", stage: 5 }, runner);
     expect(result.items).toHaveLength(1);
     expect(result.items[0].why_ja).toContain("prose feedback");
+  });
+
+  // stage4+ 不変ロック: 変更前の実出力(AE_SYSTEM)をそのまま転記（回帰基準）
+  test("stage 4+ の systemPrompt は現行文字列と完全一致する（回帰ロック）", async () => {
+    const { runner, seen } = runnerReturning(JSON.stringify(valid));
+    await generateAeFeedback({ transcript: "t", topicTitle: "x", stage: 5 }, runner);
+    expect(seen[0].systemPrompt).toBe(
+      "You are an English error-correction coach for a Japanese IT professional (CEFR A2-B1).\n" +
+      "You receive the transcript of the learner's spoken monologue (round 1 of a 4/3/2 fluency task).\n" +
+      "Pick the 3-5 most impactful language problems (grammar, word choice, unnatural phrasing). Ignore filler words and small slips.\n" +
+      "Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:\n" +
+      '{"items":[{"quote":"<the learner\'s exact words>","issue":"<short English label>","better":"<corrected natural version>","why_ja":"<1〜2文の簡潔な日本語解説>"}],"praise":"<one short encouraging sentence in English>"}\n' +
+      "Do not use any tools — reply directly with text only.",
+    );
+  });
+
+  test("stage 1 の systemPrompt は高頻度語彙制約と one clause 制約を含む", async () => {
+    const { runner, seen } = runnerReturning(JSON.stringify(valid));
+    await generateAeFeedback({ transcript: "t", topicTitle: "x", stage: 1 }, runner);
+    expect(seen[0].systemPrompt).toContain("word families");
+    expect(seen[0].systemPrompt).toContain("one clause");
   });
 });
 

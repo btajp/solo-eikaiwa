@@ -23,19 +23,26 @@ export function extractJson<T>(text: string): T | null {
   }
 }
 
-const AE_SYSTEM = `You are an English error-correction coach for a Japanese IT professional (CEFR A2-B1).
+function makeAeSystem(stage: number): string {
+  const vocab = vocabConstraint(stage);
+  // stage>=4（vocab===null）は旧文言を一字一句維持する（上級者の挙動不変）
+  const constraintLine = vocab
+    ? `${vocab}\nKeep every "better" version short and simple enough for the learner to actually say (one clause when possible).\n`
+    : "";
+  return `You are an English error-correction coach for a Japanese IT professional (CEFR A2-B1).
 You receive the transcript of the learner's spoken monologue (round 1 of a 4/3/2 fluency task).
 Pick the 3-5 most impactful language problems (grammar, word choice, unnatural phrasing). Ignore filler words and small slips.
-Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:
+${constraintLine}Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:
 {"items":[{"quote":"<the learner's exact words>","issue":"<short English label>","better":"<corrected natural version>","why_ja":"<1〜2文の簡潔な日本語解説>"}],"praise":"<one short encouraging sentence in English>"}
 Do not use any tools — reply directly with text only.`;
+}
 
 export async function generateAeFeedback(
-  args: { transcript: string; topicTitle: string },
+  args: { transcript: string; topicTitle: string; stage: number },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<AeFeedback> {
   const prompt = `Topic: ${args.topicTitle}\n\nLearner's transcript:\n${args.transcript}`;
-  const { text } = await runner(prompt, undefined, { systemPrompt: AE_SYSTEM });
+  const { text } = await runner(prompt, undefined, { systemPrompt: makeAeSystem(args.stage) });
   const parsed = extractJson<AeFeedback>(text);
   if (parsed && Array.isArray(parsed.items)) return parsed;
   // パース失敗時のフォールバック: 素のテキストを1itemに包んでUIに出せる形にする
