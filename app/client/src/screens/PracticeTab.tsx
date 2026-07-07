@@ -13,6 +13,8 @@ import { Card } from "../ui/Card";
 import { localYmd } from "../dates";
 import { initialPhase, type Phase } from "./practicePhase";
 
+const SET_SIZE = 20;
+
 /** 練習タブ: ja→（声に出す）→[歯抜け]→答えを見る→自動再生→自己評価、の産出リトリーバルフロー */
 export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, newPerDay }: { lang: Lang; hideNote: boolean; clozeDefault: boolean; audioFirst?: boolean; newPerDay: number }) {
   const t = STR[lang].sentences;
@@ -20,6 +22,7 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>(initialPhase(audioFirst, clozeDefault));
   const [gradedCount, setGradedCount] = useState(0);
+  const [continuedSets, setContinuedSets] = useState(0);
   const [dueTomorrow, setDueTomorrow] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,6 +36,8 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
   const queue = load.state.status === "ready" ? load.state.data : [];
   const current = queue[idx];
   const done = load.state.status === "ready" && !current;
+  // セット境界: idx が SET_SIZE の倍数（>0）に到達し、まだ後続があり、このセットをまだ「続ける」していない
+  const atSetBoundary = !done && idx > 0 && idx % SET_SIZE === 0 && idx / SET_SIZE > continuedSets;
 
   // 「音から」フェーズに入ったカードごとに一度だけ TTS を自動再生する（英文・ja は非表示のまま）。
   // 音声は補助 — 失敗してもフローは止めない。ref キーで StrictMode 二重実行・再レンダーの重複再生を防ぐ。
@@ -91,6 +96,17 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
   if (load.state.status === "loading") return <p className="text-muted">{t.loading}</p>;
   if (load.state.status === "error") {
     return <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>{load.state.error}</Banner>;
+  }
+  if (atSetBoundary) {
+    return (
+      <Card>
+        <p className="sentence-done">{t.setDone(queue.length - idx)}</p>
+        <p className="text-muted">{t.setNote}</p>
+        <Button variant="primary" size="lg" onClick={() => setContinuedSets(idx / SET_SIZE)}>
+          {t.setContinue}
+        </Button>
+      </Card>
+    );
   }
   if (done) {
     return (

@@ -118,6 +118,9 @@ type SentencesStrings = {
     doneTitle: (n: number) => string;
     dueTomorrow: (n: number) => string;
     doneBody: string;
+    setDone: (remaining: number) => string;
+    setContinue: string;
+    setNote: string;
     filterAll: string;
     domain: { daily: string; business: string; it: string };
     srsNew: string;
@@ -312,6 +315,9 @@ export const STR: Record<Lang, Strings> = {
       doneTitle: (n) => `Done for today (${n} sentences)`,
       dueTomorrow: (n) => `Due tomorrow: ${n}. `,
       doneBody: "Recalling out loud is the shortest path to retention. See you tomorrow.",
+      setDone: (remaining) => `Set complete ✅ — ${remaining} more to go`,
+      setContinue: "Continue",
+      setNote: "Do the rest now or later — either is fine.",
       filterAll: "All",
       domain: { daily: "Daily", business: "Business", it: "IT" },
       srsNew: "New",
@@ -530,6 +536,9 @@ export const STR: Record<Lang, Strings> = {
       doneTitle: (n) => `今日の分は完了です（${n}文）`,
       dueTomorrow: (n) => `明日の復習予定: ${n}文。`,
       doneBody: "思い出して声に出すことが定着の近道です。また明日。",
+      setDone: (remaining) => `今日のセット完了 ✅ — 続きが ${remaining} 文あります`,
+      setContinue: "続ける",
+      setNote: "続きは今でも後でもOKです。",
       filterAll: "すべて",
       domain: { daily: "日常", business: "ビジネス", it: "IT" },
       srsNew: "未学習",
