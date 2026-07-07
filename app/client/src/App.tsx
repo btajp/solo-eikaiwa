@@ -159,20 +159,30 @@ function SupportPanel({ lang }: { lang: Lang }) {
   return (
     <div className="support-panel stack">
       <div className="stat-title">{t.title}</div>
-      {toggles.map((tg) => (
-        <div key={tg.key}>
-          <div className="support-label-row">
-            <div className="text-sm text-muted">{tg.label}</div>
-            <button className="info-btn" aria-label={tg.help} title={tg.help} onClick={() => toggleHelp(tg.key)}>ⓘ</button>
+      {toggles.map((tg) => {
+        const popId = `support-help-${tg.key}`;
+        return (
+          <div key={tg.key}>
+            <div className="support-label-row">
+              <div className="text-sm text-muted">{tg.label}</div>
+              <button
+                className="info-btn"
+                aria-label={t.helpAriaSuffix(tg.label)}
+                title={tg.help}
+                aria-expanded={openHelp === tg.key}
+                aria-controls={popId}
+                onClick={() => toggleHelp(tg.key)}
+              >ⓘ</button>
+            </div>
+            {openHelp === tg.key && <div id={popId} className="info-pop">{tg.help}</div>}
+            <div className="lang-toggle" role="group" aria-label={tg.label}>
+              <button className={s[tg.key] === null ? "is-active" : ""} onClick={() => setToggle(tg.key, null)}>{t.optAuto}</button>
+              <button className={s[tg.key] === true ? "is-active" : ""} onClick={() => setToggle(tg.key, true)}>{t.optOn}</button>
+              <button className={s[tg.key] === false ? "is-active" : ""} onClick={() => setToggle(tg.key, false)}>{t.optOff}</button>
+            </div>
           </div>
-          {openHelp === tg.key && <div className="info-pop">{tg.help}</div>}
-          <div className="lang-toggle" role="group" aria-label={tg.label}>
-            <button className={s[tg.key] === null ? "is-active" : ""} onClick={() => setToggle(tg.key, null)}>{t.optAuto}</button>
-            <button className={s[tg.key] === true ? "is-active" : ""} onClick={() => setToggle(tg.key, true)}>{t.optOn}</button>
-            <button className={s[tg.key] === false ? "is-active" : ""} onClick={() => setToggle(tg.key, false)}>{t.optOff}</button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

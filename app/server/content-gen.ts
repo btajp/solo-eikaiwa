@@ -158,9 +158,16 @@ Reply with STRICT JSON only: {"sentences":[{"domain":"daily|business|it","en":".
 Do not use any tools — reply directly with text only.`;
     let validated: Sentence[] | null = null;
     for (let attempt = 1; attempt <= 2 && !validated; attempt++) {
-      const { text } = await deps.runner(`Generate the 4 sentences for category: ${w.category}`, undefined, { systemPrompt: system });
-      const parsed = extractJson<{ sentences?: unknown }>(text);
-      validated = parsed ? validateNewSentences(parsed.sentences, all, w.categoryNo, w.category) : null;
+      let text: string | undefined;
+      try {
+        ({ text } = await deps.runner(`Generate the 4 sentences for category: ${w.category}`, undefined, { systemPrompt: system }));
+      } catch {
+        // SDK呼び出し自体の一過性エラー（例: tool_use起因のmaxTurns超過）も検証NGと同様に1回だけ再試行する
+      }
+      if (text !== undefined) {
+        const parsed = extractJson<{ sentences?: unknown }>(text);
+        validated = parsed ? validateNewSentences(parsed.sentences, all, w.categoryNo, w.category) : null;
+      }
       if (!validated && attempt === 1) log(`  ${w.category}: 検証NG — 再生成します`);
     }
     if (!validated) {
@@ -234,9 +241,16 @@ level must be within 1..6 and include stage ${deps.stage}.
 Do not use any tools — reply directly with text only.`;
     let cand: NewContentCandidate | null = null;
     for (let attempt = 1; attempt <= 2 && !cand; attempt++) {
-      const { text } = await deps.runner(`Create the ${p.kind} now.`, undefined, { systemPrompt: system });
-      const parsed = extractJson<NewContentCandidate>(text);
-      cand = validateTopicCandidate(parsed, p.kind, existingIds, p.dir, deps.stage);
+      let text: string | undefined;
+      try {
+        ({ text } = await deps.runner(`Create the ${p.kind} now.`, undefined, { systemPrompt: system }));
+      } catch {
+        // SDK呼び出し自体の一過性エラー（例: tool_use起因のmaxTurns超過）も検証NGと同様に1回だけ再試行する
+      }
+      if (text !== undefined) {
+        const parsed = extractJson<NewContentCandidate>(text);
+        cand = validateTopicCandidate(parsed, p.kind, existingIds, p.dir, deps.stage);
+      }
       if (!cand && attempt === 1) log(`  ${p.kind}: 検証NG — 再生成します`);
     }
     if (!cand) {
@@ -287,11 +301,17 @@ export function listeningToMarkdown(c: NewListeningCandidate & { domain: string;
   ].join("\n");
 }
 
+/** talk-explain のクライアント訳解説が受け付ける本文の上限（3000字）に対し、余裕を持たせた生成側の上限 */
+const LISTENING_BODY_MAX_CHARS = 2800;
+
 /**
  * AI 生成 listening 候補の厳格バリデーション（parseListeningFile とは別物 — 不正は静かにフォールバックせず候補全体を棄却）。
- * 検査: id(kebab-case・予約語"log"禁止・既存集合/ファイルと非衝突) / title・titleJa(空でない) / paragraphs(2件以上・すべて非空文字列)。
+ * 検査: id(kebab-case・予約語"log"禁止・既存集合/ファイルと非衝突) / title・titleJa(空でない・改行や二重引用符を含まない) /
+ * paragraphs(2件以上・すべて非空文字列・結合後の長さが上限以内)。
  * domain・level はプランで固定するためここでは検査しない。
  * id="log" を拒否するのは POST /api/listening/log と GET /api/listening/:id (prefix) の混同を避けるため。
+ * title・titleJa の改行/二重引用符を拒否するのは frontmatter（`title: "..."` 形式）の破壊を防ぐため。
+ * 本文の長さ上限は talk-explain（3000字上限）がこの本文全体を受け取っても常に成功するようにするため。
  */
 export function validateListeningCandidate(
   parsed: unknown, existingIds: Set<string>, dir: string,
@@ -301,11 +321,13 @@ export function validateListeningCandidate(
   if (typeof c.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.id)) return null;
   if (c.id === "log") return null;
   if (existingIds.has(c.id) || existsSync(path.join(dir, `${c.id}.md`))) return null;
-  if (typeof c.title !== "string" || !c.title.trim()) return null;
-  if (typeof c.titleJa !== "string" || !c.titleJa.trim()) return null;
+  if (typeof c.title !== "string" || !c.title.trim() || /[\n"]/.test(c.title)) return null;
+  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\n"]/.test(c.titleJa)) return null;
   if (!Array.isArray(c.paragraphs) || c.paragraphs.length < 2) return null;
   if (!c.paragraphs.every((p) => typeof p === "string" && p.trim().length > 0)) return null;
-  return { id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(), paragraphs: c.paragraphs.map((p) => p.trim()) };
+  const paragraphs = c.paragraphs.map((p) => p.trim());
+  if (paragraphs.join("\n\n").length > LISTENING_BODY_MAX_CHARS) return null;
+  return { id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(), paragraphs };
 }
 
 export type GenListeningDeps = {
@@ -349,13 +371,15 @@ Reply with STRICT JSON only — no markdown fences:
 Do not use any tools — reply directly with text only.`;
     let cand: NewListeningCandidate | null = null;
     for (let attempt = 1; attempt <= 2 && !cand; attempt++) {
+      let text: string | undefined;
       try {
-        const { text } = await deps.runner(`Write the ${p.domain} listening script now.`, undefined, { systemPrompt: system });
-        const parsed = extractJson<NewListeningCandidate>(text);
-        cand = validateListeningCandidate(parsed, existingIds, deps.listeningDir);
+        ({ text } = await deps.runner(`Write the ${p.domain} listening script now.`, undefined, { systemPrompt: system }));
       } catch {
         // SDK呼び出し自体の一過性エラー（例: tool_use起因のmaxTurns超過）も検証NGと同様に1回だけ再試行する
-        cand = null;
+      }
+      if (text !== undefined) {
+        const parsed = extractJson<NewListeningCandidate>(text);
+        cand = validateListeningCandidate(parsed, existingIds, deps.listeningDir);
       }
       if (!cand && attempt === 1) log(`  ${p.domain}/${p.level[0]}-${p.level[1]}: 検証NG — 再生成します`);
     }

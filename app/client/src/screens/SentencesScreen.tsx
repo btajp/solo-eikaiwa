@@ -60,14 +60,18 @@ export function SentencesScreen({ lang }: { lang: Lang }) {
         <button className={`filter-chip${tab === "browse" ? " is-active" : ""}`} onClick={() => setTab("browse")}>
           {t.tabBrowse}
         </button>
-        <label className="hide-note-toggle text-sm text-muted">
-          <input type="checkbox" checked={hideNote} onChange={toggleHideNote} />
-          {t.hideNoteLabel}
-        </label>
-        <label className="hide-note-toggle text-sm text-muted">
-          <input type="checkbox" checked={audioFirst} onChange={toggleAudioFirst} />
-          {t.audioFirstLabel}
-        </label>
+        {tab === "practice" && (
+          <>
+            <label className="hide-note-toggle text-sm text-muted">
+              <input type="checkbox" checked={hideNote} onChange={toggleHideNote} />
+              {t.hideNoteLabel}
+            </label>
+            <label className="hide-note-toggle text-sm text-muted">
+              <input type="checkbox" checked={audioFirst} onChange={toggleAudioFirst} />
+              {t.audioFirstLabel}
+            </label>
+          </>
+        )}
       </div>
       {tab === "practice" ? <PracticeTab lang={lang} hideNote={hideNote} clozeDefault={clozeDefault} audioFirst={audioFirst} /> : <BrowseTab lang={lang} />}
     </div>

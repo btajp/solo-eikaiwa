@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   fetchListeningLibrary, fetchListeningItem, logListening, fetchProgressSummary, fetchTalkExplanation,
-  playTtsCached, type ListeningMeta, type ListeningDetail,
+  playTtsCached, prefetchTts, type ListeningMeta, type ListeningDetail,
 } from "../api";
 import { stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
@@ -136,9 +136,10 @@ function ListeningPlayback({ item, lang, onListened }: {
     setErrorMsg("");
     const my = ++tokenRef.current;
     for (let i = 0; i < item.paragraphs.length; i++) {
-      if (tokenRef.current !== my || !aliveRef.current) { if (aliveRef.current) setPlayingIdx(null); return; }
+      if (tokenRef.current !== my || !aliveRef.current) return;
       setPlayingIdx(i);
       try {
+        if (i + 1 < item.paragraphs.length) prefetchTts(item.paragraphs[i + 1]);
         await playTtsCached(item.paragraphs[i]);
       } catch (err) {
         if (tokenRef.current !== my || !aliveRef.current) return;
@@ -147,7 +148,7 @@ function ListeningPlayback({ item, lang, onListened }: {
         return;
       }
     }
-    if (tokenRef.current !== my || !aliveRef.current) { if (aliveRef.current) setPlayingIdx(null); return; }
+    if (tokenRef.current !== my || !aliveRef.current) return;
     setPlayingIdx(null);
     // 通し再生の完了 → 聴取を記録（記録失敗は再生体験を妨げない）
     try {

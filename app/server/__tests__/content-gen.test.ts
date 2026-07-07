@@ -95,6 +95,14 @@ describe("content-gen / validateNewSentences", () => {
     const cands = [{ domain: "daily", en: "I test this daily.", ja: "   ", note: "現在形" }];
     expect(validateNewSentences(cands, existing, 1, "現在形")).toBeNull();
   });
+
+  test("厳密な空文字 ja: '' も候補全体を不採用にする", () => {
+    const existing = [
+      { no: 1, category_no: 1, category: "現在形", domain: "daily", en: "I work here.", ja: "ここで働いています", note: "" },
+    ] as Sentence[];
+    const cands = [{ domain: "daily", en: "I test this daily.", ja: "", note: "現在形" }];
+    expect(validateNewSentences(cands, existing, 1, "現在形")).toBeNull();
+  });
 });
 
 describe("content-gen / contentToMarkdown", () => {
@@ -239,6 +247,20 @@ describe("content-gen / genSentences", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  test("runner が1回だけ例外を投げても再試行で回復し4文生成される（SDK一過性エラー耐性）", async () => {
+    const { dir, file, db } = setup();
+    let callIndex = 0;
+    const runner: ClaudeRunner = async () => {
+      if (callIndex++ === 0) throw new Error("Claude result error (error_max_turns): stop_reason=tool_use");
+      return { text: VALID_BATCH, sessionId: "fake" };
+    };
+    const logs: string[] = [];
+    await genSentences({ runner, sentencesFile: file, db, stage: 2, dry: false, log: (s) => logs.push(s) });
+    expect(loadSentences(file)).toHaveLength(9);
+    expect(logs.some((l) => l.includes("検証NG"))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   test("不正出力が2回続くと書き込みゼロでthrow", async () => {
     const { dir, file, db } = setup();
     const invalidBatch = JSON.stringify({ sentences: [{ domain: "casual", en: "x", ja: "y", note: "z" }] });
@@ -325,6 +347,27 @@ describe("content-gen / genTopics", () => {
     expect(loadContent(dirs.topicsDir).map((c) => c.id).sort()).toEqual(["topic-one", "topic-two"]);
     expect(loadContent(dirs.scenariosDir).map((c) => c.id)).toEqual(["scenario-one"]);
     expect(logs.some((l) => l.startsWith("完了:"))).toBe(true);
+    cleanup(dirs);
+  });
+
+  test("runner が1回だけ例外を投げても再試行で回復し3件生成される（SDK一過性エラー耐性）", async () => {
+    const dirs = tempDirs();
+    const responses = [contentJson("topic-one", "daily"), contentJson("topic-two", "it"), contentJson("scenario-one", "business")];
+    let callIndex = 0;
+    let responseIndex = 0;
+    const runner: ClaudeRunner = async () => {
+      if (callIndex++ === 0) throw new Error("Claude result error (error_max_turns): stop_reason=tool_use");
+      const text = responses[Math.min(responseIndex, responses.length - 1)];
+      responseIndex++;
+      return { text, sessionId: "fake" };
+    };
+    const logs: string[] = [];
+    await genTopics({
+      runner, topicsDir: dirs.topicsDir, scenariosDir: dirs.scenariosDir, stage: 3, dry: false, log: (s) => logs.push(s),
+    });
+    expect(loadContent(dirs.topicsDir).map((c) => c.id).sort()).toEqual(["topic-one", "topic-two"]);
+    expect(loadContent(dirs.scenariosDir).map((c) => c.id)).toEqual(["scenario-one"]);
+    expect(logs.some((l) => l.includes("検証NG"))).toBe(true);
     cleanup(dirs);
   });
 
@@ -465,6 +508,25 @@ describe("content-gen / validateListeningCandidate", () => {
   test("id が予約語 'log' は null（GET /api/listening/:id と POST /api/listening/log の解釈衝突を避ける）", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-reserved-"));
     expect(validateListeningCandidate({ ...BASE, id: "log" }, new Set(), dir)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("title に改行を含むと null（frontmatter破壊防止）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-title-nl-"));
+    expect(validateListeningCandidate({ ...BASE, title: "Line one\nLine two" }, new Set(), dir)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("titleJa に二重引用符を含むと null（frontmatter破壊防止）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-titleja-quote-"));
+    expect(validateListeningCandidate({ ...BASE, titleJa: '「朝の"習慣"」' }, new Set(), dir)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("paragraphs結合後の長さが2800字を超えると null（talk-explainの3000字上限対策）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-toolong-"));
+    const long = "a".repeat(2801);
+    expect(validateListeningCandidate({ ...BASE, paragraphs: [long, "second paragraph."] }, new Set(), dir)).toBeNull();
     rmSync(dir, { recursive: true, force: true });
   });
 });

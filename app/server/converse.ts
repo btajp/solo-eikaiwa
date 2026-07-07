@@ -13,7 +13,11 @@ export function partnerSystemPrompt(stage: number): string {
 - Do not use any tools — reply directly with text only.`;
 }
 
-/** runner の override 未指定時フォールバック既定。自由会話 route は常に stage 付き override を組む（routes/converse.ts） */
+/**
+ * makeClaudeRunner の runner が systemPrompt 未指定時に使うフォールバック既定。
+ * routes/converse.ts の handleConverse は自由会話・シナリオ会話のどちらでも必ず systemPromptOverride を組んで渡すため、
+ * 実運用のリクエスト経路ではこのフォールバックに到達しない。テストや makeClaudeRunner の直接呼び出し用の既定値。
+ */
 export const PARTNER_SYSTEM_PROMPT = partnerSystemPrompt(1);
 
 export type ClaudeRunner = (

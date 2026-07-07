@@ -20,6 +20,17 @@ export async function playTtsCached(text: string): Promise<void> {
 }
 
 /**
+ * ttsBlobCache を温めるだけの先読み（再生はしない）。次段落の音声を現在の再生中に用意しておき、
+ * 段落間の無音ギャップを縮めるために使う。失敗は握りつぶす（本再生時に playTtsCached が再試行する）。
+ */
+export function prefetchTts(text: string): void {
+  if (ttsBlobCache.has(text)) return;
+  const p = ttsFetch(text);
+  p.catch(() => ttsBlobCache.delete(text));
+  ttsBlobCache.set(text, p);
+}
+
+/**
  * モデルトーク（原稿テキスト→TTS Blob）の先読みキャッシュ。準備フェーズ表示時に呼び、
  * 「モデルトークを聞く」押下時には出来上がっている状態を狙う。onStage は初回生成時のみ発火する。
  */

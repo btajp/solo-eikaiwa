@@ -37,6 +37,7 @@ type SupportStrings = {
     jaHint: string; modelTalk: string; cloze: string;
     optAuto: string; optOn: string; optOff: string;
     helpJaHint: string; helpModelTalk: string; helpCloze: string;
+    helpAriaSuffix: (label: string) => string;
   };
 };
 type StatStrings = { stat: { title: string; thisWeekUnit: string; total: (n: number) => string } };
@@ -205,6 +206,7 @@ export const STR: Record<Lang, Strings> = {
       helpJaHint: "Whether practice chunks show a Japanese gloss. Auto: shown at lower levels, hidden as you level up. You can change it here anytime.",
       helpModelTalk: "Whether a model talk plays automatically during 4/3/2 preparation. Auto: follows your level. Even when off, you can always play it with the button.",
       helpCloze: "Whether sentence practice starts in fill-in-the-blank view. Auto: starts in normal view.",
+      helpAriaSuffix: (label) => `About ${label}`,
     },
     stat: { title: "Practice log", thisWeekUnit: "days this week", total: (n) => `${n} days total` },
     hero: {
@@ -417,6 +419,7 @@ export const STR: Record<Lang, Strings> = {
       helpJaHint: "練習チャンクに日本語訳を添えるかどうか。自動=低いレベルでは表示し、上がると非表示になります。いつでもここで変更できます。",
       helpModelTalk: "4/3/2 の準備でお手本トークを自動再生するかどうか。自動=レベルに応じた既定です。オフでもボタンでいつでも再生できます。",
       helpCloze: "例文練習を歯抜け（穴埋め）表示から始めるかどうか。自動=通常表示から始まります。",
+      helpAriaSuffix: (label) => `${label}の説明`,
     },
     stat: { title: "練習記録", thisWeekUnit: "日（今週）", total: (n) => `累計 ${n}日` },
     hero: {
