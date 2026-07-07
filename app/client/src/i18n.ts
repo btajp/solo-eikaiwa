@@ -47,6 +47,23 @@ type SupportStrings = {
     helpAriaSuffix: (label: string) => string;
   };
 };
+type LlmPanelStrings = {
+  llm: {
+    title: string;
+    providerLabel: string;
+    optEnv: string; optClaude: string; optOpenai: string; optCodex: string;
+    baseUrlLabel: string; baseUrlPlaceholder: string;
+    modelLabel: string; modelPlaceholder: string;
+    codexModelLabel: string; codexModelPlaceholder: string;
+    save: string; saving: string;
+    applied: string;
+    notApplied: (msg: string) => string;
+    saveFailed: string;
+    apiKeyConfigured: string; apiKeyMissing: string;
+    help: string; helpAria: string;
+    envNote: (envProvider: string) => string;
+  };
+};
 type StatStrings = { stat: { title: string; thisWeekUnit: string; total: (n: number) => string } };
 type HeroStrings = { hero: { title: string; date: (d: Date) => string; bedtime: string } };
 type QuickStrings = { quick: { label: string; note: string } };
@@ -217,7 +234,7 @@ type Strings =
   & MenuTitleStrings & SessionStrings
   & WarmupStrings & Ftt432Strings & ReflectionStrings & ChunkListStrings
   & ShadowingStrings & LibraryStrings & RoleplayStrings & FreeTalkScreenStrings & ListeningScreenStrings
-  & LevelChipStrings & FeedbackRowStrings & FeedbackScreenStrings;
+  & LevelChipStrings & FeedbackRowStrings & FeedbackScreenStrings & LlmPanelStrings;
 
 const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -241,6 +258,22 @@ export const STR: Record<Lang, Strings> = {
       helpModelTalk: "Whether a model talk plays automatically during 4/3/2 preparation. Auto: follows your level. Even when off, you can always play it with the button.",
       helpCloze: "Whether sentence practice starts in fill-in-the-blank view. Auto: starts in normal view.",
       helpAriaSuffix: (label) => `About ${label}`,
+    },
+    llm: {
+      title: "LLM provider",
+      providerLabel: "Provider",
+      optEnv: "Default (env)", optClaude: "Claude", optOpenai: "OpenAI-compatible", optCodex: "Codex",
+      baseUrlLabel: "Base URL", baseUrlPlaceholder: "http://localhost:11434/v1",
+      modelLabel: "Model", modelPlaceholder: "llama3.1",
+      codexModelLabel: "Model (optional)", codexModelPlaceholder: "blank = Codex default",
+      save: "Save", saving: "Saving…",
+      applied: "Applied to the running app.",
+      notApplied: (msg) => `Saved, but not applied: ${msg}`,
+      saveFailed: "Could not save settings.",
+      apiKeyConfigured: "API key: set in app/.env", apiKeyMissing: "API key: not set (app/.env)",
+      help: "The API key is read from app/.env only and is never stored here. Reply quality depends on the model you choose; the default (Claude) is the tested baseline.",
+      helpAria: "About the LLM provider setting",
+      envNote: (p) => `Environment currently resolves to: ${p}`,
     },
     stat: { title: "Practice log", thisWeekUnit: "days this week", total: (n) => `${n} days total` },
     hero: {
@@ -488,6 +521,22 @@ export const STR: Record<Lang, Strings> = {
       helpModelTalk: "4/3/2 の準備でお手本トークを自動再生するかどうか。自動=レベルに応じた既定です。オフでもボタンでいつでも再生できます。",
       helpCloze: "例文練習を歯抜け（穴埋め）表示から始めるかどうか。自動=通常表示から始まります。",
       helpAriaSuffix: (label) => `${label}の説明`,
+    },
+    llm: {
+      title: "LLM プロバイダ",
+      providerLabel: "プロバイダ",
+      optEnv: "既定（環境変数）", optClaude: "Claude", optOpenai: "OpenAI 互換", optCodex: "Codex",
+      baseUrlLabel: "ベース URL", baseUrlPlaceholder: "http://localhost:11434/v1",
+      modelLabel: "モデル", modelPlaceholder: "llama3.1",
+      codexModelLabel: "モデル（任意）", codexModelPlaceholder: "空欄で Codex 既定",
+      save: "保存", saving: "保存中…",
+      applied: "実行中のアプリに適用しました。",
+      notApplied: (msg) => `保存しましたが適用できませんでした: ${msg}`,
+      saveFailed: "設定を保存できませんでした。",
+      apiKeyConfigured: "APIキー: app/.env に設定済み", apiKeyMissing: "APIキー: 未設定（app/.env）",
+      help: "APIキーは app/.env からのみ読み込み、ここには保存しません。応答品質は選んだモデルに依存します。既定（Claude）が動作確認済みの基準です。",
+      helpAria: "LLM プロバイダ設定の説明",
+      envNote: (p) => `環境変数の現在の解決先: ${p}`,
     },
     stat: { title: "練習記録", thisWeekUnit: "日（今週）", total: (n) => `累計 ${n}日` },
     hero: {
