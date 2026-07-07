@@ -84,6 +84,14 @@ type SettingsStrings = {
     optInherit: string;
     saveRoles: string;
     displaySection: string;
+    ttsSection: string;
+    ttsDesc: string;
+    ttsBaseUrlLabel: string; ttsBaseUrlPlaceholder: string;
+    ttsModelLabel: string; ttsModelPlaceholder: string;
+    ttsVoiceLabel: string; ttsVoicePlaceholder: string;
+    ttsReset: string;
+    ttsResetDesc: string;
+    ttsApiKeyConfigured: string; ttsApiKeyOptional: string;
   };
 };
 type StatStrings = { stat: { title: string; thisWeekUnit: string; total: (n: number) => string } };
@@ -324,6 +332,18 @@ export const STR: Record<Lang, Strings> = {
       optInherit: "Follow overall",
       saveRoles: "Save per-role settings",
       displaySection: "Display",
+      ttsSection: "Voice (TTS)",
+      ttsDesc: "Point speech synthesis at an OpenAI-compatible endpoint. Leave blank to use the default (OpenAI when a key is set, otherwise macOS say). A local server such as kokoro-fastapi needs no API key.",
+      ttsBaseUrlLabel: "Base URL",
+      ttsBaseUrlPlaceholder: "https://api.openai.com/v1",
+      ttsModelLabel: "Model",
+      ttsModelPlaceholder: "gpt-4o-mini-tts",
+      ttsVoiceLabel: "Voice",
+      ttsVoicePlaceholder: "alloy",
+      ttsReset: "Reset to default",
+      ttsResetDesc: "Clear the overrides and fall back to the environment / default endpoint.",
+      ttsApiKeyConfigured: "TTS API key detected (app/.env).",
+      ttsApiKeyOptional: "No TTS API key — fine for a local endpoint; OpenAI needs one.",
     },
     stat: { title: "Practice log", thisWeekUnit: "days this week", total: (n) => `${n} days total` },
     hero: {
@@ -615,6 +635,18 @@ export const STR: Record<Lang, Strings> = {
       optInherit: "全体に従う",
       saveRoles: "用途別設定を保存",
       displaySection: "表示",
+      ttsSection: "音声（TTS）",
+      ttsDesc: "音声合成の向き先を OpenAI 互換エンドポイントに変更できます。空欄なら既定（キー設定時は OpenAI・無ければ macOS say）。kokoro-fastapi 等のローカルサーバは API キー不要です。",
+      ttsBaseUrlLabel: "ベース URL",
+      ttsBaseUrlPlaceholder: "https://api.openai.com/v1",
+      ttsModelLabel: "モデル",
+      ttsModelPlaceholder: "gpt-4o-mini-tts",
+      ttsVoiceLabel: "voice",
+      ttsVoicePlaceholder: "alloy",
+      ttsReset: "既定に戻す",
+      ttsResetDesc: "上書きを消して、環境変数／既定エンドポイントに戻します。",
+      ttsApiKeyConfigured: "TTS API キーを検出（app/.env）。",
+      ttsApiKeyOptional: "TTS API キーなし — ローカルなら問題なし・OpenAI には必要。",
     },
     stat: { title: "練習記録", thisWeekUnit: "日（今週）", total: (n) => `累計 ${n}日` },
     hero: {
