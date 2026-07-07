@@ -256,10 +256,21 @@ function ProposalCard(props: {
   const lines: string[] = [];
   if (r.xpReached) lines.push(t.xpReached);
   if (typeof r.practicedDays14 === "number") lines.push(t.practicedDays(r.practicedDays14));
-  if (typeof r.completionRate === "number") lines.push(t.completionRate(Math.round(r.completionRate * 100)));
-  // 0回中断は根拠として提示する意味がないため、1回以上のときだけ表示する
-  if (typeof r.fttAborts === "number" && r.fttAborts > 0 && proposal.kind === "down") lines.push(t.fttAborts(r.fttAborts));
-  if (typeof r.lowOutputRounds === "number" && r.lowOutputRounds > 0 && proposal.kind === "down") lines.push(t.lowOutput(r.lowOutputRounds));
+  if (proposal.kind === "up") {
+    if (typeof r.completionRate === "number") lines.push(t.completionRate(Math.round(r.completionRate * 100)));
+  } else {
+    // triggers があれば実際に発火した行だけを表示（例: lowOutput起因の降格でcompletionRateがほぼ100%でも
+    // 紛らわしい行を出さない）。triggers が無い場合（型上optional）は従来表示にフォールバックする。
+    const triggers = r.triggers;
+    const fires = (key: "lowCompletion" | "fttAborts" | "lowOutput", fallback: boolean) =>
+      triggers ? triggers.includes(key) : fallback;
+    if (typeof r.completionRate === "number" && fires("lowCompletion", true)) {
+      lines.push(t.completionRate(Math.round(r.completionRate * 100)));
+    }
+    // 0回中断は根拠として提示する意味がないため、フォールバック時は1回以上のときだけ表示する
+    if (typeof r.fttAborts === "number" && fires("fttAborts", r.fttAborts > 0)) lines.push(t.fttAborts(r.fttAborts));
+    if (typeof r.lowOutputRounds === "number" && fires("lowOutput", r.lowOutputRounds > 0)) lines.push(t.lowOutput(r.lowOutputRounds));
+  }
   return (
     <div className="card proposal-card">
       <h3>{proposal.kind === "up" ? t.upTitle : t.downTitle}</h3>

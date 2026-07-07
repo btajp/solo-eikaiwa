@@ -3,7 +3,11 @@ import { extractErrorMessage } from "./http";
 export type LevelProposal = {
   kind: "up" | "down";
   toLevel: number;
-  rationale: { xpReached?: boolean; practicedDays14?: number; completionRate?: number | null; fttAborts?: number; lowOutputRounds?: number };
+  rationale: {
+    xpReached?: boolean; practicedDays14?: number; completionRate?: number | null; fttAborts?: number; lowOutputRounds?: number;
+    /** down提案で実際に発火した条件のみ（省略時は表示側で従来どおりのフォールバック表示） */
+    triggers?: string[];
+  };
 };
 export type ProgressSummary = {
   level: number; xp: number; xpIntoLevel: number; xpToNext: number;

@@ -7,7 +7,11 @@ import { addDaysYmd, localYmd } from "./dates";
 
 export type XpKind = "block" | "srs-grade" | "placement";
 export type UpRationale = { xpReached: true; practicedDays14: number; completionRate: number };
-export type DownRationale = { completionRate: number | null; fttAborts: number; lowOutputRounds: number };
+export type DownRationale = {
+  completionRate: number | null; fttAborts: number; lowOutputRounds: number;
+  /** 実際に発火した条件のみ（表示側が根拠と無関係な行を出さないようにするため） */
+  triggers: ("lowCompletion" | "fttAborts" | "lowOutput")[];
+};
 export type Proposal = { kind: "up" | "down"; toLevel: number; rationale: UpRationale | DownRationale };
 export type ProgressSummary = {
   level: number; xp: number; xpIntoLevel: number; xpToNext: number;
@@ -151,10 +155,14 @@ export function makeProgressStore(
       // 「完走するが苦しい」層: 完了/中断では拾えない、engagedだが極端に低語数のラウンドが続く状態
       const lowOutput = out.totalRounds >= DEMOTE_LOW_OUTPUT_WINDOW && out.lowRounds >= DEMOTE_LOW_OUTPUT_MIN;
       if (lowCompletion || manyAborts || lowOutput) {
+        const triggers: DownRationale["triggers"] = [];
+        if (lowCompletion) triggers.push("lowCompletion");
+        if (manyAborts) triggers.push("fttAborts");
+        if (lowOutput) triggers.push("lowOutput");
         return {
           kind: "down",
           toLevel: demotionTargetLevel(row.level),
-          rationale: { completionRate: week.rate, fttAborts: ftt.aborts, lowOutputRounds: out.lowRounds },
+          rationale: { completionRate: week.rate, fttAborts: ftt.aborts, lowOutputRounds: out.lowRounds, triggers },
         };
       }
     }

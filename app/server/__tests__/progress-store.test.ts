@@ -163,6 +163,7 @@ describe("progress-store: 降格提案", () => {
     const p = store.getSummary(T).proposal!;
     expect(p.kind).toBe("down");
     expect(p.toLevel).toBe(15);
+    expect((p.rationale as { triggers: string[] }).triggers).toEqual(["lowCompletion"]);
   });
   test("試行4件以下なら完了率条件では提案しない", () => {
     const { db, store } = freshStore();
@@ -178,6 +179,7 @@ describe("progress-store: 降格提案", () => {
     const p = store.getSummary(T).proposal!;
     expect(p.kind).toBe("down");
     expect((p.rationale as { fttAborts: number }).fttAborts).toBe(3);
+    expect((p.rationale as { triggers: string[] }).triggers).toEqual(["fttAborts"]);
   });
   test("回帰: 生涯3回の試行（全中断）だけでは提案しない（仕様は直近5回中3回以上）", () => {
     const { db, store } = freshStore();
@@ -235,6 +237,7 @@ describe("progress-store: 低産出シグナルによる降格", () => {
     expect(p.kind).toBe("down");
     expect(p.toLevel).toBe(15);
     expect((p.rationale as { lowOutputRounds: number }).lowOutputRounds).toBe(4);
+    expect((p.rationale as { triggers: string[] }).triggers).toEqual(["lowOutput"]);
   });
   test("観測ラウンドが窓未満（totalRounds<6）なら発火しない", () => {
     const db = openDb(":memory:");
