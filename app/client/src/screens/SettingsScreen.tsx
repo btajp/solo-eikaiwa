@@ -125,7 +125,10 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     if (!view || view.provider !== "openai-compat") return;
     setSaving(true); setResult(null);
     try {
+      // 会話のみローカルLLMに固定し、他ロールが継承する全体設定はClaude既定(env)に戻す。
+      // これにより保存後は view.provider === "env" となり、推奨ボタンは正しくdisabledへ戻る。
       applyResult(await saveLlmRoleSettings({
+        global: { provider: "env" },
         roles: {
           conversation: { provider: "openai-compat", baseUrl: view.baseUrl, model: view.model },
           coaching: { provider: "inherit" },
