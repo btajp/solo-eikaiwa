@@ -12,7 +12,7 @@ export type ContentItem = {
   domain: Domain; level: [number, number];
 };
 
-function parseDomain(raw: string | undefined): Domain {
+export function parseDomain(raw: string | undefined): Domain {
   if (raw === undefined) return "it";
   if ((DOMAINS as readonly string[]).includes(raw)) return raw as Domain;
   console.warn(`[content] invalid domain "${raw}", falling back to "it"`);
@@ -20,7 +20,7 @@ function parseDomain(raw: string | undefined): Domain {
 }
 
 /** level: [min, max]（1..6, min<=max）。省略はデフォルト、不正は警告してデフォルト */
-function parseLevelRange(raw: string | undefined): [number, number] {
+export function parseLevelRange(raw: string | undefined): [number, number] {
   if (raw === undefined) return [1, 6];
   const m = raw.match(/^\[\s*(\d+)\s*,\s*(\d+)\s*\]$/);
   if (m) {
@@ -32,7 +32,9 @@ function parseLevelRange(raw: string | undefined): [number, number] {
   return [1, 6];
 }
 
-export function parseContentFile(text: string): ContentItem | null {
+/** frontmatter（先頭の `---\n ... \n---` ブロック）を key:value 辞書と本文に分解する。
+ *  topic/scenario（parseContentFile）と listening（parseListeningFile）で共有する。frontmatter が無ければ null。 */
+export function parseFrontmatter(text: string): { fields: Record<string, string>; body: string } | null {
   const m = text.match(/^---\n([\s\S]*?)\n---/);
   if (!m) return null;
   const fields: Record<string, string> = {};
@@ -41,13 +43,16 @@ export function parseContentFile(text: string): ContentItem | null {
     if (i === -1) continue;
     fields[line.slice(0, i).trim()] = line.slice(i + 1).trim().replace(/^"(.*)"$/, "$1");
   }
+  return { fields, body: text.slice(m[0].length) };
+}
+
+export function parseContentFile(text: string): ContentItem | null {
+  const fm = parseFrontmatter(text);
+  if (!fm) return null;
+  const { fields, body } = fm;
   if (!fields.id || !fields.title || (fields.kind !== "topic" && fields.kind !== "scenario")) return null;
-  const hints = text.slice(m[0].length).split("\n")
-    .filter((l) => l.trim().startsWith("- "))
-    .map((l) => l.trim().slice(2));
-  const starters = text.slice(m[0].length).split("\n")
-    .filter((l) => l.trim().startsWith("> "))
-    .map((l) => l.trim().slice(2).trim());
+  const hints = body.split("\n").filter((l) => l.trim().startsWith("- ")).map((l) => l.trim().slice(2));
+  const starters = body.split("\n").filter((l) => l.trim().startsWith("> ")).map((l) => l.trim().slice(2).trim());
   return {
     id: fields.id, kind: fields.kind, title: fields.title, titleJa: fields.title_ja ?? "", hints, starters,
     domain: parseDomain(fields.domain), level: parseLevelRange(fields.level),
