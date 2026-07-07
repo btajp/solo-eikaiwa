@@ -1,5 +1,5 @@
 import { defaultRunner, type ClaudeRunner } from "./converse";
-import type { HintLang } from "./progression";
+import { vocabConstraint, type HintLang } from "./progression";
 import type { SessionEvent } from "./session-log";
 
 export type AeItem = { quote: string; issue: string; better: string; why_ja: string };
@@ -147,17 +147,24 @@ export async function generateFixExplanation(
   return { text: text.trim() };
 }
 
-const MODEL_TALK_SYSTEM = `You produce a model monologue for an English learner (CEFR B1) to shadow.
-Rules: 120-150 words, spoken register, first person, plain high-frequency vocabulary, short sentences.
+function modelTalkSystem(stage: number): string {
+  const vocab = vocabConstraint(stage);
+  // stage>=4（vocab===null）は旧文言を一字一句維持する（上級者の挙動不変）
+  const rules = vocab
+    ? `Rules: 120-150 words, spoken register, first person, short sentences. ${vocab}`
+    : "Rules: 120-150 words, spoken register, first person, plain high-frequency vocabulary, short sentences.";
+  return `You produce a model monologue for an English learner (CEFR B1) to shadow.
+${rules}
 No headings, no lists — just the monologue text.
 Do not use any tools — reply directly with text only.`;
+}
 
 export async function generateModelTalk(
-  args: { topicTitle: string; hints: string[] },
+  args: { topicTitle: string; hints: string[]; stage: number },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<{ text: string }> {
   const prompt = `Topic: ${args.topicTitle}\nCover these angles:\n${args.hints.map((h) => `- ${h}`).join("\n")}`;
-  const { text } = await runner(prompt, undefined, { systemPrompt: MODEL_TALK_SYSTEM });
+  const { text } = await runner(prompt, undefined, { systemPrompt: modelTalkSystem(args.stage) });
   return { text };
 }
 
@@ -185,7 +192,10 @@ export async function generateReflection(
 
 export type PrepPack = { chunks: Array<{ en: string; ja: string }>; outline: string[]; hintDefault: HintLang };
 
-function prepSystem(chunkCount: number): string {
+function prepSystem(chunkCount: number, stage: number): string {
+  const vocab = vocabConstraint(stage);
+  // stage>=4（vocab===null）はバレット自体を挿入しない（元々このバレットは存在しなかった＝上級者の挙動不変）
+  const vocabBullet = vocab ? `\n- ${vocab}` : "";
   return `You prepare a Japanese IT professional (CEFR A2-B1) for a short English monologue.
 You receive a topic and hint angles. Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:
 {"chunks":[{"en":"<complete, speakable sentence, B1 level>","ja":"<自然な日本語訳>"}],"outline":["<short English bullet>"]}
@@ -193,7 +203,7 @@ Rules:
 - Exactly ${chunkCount} chunks. Each "en" MUST be a complete, speakable sentence of roughly 8-16 words that the learner can read aloud as-is.
   No ellipses ("..."), no blanks, and no placeholders like [X] — always fill the slot with a concrete, topic-relevant
   example a B1-level IT professional could plausibly say, using the given topic and hints for the content
-  (e.g. "The main problem we had was a slow database query.", "What worked well was splitting the task into smaller steps.").
+  (e.g. "The main problem we had was a slow database query.", "What worked well was splitting the task into smaller steps.").${vocabBullet}
 - Keep the reusable sentence frame recognizable at the START of each sentence (sentence-starter + filled example), so the
   learner can reuse that same frame with their own content in the next exercise.
 - ja: the natural full-sentence Japanese translation of "en" (not a fragment).
@@ -202,14 +212,14 @@ Do not use any tools — reply directly with text only.`;
 }
 
 export async function generatePrepPack(
-  args: { topicTitle: string; hints: string[]; chunkCount?: number; hintLang?: HintLang },
+  args: { topicTitle: string; hints: string[]; chunkCount?: number; hintLang?: HintLang; stage: number },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<PrepPack> {
   const chunkCount = args.chunkCount ?? 6;
   // hintLang は「表示既定の供給者」。ja のデータ自体は常に返し、表示するかはクライアントが決める。
   const hintDefault: HintLang = args.hintLang ?? "ja";
   const prompt = `Topic: ${args.topicTitle}\nHint angles:\n${args.hints.map((h) => `- ${h}`).join("\n")}`;
-  const { text } = await runner(prompt, undefined, { systemPrompt: prepSystem(chunkCount) });
+  const { text } = await runner(prompt, undefined, { systemPrompt: prepSystem(chunkCount, args.stage) });
   const parsed = extractJson<PrepPack>(text);
   if (parsed && Array.isArray(parsed.chunks) && Array.isArray(parsed.outline)) {
     // Sanitize chunks: keep only items where both en and ja are strings（ja は空にしない）
@@ -224,7 +234,7 @@ export async function generatePrepPack(
   return { chunks: [], outline: [text], hintDefault };
 }
 
-export function roleplayPrompt(scenario: { title: string; hints: string[] }): string {
+export function roleplayPrompt(scenario: { title: string; hints: string[] }, stage: number): string {
   return `You are an English roleplay partner for a Japanese IT professional (CEFR A2-B1).
 Scenario: ${scenario.title}
 Setup:
@@ -232,7 +242,7 @@ ${scenario.hints.map((h) => `- ${h}`).join("\n")}
 Rules:
 - Stay in your assigned role for the whole conversation. Do not break character.
 - Keep every reply SHORT: 2-4 sentences, then ask ONE question or make ONE request.
-- Use plain, high-frequency English (B1 level). No rare idioms.
+- ${vocabConstraint(stage) ?? "Use plain, high-frequency English (B1 level). No rare idioms."}
 - Do NOT correct the learner's errors explicitly; respond naturally.
 - Never switch to Japanese.
 - Do not use any tools — reply directly with text only.`;

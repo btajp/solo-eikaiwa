@@ -14,7 +14,7 @@ import { StartScreen, type StartSelection } from "./screens/StartScreen";
 import { Banner } from "./ui/Banner";
 import { Button } from "./ui/Button";
 import { localYmd } from "./dates";
-import { saveSupport, useSupport, type SupportPreset, type SupportToggle } from "./support";
+import { saveSupport, useSupport, type SupportToggle } from "./support";
 
 type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource } | { kind: "library" } | { kind: "sentences" } | { kind: "placement" } | { kind: "progress" };
 
@@ -136,16 +136,12 @@ export function App() {
   );
 }
 
-/** サイドバー常設の学習サポート設定（おまかせ/多め/少なめ＋個別トグル）。設定は support.ts が localStorage に永続化する */
+/** サイドバー常設の学習サポート設定（個別トグル3つ）。設定は support.ts が localStorage に永続化する */
 function SupportPanel({ lang }: { lang: Lang }) {
   const s = useSupport();
   const t = STR[lang].support;
   // ⓘ ボタンで開くヘルプの吹き出し。開いているキーは1つだけ（別の ⓘ を押すか、同じものをもう一度押すと閉じる）
   const [openHelp, setOpenHelp] = useState<string | null>(null);
-  function setPreset(preset: SupportPreset) {
-    // preset を変えたら個別オーバーライドはクリアして preset に主導権を戻す
-    saveSupport({ preset, jaHint: null, modelTalk: null, cloze: null });
-  }
   function setToggle(key: "jaHint" | "modelTalk" | "cloze", value: SupportToggle) {
     saveSupport({ ...s, [key]: value });
   }
@@ -159,16 +155,7 @@ function SupportPanel({ lang }: { lang: Lang }) {
   ];
   return (
     <div className="support-panel stack">
-      <div className="support-label-row">
-        <div className="stat-title">{t.title}</div>
-        <button className="info-btn" aria-label={t.helpPreset} title={t.helpPreset} onClick={() => toggleHelp("preset")}>ⓘ</button>
-      </div>
-      {openHelp === "preset" && <div className="info-pop">{t.helpPreset}</div>}
-      <div className="lang-toggle" role="group" aria-label={t.title}>
-        <button className={s.preset === "auto" ? "is-active" : ""} onClick={() => setPreset("auto")}>{t.presetAuto}</button>
-        <button className={s.preset === "more" ? "is-active" : ""} onClick={() => setPreset("more")}>{t.presetMore}</button>
-        <button className={s.preset === "less" ? "is-active" : ""} onClick={() => setPreset("less")}>{t.presetLess}</button>
-      </div>
+      <div className="stat-title">{t.title}</div>
       {toggles.map((tg) => (
         <div key={tg.key}>
           <div className="support-label-row">

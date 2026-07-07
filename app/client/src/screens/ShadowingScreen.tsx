@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { fetchTalkExplanation, prefetchModelTalkAudio, type ContentItem } from "../api";
 import { playBlob, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
-import { getSupport, resolveSupport } from "../support";
 import { useExplain } from "../useExplain";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
@@ -17,9 +16,8 @@ export function ShadowingScreen(props: { topic: ContentItem; lang: Lang }) {
   const [text, setText] = useState("");
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
-  // スクリプト表示の既定は preset に従う（多め=最初から表示 / おまかせ・少なめ=隠して聞く）。
-  // マウント時に固定し、ユーザーは「スクリプトを表示」ボタンでいつでも開ける。
-  const [showScript, setShowScript] = useState(() => resolveSupport(null, getSupport().preset, false));
+  // スクリプト表示の既定は常に非表示（隠して聞く）。ユーザーは「スクリプトを表示」ボタンでいつでも開ける。
+  const [showScript, setShowScript] = useState(false);
   const explainer = useExplain(() => fetchTalkExplanation(text));
   const aliveRef = useRef(true);
   const fetchedRef = useRef(false);

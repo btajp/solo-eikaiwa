@@ -46,10 +46,10 @@ export function FourThreeTwoScreen(props: {
 }) {
   const t = STR[props.lang].ftt432;
   const support = useSupport();
-  // モデルトーク自動再生の可否: 個別トグル → preset → メニューの stage 既定（auto か）で解決。
+  // モデルトーク自動再生の可否: 個別トグル → メニューの stage 既定（auto か）で解決。
   // 初期 modelState と一度きりの prefetch effect が参照するため、マウント時に固定する。
   const [autoPlay] = useState(() =>
-    resolveSupport(getSupport().modelTalk, getSupport().preset, (props.modelTalkMode ?? "auto") === "auto"),
+    resolveSupport(getSupport().modelTalk, (props.modelTalkMode ?? "auto") === "auto"),
   );
   const roundsSec =
     props.roundsSec && props.roundsSec.length >= 2 && props.roundsSec.every((s) => s > 0)

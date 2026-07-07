@@ -20,8 +20,8 @@ export function SentencesScreen({ lang }: { lang: Lang }) {
   const [tab, setTab] = useState<Tab>("practice");
   const [hideNote, setHideNote] = useState(() => loadHideNote());
   const support = useSupport();
-  // cloze を最初から出すか: 個別トグル → preset → 既定 false（cloze は補助なので「多め/オン」でのみ既定表示）
-  const clozeDefault = resolveSupport(support.cloze, support.preset, false);
+  // cloze を最初から出すか: 個別トグル → 既定 false（cloze は補助なので「オン」でのみ既定表示）
+  const clozeDefault = resolveSupport(support.cloze, false);
 
   function toggleHideNote() {
     setHideNote((v) => {

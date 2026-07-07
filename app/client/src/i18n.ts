@@ -34,14 +34,13 @@ type UiScaleStrings = { uiScale: { small: string; medium: string; large: string;
 type SupportStrings = {
   support: {
     title: string;
-    presetAuto: string; presetMore: string; presetLess: string;
     jaHint: string; modelTalk: string; cloze: string;
     optAuto: string; optOn: string; optOff: string;
-    helpPreset: string; helpJaHint: string; helpModelTalk: string; helpCloze: string;
+    helpJaHint: string; helpModelTalk: string; helpCloze: string;
   };
 };
 type StatStrings = { stat: { title: string; thisWeekUnit: string; total: (n: number) => string } };
-type HeroStrings = { hero: { title: string; date: (d: Date) => string } };
+type HeroStrings = { hero: { title: string; date: (d: Date) => string; bedtime: string } };
 type QuickStrings = { quick: { label: string; note: string } };
 type IntensiveStrings = { intensive: { label: string; note: string } };
 type DrillsStrings = { drills: Record<DrillKey, { title: string; minutes: string; desc: string }> };
@@ -188,18 +187,17 @@ export const STR: Record<Lang, Strings> = {
     uiScale: { small: "A−", medium: "A", large: "A＋", xlarge: "A＋＋" },
     support: {
       title: "Support",
-      presetAuto: "Auto", presetMore: "More", presetLess: "Less",
       jaHint: "Japanese hints", modelTalk: "Model talk autoplay", cloze: "Fill-in-the-blank",
       optAuto: "Auto", optOn: "On", optOff: "Off",
-      helpPreset: "Sets the defaults for the three items below. Auto: follows your level. More: show everything. Less: hide by default. Any item you set individually takes priority.",
       helpJaHint: "Whether practice chunks show a Japanese gloss. Auto: shown at lower levels, hidden as you level up. You can change it here anytime.",
-      helpModelTalk: "Whether a model talk plays automatically during 4/3/2 preparation. Even when off, you can always play it with the button.",
+      helpModelTalk: "Whether a model talk plays automatically during 4/3/2 preparation. Auto: follows your level. Even when off, you can always play it with the button.",
       helpCloze: "Whether sentence practice starts in fill-in-the-blank view. Auto: starts in normal view.",
     },
     stat: { title: "Practice log", thisWeekUnit: "days this week", total: (n) => `${n} days total` },
     hero: {
       title: "Ready to practice your English?",
       date: (d) => `${WEEKDAYS_EN[d.getDay()]}, ${MONTHS_EN[d.getMonth()]} ${d.getDate()}`,
+      bedtime: "A little review before bed helps it stick.",
     },
     quick: { label: "Quick drills (5–10 min)", note: "short but daily wins" },
     intensive: { label: "Intensive sessions", note: "1–2 times a week" },
@@ -385,18 +383,17 @@ export const STR: Record<Lang, Strings> = {
     uiScale: { small: "小", medium: "中", large: "大", xlarge: "特大" },
     support: {
       title: "サポート",
-      presetAuto: "自動", presetMore: "多め", presetLess: "少なめ",
       jaHint: "日本語ヒント", modelTalk: "モデルトーク自動再生", cloze: "歯抜け既定",
       optAuto: "自動", optOn: "オン", optOff: "オフ",
-      helpPreset: "下の3項目のまとめ設定です。自動=レベルに応じた既定 / 多め=すべて表示側 / 少なめ=すべて非表示側。個別に変えた項目はそちらが優先されます。",
       helpJaHint: "練習チャンクに日本語訳を添えるかどうか。自動=低いレベルでは表示し、上がると非表示になります。いつでもここで変更できます。",
-      helpModelTalk: "4/3/2 の準備でお手本トークを自動再生するかどうか。オフでもボタンでいつでも再生できます。",
+      helpModelTalk: "4/3/2 の準備でお手本トークを自動再生するかどうか。自動=レベルに応じた既定です。オフでもボタンでいつでも再生できます。",
       helpCloze: "例文練習を歯抜け（穴埋め）表示から始めるかどうか。自動=通常表示から始まります。",
     },
     stat: { title: "練習記録", thisWeekUnit: "日（今週）", total: (n) => `累計 ${n}日` },
     hero: {
       title: "今日も英語を話しましょう",
       date: (d) => `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS_JA[d.getDay()]}）`,
+      bedtime: "寝る前の復習は、記憶の定着に少し有利です。",
     },
     quick: { label: "クイックドリル（5〜10分）", note: "短くても毎日が正解" },
     intensive: { label: "強化セッション", note: "週1〜2回おすすめ" },

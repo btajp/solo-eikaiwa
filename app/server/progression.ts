@@ -57,6 +57,18 @@ export function prepParams(stage: number): PrepSupport {
   return { ...PREP_TABLE[i] };
 }
 
+/**
+ * ステージ別の語彙レベリング制約（生成・会話プロンプトに差し込む1文）。
+ * 研究知見5: 95%カバレッジ≈2,000〜3,000語族で非母語話者の聴解が安定する。
+ * これは「難易度つまみ」の一種であり、閾値(stage<=3)もここに一元化する。
+ * stage>=4 は null を返す（制約なし）— 挿入するかどうか・旧文言をどう保つかは各呼び出し点の責任とする。
+ */
+export function vocabConstraint(stage: number): string | null {
+  return stage <= 3
+    ? "Use only the most common 2,000–3,000 English word families (everyday high-frequency vocabulary). Avoid rare, academic, or advanced words, and avoid idioms."
+    : null;
+}
+
 /** 降格承認時の移動先: 現ステージ最下端の1つ下（例 Lv23→20）。stage1 では呼ばない前提（提案側で抑止） */
 export function demotionTargetLevel(level: number): number {
   return (stageOf(level) - 1) * 10;

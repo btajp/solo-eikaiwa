@@ -7,6 +7,7 @@ import { extractJson } from "./coach";
 import type { ClaudeRunner } from "./converse";
 import { loadContent } from "./content";
 import { loadSentences, type Sentence } from "./sentences";
+import { vocabConstraint } from "./progression";
 import { categoryBadRates, pickWorstCategories } from "./srs-analytics";
 
 const ORIGINALITY = "All output must be completely original — do not copy or adapt sentences from existing textbooks or courses.";
@@ -121,6 +122,7 @@ export type GenSentencesDeps = {
   runner: ClaudeRunner;
   sentencesFile: string;
   db: Database;
+  stage: number;
   dry: boolean;
   log?: (s: string) => void;
 };
@@ -142,10 +144,13 @@ export async function genSentences(deps: GenSentencesDeps): Promise<void> {
   let all = [...sentences];
   for (const w of worst) {
     const inCategory = sentences.filter((s) => s.category_no === w.categoryNo);
+    const vocab = vocabConstraint(deps.stage);
+    // stage>=4（vocab===null）は行自体を挿入しない（元々この行は無かった＝上級者の挙動不変）
+    const vocabLine = vocab ? `${vocab}\n` : "";
     const system = `You write original English example sentences for a Japanese learner (CEFR B1-B2).
 Write exactly 4 spoken-register sentences practicing the grammar category "${w.category}".
 Domains: one "daily", one "business", one "it", and one of your choice. 6-14 words each. Contractions welcome.
-${ORIGINALITY}
+${vocabLine}${ORIGINALITY}
 Avoid these existing sentences (do not duplicate or closely paraphrase):
 ${inCategory.slice(0, 12).map((s) => `- ${s.en}`).join("\n")}
 Reply with STRICT JSON only: {"sentences":[{"domain":"daily|business|it","en":"...","ja":"自然な和訳","note":"文法ポイント1行(日本語)"}]}
@@ -213,12 +218,15 @@ export async function genTopics(deps: GenTopicsDeps): Promise<void> {
   const candidates: NewContentCandidate[] = [];
   for (const p of plans) {
     const existing = (p.kind === "topic" ? topics : scenarios).map((c) => c.id).join(", ");
+    const vocab = vocabConstraint(deps.stage);
+    // stage>=4（vocab===null）は行自体を挿入しない（元々この行は無かった＝上級者の挙動不変）
+    const vocabLine = vocab ? `${vocab}\n` : "";
     const system = `You create one original ${p.kind} for an English speaking practice app (Japanese learner, difficulty stage ${deps.stage} of 6).
 ${p.kind === "topic"
   ? "A topic gives 4 talking-point hints for a monologue."
   : "A scenario sets up a roleplay: who the AI plays, who the learner is, the goal, and useful moves."}
 Each hint line: English phrase — 日本語の補足. Spoken register. ${ORIGINALITY}
-Do NOT reuse these existing ids: ${existing}
+${vocabLine}Do NOT reuse these existing ids: ${existing}
 Reply with STRICT JSON only:
 {"id":"kebab-case-id","title":"English title","titleJa":"日本語タイトル","domain":"daily|business|it","level":[min,max],"hints":["English — 日本語", ...4 items]}
 level must be within 1..6 and include stage ${deps.stage}.

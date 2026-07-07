@@ -1,17 +1,15 @@
 /**
- * 学習サポート設定（サイドバー常設の「おまかせ/多め/少なめ」＋個別トグル）。
+ * 学習サポート設定（サイドバー常設の個別トグル3つ）。
  * localStorage に保存し、変更は購読者（開いている画面）へ通知する。
  * サーバの stage 駆動は「表示既定の供給者」に格下げされ、最終的な表示可否はここで決める。
- * データ（チャンクの ja 等）は常にサーバから届くので、「少なめ」でもトグルを オン にすれば見られる。
+ * データ（チャンクの ja 等）は常にサーバから届くので、オフ既定の項目でもトグルを オン にすれば見られる。
  */
 import { useSyncExternalStore } from "react";
 
-export type SupportPreset = "auto" | "more" | "less";
-/** 個別トグルの値。null = 「おまかせ」（preset に従う）、true = 常にオン、false = 常にオフ */
+/** 個別トグルの値。null = 「自動」（レベル連動の既定に従う）、true = 常にオン、false = 常にオフ */
 export type SupportToggle = boolean | null;
 
 export type SupportSettings = {
-  preset: SupportPreset;
   jaHint: SupportToggle;
   modelTalk: SupportToggle;
   cloze: SupportToggle;
@@ -20,12 +18,9 @@ export type SupportSettings = {
 const STORAGE_KEY = "support";
 
 export const DEFAULT_SUPPORT: SupportSettings = {
-  preset: "auto", jaHint: null, modelTalk: null, cloze: null,
+  jaHint: null, modelTalk: null, cloze: null,
 };
 
-function isPreset(v: unknown): v is SupportPreset {
-  return v === "auto" || v === "more" || v === "less";
-}
 function isToggle(v: unknown): v is SupportToggle {
   return v === null || v === true || v === false;
 }
@@ -34,9 +29,9 @@ export function loadSupport(): SupportSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_SUPPORT };
+    // 旧バージョンの preset フィールドが残っていても読み捨てる（個別3フィールドのみ検証する）
     const p = JSON.parse(raw) as Partial<SupportSettings>;
     return {
-      preset: isPreset(p.preset) ? p.preset : "auto",
       jaHint: isToggle(p.jaHint) ? p.jaHint : null,
       modelTalk: isToggle(p.modelTalk) ? p.modelTalk : null,
       cloze: isToggle(p.cloze) ? p.cloze : null,
@@ -78,20 +73,18 @@ export function useSupport(): SupportSettings {
 }
 
 /**
- * 個別トグル → preset → stage 既定 の順で解決した最終ブール。
- * override が非 null ならそれを採用。null なら preset（more=常にオン / less=常にオフ / auto=stage既定）。
+ * 個別トグル → stage 既定 の順で解決した最終ブール。
+ * override が非 null ならそれを採用。null なら stage 既定（autoDefault）に従う。
  */
-export function resolveSupport(override: SupportToggle, preset: SupportPreset, autoDefault: boolean): boolean {
+export function resolveSupport(override: SupportToggle, autoDefault: boolean): boolean {
   if (override !== null) return override;
-  if (preset === "more") return true;
-  if (preset === "less") return false;
   return autoDefault;
 }
 
 /**
- * 準備パックの日本語表示可否。個別トグル → preset → サーバの stage 既定（hintDefault）で解決する。
+ * 準備パックの日本語表示可否。個別トグル → サーバの stage 既定（hintDefault）で解決する。
  * hintDefault の "ja"/"en" 反転ミスを1箇所に封じるための薄いヘルパ。
  */
 export function showJaFromPrep(support: SupportSettings, prep: { hintDefault: "ja" | "en" }): boolean {
-  return resolveSupport(support.jaHint, support.preset, prep.hintDefault === "ja");
+  return resolveSupport(support.jaHint, prep.hintDefault === "ja");
 }

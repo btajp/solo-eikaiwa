@@ -23,7 +23,7 @@ export function WarmupReadingScreen(props: { topic: ContentItem; lang: Lang }) {
   const support = useSupport();
   const prep = load.state.status === "ready" ? load.state.data : null;
   const chunks = prep?.chunks.filter((c) => typeof c.en === "string" && c.en) ?? [];
-  // ja を表示するか: 個別トグル → preset → サーバの stage 既定（hintDefault）で解決
+  // ja を表示するか: 個別トグル → サーバの stage 既定（hintDefault）で解決
   const showJa = prep ? showJaFromPrep(support, prep) : true;
 
   return (

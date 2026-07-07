@@ -51,20 +51,22 @@ const realDeps: RouteDeps = {
   modelTalk: async (topicId) => {
     const topic = findTopic(topicId);
     if (!topic) return null;
-    const talk = await generateModelTalk({ topicTitle: topic.title, hints: topic.hints });
+    const talk = await generateModelTalk({ topicTitle: topic.title, hints: topic.hints, stage: stageOf(progressStore.getLevel()) });
     return { text: talk.text, topicTitle: topic.title };
   },
   libraryStore,
   reflection: () => generateReflection({ events: readEvents(sessionLogPath(new Date())) }),
   scenarioPrompt: (scenarioId) => {
     const sc = findScenario(scenarioId);
-    return sc ? roleplayPrompt(sc) : null;
+    return sc ? roleplayPrompt(sc, stageOf(progressStore.getLevel())) : null;
   },
+  conversationStage: () => stageOf(progressStore.getLevel()),
   prepPack: async (topicId) => {
     const topic = findTopic(topicId);
     if (!topic) return null;
-    const p = prepParams(stageOf(progressStore.getLevel()));
-    return generatePrepPack({ topicTitle: topic.title, hints: topic.hints, chunkCount: p.chunkCount, hintLang: p.hintLang });
+    const stage = stageOf(progressStore.getLevel());
+    const p = prepParams(stage);
+    return generatePrepPack({ topicTitle: topic.title, hints: topic.hints, chunkCount: p.chunkCount, hintLang: p.hintLang, stage });
   },
   buildQuick: (kind, domain) => buildQuickMenu(kind, { level: progressStore.getLevel(), domain }),
   practiceDays: () => listPracticeDays(),

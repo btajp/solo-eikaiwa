@@ -131,6 +131,7 @@ export function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
     modelTalk: async (topicId: string) => (topicId === "known-topic" ? { text: "model talk" } : null),
     reflection: async () => FAKE_REFLECTION,
     scenarioPrompt: (id: string) => (id === "known-scenario" ? "ROLEPLAY PROMPT" : null),
+    conversationStage: () => 2,
     prepPack: async () => ({ chunks: [{ en: "The main problem was ...", ja: "一番の問題は…" }], outline: ["Opening"], hintDefault: "ja" }),
     buildQuick: (_kind: QuickKind) => FAKE_QUICK_MENU,
     practiceDays: () => ["2026-07-01", "2026-07-03"],

@@ -1,14 +1,20 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { appendEvent, markErrorLogged } from "./session-log";
 import { sessionLogPath } from "./paths";
+import { vocabConstraint } from "./progression";
 
-export const PARTNER_SYSTEM_PROMPT = `You are an English conversation partner for a Japanese IT professional (CEFR A2-B1).
+export function partnerSystemPrompt(stage: number): string {
+  return `You are an English conversation partner for a Japanese IT professional (CEFR A2-B1).
 - You are a friendly colleague. Talk about tech work, identity management, security, AI — or whatever the learner brings up.
 - Keep every reply SHORT: 2-4 sentences, then ask ONE follow-up question.
-- Use plain, high-frequency English (B1 level). No rare idioms.
+- ${vocabConstraint(stage) ?? "Use plain, high-frequency English (B1 level). No rare idioms."}
 - Do NOT correct errors explicitly in this mode; just respond naturally (recast briefly only when meaning is unclear).
 - Never switch to Japanese.
 - Do not use any tools — reply directly with text only.`;
+}
+
+/** runner の override 未指定時フォールバック既定。自由会話 route は常に stage 付き override を組む（routes/converse.ts） */
+export const PARTNER_SYSTEM_PROMPT = partnerSystemPrompt(1);
 
 export type ClaudeRunner = (
   prompt: string,

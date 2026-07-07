@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { converseTurn, makeClaudeRunner, PARTNER_SYSTEM_PROMPT } from "../converse";
+import { converseTurn, makeClaudeRunner, PARTNER_SYSTEM_PROMPT, partnerSystemPrompt } from "../converse";
 import { isErrorLogged, readEvents } from "../session-log";
 import type { query } from "@anthropic-ai/claude-agent-sdk";
 
@@ -168,4 +168,23 @@ test("converseTurn: systemPromptOverride が runner の第3引数に渡る", asy
   };
   await converseTurn({ userText: "hi", runner: fakeRunner, logFile, systemPromptOverride: "ROLEPLAY" });
   expect(seen[0].opts).toEqual({ systemPrompt: "ROLEPLAY" });
+});
+
+describe("partnerSystemPrompt", () => {
+  test("低ステージ(1〜3)は高頻度語彙制約(word families)を課す", () => {
+    const p = partnerSystemPrompt(2);
+    expect(p).toContain("word families");
+    expect(p).not.toContain("B1 level");
+    expect(p).toContain("Never switch to Japanese");
+  });
+
+  test("stage 4+ は従来の B1 目安を維持する", () => {
+    const p = partnerSystemPrompt(5);
+    expect(p).toContain("B1 level");
+    expect(p).not.toContain("word families");
+  });
+
+  test("PARTNER_SYSTEM_PROMPT はフォールバック既定として存在し続ける", () => {
+    expect(PARTNER_SYSTEM_PROMPT).toBe(partnerSystemPrompt(1));
+  });
 });

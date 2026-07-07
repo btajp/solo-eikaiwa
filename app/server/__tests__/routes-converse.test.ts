@@ -61,7 +61,7 @@ describe("routes: converse + scenarioId", () => {
     expect(res.status).toBe(400);
   });
 
-  test("scenarioId なしは従来どおり（override は undefined）", async () => {
+  test("scenarioId なしは自由会話プロンプト（stage 別語彙制約）を override として渡す", async () => {
     const seen: Array<{ systemPromptOverride?: string }> = [];
     const { deps } = makeTestDeps({
       converse: async (args) => {
@@ -71,6 +71,7 @@ describe("routes: converse + scenarioId", () => {
     });
     const handler = makeFetchHandler(deps);
     await handler(postJson("/api/converse", { userText: "hi" }));
-    expect(seen[0].systemPromptOverride).toBeUndefined();
+    // route-deps の conversationStage() は 2（低ステージ）→ 高頻度語彙制約が入る
+    expect(seen[0].systemPromptOverride).toContain("word families");
   });
 });

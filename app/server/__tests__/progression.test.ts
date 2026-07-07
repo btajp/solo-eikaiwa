@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   BOUNDARY_LEVELS, DEFAULT_LEVEL, demotionTargetLevel, fttMiniRoundsSec, fttRoundsSec,
-  needXp, PLACEMENT_XP, prepParams, stageOf, xpForGrade,
+  needXp, PLACEMENT_XP, prepParams, stageOf, vocabConstraint, xpForGrade,
 } from "../progression";
 
 describe("progression: stageOf", () => {
@@ -75,5 +75,19 @@ describe("progression: 定数と降格先", () => {
     expect(xpForGrade("soso")).toBe(1);
     expect(xpForGrade("bad")).toBe(1);
     expect(PLACEMENT_XP).toBe(10);
+  });
+});
+
+describe("progression: vocabConstraint", () => {
+  test("stage 1〜3 は高頻度語彙(word families)制約の文字列を返す", () => {
+    for (const s of [1, 2, 3]) {
+      expect(vocabConstraint(s)).toContain("word families");
+    }
+  });
+
+  test("stage 4+ は null（制約なし。各呼び出し点が自サイトの旧文言をそのまま使う）", () => {
+    for (const s of [4, 5, 6]) {
+      expect(vocabConstraint(s)).toBeNull();
+    }
   });
 });

@@ -21,10 +21,10 @@ const runner = makeClaudeRunner(query);
 
 async function main(): Promise<void> {
   const db = openDb();
+  const stage = stageOf(makeProgressStore(db).getLevel());
   if (sub === "sentences") {
-    await genSentences({ runner, sentencesFile: SENTENCES_FILE, db, dry, log: console.log });
+    await genSentences({ runner, sentencesFile: SENTENCES_FILE, db, stage, dry, log: console.log });
   } else if (sub === "topics") {
-    const stage = stageOf(makeProgressStore(db).getLevel());
     await genTopics({ runner, topicsDir: TOPICS_DIR, scenariosDir: SCENARIOS_DIR, stage, dry, log: console.log });
   } else {
     console.error("使い方: bun scripts/generate-content.ts <sentences|topics> [--dry]");

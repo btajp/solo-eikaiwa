@@ -9,17 +9,13 @@ function stubStorage(value: string | null): void {
 afterEach(() => { delete (globalThis as unknown as { localStorage?: Storage }).localStorage; });
 
 describe("resolveSupport", () => {
-  test("override が非nullなら preset/既定より優先される", () => {
-    expect(resolveSupport(true, "less", false)).toBe(true);
-    expect(resolveSupport(false, "more", true)).toBe(false);
+  test("override が非nullなら autoDefault より優先される", () => {
+    expect(resolveSupport(true, false)).toBe(true);
+    expect(resolveSupport(false, true)).toBe(false);
   });
-  test("override が null: more は常にオン、less は常にオフ", () => {
-    expect(resolveSupport(null, "more", false)).toBe(true);
-    expect(resolveSupport(null, "less", true)).toBe(false);
-  });
-  test("override が null かつ auto なら stage 既定（autoDefault）に従う", () => {
-    expect(resolveSupport(null, "auto", true)).toBe(true);
-    expect(resolveSupport(null, "auto", false)).toBe(false);
+  test("override が null なら autoDefault に従う", () => {
+    expect(resolveSupport(null, true)).toBe(true);
+    expect(resolveSupport(null, false)).toBe(false);
   });
 });
 
@@ -32,8 +28,12 @@ describe("loadSupport", () => {
     stubStorage("{ not json");
     expect(loadSupport()).toEqual(DEFAULT_SUPPORT);
   });
-  test("未知の preset / 不正 toggle は既定に丸め、妥当値は保持する", () => {
-    stubStorage(JSON.stringify({ preset: "bogus", jaHint: "yes", modelTalk: true, cloze: false }));
-    expect(loadSupport()).toEqual({ preset: "auto", jaHint: null, modelTalk: true, cloze: false });
+  test("不正 toggle は既定に丸め、妥当値は保持する", () => {
+    stubStorage(JSON.stringify({ jaHint: "yes", modelTalk: true, cloze: false }));
+    expect(loadSupport()).toEqual({ jaHint: null, modelTalk: true, cloze: false });
+  });
+  test("旧バージョンの preset フィールドが残っていてもクラッシュせず個別フィールドが生きる", () => {
+    stubStorage(JSON.stringify({ preset: "more", jaHint: true, modelTalk: null, cloze: false }));
+    expect(loadSupport()).toEqual({ jaHint: true, modelTalk: null, cloze: false });
   });
 });

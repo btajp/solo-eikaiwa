@@ -22,6 +22,19 @@ function makeRunner(responses: string[]): ClaudeRunner {
   };
 }
 
+/** systemPrompt を捕捉する fake ClaudeRunner（語彙制約の検証用） */
+function makeCapturingRunner(responses: string[]): { runner: ClaudeRunner; seen: Array<{ systemPrompt?: string }> } {
+  const seen: Array<{ systemPrompt?: string }> = [];
+  let i = 0;
+  const runner: ClaudeRunner = async (_prompt, _resumeId, opts) => {
+    seen.push({ systemPrompt: opts?.systemPrompt });
+    const text = responses[Math.min(i, responses.length - 1)];
+    i++;
+    return { text, sessionId: "fake" };
+  };
+  return { runner, seen };
+}
+
 function seedSrs(db: ReturnType<typeof openDb>, no: number, lastGrade: string): void {
   db.run(
     "INSERT INTO sentence_srs (no, stage, due, last_grade, reviews) VALUES (?, 0, '2026-08-01', ?, 1)",
@@ -190,7 +203,7 @@ describe("content-gen / genSentences", () => {
   test("正常系: 4文が追記されnoが連番・loadSentencesで読める・pretty+末尾改行", async () => {
     const { dir, file, db } = setup();
     const logs: string[] = [];
-    await genSentences({ runner: makeRunner([VALID_BATCH]), sentencesFile: file, db, dry: false, log: (s) => logs.push(s) });
+    await genSentences({ runner: makeRunner([VALID_BATCH]), sentencesFile: file, db, stage: 2, dry: false, log: (s) => logs.push(s) });
 
     const after = loadSentences(file);
     expect(after).toHaveLength(9);
@@ -215,7 +228,7 @@ describe("content-gen / genSentences", () => {
     });
     const logs: string[] = [];
     await genSentences({
-      runner: makeRunner([dupBatch, VALID_BATCH]), sentencesFile: file, db, dry: false, log: (s) => logs.push(s),
+      runner: makeRunner([dupBatch, VALID_BATCH]), sentencesFile: file, db, stage: 2, dry: false, log: (s) => logs.push(s),
     });
     expect(loadSentences(file)).toHaveLength(9);
     expect(logs.some((l) => l.includes("検証NG"))).toBe(true);
@@ -227,7 +240,7 @@ describe("content-gen / genSentences", () => {
     const invalidBatch = JSON.stringify({ sentences: [{ domain: "casual", en: "x", ja: "y", note: "z" }] });
     const before = readFileSync(file, "utf8");
     await expect(
-      genSentences({ runner: makeRunner([invalidBatch, invalidBatch]), sentencesFile: file, db, dry: false }),
+      genSentences({ runner: makeRunner([invalidBatch, invalidBatch]), sentencesFile: file, db, stage: 2, dry: false }),
     ).rejects.toThrow();
     expect(readFileSync(file, "utf8")).toBe(before);
     rmSync(dir, { recursive: true, force: true });
@@ -237,7 +250,7 @@ describe("content-gen / genSentences", () => {
     const { dir, file, db } = setup();
     const before = readFileSync(file, "utf8");
     const logs: string[] = [];
-    await genSentences({ runner: makeRunner([VALID_BATCH]), sentencesFile: file, db, dry: true, log: (s) => logs.push(s) });
+    await genSentences({ runner: makeRunner([VALID_BATCH]), sentencesFile: file, db, stage: 2, dry: true, log: (s) => logs.push(s) });
     expect(readFileSync(file, "utf8")).toBe(before);
     expect(logs.some((l) => l.includes("--dry"))).toBe(true);
     rmSync(dir, { recursive: true, force: true });
@@ -250,9 +263,27 @@ describe("content-gen / genSentences", () => {
     const db = openDb(":memory:"); // srs未評価 → worst=[]
     const before = readFileSync(file, "utf8");
     const logs: string[] = [];
-    await genSentences({ runner: makeRunner([VALID_BATCH]), sentencesFile: file, db, dry: false, log: (s) => logs.push(s) });
+    await genSentences({ runner: makeRunner([VALID_BATCH]), sentencesFile: file, db, stage: 2, dry: false, log: (s) => logs.push(s) });
     expect(readFileSync(file, "utf8")).toBe(before);
     expect(logs.some((l) => l.startsWith("データ不足"))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("低ステージは systemPrompt に高頻度語彙制約(word families)が入る", async () => {
+    const { dir, file, db } = setup();
+    const { runner, seen } = makeCapturingRunner([VALID_BATCH]);
+    // dry=true でもプロンプト構築と runner 呼び出しは走る（書き込みだけをスキップ）
+    await genSentences({ runner, sentencesFile: file, db, stage: 2, dry: true });
+    expect(seen[0].systemPrompt).toContain("word families");
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("stage 4+ は systemPrompt に word families 制約行を挿入しない（上級者の挙動不変・null埋め込みも禁止）", async () => {
+    const { dir, file, db } = setup();
+    const { runner, seen } = makeCapturingRunner([VALID_BATCH]);
+    await genSentences({ runner, sentencesFile: file, db, stage: 5, dry: true });
+    expect(seen[0].systemPrompt).not.toContain("word families");
+    expect(seen[0].systemPrompt).not.toMatch(/\bnull\b/);
     rmSync(dir, { recursive: true, force: true });
   });
 });
@@ -356,5 +387,27 @@ describe("content-gen / genTopics", () => {
     ).rejects.toThrow();
     expect(readdirSync(topicsDir)).toEqual([]); // 書いた2件は catch の rmSync で消える（オーファン無し）
     rmSync(topicsDir, { recursive: true, force: true });
+  });
+
+  test("低ステージは topic 生成 systemPrompt に高頻度語彙制約が入る", async () => {
+    const dirs = tempDirs();
+    const { runner, seen } = makeCapturingRunner([
+      contentJson("topic-one", "daily"), contentJson("topic-two", "it"), contentJson("scenario-one", "business"),
+    ]);
+    await genTopics({ runner, topicsDir: dirs.topicsDir, scenariosDir: dirs.scenariosDir, stage: 2, dry: true });
+    expect(seen[0].systemPrompt).toContain("word families");
+    cleanup(dirs);
+  });
+
+  test("stage 4+ は topic 生成 systemPrompt に word families 制約行を挿入しない（上級者の挙動不変）", async () => {
+    const dirs = tempDirs();
+    // contentJson の level は [2,4] 固定なので、検証を通すため stage は4（範囲内かつ4+の境界）を使う
+    const { runner, seen } = makeCapturingRunner([
+      contentJson("topic-one", "daily"), contentJson("topic-two", "it"), contentJson("scenario-one", "business"),
+    ]);
+    await genTopics({ runner, topicsDir: dirs.topicsDir, scenariosDir: dirs.scenariosDir, stage: 4, dry: true });
+    expect(seen[0].systemPrompt).not.toContain("word families");
+    expect(seen[0].systemPrompt).not.toMatch(/\bnull\b/);
+    cleanup(dirs);
   });
 });

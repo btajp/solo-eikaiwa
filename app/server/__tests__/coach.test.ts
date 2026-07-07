@@ -56,10 +56,23 @@ describe("generateAeFeedback", () => {
 describe("generateModelTalk", () => {
   test("topicTitleとhintsがプロンプトに入り、textを返す", async () => {
     const { runner, seen } = runnerReturning("This is a model talk.");
-    const result = await generateModelTalk({ topicTitle: "Zero trust", hints: ["definition", "example"] }, runner);
+    const result = await generateModelTalk({ topicTitle: "Zero trust", hints: ["definition", "example"], stage: 2 }, runner);
     expect(result.text).toBe("This is a model talk.");
     expect(seen[0].prompt).toContain("Zero trust");
     expect(seen[0].prompt).toContain("definition");
+  });
+
+  test("低ステージは systemPrompt に高頻度語彙制約(word families)が入る", async () => {
+    const { runner, seen } = runnerReturning("x");
+    await generateModelTalk({ topicTitle: "t", hints: [], stage: 2 }, runner);
+    expect(seen[0].systemPrompt).toContain("word families");
+  });
+
+  test("stage 4+ の systemPrompt は旧文言(plain high-frequency vocabulary)を維持し、word families 制約は課さない", async () => {
+    const { runner, seen } = runnerReturning("x");
+    await generateModelTalk({ topicTitle: "t", hints: [], stage: 5 }, runner);
+    expect(seen[0].systemPrompt).toContain("plain high-frequency vocabulary");
+    expect(seen[0].systemPrompt).not.toContain("word families");
   });
 });
 
@@ -102,7 +115,7 @@ describe("generatePrepPack", () => {
 
   test("正常系: JSONを構造化して返し、topicとhintsがプロンプトに入る", async () => {
     const { runner, seen } = runnerReturning(JSON.stringify(valid));
-    const result = await generatePrepPack({ topicTitle: "Zero trust", hints: ["definition — 定義", "example — 例"] }, runner);
+    const result = await generatePrepPack({ topicTitle: "Zero trust", hints: ["definition — 定義", "example — 例"], stage: 3 }, runner);
     expect(result).toEqual({ ...valid, hintDefault: "ja" });
     expect(seen[0].prompt).toContain("Zero trust");
     expect(seen[0].prompt).toContain("definition");
@@ -112,33 +125,33 @@ describe("generatePrepPack", () => {
 
   test("```フェンス付きJSONでも取り出す", async () => {
     const { runner } = runnerReturning("```json\n" + JSON.stringify(valid) + "\n```");
-    const result = await generatePrepPack({ topicTitle: "t", hints: [] }, runner);
+    const result = await generatePrepPack({ topicTitle: "t", hints: [], stage: 3 }, runner);
     expect(result.chunks).toHaveLength(2);
   });
 
   test("パース失敗時は素のテキストをoutlineに包むフォールバック（chunksは空）", async () => {
     const { runner } = runnerReturning("just prose, no json");
-    const result = await generatePrepPack({ topicTitle: "t", hints: [] }, runner);
+    const result = await generatePrepPack({ topicTitle: "t", hints: [], stage: 3 }, runner);
     expect(result.chunks).toEqual([]);
     expect(result.outline.join(" ")).toContain("just prose");
   });
 
   test("hintLang \"en\" でも ja はデータとして残し、hintDefault で表示既定だけを伝える（データ削除しない）", async () => {
     const { runner } = runnerReturning(JSON.stringify(valid));
-    const result = await generatePrepPack({ topicTitle: "t", hints: [], hintLang: "en" }, runner);
+    const result = await generatePrepPack({ topicTitle: "t", hints: [], hintLang: "en", stage: 3 }, runner);
     expect(result.chunks.map((c) => c.ja)).toEqual(valid.chunks.map((c) => c.ja)); // ja は空にしない
     expect(result.hintDefault).toBe("en"); // 表示既定は en（上級者は既定で英語のみ表示）
   });
 
   test("hintLang 省略時の hintDefault は ja（最大サポート側の既定）", async () => {
     const { runner } = runnerReturning(JSON.stringify(valid));
-    const result = await generatePrepPack({ topicTitle: "t", hints: [] }, runner);
+    const result = await generatePrepPack({ topicTitle: "t", hints: [], stage: 3 }, runner);
     expect(result.hintDefault).toBe("ja");
   });
 
   test("chunkCount がシステムプロンプトの \"Exactly N chunks\" に反映される", async () => {
     const { runner, seen } = runnerReturning(JSON.stringify(valid));
-    await generatePrepPack({ topicTitle: "t", hints: [], chunkCount: 4 }, runner);
+    await generatePrepPack({ topicTitle: "t", hints: [], chunkCount: 4, stage: 3 }, runner);
     expect(seen[0].systemPrompt).toContain("Exactly 4 chunks");
   });
 
@@ -153,11 +166,24 @@ describe("generatePrepPack", () => {
       outline: ["good", 42, null],                    // 42 and null are not strings
     };
     const { runner } = runnerReturning(JSON.stringify(malformed));
-    const result = await generatePrepPack({ topicTitle: "t", hints: [] }, runner);
+    const result = await generatePrepPack({ topicTitle: "t", hints: [], stage: 3 }, runner);
     // Only the fully valid chunk should remain
     expect(result.chunks).toEqual([{ en: "The main problem", ja: "一番の問題" }]);
     // Only "good" string should remain in outline
     expect(result.outline).toEqual(["good"]);
+  });
+
+  test("低ステージは systemPrompt に word families 制約が入る", async () => {
+    const { runner, seen } = runnerReturning(JSON.stringify(valid));
+    await generatePrepPack({ topicTitle: "t", hints: [], stage: 2 }, runner);
+    expect(seen[0].systemPrompt).toContain("word families");
+  });
+
+  test("stage 4+ は語彙制約バレット自体を挿入しない（word families も No rare idioms も含まない）", async () => {
+    const { runner, seen } = runnerReturning(JSON.stringify(valid));
+    await generatePrepPack({ topicTitle: "t", hints: [], stage: 5 }, runner);
+    expect(seen[0].systemPrompt).not.toContain("word families");
+    expect(seen[0].systemPrompt).not.toContain("No rare idioms");
   });
 });
 
@@ -256,11 +282,22 @@ describe("generateFixExplanation", () => {
 });
 
 describe("roleplayPrompt", () => {
-  test("シナリオのタイトルとセットアップ・B1/短文/日本語禁止ルールを含む", () => {
-    const p = roleplayPrompt({ title: "Vendor meeting", hints: ["You are the customer", "Goal: agree next steps"] });
+  test("シナリオのタイトルとセットアップ・短文/日本語禁止ルールを含む", () => {
+    const p = roleplayPrompt({ title: "Vendor meeting", hints: ["You are the customer", "Goal: agree next steps"] }, 5);
     expect(p).toContain("Vendor meeting");
     expect(p).toContain("You are the customer");
-    expect(p).toContain("B1");
     expect(p).toContain("Never switch to Japanese");
+  });
+
+  test("低ステージ(1〜3)は高頻度語彙制約(word families)を課す", () => {
+    const p = roleplayPrompt({ title: "t", hints: ["h"] }, 2);
+    expect(p).toContain("word families");
+    expect(p).not.toContain("B1 level");
+  });
+
+  test("stage 4+ は従来の B1 目安を維持する", () => {
+    const p = roleplayPrompt({ title: "t", hints: ["h"] }, 5);
+    expect(p).toContain("B1 level");
+    expect(p).not.toContain("word families");
   });
 });
