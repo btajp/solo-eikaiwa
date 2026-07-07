@@ -177,17 +177,17 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
           />
           {gProvider === "env" && view && <div className="text-sm text-muted">{s.llm.envNote(view.envProvider)}</div>}
           <div className="text-sm text-muted">{s.llm.help}</div>
-          <Button variant="secondary" onClick={onSaveGlobal} disabled={saving}>{saving ? s.llm.saving : s.llm.save}</Button>
+          <Button variant="secondary" onClick={onSaveGlobal} disabled={saving || !view}>{saving ? s.llm.saving : s.llm.save}</Button>
         </div>
 
         {/* かんたん設定（プリセット主役） */}
         <div className="stack">
           <div className="stat-title">{s.settings.presetTitle}</div>
           <div className="text-sm text-muted">{s.settings.recommendDesc}</div>
-          <Button variant="primary" onClick={onRecommended} disabled={saving || !recommendEnabled}>{s.settings.recommendApply}</Button>
+          <Button variant="primary" onClick={onRecommended} disabled={saving || !view || !recommendEnabled}>{s.settings.recommendApply}</Button>
           {!recommendEnabled && <div className="text-sm text-muted">{s.settings.recommendDisabled}</div>}
           <div className="text-sm text-muted">{s.settings.resetDesc}</div>
-          <Button variant="secondary" onClick={onResetAll} disabled={saving}>{s.settings.resetApply}</Button>
+          <Button variant="secondary" onClick={onResetAll} disabled={saving || !view}>{s.settings.resetApply}</Button>
         </div>
 
         {/* 用途別モデル（折りたたみ詳細） */}
@@ -209,7 +209,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
               />
             </div>
           ))}
-          <Button variant="secondary" onClick={onSaveRoles} disabled={saving}>{saving ? s.llm.saving : s.settings.saveRoles}</Button>
+          <Button variant="secondary" onClick={onSaveRoles} disabled={saving || !view}>{saving ? s.llm.saving : s.settings.saveRoles}</Button>
         </details>
 
         {result && <div className="info-pop" role="status">{result}</div>}
