@@ -41,14 +41,15 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
 
   // 「音から」フェーズに入ったカードごとに一度だけ TTS を自動再生する（英文・ja は非表示のまま）。
   // 音声は補助 — 失敗してもフローは止めない。ref キーで StrictMode 二重実行・再レンダーの重複再生を防ぐ。
+  // セット完了画面の裏で次セット先頭カードの音声が先読み再生されないよう atSetBoundary 中は見送る。
   const listenPlayedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (phase !== "listen" || !current) return;
+    if (phase !== "listen" || !current || atSetBoundary) return;
     const key = current.kind === "chunk" ? `c${current.id}` : `s${current.no}`;
     if (listenPlayedRef.current === key) return;
     listenPlayedRef.current = key;
     playTtsCached(current.en).catch(() => {});
-  }, [phase, current]);
+  }, [phase, current, atSetBoundary]);
 
   useEffect(() => {
     // 完了画面で「明日の復習予定数」を出す（情報表示のみ・失敗は無視）
