@@ -13,12 +13,10 @@ import { Card } from "../ui/Card";
 import { localYmd } from "../dates";
 import { initialPhase, type Phase } from "./practicePhase";
 
-const NEW_PER_DAY = 10;
-
 /** 練習タブ: ja→（声に出す）→[歯抜け]→答えを見る→自動再生→自己評価、の産出リトリーバルフロー */
-export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false }: { lang: Lang; hideNote: boolean; clozeDefault: boolean; audioFirst?: boolean }) {
+export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, newPerDay }: { lang: Lang; hideNote: boolean; clozeDefault: boolean; audioFirst?: boolean; newPerDay: number }) {
   const t = STR[lang].sentences;
-  const load = useLoad(() => fetchSentenceQueue(NEW_PER_DAY));
+  const load = useLoad(() => fetchSentenceQueue(newPerDay));
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState<Phase>(initialPhase(audioFirst, clozeDefault));
   const [gradedCount, setGradedCount] = useState(0);

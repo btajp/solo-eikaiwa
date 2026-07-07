@@ -105,6 +105,7 @@ type SentencesStrings = {
     tabPractice: string; tabBrowse: string;
     hideNoteLabel: string;
     audioFirstLabel: string;
+    newPerDayLabel: string;
     loading: string; retry: string;
     remaining: (left: number, graded: number) => string;
     sayItFirst: string;
@@ -296,6 +297,7 @@ export const STR: Record<Lang, Strings> = {
       tabPractice: "Today's practice", tabBrowse: "Browse",
       hideNoteLabel: "Hide hints",
       audioFirstLabel: "Start from audio",
+      newPerDayLabel: "New/day",
       loading: "Loading…", retry: "Retry",
       remaining: (left, graded) => `${left} left (${graded} graded)`,
       sayItFirst: "↑ Say it in English out loud first",
@@ -513,6 +515,7 @@ export const STR: Record<Lang, Strings> = {
       tabPractice: "今日の練習", tabBrowse: "一覧",
       hideNoteLabel: "ヒントを隠す",
       audioFirstLabel: "音から始める",
+      newPerDayLabel: "1日の新規",
       loading: "読み込み中…", retry: "再試行",
       remaining: (left, graded) => `残り ${left} 文（うち評価済み ${graded}）`,
       sayItFirst: "↑ を英語で、まず声に出して言ってみる",
