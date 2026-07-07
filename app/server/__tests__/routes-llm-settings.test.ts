@@ -63,6 +63,20 @@ describe("llm-settings API", () => {
     expect(applied[0]).toEqual(saved[0]);
   });
 
+  test("PUT openai-compat: codexModel も接続ストアとして保持する（接続分離 v2）", async () => {
+    const saved: LlmSettings[] = [];
+    const { deps } = makeTestDeps({
+      saveLlmSettings: (s) => saved.push(s), getLlmSettings: () => null,
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: true }),
+    });
+    await makeFetchHandler(deps)(putJson("/api/llm-settings", {
+      provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: "gpt-5-codex",
+    }));
+    expect(saved[0]).toEqual({
+      provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: "gpt-5-codex",
+    });
+  });
+
   test("PUT codex: 任意 model を保存する（baseUrl/model は null）", async () => {
     const saved: LlmSettings[] = [];
     const { deps } = makeTestDeps({

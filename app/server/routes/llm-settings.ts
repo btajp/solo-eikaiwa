@@ -52,7 +52,11 @@ function parseSettingsInput(
     if (!baseUrl || !isHttpUrl(baseUrl)) return { ok: false, error: "baseUrl must be a valid http(s) URL for openai-compat" };
     const model = asOptionalStr(b.model, 200);
     if (!model) return { ok: false, error: "model is required for openai-compat" };
-    return { ok: true, value: { provider: "openai-compat", baseUrl, model, codexModel: null } };
+    // 接続ストア(llm_settings 単一行)にローカル(baseUrl/model)と Codex(codexModel)を同居させるため、
+    // openai-compat でも codexModel を保持する（未指定は null）。openai-compat 解決時は CODEX_MODEL は不使用で無害。
+    const codexModel = asOptionalStr(b.codexModel, 200);
+    if (codexModel === undefined) return { ok: false, error: "codexModel must be a string of at most 200 characters" };
+    return { ok: true, value: { provider: "openai-compat", baseUrl, model, codexModel } };
   }
   if (b.provider === "codex") {
     const codexModel = asOptionalStr(b.codexModel, 200);

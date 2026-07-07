@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  fetchLlmSettings, saveLlmSettings, saveLlmRoleSettings, LLM_ROLES,
+  fetchLlmSettings, saveLlmRoleSettings, LLM_ROLES,
   fetchTtsSettings, saveTtsSettings,
-  type LlmProvider, type LlmRole, type LlmRoleProvider, type LlmRoleView, type LlmSettingsView,
-  type TtsSettingsView,
+  type LlmRole, type LlmSettingsView, type TtsSettingsView,
 } from "../api";
+import {
+  PRESETS, isLocalDefined, presetEnabled, hydrateConnection, hydrateTargets, buildRolesPayload,
+  type RoleTarget, type RoleTargets, type Connection, type PresetId,
+} from "../lib/llm-assignments";
 import { STR, type Lang } from "../i18n";
 import { Button } from "../ui/Button";
 
@@ -16,9 +19,6 @@ type Props = {
   setUiScale: (s: UiScale) => void;
   switchLang: (l: Lang) => void;
 };
-
-const GLOBAL_PROVIDERS: LlmProvider[] = ["env", "claude", "openai-compat", "codex"];
-const ROLE_PROVIDERS: LlmRoleProvider[] = ["inherit", "claude", "openai-compat", "codex"];
 
 type VoiceProviderKind = "kokoro" | "openai";
 const VOICE_PRESETS: Record<VoiceProviderKind, { female: string; male: string }> = {
@@ -34,46 +34,31 @@ function detectVoiceProviderKind(baseUrl: string): VoiceProviderKind {
   return lower.includes("8880") || lower.includes("kokoro") ? "kokoro" : "openai";
 }
 
-/** provider トグル + openai-compat/codex の条件フィールドを描く共有エディタ（全体設定とロール行で再利用）。 */
-function ProviderEditor<P extends string>(props: {
-  lang: Lang;
-  providers: P[];
-  labelOf: (p: P) => string;
-  value: { provider: P; baseUrl: string | null; model: string | null; codexModel: string | null };
-  onChange: (next: { provider: P; baseUrl: string | null; model: string | null; codexModel: string | null }) => void;
-  apiKeyConfigured: boolean;
+/** 1ロールの割当トグル（Claude / ローカル / Codex）。ローカル未定義時はローカルを非活性 + 中立案内。 */
+function RoleTargetToggle(props: {
+  value: RoleTarget;
+  localEnabled: boolean;
+  labels: Record<RoleTarget, string>;
+  localDisabledNote: string;
   ariaLabel: string;
+  onChange: (t: RoleTarget) => void;
 }) {
-  const t = STR[props.lang].llm;
-  const v = props.value;
+  const order: RoleTarget[] = ["claude", "local", "codex"];
   return (
     <div className="stack">
       <div className="lang-toggle llm-provider-toggle" role="group" aria-label={props.ariaLabel}>
-        {props.providers.map((p) => (
-          <button key={p} className={v.provider === p ? "is-active" : ""} onClick={() => props.onChange({ ...v, provider: p })}>
-            {props.labelOf(p)}
+        {order.map((t) => (
+          <button
+            key={t}
+            className={props.value === t ? "is-active" : ""}
+            disabled={t === "local" && !props.localEnabled}
+            onClick={() => props.onChange(t)}
+          >
+            {props.labels[t]}
           </button>
         ))}
       </div>
-      {v.provider === "openai-compat" && (
-        <div className="llm-fields stack">
-          <label className="llm-field">
-            <span className="text-sm text-muted">{t.baseUrlLabel}</span>
-            <input className="llm-input" value={v.baseUrl ?? ""} placeholder={t.baseUrlPlaceholder} onChange={(e) => props.onChange({ ...v, baseUrl: e.target.value })} />
-          </label>
-          <label className="llm-field">
-            <span className="text-sm text-muted">{t.modelLabel}</span>
-            <input className="llm-input" value={v.model ?? ""} placeholder={t.modelPlaceholder} onChange={(e) => props.onChange({ ...v, model: e.target.value })} />
-          </label>
-          <div className="text-sm text-muted">{props.apiKeyConfigured ? t.apiKeyConfigured : t.apiKeyMissing}</div>
-        </div>
-      )}
-      {v.provider === "codex" && (
-        <label className="llm-field">
-          <span className="text-sm text-muted">{t.codexModelLabel}</span>
-          <input className="llm-input" value={v.codexModel ?? ""} placeholder={t.codexModelPlaceholder} onChange={(e) => props.onChange({ ...v, codexModel: e.target.value })} />
-        </label>
-      )}
+      {!props.localEnabled && <div className="text-sm text-muted">{props.localDisabledNote}</div>}
     </div>
   );
 }
@@ -85,17 +70,13 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   const [saving, setSaving] = useState(false);
   const fetchedRef = useRef(false);
 
-  // 全体設定の編集状態
-  const [gProvider, setGProvider] = useState<LlmProvider>("env");
-  const [gBaseUrl, setGBaseUrl] = useState("");
-  const [gModel, setGModel] = useState("");
-  const [gCodex, setGCodex] = useState("");
-  // ロール別の編集状態
-  const [roles, setRoles] = useState<Record<LlmRole, LlmRoleView>>({
-    conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
-    coaching: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
-    generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
-    assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+  // 接続の編集状態
+  const [connBaseUrl, setConnBaseUrl] = useState("");
+  const [connModel, setConnModel] = useState("");
+  const [connCodex, setConnCodex] = useState("");
+  // ロール割当の編集状態（3値）
+  const [targets, setTargets] = useState<RoleTargets>({
+    conversation: "claude", coaching: "claude", generation: "claude", assessment: "claude",
   });
   // 音声（TTS）の編集状態
   const [ttsView, setTtsView] = useState<TtsSettingsView | null>(null);
@@ -105,11 +86,11 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
 
   function hydrate(v: LlmSettingsView) {
     setView(v);
-    setGProvider(v.provider === "env" || v.provider === "claude" || v.provider === "openai-compat" || v.provider === "codex" ? v.provider : "env");
-    setGBaseUrl(v.baseUrl ?? "");
-    setGModel(v.model ?? "");
-    setGCodex(v.codexModel ?? "");
-    setRoles(v.roles);
+    const conn = hydrateConnection(v);
+    setConnBaseUrl(conn.baseUrl);
+    setConnModel(conn.model);
+    setConnCodex(conn.codexModel);
+    setTargets(hydrateTargets(v));
   }
 
   function hydrateTts(v: TtsSettingsView) {
@@ -126,59 +107,29 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     fetchTtsSettings().then(hydrateTts).catch(() => {});
   }, []);
 
+  const conn: Connection = { baseUrl: connBaseUrl, model: connModel, codexModel: connCodex };
+  const localDefined = isLocalDefined(conn);
+
   function applyResult(v: LlmSettingsView) {
     hydrate(v);
     setResult(v.applied === false ? s.llm.notApplied(v.error ?? "") : s.llm.applied);
   }
 
-  async function onSaveGlobal() {
+  async function persist(nextTargets: RoleTargets, nextConn: Connection) {
     setSaving(true); setResult(null);
     try {
-      applyResult(await saveLlmSettings({
-        provider: gProvider,
-        baseUrl: gProvider === "openai-compat" ? gBaseUrl : null,
-        model: gProvider === "openai-compat" ? gModel : null,
-        codexModel: gProvider === "codex" ? (gCodex || null) : null,
-      }));
+      applyResult(await saveLlmRoleSettings(buildRolesPayload(nextTargets, nextConn)));
     } catch { setResult(s.llm.saveFailed); } finally { setSaving(false); }
   }
 
-  async function onSaveRoles() {
-    setSaving(true); setResult(null);
-    try {
-      applyResult(await saveLlmRoleSettings({ roles }));
-    } catch { setResult(s.llm.saveFailed); } finally { setSaving(false); }
+  function applyPreset(id: PresetId) {
+    const next = PRESETS[id];
+    setTargets(next);
+    void persist(next, conn);
   }
 
-  async function onRecommended() {
-    if (!view || view.provider !== "openai-compat") return;
-    setSaving(true); setResult(null);
-    try {
-      // 会話のみローカルLLMに固定し、他ロールが継承する全体設定はClaude既定(env)に戻す。
-      // これにより保存後は view.provider === "env" となり、推奨ボタンは正しくdisabledへ戻る。
-      applyResult(await saveLlmRoleSettings({
-        global: { provider: "env" },
-        roles: {
-          conversation: { provider: "openai-compat", baseUrl: view.baseUrl, model: view.model },
-          coaching: { provider: "inherit" },
-          generation: { provider: "inherit" },
-          assessment: { provider: "inherit" },
-        },
-      }));
-    } catch { setResult(s.llm.saveFailed); } finally { setSaving(false); }
-  }
-
-  async function onResetAll() {
-    setSaving(true); setResult(null);
-    try {
-      applyResult(await saveLlmRoleSettings({
-        global: { provider: "env" },
-        roles: {
-          conversation: { provider: "inherit" }, coaching: { provider: "inherit" },
-          generation: { provider: "inherit" }, assessment: { provider: "inherit" },
-        },
-      }));
-    } catch { setResult(s.llm.saveFailed); } finally { setSaving(false); }
+  function setTarget(role: LlmRole, t: RoleTarget) {
+    setTargets((prev) => ({ ...prev, [role]: t }));
   }
 
   const voicePreset: "female" | "male" | "custom" = VOICE_PRESET_FEMALE_VALUES.includes(ttsVoice.trim())
@@ -211,7 +162,9 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     } catch { setResult(s.llm.saveFailed); } finally { setSaving(false); }
   }
 
-  const recommendEnabled = view?.provider === "openai-compat";
+  const targetLabels: Record<RoleTarget, string> = {
+    claude: s.settings.targetClaude, local: s.settings.targetLocal, codex: s.settings.targetCodex,
+  };
 
   return (
     <div className="stack">
@@ -223,56 +176,66 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
       <section className="support-panel stack">
         <div className="stat-title">{s.settings.llmSection}</div>
 
-        {/* 全体の接続先（現 LlmPanel 相当） */}
+        {/* プリセット（最上部・ロール割当を書くだけ） */}
         <div className="stack">
-          <div className="support-label-row">
-            <div className="text-sm text-muted">{s.settings.connectionTitle}</div>
+          <div className="stat-title">{s.settings.presetSection}</div>
+          <div className="text-sm text-muted">{s.settings.presetAllLocalDesc}</div>
+          <Button variant="secondary" onClick={() => applyPreset("all-local")} disabled={saving || !view || !presetEnabled("all-local", conn)}>{s.settings.presetAllLocal}</Button>
+          <div className="text-sm">{s.settings.presetBalancedBadge}</div>
+          <div className="text-sm text-muted">{s.settings.presetBalancedDesc}</div>
+          <Button variant="primary" onClick={() => applyPreset("balanced")} disabled={saving || !view || !presetEnabled("balanced", conn)}>{s.settings.presetBalanced}</Button>
+          <div className="text-sm text-muted">{s.settings.presetHighQualityDesc}</div>
+          <Button variant="secondary" onClick={() => applyPreset("high-quality")} disabled={saving || !view}>{s.settings.presetHighQuality}</Button>
+          {!localDefined && <div className="text-sm text-muted">{s.settings.presetLocalRequired}</div>}
+        </div>
+
+        {/* 接続（ローカル LLM / Codex を定義する場所） */}
+        <div className="stack">
+          <div className="stat-title">{s.settings.connectionSection}</div>
+          <div className="text-sm text-muted">{s.settings.claudeNoSetup}</div>
+          <div className="llm-fields stack">
+            <div className="text-sm">{s.settings.localConnTitle}</div>
+            <label className="llm-field">
+              <span className="text-sm text-muted">{s.llm.baseUrlLabel}</span>
+              <input className="llm-input" value={connBaseUrl} placeholder={s.llm.baseUrlPlaceholder} onChange={(e) => setConnBaseUrl(e.target.value)} />
+            </label>
+            <label className="llm-field">
+              <span className="text-sm text-muted">{s.llm.modelLabel}</span>
+              <input className="llm-input" value={connModel} placeholder={s.llm.modelPlaceholder} onChange={(e) => setConnModel(e.target.value)} />
+            </label>
+            <div className="text-sm text-muted">{view?.apiKeyConfigured ? s.llm.apiKeyConfigured : s.llm.apiKeyMissing}</div>
           </div>
-          <ProviderEditor
-            lang={lang}
-            providers={GLOBAL_PROVIDERS}
-            labelOf={(p) => ({ env: s.llm.optEnv, claude: s.llm.optClaude, "openai-compat": s.llm.optOpenai, codex: s.llm.optCodex }[p])}
-            value={{ provider: gProvider, baseUrl: gBaseUrl, model: gModel, codexModel: gCodex }}
-            onChange={(n) => { setGProvider(n.provider); setGBaseUrl(n.baseUrl ?? ""); setGModel(n.model ?? ""); setGCodex(n.codexModel ?? ""); }}
-            apiKeyConfigured={Boolean(view?.apiKeyConfigured)}
-            ariaLabel={s.llm.providerLabel}
-          />
-          {gProvider === "env" && view && <div className="text-sm text-muted">{s.llm.envNote(view.envProvider)}</div>}
+          <div className="llm-fields stack">
+            <div className="text-sm">{s.settings.codexConnTitle}</div>
+            <label className="llm-field">
+              <span className="text-sm text-muted">{s.llm.codexModelLabel}</span>
+              <input className="llm-input" value={connCodex} placeholder={s.llm.codexModelPlaceholder} onChange={(e) => setConnCodex(e.target.value)} />
+            </label>
+          </div>
           <div className="text-sm text-muted">{s.llm.help}</div>
-          <Button variant="secondary" onClick={onSaveGlobal} disabled={saving || !view}>{saving ? s.llm.saving : s.llm.save}</Button>
+          <Button variant="secondary" onClick={() => persist(targets, conn)} disabled={saving || !view}>{saving ? s.llm.saving : s.settings.saveConnection}</Button>
         </div>
 
-        {/* かんたん設定（プリセット主役） */}
+        {/* 用途ごとのモデル（ロール割当） */}
         <div className="stack">
-          <div className="stat-title">{s.settings.presetTitle}</div>
-          <div className="text-sm text-muted">{s.settings.recommendDesc}</div>
-          <Button variant="primary" onClick={onRecommended} disabled={saving || !view || !recommendEnabled}>{s.settings.recommendApply}</Button>
-          {!recommendEnabled && <div className="text-sm text-muted">{s.settings.recommendDisabled}</div>}
-          <div className="text-sm text-muted">{s.settings.resetDesc}</div>
-          <Button variant="secondary" onClick={onResetAll} disabled={saving || !view}>{s.settings.resetApply}</Button>
-        </div>
-
-        {/* 用途別モデル（折りたたみ詳細） */}
-        <details className="stack">
-          <summary className="text-sm text-muted">{s.settings.rolesSummary}</summary>
-          <div className="stat-title">{s.settings.rolesTitle}</div>
+          <div className="stat-title">{s.settings.roleAssignSection}</div>
+          <div className="text-sm text-muted">{s.settings.roleAssignDesc}</div>
           {LLM_ROLES.map((role) => (
             <div key={role} className="stack">
               <div className="text-sm">{s.settings.roleName[role]}</div>
               <div className="text-sm text-muted">{s.settings.roleDesc[role]}</div>
-              <ProviderEditor
-                lang={lang}
-                providers={ROLE_PROVIDERS}
-                labelOf={(p) => ({ inherit: s.settings.optInherit, claude: s.llm.optClaude, "openai-compat": s.llm.optOpenai, codex: s.llm.optCodex }[p])}
-                value={roles[role]}
-                onChange={(n) => setRoles((prev) => ({ ...prev, [role]: n }))}
-                apiKeyConfigured={Boolean(view?.apiKeyConfigured)}
+              <RoleTargetToggle
+                value={targets[role]}
+                localEnabled={localDefined}
+                labels={targetLabels}
+                localDisabledNote={s.settings.targetLocalDisabled}
                 ariaLabel={s.settings.roleName[role]}
+                onChange={(t) => setTarget(role, t)}
               />
             </div>
           ))}
-          <Button variant="secondary" onClick={onSaveRoles} disabled={saving || !view}>{saving ? s.llm.saving : s.settings.saveRoles}</Button>
-        </details>
+          <Button variant="secondary" onClick={() => persist(targets, conn)} disabled={saving || !view}>{saving ? s.llm.saving : s.settings.saveAssignments}</Button>
+        </div>
 
         {result && <div className="info-pop" role="status">{result}</div>}
       </section>
