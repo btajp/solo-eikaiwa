@@ -127,6 +127,26 @@ cd app/client && bun run dev # UI :5173（/api をプロキシ）
 
 ブラウザで http://localhost:5173 を開く。常駐運用（https://learn-english）とは独立して動きます。ポート3111は共用なので、常駐と開発サーバは同時に起動できません。
 
+## LLM プロバイダの切替
+
+コーチ・会話・コンテンツ生成が使う LLM バックエンドは環境変数 `LLM_PROVIDER` で切り替えられる。既定（未設定 or `claude`）は Anthropic Claude Agent SDK で、現行と完全に同一の挙動。設定は `app/.env`（gitignore 済み）に置く。LaunchAgent の plist には秘密情報を書かない。
+
+| プロバイダ | `LLM_PROVIDER` | 必要な env |
+|---|---|---|
+| Claude Agent SDK（既定） | 未設定 or `claude` | なし |
+| Ollama | `openai-compat` | `OPENAI_COMPAT_BASE_URL=http://localhost:11434/v1`, `OPENAI_COMPAT_MODEL` |
+| LM Studio | `openai-compat` | `OPENAI_COMPAT_BASE_URL=http://localhost:1234/v1`, `OPENAI_COMPAT_MODEL` |
+| OpenAI API | `openai-compat` | `OPENAI_COMPAT_BASE_URL=https://api.openai.com/v1`, `OPENAI_COMPAT_API_KEY`, `OPENAI_COMPAT_MODEL` |
+| GitHub Models | `openai-compat` | `OPENAI_COMPAT_BASE_URL=https://models.github.ai/inference`, `OPENAI_COMPAT_API_KEY`(PAT), `OPENAI_COMPAT_MODEL`（レート制限に注意） |
+| OpenAI Codex CLI | `codex` | 任意 `CODEX_MODEL`（未指定は codex config 既定） |
+
+- **GitHub Copilot は非対応**: 公式の汎用チャット API が無く、非公式プロキシは規約リスクがあるため。GitHub の LLM を使う場合は上記「GitHub Models」を利用する。
+- **品質の前提**: 各ドメインのプロンプトは Claude 向けに調整されており、多くが「STRICT JSON のみ」を要求する。弱いモデルでは JSON 逸脱や品質低下が起きうるが、全ドメインがパース失敗フォールバックを持つためアプリはクラッシュせず degrade する。ローカル小モデルでは出力品質が落ちる前提で使う。
+- **セッション継続**: OpenAI 互換・Codex はステートレスなため、会話の継続はサーバのインメモリ・トランスクリプトで再現する。サーバ再起動で会話履歴は失われ、進行中の会話は文脈を忘れて新セッションとして継続される（既定の Claude SDK はセッションをディスクに永続化するため再起動をまたいで復元される。この差は許容とする）。
+- **Codex の安全設定**: Codex アダプタは常に read-only サンドボックス（`-s read-only`）・非対話（`approval_policy="never"`）・中立な作業ディレクトリで `codex exec` を起動し、ユーザーの `~/.codex/config.toml`（`danger-full-access` 等）を CLI フラグで上書きする。テキスト応答のみを取得し、ファイル書き込みは機構的に禁止される。
+- **設定ミスは起動時に即失敗する**: `LLM_PROVIDER` の値が不正、または `openai-compat` で `OPENAI_COMPAT_BASE_URL` / `OPENAI_COMPAT_MODEL` が未設定だと、サーバは起動時に throw して落ちる（fail-fast）。常駐運用では LaunchAgent（KeepAlive）が再起動を繰り返す crash-loop になるため、`data/logs/server.stderr.log` のエラーを確認して `app/.env` を修正するか、`LLM_PROVIDER` を空に戻す。
+- **CLI（generate-content 等）から使う場合**: Bun は cwd の `.env` しか自動ロードしないため、リポジトリルートからの `bun scripts/generate-content.ts …` では `app/.env` の設定は効かない。`LLM_PROVIDER=… bun scripts/generate-content.ts …` のように環境変数を直接付けるか、`cd app && bun ../scripts/generate-content.ts …` で実行する。
+
 ## 自分用にカスタマイズする
 
 お題・シナリオ（`content/topics/` / `content/scenarios/`）は frontmatter 付き Markdown ファイル1枚です。既存ファイルを真似て追加すれば、自動で least-recently-used ローテーションに入ります。同梱のお題はサンプルなので、自分の仕事・関心に合わせて差し替えてください。

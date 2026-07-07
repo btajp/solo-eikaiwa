@@ -7,20 +7,19 @@
  *   bun scripts/generate-content.ts topics-band [--dry]  # stage1帯のbusiness/ITお題を2本ずつ生成
  *   bun scripts/generate-content.ts listening   [--dry]  # 多聴素材を6本（3ドメイン×上下2帯）生成
  * --dry はプレビューのみ（ファイルを書かない）。書き込み前バリデーションに失敗したら何も書かずに終了する。
- * 対話AIは Claude Agent SDK（サブスクリプション認証）を使う。
+ * 既定は Claude Agent SDK（サブスクリプション認証）。LLM_PROVIDER で openai-compat / codex に切替可能。
  * このファイルは依存関係の組み立てだけを行う薄いラッパ。コア生成ロジックは app/server/content-gen.ts。
  */
-import { query } from "@anthropic-ai/claude-agent-sdk";
 import { openDb } from "../app/server/db";
 import { genSentences, genTopics, genScenarios, genTopicsBand, genListening } from "../app/server/content-gen";
-import { makeClaudeRunner } from "../app/server/converse";
+import { defaultRunner } from "../app/server/converse";
 import { makeProgressStore } from "../app/server/progress-store";
 import { stageOf } from "../app/server/progression";
 import { SENTENCES_FILE, SCENARIOS_DIR, TOPICS_DIR, LISTENING_DIR } from "../app/server/paths";
 
 const sub = process.argv[2];
 const dry = process.argv.includes("--dry");
-const runner = makeClaudeRunner(query);
+const runner = defaultRunner;
 
 async function main(): Promise<void> {
   const db = openDb();

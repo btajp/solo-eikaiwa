@@ -1,4 +1,5 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import { selectRunner } from "./llm-provider";
 import { appendEvent, markErrorLogged } from "./session-log";
 import { sessionLogPath } from "./paths";
 import { vocabConstraint } from "./progression";
@@ -70,7 +71,10 @@ export function makeClaudeRunner(queryFn: typeof query): ClaudeRunner {
  * （coach.ts / placement.ts / assessment.ts / content-gen.ts / converse.ts）に置き、
  * ここでは実行器だけを共有する。
  */
-export const defaultRunner: ClaudeRunner = makeClaudeRunner(query);
+export const defaultRunner: ClaudeRunner = selectRunner({
+  claudeRunner: makeClaudeRunner(query),
+  defaultSystemPrompt: PARTNER_SYSTEM_PROMPT,
+});
 
 export async function converseTurn(args: {
   userText: string;
