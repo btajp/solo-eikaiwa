@@ -2,6 +2,16 @@
 
 このプロジェクトの特筆すべき変更を記録します。形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に、バージョニングは [Semantic Versioning](https://semver.org/lang/ja/) に従います。
 
+## [0.19.0] - 2026-07-08
+
+### Added
+
+- **ローカル TTS 対応（音声エンドポイントの差し替え）**: 音声合成の向き先を OpenAI 互換の任意エンドポイントに変更できるように。「⚙️ 設定 → 音声（TTS）」で **Base URL・モデル・voice** を指定でき、kokoro-fastapi 等のローカル TTS サーバに **API キーなし**で向けられる（Base URL が既定以外を指すときは鍵なしでも HTTP を試す）。設定は SQLite の新テーブル `tts_settings`（単一行）に保存し、次のリクエストから即反映。`app/.env` の `TTS_BASE_URL` / `TTS_MODEL` / `TTS_VOICE` / `TTS_API_KEY` でも指定できる（DB がこれらを上書き）。**何も設定しなければ現行と完全に同一**（同梱の暗記例文300音声を最優先、OpenAI キーがあれば OpenAI TTS、無ければ macOS `say`）。**APIキーは UI・DB・API 応答・ログに一切載せず `app/.env` の `TTS_API_KEY`（無指定時は `OPENAI_API_KEY`）のみ**
+
+### Changed
+
+- 音声合成が失敗したときの `say` フォールバックは維持（現行不変）。カスタムエンドポイントでも同様にフォールバックする
+
 ## [0.18.0] - 2026-07-08
 
 ### Added

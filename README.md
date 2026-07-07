@@ -64,10 +64,10 @@ A local-first, research-grounded English speaking practice app for daily self-st
 ## 仕組みとプライバシー
 
 ```
-ブラウザ録音 → whisper.cpp（ローカルSTT） → Claude（会話相手・コーチ） → OpenAI TTS（なければ macOS say）
+ブラウザ録音 → whisper.cpp（ローカルSTT） → Claude（会話相手・コーチ） → OpenAI 互換 TTS（既定は OpenAI・ローカル TTS に差し替え可／なければ macOS say）
 ```
 
-- **音声はマシンから出ません**。外部に送られるのは発話のテキスト（Claude へ）と AI 応答のテキスト（TTS 用、キー設定時のみ）だけ
+- **音声はマシンから出ません**。外部に送られるのは発話のテキスト（Claude へ）と AI 応答のテキスト（TTS 用・OpenAI 利用時のみ外部送信。TTS を**ローカルサーバ**に向ければ音声テキストも外部に出ません）だけ
 - 学習データ（録音・トランスクリプト・進捗・SRS状態・キャッシュ）はすべて `data/` のローカルファイルで、**リポジトリには一切コミットされない**
 - API サーバは 127.0.0.1 バインドのみ（外部非公開）
 - 対話 AI は Claude Agent SDK 経由であなたの Claude Pro/Max サブスクリプションを使うため、**Anthropic API キーは不要**
@@ -80,7 +80,7 @@ A local-first, research-grounded English speaking practice app for daily self-st
 - [Bun](https://bun.sh) ≥ 1.3
 - Homebrew（whisper-cpp / ffmpeg の導入に使用）
 - [Claude Code](https://claude.com/claude-code) CLI にログイン済みであること（既定の LLM。Ollama 等のローカル LLM や Codex への切替は「LLM プロバイダの切替」参照）
-- 任意: OpenAI API キー（高品質TTS用。なければ macOS `say` で動作）
+- 任意: 高品質TTS。OpenAI API キー（`OPENAI_API_KEY`）を使うか、ローカル TTS（kokoro-fastapi 等・後述）に向ける。どちらも無ければ macOS `say` で動作
 - Chrome 系ブラウザ推奨（録音が audio/webm 固定のため。Safari 非対応）
 
 ### セットアップ（初回のみ）
@@ -94,6 +94,17 @@ A local-first, research-grounded English speaking practice app for daily self-st
 ```
 OPENAI_API_KEY=$YOUR_OPENAI_KEY_ENV_VAR
 ```
+
+TTS を OpenAI 以外（ローカル等）に向けるときは `app/.env` に次を追加できます（すべて任意・未設定なら既定の OpenAI/say）:
+
+```
+TTS_BASE_URL=http://localhost:8880/v1   # OpenAI 互換の音声エンドポイント
+TTS_MODEL=kokoro                        # サーバが受け付けるモデル名
+TTS_VOICE=af_sky                        # サーバが受け付ける voice
+# TTS_API_KEY=...                       # 鍵が要るエンドポイントのみ（未指定なら OPENAI_API_KEY にフォールバック）
+```
+
+同じ項目は「⚙️ 設定 → 音声（TTS）」からも変更でき、DB 設定が env を上書きします。
 
 ### 起動: 常駐（推奨）
 
@@ -180,6 +191,29 @@ ollama pull qwen3:30b-instruct   # Qwen3-30B-A3B-Instruct（MoE・約18GB・RAM 
 - **モデル選定の目安**: 訳・添削解説など日本語出力があるため、日英両対応のモデルを選ぶ（Qwen3 / Gemma 3 が有力）。**thinking 系の変種は避ける** — `<think>` タグが会話にそのまま表示・読み上げされてしまう。RAM 16GB の Mac なら `qwen3:8b` などの小型を。
 - **使い分けの目安**: 会話相手・ロールプレイ・訳はローカル 30B 級で実用的。添削の日本語解説・月次レビュー・レベル測定は Claude の品質が明確に上なので、**⚙️ 設定 → 言語モデル**の用途別ルーティングで会話だけをローカルに割り当てる運用がおすすめ（前述「推奨構成を適用」で一括設定できる）。
 - 長い自由会話で文脈が切れる場合は Ollama のコンテキスト長を広げる: `OLLAMA_CONTEXT_LENGTH=16384 brew services restart ollama`
+
+## 音声（TTS）プロバイダの切替
+
+読み上げ音声（AI 応答・例文・モデルトーク）の合成先は OpenAI 互換の `/v1/audio/speech` を叩く。既定は OpenAI（`https://api.openai.com/v1`・`gpt-4o-mini-tts`・`alloy`）で、`OPENAI_API_KEY` があれば OpenAI、無ければ macOS `say` にフォールバックする（現行どおり）。ここを **Base URL・モデル・voice** の3点で差し替えられる。
+
+- 設定場所: サイドバー「記録・測定」の **⚙️ 設定 → 音声（TTS）**、または `app/.env` の `TTS_BASE_URL` / `TTS_MODEL` / `TTS_VOICE` / `TTS_API_KEY`（DB 設定が env を上書き）。
+- **APIキーは UI・DB に保存されない**（`app/.env` の `TTS_API_KEY`・無指定なら `OPENAI_API_KEY` のみ）。Base URL が既定以外を指すときは**鍵なしでも**エンドポイントを試す（ローカルサーバ向け）。合成に失敗したら `say` にフォールバックする。
+- 暗記例文300の**同梱音声**は既定（OpenAI）のキーで事前生成されているため、TTS を差し替えると同梱にヒットせずローカル TTS の声で都度合成される（アプリ全体で声が揃う）。既定に戻せば同梱音声に戻る。
+- キャッシュ（`data/tts-cache`）はモデル名と voice でキー分けされる。**同じモデル名かつ同じ voice のまま Base URL だけ別プロバイダに変える**と旧キャッシュと混ざりうるので、その場合は `data/tts-cache` を消すか voice/モデル名を変える。
+
+### ローカル TTS の例: kokoro-fastapi（Apple Silicon Mac）
+
+[kokoro-fastapi](https://github.com/remsky/Kokoro-FastAPI) は Kokoro-82M を OpenAI 互換 API で提供する軽量サーバ。Docker が最も手軽（**実装時に最新の起動方法を公式 README で確認すること**）:
+
+```bash
+# CPU（Docker Desktop for Mac は Linux コンテナに Apple GPU を渡せないため CPU 実行になる）
+docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest
+# 起動確認: ブラウザで http://localhost:8880/web を開く
+```
+
+Apple Silicon の MPS 加速で速くしたい場合は、Docker ではなくリポジトリの手順に沿って `uv` でネイティブ実行する（詳細は公式 README・**実装時に確認**）。Kokoro-82M は小型モデルで、Apple Silicon の CPU でも短文なら概ねリアルタイム（RTF < 1・1文あたり数百 ms〜1〜2 秒程度）。
+
+設定は「⚙️ 設定 → 音声（TTS）」で **Base URL `http://localhost:8880/v1`・モデル `kokoro`・voice `af_sky`**（54種の voice から選択・日英中対応）を保存すれば完了。kokoro-fastapi は鍵不要なので「TTS API キーなし」表示のままで正常。
 
 ## 自分用にカスタマイズする
 
