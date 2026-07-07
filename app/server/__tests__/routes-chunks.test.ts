@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { FAKE_SENTENCE, makeFakeChunkStore, makeTestDeps } from "./helpers/route-deps";
+import { getReq, postJson } from "./helpers/http";
 
 describe("chunks: 収集フックと API", () => {
   test("AEフィードバック成功時に quote/better 非空の item だけが collect に渡り、件数がレスポンスに載る", async () => {
@@ -17,10 +18,7 @@ describe("chunks: 収集フックと API", () => {
         collect: (c) => { got.push(...c); return 1; },
       }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/feedback/ae", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ transcript: "I go office", topicTitle: "t" }),
-    }));
+    const res = await makeFetchHandler(deps)(postJson("/api/feedback/ae", { transcript: "I go office", topicTitle: "t" }));
     expect(res.status).toBe(200);
     const body = await res.json() as { collectedChunks: number };
     expect(body.collectedChunks).toBe(1);
@@ -35,10 +33,7 @@ describe("chunks: 収集フックと API", () => {
         collect: () => { throw new Error("db boom"); },
       }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/feedback/ae", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ transcript: "hello" }),
-    }));
+    const res = await makeFetchHandler(deps)(postJson("/api/feedback/ae", { transcript: "hello" }));
     expect(res.status).toBe(200);
     expect(((await res.json()) as { collectedChunks: number }).collectedChunks).toBe(0);
   });
@@ -71,7 +66,7 @@ describe("chunks: 収集フックと API", () => {
         }],
       }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/sentences/queue?new=1"));
+    const res = await makeFetchHandler(deps)(getReq("/api/sentences/queue?new=1"));
     const body = await res.json() as { queue: unknown[] };
     expect(body.queue[0]).toEqual({
       kind: "chunk", id: 3, promptText: "I go office", en: "I went to the office", note: "過去形",
@@ -86,14 +81,14 @@ describe("chunks: 収集フックと API", () => {
         dueChunks: () => { throw new Error("boom"); },
       }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/sentences/queue?new=1"));
+    const res = await makeFetchHandler(deps)(getReq("/api/sentences/queue?new=1"));
     expect(res.status).toBe(200);
     expect(((await res.json()) as { queue: unknown[] }).queue).toEqual([{ kind: "sentence", ...FAKE_SENTENCE }]);
   });
 
   test("GET /api/chunks は一覧を返す", async () => {
     const { deps } = makeTestDeps();
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/chunks"));
+    const res = await makeFetchHandler(deps)(getReq("/api/chunks"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ chunks: [] });
   });
@@ -106,10 +101,7 @@ describe("chunks: 収集フックと API", () => {
       ...base,
       addXp: (kind, amount, meta) => { xp.push({ kind: kind as string, amount }); return base.addXp(kind, amount, meta); },
     };
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/chunks/grade", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: 1, grade: "good" }),
-    }));
+    const res = await makeFetchHandler(deps)(postJson("/api/chunks/grade", { id: 1, grade: "good" }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ id: 1, stage: 1, due: "2026-07-09" });
     expect(xp).toEqual([{ kind: "srs-grade", amount: 2 }]);
@@ -118,15 +110,9 @@ describe("chunks: 収集フックと API", () => {
   test("POST /api/chunks/grade: 未知idは400・不正gradeは400", async () => {
     const { deps } = makeTestDeps();
     const h = makeFetchHandler(deps);
-    const r1 = await h(new Request("http://x/api/chunks/grade", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: 999, grade: "good" }),
-    }));
+    const r1 = await h(postJson("/api/chunks/grade", { id: 999, grade: "good" }));
     expect(r1.status).toBe(400);
-    const r2 = await h(new Request("http://x/api/chunks/grade", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: 1, grade: "great" }),
-    }));
+    const r2 = await h(postJson("/api/chunks/grade", { id: 1, grade: "great" }));
     expect(r2.status).toBe(400);
   });
 

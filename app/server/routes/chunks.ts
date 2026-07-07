@@ -1,5 +1,5 @@
 import type { ChunkStore, CollectCandidate } from "../chunks";
-import type { Grade } from "../sentences";
+import { GRADES, type Grade } from "../sentences";
 import type { ProgressStore } from "../progress-store";
 import { xpForGrade } from "../progression";
 import { json, parseJsonBody, exact, prefix, bestEffort, type RouteEntry } from "./http";
@@ -8,8 +8,6 @@ export type ChunkRoutesDeps = {
   chunkStore: ChunkStore;
   progressStore: ProgressStore;
 };
-
-const GRADES = ["good", "soso", "bad"] as const;
 
 /** 収集はベストエフォート — 失敗しても親レスポンスを失敗させない（XP付与と同じ方針） */
 export function collectBestEffort(chunkStore: ChunkStore, cands: CollectCandidate[]): number {

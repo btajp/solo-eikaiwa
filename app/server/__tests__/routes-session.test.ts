@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { readEvents } from "../session-log";
 import { makeTestDeps } from "./helpers/route-deps";
+import { postJson } from "./helpers/http";
 
 describe("routes: session", () => {
   test("POST /api/session/start は {ok:true} を返し session_start をログする", async () => {
@@ -17,11 +18,7 @@ describe("routes: session", () => {
   test("POST /api/session/start はボディの sessionId をログする（追加・後方互換）", async () => {
     const { deps, logFile } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/session/start", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ sessionId: "app-uuid-1" }),
-    }));
+    const res = await handler(postJson("/api/session/start", { sessionId: "app-uuid-1" }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     const events = readEvents(logFile);
@@ -46,11 +43,7 @@ describe("routes: session", () => {
     const { deps, logFile } = makeTestDeps();
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      new Request("http://localhost/api/session/end", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sessionId: "s1" }),
-      }),
+      postJson("/api/session/end", { sessionId: "s1" }),
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
@@ -77,10 +70,7 @@ describe("routes: session/event", () => {
   test("ホワイトリストのtypeはログされ {ok:true}", async () => {
     const { deps, logFile } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/session/event", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ type: "block_start", meta: { blockId: "b2", kind: "four-three-two" } }),
-    }));
+    const res = await handler(postJson("/api/session/event", { type: "block_start", meta: { blockId: "b2", kind: "four-three-two" } }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     const events = readEvents(logFile);
@@ -92,13 +82,10 @@ describe("routes: session/event", () => {
   test("round_end は transcript/elapsedSec を含む meta がそのままJSONLに残る（自由形式）", async () => {
     const { deps, logFile } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/session/event", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        type: "round_end",
-        sessionId: "app-uuid-1",
-        meta: { block: "four-three-two", round: 1, transcript: "I go to work every day.", elapsedSec: 231 },
-      }),
+    const res = await handler(postJson("/api/session/event", {
+      type: "round_end",
+      sessionId: "app-uuid-1",
+      meta: { block: "four-three-two", round: 1, transcript: "I go to work every day.", elapsedSec: 231 },
     }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
@@ -115,10 +102,7 @@ describe("routes: session/event", () => {
   test("ホワイトリスト外のtypeは400", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/session/event", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ type: "session_start" }),
-    }));
+    const res = await handler(postJson("/api/session/event", { type: "session_start" }));
     expect(res.status).toBe(400);
   });
 });

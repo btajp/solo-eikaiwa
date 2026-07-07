@@ -2,12 +2,13 @@ import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { markErrorLogged, readEvents } from "../session-log";
 import { makeTestDeps } from "./helpers/route-deps";
+import { getReq, postJson } from "./helpers/http";
 
 describe("routes: 404 と 500", () => {
   test("未知のルートは404", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/nope"));
+    const res = await handler(getReq("/api/nope"));
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ error: "not found" });
   });
@@ -20,11 +21,7 @@ describe("routes: 404 と 500", () => {
     });
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      new Request("http://localhost/api/converse", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userText: "hi" }),
-      }),
+      postJson("/api/converse", { userText: "hi" }),
     );
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "boom from dep" });
@@ -45,11 +42,7 @@ describe("routes: 404 と 500", () => {
     });
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      new Request("http://localhost/api/converse", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userText: "hi" }),
-      }),
+      postJson("/api/converse", { userText: "hi" }),
     );
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "boom from dep" });
@@ -65,11 +58,7 @@ describe("routes: 404 と 500", () => {
     });
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      new Request("http://localhost/api/converse", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userText: "hi" }),
-      }),
+      postJson("/api/converse", { userText: "hi" }),
     );
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "already logged downstream" });

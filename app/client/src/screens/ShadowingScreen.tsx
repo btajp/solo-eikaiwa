@@ -41,11 +41,11 @@ export function ShadowingScreen(props: { topic: ContentItem; lang: Lang }) {
     setErrorMsg("");
     setState("script");
     try {
-      const { text: t, blob } = await prefetchModelTalkAudio(props.topic.id, (stage) => {
+      const { text: talkText, blob } = await prefetchModelTalkAudio(props.topic.id, (stage) => {
         if (aliveRef.current) setState(stage);
       });
       if (!aliveRef.current) return;
-      setText(t);
+      setText(talkText);
       setAudioBlob(blob);
       setState("ready");
     } catch (err) {

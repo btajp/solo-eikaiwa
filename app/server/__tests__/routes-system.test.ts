@@ -4,12 +4,13 @@ import path from "node:path";
 import { localYmd } from "../dates";
 import { makeFetchHandler } from "../routes";
 import { FAKE_HEALTH, makeTestDeps } from "./helpers/route-deps";
+import { getReq, postJson } from "./helpers/http";
 
 describe("routes: health", () => {
   test("GET /api/health は200で health() の結果をそのまま返す", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/health"));
+    const res = await handler(getReq("/api/health"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(FAKE_HEALTH);
   });
@@ -79,11 +80,7 @@ describe("routes: tts", () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      new Request("http://localhost/api/tts", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({}),
-      }),
+      postJson("/api/tts", {}),
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "text is required" });
@@ -93,11 +90,7 @@ describe("routes: tts", () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      new Request("http://localhost/api/tts", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: "hello" }),
-      }),
+      postJson("/api/tts", { text: "hello" }),
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("audio/mpeg");

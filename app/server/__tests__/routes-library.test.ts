@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { makeFakeLibraryStore, makeTestDeps } from "./helpers/route-deps";
+import { getReq, postJson } from "./helpers/http";
 
 describe("library", () => {
   test("model-talk 成功時に libraryStore.saveModelTalk が topicTitle 付きで呼ばれ、レスポンスは {text} のみ", async () => {
@@ -11,11 +12,7 @@ describe("library", () => {
       libraryStore: makeFakeLibraryStore({ saveModelTalk: (e) => saved.push(e) }),
     });
     const res = await makeFetchHandler(deps)(
-      new Request("http://x/api/coach/model-talk", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ topicId: "known-topic" }),
-      }),
+      postJson("/api/coach/model-talk", { topicId: "known-topic" }),
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ text: "model talk" }); // topicTitle を漏らさない
@@ -28,11 +25,7 @@ describe("library", () => {
       libraryStore: makeFakeLibraryStore({ saveModelTalk: (e) => saved.push(e) }),
     });
     const res = await makeFetchHandler(deps)(
-      new Request("http://x/api/coach/model-talk", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ topicId: "nope" }),
-      }),
+      postJson("/api/coach/model-talk", { topicId: "nope" }),
     );
     expect(res.status).toBe(404);
     expect(saved).toHaveLength(0);
@@ -43,7 +36,7 @@ describe("library", () => {
     const { deps } = makeTestDeps({
       libraryStore: makeFakeLibraryStore({ listModelTalks: () => [entry] }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/library/model-talks"));
+    const res = await makeFetchHandler(deps)(getReq("/api/library/model-talks"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ entries: [entry] });
   });
@@ -57,11 +50,7 @@ describe("library", () => {
       }),
     });
     const res = await makeFetchHandler(deps)(
-      new Request("http://x/api/coach/model-talk", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ topicId: "known-topic" }),
-      }),
+      postJson("/api/coach/model-talk", { topicId: "known-topic" }),
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ text: "model talk" });

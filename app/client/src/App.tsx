@@ -88,20 +88,20 @@ export function App() {
           ))}
         </nav>
         {mode.kind === "session" && (
-          <Button variant="secondary" onClick={() => setMode({ kind: "start" })}>← メニューに戻る</Button>
+          <Button variant="secondary" onClick={() => setMode({ kind: "start" })}>{t.appShell.backToMenu}</Button>
         )}
         <div className="sidebar-spacer" />
-        <div className="lang-toggle" role="group" aria-label="Text size">
+        <SupportPanel lang={lang} />
+        <div className="lang-toggle" role="group" aria-label={t.appShell.textSize}>
           <button className={uiScale === "small" ? "is-active" : ""} onClick={() => setUiScale("small")}>{t.uiScale.small}</button>
           <button className={uiScale === "medium" ? "is-active" : ""} onClick={() => setUiScale("medium")}>{t.uiScale.medium}</button>
           <button className={uiScale === "large" ? "is-active" : ""} onClick={() => setUiScale("large")}>{t.uiScale.large}</button>
           <button className={uiScale === "xlarge" ? "is-active" : ""} onClick={() => setUiScale("xlarge")}>{t.uiScale.xlarge}</button>
         </div>
-        <div className="lang-toggle" role="group" aria-label="Language">
+        <div className="lang-toggle" role="group" aria-label={t.appShell.language}>
           <button className={lang === "en" ? "is-active" : ""} onClick={() => switchLang("en")}>EN</button>
           <button className={lang === "ja" ? "is-active" : ""} onClick={() => switchLang("ja")}>日本語</button>
         </div>
-        <SupportPanel lang={lang} />
         <PracticeStat lang={lang} />
       </aside>
       <main className="app">
@@ -140,6 +140,8 @@ export function App() {
 function SupportPanel({ lang }: { lang: Lang }) {
   const s = useSupport();
   const t = STR[lang].support;
+  // ⓘ ボタンで開くヘルプの吹き出し。開いているキーは1つだけ（別の ⓘ を押すか、同じものをもう一度押すと閉じる）
+  const [openHelp, setOpenHelp] = useState<string | null>(null);
   function setPreset(preset: SupportPreset) {
     // preset を変えたら個別オーバーライドはクリアして preset に主導権を戻す
     saveSupport({ preset, jaHint: null, modelTalk: null, cloze: null });
@@ -147,14 +149,21 @@ function SupportPanel({ lang }: { lang: Lang }) {
   function setToggle(key: "jaHint" | "modelTalk" | "cloze", value: SupportToggle) {
     saveSupport({ ...s, [key]: value });
   }
-  const toggles: Array<{ key: "jaHint" | "modelTalk" | "cloze"; label: string }> = [
-    { key: "jaHint", label: t.jaHint },
-    { key: "modelTalk", label: t.modelTalk },
-    { key: "cloze", label: t.cloze },
+  function toggleHelp(key: string) {
+    setOpenHelp((cur) => (cur === key ? null : key));
+  }
+  const toggles: Array<{ key: "jaHint" | "modelTalk" | "cloze"; label: string; help: string }> = [
+    { key: "jaHint", label: t.jaHint, help: t.helpJaHint },
+    { key: "modelTalk", label: t.modelTalk, help: t.helpModelTalk },
+    { key: "cloze", label: t.cloze, help: t.helpCloze },
   ];
   return (
     <div className="support-panel stack">
-      <div className="stat-title">{t.title}</div>
+      <div className="support-label-row">
+        <div className="stat-title">{t.title}</div>
+        <button className="info-btn" aria-label={t.helpPreset} title={t.helpPreset} onClick={() => toggleHelp("preset")}>ⓘ</button>
+      </div>
+      {openHelp === "preset" && <div className="info-pop">{t.helpPreset}</div>}
       <div className="lang-toggle" role="group" aria-label={t.title}>
         <button className={s.preset === "auto" ? "is-active" : ""} onClick={() => setPreset("auto")}>{t.presetAuto}</button>
         <button className={s.preset === "more" ? "is-active" : ""} onClick={() => setPreset("more")}>{t.presetMore}</button>
@@ -162,7 +171,11 @@ function SupportPanel({ lang }: { lang: Lang }) {
       </div>
       {toggles.map((tg) => (
         <div key={tg.key}>
-          <div className="text-sm text-muted">{tg.label}</div>
+          <div className="support-label-row">
+            <div className="text-sm text-muted">{tg.label}</div>
+            <button className="info-btn" aria-label={tg.help} title={tg.help} onClick={() => toggleHelp(tg.key)}>ⓘ</button>
+          </div>
+          {openHelp === tg.key && <div className="info-pop">{tg.help}</div>}
           <div className="lang-toggle" role="group" aria-label={tg.label}>
             <button className={s[tg.key] === null ? "is-active" : ""} onClick={() => setToggle(tg.key, null)}>{t.optAuto}</button>
             <button className={s[tg.key] === true ? "is-active" : ""} onClick={() => setToggle(tg.key, true)}>{t.optOn}</button>

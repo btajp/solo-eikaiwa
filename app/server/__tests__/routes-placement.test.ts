@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { FAKE_SUMMARY, makeFakePlacementStore, makeFakeProgressStore, makeTestDeps } from "./helpers/route-deps";
+import { getReq } from "./helpers/http";
 
 describe("placement API", () => {
   const VALID_TASKS = [
@@ -11,7 +12,7 @@ describe("placement API", () => {
 
   test("GET /api/placement/tasks は3タスク定義を返す", async () => {
     const { deps } = makeTestDeps();
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/placement/tasks"));
+    const res = await makeFetchHandler(deps)(getReq("/api/placement/tasks"));
     expect(res.status).toBe(200);
     const body = (await res.json()) as { tasks: Array<{ id: string; durationSec: number; instructionJa: string; promptText: string }> };
     expect(body.tasks).toHaveLength(3);
@@ -130,7 +131,7 @@ describe("placement API", () => {
 
   test("GET /api/placement/latest は {result: null} または最新1件", async () => {
     const { deps } = makeTestDeps();
-    const res1 = await makeFetchHandler(deps)(new Request("http://x/api/placement/latest"));
+    const res1 = await makeFetchHandler(deps)(getReq("/api/placement/latest"));
     expect(await res1.json()).toEqual({ result: null });
     const { deps: deps2 } = makeTestDeps({
       placementStore: makeFakePlacementStore({
@@ -138,7 +139,7 @@ describe("placement API", () => {
         latest: () => ({ id: 9, ts: "2026-07-06T00:00:00.000Z", stage: 3, startLevel: 23, rationale: "r" }),
       }),
     });
-    const res2 = await makeFetchHandler(deps2)(new Request("http://x/api/placement/latest"));
+    const res2 = await makeFetchHandler(deps2)(getReq("/api/placement/latest"));
     expect(await res2.json()).toEqual({ result: { id: 9, ts: "2026-07-06T00:00:00.000Z", stage: 3, startLevel: 23, rationale: "r" } });
   });
 });

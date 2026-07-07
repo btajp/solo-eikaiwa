@@ -1,17 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { makeTestDeps } from "./helpers/route-deps";
+import { postJson } from "./helpers/http";
 
 describe("routes: converse", () => {
   test("userTextが空なら400", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      new Request("http://localhost/api/converse", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({}),
-      }),
+      postJson("/api/converse", {}),
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "userText is required" });
@@ -21,11 +18,7 @@ describe("routes: converse", () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      new Request("http://localhost/api/converse", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userText: "Hi", sessionId: "s1" }),
-      }),
+      postJson("/api/converse", { userText: "Hi", sessionId: "s1" }),
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ replyText: "echo: Hi", sessionId: "s1" });
@@ -56,10 +49,7 @@ describe("routes: converse + scenarioId", () => {
       },
     });
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/converse", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userText: "hi", scenarioId: "known-scenario" }),
-    }));
+    const res = await handler(postJson("/api/converse", { userText: "hi", scenarioId: "known-scenario" }));
     expect(res.status).toBe(200);
     expect(seen[0].systemPromptOverride).toBe("ROLEPLAY PROMPT");
   });
@@ -67,10 +57,7 @@ describe("routes: converse + scenarioId", () => {
   test("未知の scenarioId は400", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/converse", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userText: "hi", scenarioId: "nope" }),
-    }));
+    const res = await handler(postJson("/api/converse", { userText: "hi", scenarioId: "nope" }));
     expect(res.status).toBe(400);
   });
 
@@ -83,10 +70,7 @@ describe("routes: converse + scenarioId", () => {
       },
     });
     const handler = makeFetchHandler(deps);
-    await handler(new Request("http://localhost/api/converse", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ userText: "hi" }),
-    }));
+    await handler(postJson("/api/converse", { userText: "hi" }));
     expect(seen[0].systemPromptOverride).toBeUndefined();
   });
 });

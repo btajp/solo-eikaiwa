@@ -145,6 +145,22 @@ describe("content-gen / validateTopicCandidate", () => {
     expect(validateTopicCandidate(BASE, "topic", new Set(), dir, 3)).toBeNull();
     rmSync(dir, { recursive: true, force: true });
   });
+
+  test("id が kebab-case でないと null", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-topic-id-"));
+    expect(validateTopicCandidate({ ...BASE, id: "Not_Kebab" }, "topic", new Set(), dir, 3)).toBeNull();
+    expect(validateTopicCandidate({ ...BASE, id: "has space" }, "topic", new Set(), dir, 3)).toBeNull();
+    expect(validateTopicCandidate({ ...BASE, id: "UPPER" }, "topic", new Set(), dir, 3)).toBeNull();
+    expect(validateTopicCandidate({ ...BASE, id: "" }, "topic", new Set(), dir, 3)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("空 title / titleJa は null", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-topic-title-"));
+    expect(validateTopicCandidate({ ...BASE, title: "  " }, "topic", new Set(), dir, 3)).toBeNull();
+    expect(validateTopicCandidate({ ...BASE, titleJa: "" }, "topic", new Set(), dir, 3)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
 });
 
 describe("content-gen / genSentences", () => {
@@ -323,5 +339,22 @@ describe("content-gen / genTopics", () => {
     expect(readdirSync(dirs.scenariosDir)).toEqual([]);
     expect(logs.some((l) => l.includes("--dry"))).toBe(true);
     cleanup(dirs);
+  });
+
+  test("実書き込み後にscenario書き込みが失敗すると既に書いたtopicもロールバックする", async () => {
+    const topicsDir = mkdtempSync(path.join(tmpdir(), "gen-topics-"));
+    const scenariosDir = path.join(tmpdir(), `gen-scenarios-missing-${Date.now()}`); // 存在しない → scenario の writeFileSync が投げる
+    await expect(
+      genTopics({
+        runner: makeRunner([
+          contentJson("topic-one", "daily"),
+          contentJson("topic-two", "it"),
+          contentJson("scenario-one", "business"),
+        ]),
+        topicsDir, scenariosDir, stage: 3, dry: false,
+      }),
+    ).rejects.toThrow();
+    expect(readdirSync(topicsDir)).toEqual([]); // 書いた2件は catch の rmSync で消える（オーファン無し）
+    rmSync(topicsDir, { recursive: true, force: true });
   });
 });

@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { FAKE_SENTENCE, makeFakeSentenceStore, makeTestDeps } from "./helpers/route-deps";
+import { getReq, postJson } from "./helpers/http";
 
 describe("sentences ルート", () => {
   test("GET /api/sentences は {sentences} を返す", async () => {
     const { deps } = makeTestDeps();
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/sentences"));
+    const res = await makeFetchHandler(deps)(getReq("/api/sentences"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ sentences: [FAKE_SENTENCE] });
   });
@@ -13,22 +14,18 @@ describe("sentences ルート", () => {
   test("GET /api/sentences/queue は new を検証して {queue} を返す", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const ok = await handler(new Request("http://x/api/sentences/queue?new=5"));
+    const ok = await handler(getReq("/api/sentences/queue?new=5"));
     expect(ok.status).toBe(200);
     expect(await ok.json()).toEqual({ queue: [{ kind: "sentence", ...FAKE_SENTENCE }] });
-    const bad = await handler(new Request("http://x/api/sentences/queue?new=abc"));
+    const bad = await handler(getReq("/api/sentences/queue?new=abc"));
     expect(bad.status).toBe(400);
-    const neg = await handler(new Request("http://x/api/sentences/queue?new=-1"));
+    const neg = await handler(getReq("/api/sentences/queue?new=-1"));
     expect(neg.status).toBe(400);
   });
 
   test("POST /api/sentences/grade は成功で {no,stage,due}", async () => {
     const { deps } = makeTestDeps();
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/sentences/grade", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ no: 1, grade: "good" }),
-    }));
+    const res = await makeFetchHandler(deps)(postJson("/api/sentences/grade", { no: 1, grade: "good" }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ no: 1, stage: 1, due: "2026-07-09" });
   });
@@ -36,20 +33,11 @@ describe("sentences ルート", () => {
   test("POST /api/sentences/grade は不正入力に 400", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const badGrade = await handler(new Request("http://x/api/sentences/grade", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ no: 1, grade: "perfect" }),
-    }));
+    const badGrade = await handler(postJson("/api/sentences/grade", { no: 1, grade: "perfect" }));
     expect(badGrade.status).toBe(400);
-    const badNo = await handler(new Request("http://x/api/sentences/grade", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ no: 1.5, grade: "good" }),
-    }));
+    const badNo = await handler(postJson("/api/sentences/grade", { no: 1.5, grade: "good" }));
     expect(badNo.status).toBe(400);
-    const unknownNo = await handler(new Request("http://x/api/sentences/grade", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ no: 999, grade: "good" }),
-    }));
+    const unknownNo = await handler(postJson("/api/sentences/grade", { no: 999, grade: "good" }));
     expect(unknownNo.status).toBe(400);
     expect((await unknownNo.json()).error).toContain("unknown");
   });
@@ -64,10 +52,7 @@ describe("sentences ルート", () => {
       explainSentence: async () => { generateCalls++; return { text: "詳しい解説テキスト" }; },
     });
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://x/api/sentences/explain", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ no: 1 }),
-    }));
+    const res = await handler(postJson("/api/sentences/explain", { no: 1 }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ no: 1, text: "詳しい解説テキスト" });
     expect(generateCalls).toBe(1);
@@ -83,10 +68,7 @@ describe("sentences ルート", () => {
       }),
       explainSentence: async () => { generateCalls++; return { text: "x" }; },
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/sentences/explain", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ no: 1 }),
-    }));
+    const res = await makeFetchHandler(deps)(postJson("/api/sentences/explain", { no: 1 }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ no: 1, text: "キャッシュ済み解説" });
     expect(generateCalls).toBe(0);
@@ -94,15 +76,9 @@ describe("sentences ルート", () => {
 
   test("POST /api/sentences/explain は不正・未知の no に 400", async () => {
     const handler = makeFetchHandler(makeTestDeps().deps);
-    const badNo = await handler(new Request("http://x/api/sentences/explain", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ no: "1" }),
-    }));
+    const badNo = await handler(postJson("/api/sentences/explain", { no: "1" }));
     expect(badNo.status).toBe(400);
-    const unknownNo = await handler(new Request("http://x/api/sentences/explain", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ no: 999 }),
-    }));
+    const unknownNo = await handler(postJson("/api/sentences/explain", { no: 999 }));
     expect(unknownNo.status).toBe(400);
     expect((await unknownNo.json()).error).toContain("unknown");
   });

@@ -2,10 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { readEvents } from "../session-log";
 import { makeTestDeps } from "./helpers/route-deps";
+import { getReq } from "./helpers/http";
 
 describe("routes: metrics", () => {
   test("GET /api/metrics/summary はデフォルト14日で summary を返す", async () => {
-    const res = await makeFetchHandler(makeTestDeps().deps)(new Request("http://x/api/metrics/summary"));
+    const res = await makeFetchHandler(makeTestDeps().deps)(getReq("/api/metrics/summary"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.days).toHaveLength(14);
@@ -14,9 +15,9 @@ describe("routes: metrics", () => {
 
   test("GET /api/metrics/summary の days は 1..90 の整数のみ", async () => {
     const handler = makeFetchHandler(makeTestDeps().deps);
-    expect((await handler(new Request("http://x/api/metrics/summary?days=7"))).status).toBe(200);
+    expect((await handler(getReq("/api/metrics/summary?days=7"))).status).toBe(200);
     for (const bad of ["0", "91", "abc", "7.5"]) {
-      const res = await handler(new Request(`http://x/api/metrics/summary?days=${bad}`));
+      const res = await handler(getReq(`/api/metrics/summary?days=${bad}`));
       expect(res.status).toBe(400);
     }
   });

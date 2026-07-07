@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { FAKE_MENU, FAKE_QUICK_MENU, makeTestDeps } from "./helpers/route-deps";
+import { getReq } from "./helpers/http";
 
 describe("routes: menu", () => {
   test("GET /api/menu/today はデフォルト60分のメニューを返す", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/menu/today"));
+    const res = await handler(getReq("/api/menu/today"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(FAKE_MENU);
   });
@@ -17,10 +18,10 @@ describe("routes: menu", () => {
       buildMenu: (m) => { seen.push(m); return { ...FAKE_MENU, minutes: m }; },
     });
     const handler = makeFetchHandler(deps);
-    const ok = await handler(new Request("http://localhost/api/menu/today?minutes=30"));
+    const ok = await handler(getReq("/api/menu/today?minutes=30"));
     expect(ok.status).toBe(200);
     expect(seen).toEqual([30]);
-    const bad = await handler(new Request("http://localhost/api/menu/today?minutes=45"));
+    const bad = await handler(getReq("/api/menu/today?minutes=45"));
     expect(bad.status).toBe(400);
   });
 });
@@ -29,7 +30,7 @@ describe("routes: quick menu / progress / settings", () => {
   test("GET /api/menu/quick?kind=warmup は200でメニューを返す", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/menu/quick?kind=warmup"));
+    const res = await handler(getReq("/api/menu/quick?kind=warmup"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(FAKE_QUICK_MENU);
   });
@@ -38,7 +39,7 @@ describe("routes: quick menu / progress / settings", () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
     for (const q of ["?kind=bogus", ""]) {
-      const res = await handler(new Request(`http://localhost/api/menu/quick${q}`));
+      const res = await handler(getReq(`/api/menu/quick${q}`));
       expect(res.status).toBe(400);
       expect(((await res.json()) as { error: string }).error).toContain("kind");
     }
@@ -58,7 +59,7 @@ describe("routes: quick menu / progress / settings", () => {
     }));
     expect(put.status).toBe(200);
     expect(await put.json()).toEqual({ ok: true });
-    const got = await handler(new Request("http://localhost/api/settings"));
+    const got = await handler(getReq("/api/settings"));
     expect(await got.json()).toEqual({ anchor: "朝コーヒーを淹れたら1ドリル" });
   });
 

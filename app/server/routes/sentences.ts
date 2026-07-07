@@ -1,6 +1,6 @@
 import { json, parseJsonBody, exact, bestEffort, type RouteEntry } from "./http";
 import { xpForGrade } from "../progression";
-import type { Grade, SentenceStore } from "../sentences";
+import { GRADES, type Grade, type SentenceStore } from "../sentences";
 import type { Chunk, ChunkStore } from "../chunks";
 import type { ProgressStore } from "../progress-store";
 
@@ -11,8 +11,6 @@ export type SentenceRoutesDeps = {
   /** 例文の詳しい解説を生成（キャッシュは sentenceStore 側。実体は coach.ts、テストはフェイク） */
   explainSentence: (s: { en: string; ja: string; note: string }) => Promise<{ text: string }>;
 };
-
-const GRADES = ["good", "soso", "bad"] as const;
 
 function handleSentenceQueue(url: URL, deps: SentenceRoutesDeps): Response {
   const raw = url.searchParams.get("new") ?? "10";

@@ -1,12 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { makeFakeAssessmentStore, makeTestDeps } from "./helpers/route-deps";
+import { getReq, postJson } from "./helpers/http";
 
 describe("routes: assessment", () => {
   const post = (body: unknown) =>
-    new Request("http://x/api/assessment/generate", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-    });
+    postJson("/api/assessment/generate", body);
 
   test("POST /api/assessment/generate は生成して保存し cached:false", async () => {
     const saved: Array<{ ymd: string; text: string }> = [];
@@ -69,7 +68,7 @@ describe("routes: assessment", () => {
       }),
     });
     const handler = makeFetchHandler(deps);
-    expect(await (await handler(new Request("http://x/api/assessment/latest"))).json()).toEqual({ report: row });
-    expect(await (await handler(new Request("http://x/api/assessment/list"))).json()).toEqual({ reports: [{ ...row, preview: "本文" }] });
+    expect(await (await handler(getReq("/api/assessment/latest"))).json()).toEqual({ report: row });
+    expect(await (await handler(getReq("/api/assessment/list"))).json()).toEqual({ reports: [{ ...row, preview: "本文" }] });
   });
 });

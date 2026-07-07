@@ -123,6 +123,7 @@ function MonthlyReview({ lang }: { lang: Lang }) {
   const [past, setPast] = useState<MonthlyReportPreview[]>([]);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState(false);
+  const [alreadyGenerated, setAlreadyGenerated] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const aliveRef = useRef(true);
   const fetchedRef = useRef(false);
@@ -151,12 +152,15 @@ function MonthlyReview({ lang }: { lang: Lang }) {
   async function generate() {
     setGenerating(true);
     setError(false);
+    setAlreadyGenerated(false);
     try {
-      const { report: r } = await requestMonthlyReport();
+      const { report: r, cached } = await requestMonthlyReport();
       if (!aliveRef.current) return;
       setReport(r);
       // 一覧は次回表示時に更新されれば十分だが、その場で整合させる
       setPast((p) => p.filter((x) => x.id !== r.id));
+      // 今月分が既にある場合はサーバが既存を返す（cached）。無反応に見えないよう情報表示する
+      if (cached) setAlreadyGenerated(true);
     } catch (err) {
       console.warn("monthly review generate failed:", err);
       if (aliveRef.current) setError(true);
@@ -185,6 +189,7 @@ function MonthlyReview({ lang }: { lang: Lang }) {
         </Button>
       )}
       {error && <Banner kind="error">{t.mrError}</Banner>}
+      {alreadyGenerated && <Banner kind="info">{t.mrAlreadyThisMonth}</Banner>}
       {past.length > 0 && (
         <div className="mr-past">
           <p className="text-sm text-muted">{t.mrPast}</p>

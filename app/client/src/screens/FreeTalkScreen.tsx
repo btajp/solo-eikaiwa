@@ -57,14 +57,14 @@ export function FreeTalkScreen(props: { scenarioId?: string; onSessionId?: (id: 
         setStatus("error");
         return;
       }
-      setTurns((t) => [...t, { role: "you", text }]);
+      setTurns((prev) => [...prev, { role: "you", text }]);
 
       setStatus("thinking");
       const { replyText, sessionId } = await converse(text, sessionIdRef.current, props.scenarioId);
       if (!aliveRef.current) return;
       sessionIdRef.current = sessionId;
       props.onSessionId?.(sessionId);
-      setTurns((t) => [...t, { role: "ai", text: replyText }]);
+      setTurns((prev) => [...prev, { role: "ai", text: replyText }]);
 
       setStatus("speaking");
       const audioBlob = await ttsFetch(replyText);

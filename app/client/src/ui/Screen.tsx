@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 
-/** ブロック進捗ドット（情報表示のみ） */
-export function ProgressDots({ current, total }: { current: number; total: number }) {
+/** ブロック進捗ドット（情報表示のみ）。aria ラベルは呼び出し側が i18n 済み文字列を渡す */
+export function ProgressDots({ current, total, label }: { current: number; total: number; label: string }) {
   return (
-    <span className="progress-dots" aria-label={`ブロック ${current + 1}/${total}`}>
+    <span className="progress-dots" aria-label={label}>
       {Array.from({ length: total }, (_, i) => (
         <span key={i} className={`dot${i < current ? " is-done" : i === current ? " is-active" : ""}`} />
       ))}

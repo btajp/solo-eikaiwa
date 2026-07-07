@@ -15,17 +15,11 @@ import { ReflectionScreen } from "./ReflectionScreen";
 import { RoleplayScreen } from "./RoleplayScreen";
 import { ShadowingScreen } from "./ShadowingScreen";
 import { WarmupReadingScreen } from "./WarmupReadingScreen";
+import { blockTitle } from "./blockTitle";
 
 export type MenuSource =
   | { type: "daily"; minutes: 60 | 30 }
   | { type: "quick"; drill: QuickDrillKind; domain?: RoleplayDomain };
-
-/** ブロックの表示タイトルを言語別に組み立てる。titleKey の無い旧キャッシュ（デプロイ当日など）は従来の JA title をそのまま使う。
- * 未知の titleKey（server/client の型が将来ズレた場合や旧バンドルのタブ）もクラッシュせず JA title へフォールバックする */
-function blockTitle(block: MenuBlock, lang: Lang): string {
-  if (!block.titleKey) return block.title;
-  return STR[lang].menuTitle[block.titleKey]?.(block.topicTitle ?? "") ?? block.title;
-}
 
 /** メニューを取得し、ブロックを順番に進行させる。ブロックタイマーと進行イベント記録を持つ */
 export function SessionRunner(props: { source: MenuSource; sessionId: string; lang: Lang; onExit: () => void }) {
@@ -125,7 +119,7 @@ export function SessionRunner(props: { source: MenuSource; sessionId: string; la
       title={blockTitle(block, props.lang)}
       meta={
         <>
-          <ProgressDots current={index} total={menu.blocks.length} />
+          <ProgressDots current={index} total={menu.blocks.length} label={t.blockAria(index, menu.blocks.length)} />
           <TimerChip remaining={timer.remaining} expired={timer.expired} note={t.timerNote} />
         </>
       }

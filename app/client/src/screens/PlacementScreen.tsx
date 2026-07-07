@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  confirmPlacement, fetchPlacementTasks, sttUpload, submitPlacement,
+  confirmPlacement, fetchPlacementTasks, fetchUtteranceTranslation, sttUpload, submitPlacement,
   type PlacementResult, type PlacementTaskDef,
 } from "../api";
 import { Recorder, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
 import { formatMmSs, useCountdown } from "../useCountdown";
+import { useExplain } from "../useExplain";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -188,6 +189,7 @@ export function PlacementScreen(props: { lang: Lang; onExit: () => void }) {
         <Card header={`${t.taskLabel(i + 1, tasks.length)} — ${instruction}`}>
           <p className="text-sm text-muted">{t.promptLabel}:</p>
           <p className="reading-text">{def.promptText}</p>
+          <PlacementPrompt key={def.id} text={def.promptText} lang={props.lang} />
           <TimerChip remaining={timer.remaining} expired={timer.expired} />
         </Card>
         <div className="start-row">
@@ -270,6 +272,24 @@ export function PlacementScreen(props: { lang: Lang; onExit: () => void }) {
           <Button variant="ghost" onClick={() => setChoosing(false)} disabled={confirmBusy}>{t.notNow}</Button>
         </div>
       )}
+    </div>
+  );
+}
+
+/** お題本文の日本語訳トグル（ユーザー起点のみ・translate エンドポイント流用）。低ステージ受験者向けの補助。 */
+function PlacementPrompt({ text, lang }: { text: string; lang: Lang }) {
+  const t = STR[lang].placement;
+  const { state, request } = useExplain(() => fetchUtteranceTranslation(text));
+  return (
+    <div className="chat-translate">
+      {state.status === "idle" && (
+        <Button variant="ghost" onClick={request}>{t.showPromptJa}</Button>
+      )}
+      {state.status === "loading" && <p className="text-sm text-muted">{t.translating}</p>}
+      {state.status === "error" && (
+        <p className="text-sm text-muted">{t.translateError}<Button variant="ghost" onClick={request}>{t.retryTranslate}</Button></p>
+      )}
+      {state.status === "done" && <p className="sentence-explain text-sm">{state.text}</p>}
     </div>
   );
 }

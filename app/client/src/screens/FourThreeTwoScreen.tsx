@@ -247,7 +247,7 @@ export function FourThreeTwoScreen(props: {
     return (
       <div className="stack">
         <Card header={t.prepTitle(props.topic.title)}>
-          {props.topic.titleJa && <p className="text-muted">{props.topic.titleJa}</p>}
+          {props.lang === "ja" && props.topic.titleJa && <p className="text-muted">{props.topic.titleJa}</p>}
           <p className="text-muted">
             {t.prepIntro(roundsSec.map((s) => t.min(minNum(s))).join("→"), roundsSec.length, t.min(minNum(PREP_SECONDS)))}
           </p>

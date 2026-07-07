@@ -1,11 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { FAKE_SUMMARY, makeFakeProgressStore, makeTestDeps } from "./helpers/route-deps";
+import { getReq } from "./helpers/http";
 
 describe("routes: progress", () => {
   test("GET /api/progress/summary は summary を返す", async () => {
     const { deps } = makeTestDeps();
-    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/progress/summary"));
+    const res = await makeFetchHandler(deps)(getReq("/api/progress/summary"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(FAKE_SUMMARY);
   });
@@ -13,7 +14,7 @@ describe("routes: progress", () => {
   test("GET /api/progress/days は {days} を返す", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/progress/days"));
+    const res = await handler(getReq("/api/progress/days"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ days: ["2026-07-01", "2026-07-03"] });
   });

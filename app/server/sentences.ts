@@ -15,7 +15,8 @@ export type Sentence = {
 
 export type SrsState = { stage: number; due: string; reviews: number };
 export type SentenceWithSrs = Sentence & { srs: SrsState | null };
-export type Grade = "good" | "soso" | "bad";
+export const GRADES = ["good", "soso", "bad"] as const;
+export type Grade = (typeof GRADES)[number];
 
 export type SentenceStore = {
   list(): SentenceWithSrs[];
