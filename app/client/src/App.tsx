@@ -4,6 +4,7 @@ import {
   sessionEndKeepalive, sessionStart, type Health, type ProgressSummary,
 } from "./api";
 import { loadLang, saveLang, STR, type Lang } from "./i18n";
+import { FeedbackScreen } from "./screens/FeedbackScreen";
 import { FreeTalkScreen } from "./screens/FreeTalkScreen";
 import { LibraryScreen } from "./screens/LibraryScreen";
 import { ListeningScreen } from "./screens/ListeningScreen";
@@ -18,7 +19,7 @@ import { LevelChip } from "./ui/LevelChip";
 import { localYmd } from "./dates";
 import { saveSupport, useSupport, type SupportToggle } from "./support";
 
-type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource } | { kind: "library" } | { kind: "sentences" } | { kind: "listening" } | { kind: "placement" } | { kind: "progress" };
+type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource } | { kind: "library" } | { kind: "sentences" } | { kind: "listening" } | { kind: "placement" } | { kind: "progress" } | { kind: "feedback" };
 
 export function App() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -79,6 +80,7 @@ export function App() {
     { key: "sentences", icon: "📖", label: t.nav.sentences, active: mode.kind === "sentences", go: () => setMode({ kind: "sentences" }), section: "self" },
     { key: "listening", icon: "🎧", label: t.nav.listening, active: mode.kind === "listening", go: () => setMode({ kind: "listening" }), section: "self" },
     { key: "progress", icon: "📈", label: t.nav.progress, active: mode.kind === "progress", go: () => setMode({ kind: "progress" }), section: "records" },
+    { key: "feedback", icon: "📝", label: t.nav.feedback, active: mode.kind === "feedback", go: () => setMode({ kind: "feedback" }), section: "records" },
   ];
   const navSections: Array<{ key: NavSection; label: string }> = [
     { key: "today", label: t.nav.sectionToday },
@@ -164,6 +166,7 @@ export function App() {
       {mode.kind === "listening" && <ListeningScreen lang={lang} />}
       {mode.kind === "placement" && <PlacementScreen lang={lang} onExit={() => setMode({ kind: "start" })} />}
       {mode.kind === "progress" && <ProgressScreen lang={lang} />}
+      {mode.kind === "feedback" && <FeedbackScreen lang={lang} />}
       </main>
     </div>
   );

@@ -30,7 +30,7 @@ type SessionStrings = {
 
 type NavStrings = {
   nav: {
-    home: string; placement: string; free: string; library: string; sentences: string; listening: string; progress: string;
+    home: string; placement: string; free: string; library: string; sentences: string; listening: string; progress: string; feedback: string;
     sectionToday: string; sectionSelf: string; sectionRecords: string; selfStudyHint: string;
   };
 };
@@ -200,6 +200,15 @@ type FeedbackRowStrings = { feedbackRow: {
   hard: string; justRight: string; easy: string;
   thanks: string; retryHint: string;
 } };
+type FeedbackScreenStrings = { feedbackScreen: {
+  title: string; desc: string;
+  loading: string; retry: string; empty: string;
+  copy: string; copied: string;
+  rating: { hard: string; "just-right": string; easy: string };
+  block: { session: string; "free-talk": string; listening: string };
+  at: (ymd: string) => string;
+  levelStage: (level: number | null, stage: number | null) => string;
+} };
 
 type Strings =
   & NavStrings & UiScaleStrings & AppShellStrings & SupportStrings & StatStrings & HeroStrings
@@ -208,7 +217,7 @@ type Strings =
   & MenuTitleStrings & SessionStrings
   & WarmupStrings & Ftt432Strings & ReflectionStrings & ChunkListStrings
   & ShadowingStrings & LibraryStrings & RoleplayStrings & FreeTalkScreenStrings & ListeningScreenStrings
-  & LevelChipStrings & FeedbackRowStrings;
+  & LevelChipStrings & FeedbackRowStrings & FeedbackScreenStrings;
 
 const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -217,7 +226,7 @@ const WEEKDAYS_JA = ["日", "月", "火", "水", "木", "金", "土"];
 export const STR: Record<Lang, Strings> = {
   en: {
     nav: {
-      home: "Home", placement: "Level Check", free: "Free Talk", library: "Library", sentences: "300 Sentences", listening: "Listening", progress: "Progress",
+      home: "Home", placement: "Level Check", free: "Free Talk", library: "Library", sentences: "300 Sentences", listening: "Listening", progress: "Progress", feedback: "Feedback",
       sectionToday: "Today's practice", sectionSelf: "Self-study", sectionRecords: "Records & level",
       selfStudyHint: "Your main path is Today's practice. Self-study fits spare moments — a good order: listen (Listening) → memorize (Sentences) → speak (Free talk).",
     },
@@ -449,10 +458,22 @@ export const STR: Record<Lang, Strings> = {
       thanks: "Thanks — noted.",
       retryHint: "Couldn't save. Tap again to retry.",
     },
+    feedbackScreen: {
+      title: "Feedback",
+      desc: "Your quick reactions after practice. Copy them as Markdown to feed into the next round of development.",
+      loading: "Loading…", retry: "Retry",
+      empty: "No feedback yet. It shows up here after you react at the end of a practice.",
+      copy: "📋 Copy as Markdown", copied: "Copied!",
+      rating: { hard: "Too hard", "just-right": "Just right", easy: "Too easy" },
+      block: { session: "Session", "free-talk": "Free talk", listening: "Listening" },
+      at: (ymd) => ymd,
+      levelStage: (level, stage) =>
+        [level !== null ? `Lv${level}` : null, stage !== null ? `Stage${stage}` : null].filter(Boolean).join(" · ") || "—",
+    },
   },
   ja: {
     nav: {
-      home: "ホーム", placement: "レベル測定", free: "自由会話", library: "ライブラリ", sentences: "暗記例文300", listening: "多聴", progress: "進捗",
+      home: "ホーム", placement: "レベル測定", free: "自由会話", library: "ライブラリ", sentences: "暗記例文300", listening: "多聴", progress: "進捗", feedback: "フィードバック",
       sectionToday: "今日の練習", sectionSelf: "自主練", sectionRecords: "記録・測定",
       selfStudyHint: "メインは「今日の練習」。自主練はすきま時間に。目安の順番: 聞く(多聴) → 覚える(暗記例文) → 話す(自由会話)。",
     },
@@ -683,6 +704,18 @@ export const STR: Record<Lang, Strings> = {
       hard: "キツい", justRight: "ちょうどいい", easy: "簡単",
       thanks: "ありがとう、記録しました。",
       retryHint: "保存できませんでした。もう一度タップしてください。",
+    },
+    feedbackScreen: {
+      title: "フィードバック",
+      desc: "練習のあとに送った短い反応の記録です。Markdown でコピーして次の開発サイクルの入力にできます。",
+      loading: "読み込み中…", retry: "再試行",
+      empty: "まだフィードバックはありません。練習の最後に反応するとここに表示されます。",
+      copy: "📋 Markdownでコピー", copied: "コピーしました",
+      rating: { hard: "キツい", "just-right": "ちょうどいい", easy: "簡単" },
+      block: { session: "セッション", "free-talk": "自由会話", listening: "多聴" },
+      at: (ymd) => ymd,
+      levelStage: (level, stage) =>
+        [level !== null ? `Lv${level}` : null, stage !== null ? `Stage${stage}` : null].filter(Boolean).join(" · ") || "—",
     },
   },
 };
