@@ -2,6 +2,12 @@
 
 このプロジェクトの特筆すべき変更を記録します。形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に、バージョニングは [Semantic Versioning](https://semver.org/lang/ja/) に従います。
 
+## [0.17.0] - 2026-07-07
+
+### Added
+
+- **LLM プロバイダのサイドバー設定UI**: プロバイダ（既定=環境変数 / Claude / OpenAI 互換 / Codex）をサイドバーから選べるように。保存すると SQLite の `llm_settings`（単一行）に永続化し、実行中プロセスへ**再起動なしで即時適用**する。OpenAI 互換は Base URL / モデル名、Codex は任意モデル名を入力できる。**APIキーは UI・DB・API 応答・ログに一切載せず `app/.env`（`OPENAI_COMPAT_API_KEY`）のみ**（UI はキーの有無だけを表示）。起動時の DB 設定適用は fail-open（不正値でも warn してフォールバックし crash-loop を防ぐ）。DB 未設定 + env 未設定なら**現行の Claude と完全に同一**
+
 ## [0.16.0] - 2026-07-07
 
 ### Added
