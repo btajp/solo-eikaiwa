@@ -349,9 +349,14 @@ Reply with STRICT JSON only — no markdown fences:
 Do not use any tools — reply directly with text only.`;
     let cand: NewListeningCandidate | null = null;
     for (let attempt = 1; attempt <= 2 && !cand; attempt++) {
-      const { text } = await deps.runner(`Write the ${p.domain} listening script now.`, undefined, { systemPrompt: system });
-      const parsed = extractJson<NewListeningCandidate>(text);
-      cand = validateListeningCandidate(parsed, existingIds, deps.listeningDir);
+      try {
+        const { text } = await deps.runner(`Write the ${p.domain} listening script now.`, undefined, { systemPrompt: system });
+        const parsed = extractJson<NewListeningCandidate>(text);
+        cand = validateListeningCandidate(parsed, existingIds, deps.listeningDir);
+      } catch {
+        // SDK呼び出し自体の一過性エラー（例: tool_use起因のmaxTurns超過）も検証NGと同様に1回だけ再試行する
+        cand = null;
+      }
       if (!cand && attempt === 1) log(`  ${p.domain}/${p.level[0]}-${p.level[1]}: 検証NG — 再生成します`);
     }
     if (!cand) {

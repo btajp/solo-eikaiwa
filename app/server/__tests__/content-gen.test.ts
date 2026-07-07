@@ -513,6 +513,23 @@ describe("content-gen / genListening", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  test("runner が1回だけ例外を投げても再試行で回復し6本生成される（SDK一過性エラー耐性）", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-transient-"));
+    let callIndex = 0;
+    let responseIndex = 0;
+    const runner: ClaudeRunner = async () => {
+      if (callIndex++ === 0) throw new Error("Claude result error (error_max_turns): stop_reason=tool_use");
+      const text = SIX[Math.min(responseIndex, SIX.length - 1)];
+      responseIndex++;
+      return { text, sessionId: "fake" };
+    };
+    const logs: string[] = [];
+    await genListening({ runner, listeningDir: dir, dry: false, log: (s) => logs.push(s) });
+    expect(loadListening(dir)).toHaveLength(6);
+    expect(logs.some((l) => l.includes("検証NG"))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   test("不正候補が2回続くと書き込みゼロで throw（オーファン無し）", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-fail-"));
     const bad = listeningJson("ok-id", { paragraphs: ["only one"] }); // 段落2未満で検証NG
