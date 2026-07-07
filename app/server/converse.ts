@@ -1,5 +1,5 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { selectRunner } from "./llm-provider";
+import { selectRunner, settingsToEnv, type LlmSettings } from "./llm-provider";
 import { appendEvent, markErrorLogged } from "./session-log";
 import { sessionLogPath } from "./paths";
 import { vocabConstraint } from "./progression";
@@ -70,11 +70,42 @@ export function makeClaudeRunner(queryFn: typeof query): ClaudeRunner {
  * プロンプト配置規約: 各ドメインの system プロンプトはそのドメインモジュール
  * （coach.ts / placement.ts / assessment.ts / content-gen.ts / converse.ts）に置き、
  * ここでは実行器だけを共有する。
+ *
+ * ランタイム切替: defaultRunner は「現在の currentRunner に委譲する安定参照のラッパ」。
+ * 6つの呼び出し側（coach / placement / assessment / converse / scripts/generate-content）は
+ * `runner: ClaudeRunner = defaultRunner` のまま無変更で、applyLlmSettings による
+ * currentRunner の差し替えが即座に反映される（再起動不要）。
+ * claudeRunner は一度だけ生成して使い回すので、claude/env に戻すと同一参照へ戻る。
  */
-export const defaultRunner: ClaudeRunner = selectRunner({
-  claudeRunner: makeClaudeRunner(query),
+const claudeRunner = makeClaudeRunner(query);
+let currentRunner: ClaudeRunner = selectRunner({
+  claudeRunner,
   defaultSystemPrompt: PARTNER_SYSTEM_PROMPT,
 });
+export const defaultRunner: ClaudeRunner = (prompt, resumeId, opts) =>
+  currentRunner(prompt, resumeId, opts);
+
+/** 現在アクティブな runner を返す（診断・テスト用のシーム）。 */
+export function getCurrentRunner(): ClaudeRunner {
+  return currentRunner;
+}
+
+/**
+ * DB 由来の LLM 設定を実行中プロセスへ即時適用する（再起動不要）。
+ * 既存 selectRunner を再利用し、新しいアダプタは作らない。settingsToEnv が DB 設定を env 形状へ写像し、
+ * APIキーは env（.env）由来のみ。検証済み入力に対しては throw しない（openai-compat の必須値は route が保証）。
+ * 不正な provider 等では selectRunner が throw しうるため、起動時適用側（index.ts）で fail-open ガードする。
+ */
+export function applyLlmSettings(
+  settings: LlmSettings,
+  env: Record<string, string | undefined> = Bun.env,
+): void {
+  currentRunner = selectRunner({
+    claudeRunner,
+    defaultSystemPrompt: PARTNER_SYSTEM_PROMPT,
+    env: settingsToEnv(settings, env),
+  });
+}
 
 export async function converseTurn(args: {
   userText: string;
