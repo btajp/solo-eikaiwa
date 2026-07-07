@@ -287,7 +287,7 @@ function PlacementPrompt({ text, lang }: { text: string; lang: Lang }) {
       )}
       {state.status === "loading" && <p className="text-sm text-muted">{t.translating}</p>}
       {state.status === "error" && (
-        <p className="text-sm text-muted">{t.translateError}<Button variant="ghost" onClick={request}>{t.retry}</Button></p>
+        <p className="text-sm text-muted">{t.translateError}<Button variant="ghost" onClick={request}>{t.retryTranslate}</Button></p>
       )}
       {state.status === "done" && <p className="sentence-explain text-sm">{state.text}</p>}
     </div>
