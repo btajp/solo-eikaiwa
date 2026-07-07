@@ -6,6 +6,7 @@ import {
 import { playBlob, Recorder, stopPlayback } from "../audio";
 import { formatMmSs, useCountdown } from "../useCountdown";
 import { usePlayRow } from "../usePlayRow";
+import { useExplain } from "../useExplain";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -374,21 +375,7 @@ export function FourThreeTwoScreen(props: {
 
 /** AE指摘1件。「もっと詳しく」で fetchFixExplanation を呼び、解説を自分の state に保持する */
 function AeItemView({ item }: { item: { quote: string; issue: string; better: string; why_ja: string } }) {
-  const aliveRef = useRef(true);
-  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; }; }, []);
-  // undefined=未取得, "loading"=生成中, "error"=取得失敗, それ以外=解説テキスト
-  const [explain, setExplain] = useState<string | undefined>(undefined);
-
-  async function explainFix() {
-    setExplain("loading");
-    try {
-      const text = await fetchFixExplanation(item.quote, item.better, item.issue);
-      if (aliveRef.current) setExplain(text);
-    } catch {
-      if (aliveRef.current) setExplain("error");
-    }
-  }
-
+  const { state, request } = useExplain(() => fetchFixExplanation(item.quote, item.better, item.issue));
   return (
     <li className="ae-item">
       {item.quote && (
@@ -397,19 +384,14 @@ function AeItemView({ item }: { item: { quote: string; issue: string; better: st
         </div>
       )}
       <div className="ae-why">{item.why_ja}</div>
-      {item.quote && item.better && explain === undefined && (
-        <Button variant="ghost" onClick={explainFix}>💡 もっと詳しく</Button>
+      {item.quote && item.better && state.status === "idle" && (
+        <Button variant="ghost" onClick={request}>💡 もっと詳しく</Button>
       )}
-      {explain === "loading" && <p className="text-sm text-muted">解説を書いています…</p>}
-      {explain === "error" && (
-        <p className="text-sm text-muted">
-          解説を取得できませんでした。
-          <Button variant="ghost" onClick={explainFix}>再試行</Button>
-        </p>
+      {state.status === "loading" && <p className="text-sm text-muted">解説を書いています…</p>}
+      {state.status === "error" && (
+        <p className="text-sm text-muted">解説を取得できませんでした。<Button variant="ghost" onClick={request}>再試行</Button></p>
       )}
-      {explain !== undefined && explain !== "loading" && explain !== "error" && (
-        <p className="sentence-explain text-sm">{explain}</p>
-      )}
+      {state.status === "done" && <p className="sentence-explain text-sm">{state.text}</p>}
     </li>
   );
 }

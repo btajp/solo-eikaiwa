@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { fetchTalkExplanation, prefetchModelTalkAudio, type ContentItem } from "../api";
 import { playBlob, stopPlayback } from "../audio";
 import { getSupport, resolveSupport } from "../support";
+import { useExplain } from "../useExplain";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -17,8 +18,7 @@ export function ShadowingScreen(props: { topic: ContentItem }) {
   // スクリプト表示の既定は preset に従う（多め=最初から表示 / おまかせ・少なめ=隠して聞く）。
   // マウント時に固定し、ユーザーは「スクリプトを表示」ボタンでいつでも開ける。
   const [showScript, setShowScript] = useState(() => resolveSupport(null, getSupport().preset, false));
-  // 日本語訳と解説: null=未取得, "loading"=生成中, それ以外=本文
-  const [explain, setExplain] = useState<string | null>(null);
+  const explainer = useExplain(() => fetchTalkExplanation(text));
   const aliveRef = useRef(true);
   const fetchedRef = useRef(false);
 
@@ -88,26 +88,14 @@ export function ShadowingScreen(props: { topic: ContentItem }) {
           {showScript && (
             <>
               <Card className="reading-text">{text}</Card>
-              {explain === null && (
-                <Button
-                  variant="ghost"
-                  onClick={async () => {
-                    setExplain("loading");
-                    try {
-                      const t = await fetchTalkExplanation(text);
-                      if (aliveRef.current) setExplain(t);
-                    } catch {
-                      if (aliveRef.current) setExplain("解説を取得できませんでした。もう一度お試しください。");
-                    }
-                  }}
-                >
-                  💡 日本語訳と解説
-                </Button>
+              {explainer.state.status === "idle" && (
+                <Button variant="ghost" onClick={explainer.request}>💡 日本語訳と解説</Button>
               )}
-              {explain === "loading" && <p className="text-sm text-muted">日本語訳と解説を書いています…</p>}
-              {explain !== null && explain !== "loading" && (
-                <p className="sentence-explain text-sm">{explain}</p>
+              {explainer.state.status === "loading" && <p className="text-sm text-muted">日本語訳と解説を書いています…</p>}
+              {explainer.state.status === "error" && (
+                <p className="text-sm text-muted">解説を取得できませんでした。もう一度お試しください。<Button variant="ghost" onClick={explainer.request}>再試行</Button></p>
               )}
+              {explainer.state.status === "done" && <p className="sentence-explain text-sm">{explainer.state.text}</p>}
             </>
           )}
         </div>

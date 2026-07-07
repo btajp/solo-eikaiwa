@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import { fetchFixExplanation, fetchReflection } from "../api";
+import { useExplain } from "../useExplain";
 import { useLoad } from "../useLoad";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
@@ -7,37 +7,16 @@ import { Card } from "../ui/Card";
 
 /** 直したい表現1件。「もっと詳しく」で fetchFixExplanation を呼び、解説を自分の state に保持する */
 function FixItem({ fix }: { fix: { original: string; better: string } }) {
-  const aliveRef = useRef(true);
-  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; }; }, []);
-  // undefined=未取得, "loading"=生成中, "error"=取得失敗, それ以外=解説テキスト
-  const [explain, setExplain] = useState<string | undefined>(undefined);
-
-  async function explainFix() {
-    setExplain("loading");
-    try {
-      const text = await fetchFixExplanation(fix.original, fix.better);
-      if (aliveRef.current) setExplain(text);
-    } catch {
-      if (aliveRef.current) setExplain("error");
-    }
-  }
-
+  const { state, request } = useExplain(() => fetchFixExplanation(fix.original, fix.better));
   return (
     <li>
       <s>{fix.original}</s> → <strong>{fix.better}</strong>
-      {explain === undefined && (
-        <Button variant="ghost" onClick={explainFix}>💡 もっと詳しく</Button>
+      {state.status === "idle" && <Button variant="ghost" onClick={request}>💡 もっと詳しく</Button>}
+      {state.status === "loading" && <p className="text-sm text-muted">解説を書いています…</p>}
+      {state.status === "error" && (
+        <p className="text-sm text-muted">解説を取得できませんでした。<Button variant="ghost" onClick={request}>再試行</Button></p>
       )}
-      {explain === "loading" && <p className="text-sm text-muted">解説を書いています…</p>}
-      {explain === "error" && (
-        <p className="text-sm text-muted">
-          解説を取得できませんでした。
-          <Button variant="ghost" onClick={explainFix}>再試行</Button>
-        </p>
-      )}
-      {explain !== undefined && explain !== "loading" && explain !== "error" && (
-        <p className="sentence-explain text-sm">{explain}</p>
-      )}
+      {state.status === "done" && <p className="sentence-explain text-sm">{state.text}</p>}
     </li>
   );
 }
