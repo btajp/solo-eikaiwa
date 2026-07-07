@@ -28,7 +28,12 @@ type SessionStrings = {
   };
 };
 
-type NavStrings = { nav: { home: string; placement: string; free: string; library: string; sentences: string; listening: string; progress: string } };
+type NavStrings = {
+  nav: {
+    home: string; placement: string; free: string; library: string; sentences: string; listening: string; progress: string;
+    sectionToday: string; sectionSelf: string; sectionRecords: string; selfStudyHint: string;
+  };
+};
 type AppShellStrings = { appShell: { backToMenu: string; textSize: string; language: string } };
 type UiScaleStrings = { uiScale: { small: string; medium: string; large: string; xlarge: string } };
 type SupportStrings = {
@@ -203,7 +208,11 @@ const WEEKDAYS_JA = ["日", "月", "火", "水", "木", "金", "土"];
 
 export const STR: Record<Lang, Strings> = {
   en: {
-    nav: { home: "Home", placement: "Level Check", free: "Free Talk", library: "Library", sentences: "300 Sentences", listening: "Listening", progress: "Progress" },
+    nav: {
+      home: "Home", placement: "Level Check", free: "Free Talk", library: "Library", sentences: "300 Sentences", listening: "Listening", progress: "Progress",
+      sectionToday: "Today's practice", sectionSelf: "Self-study", sectionRecords: "Records & level",
+      selfStudyHint: "Your main path is Today's practice. Self-study fits spare moments — a good order: listen (Listening) → memorize (Sentences) → speak (Free talk).",
+    },
     appShell: { backToMenu: "← Back to menu", textSize: "Text size", language: "Language" },
     uiScale: { small: "A−", medium: "A", large: "A＋", xlarge: "A＋＋" },
     support: {
@@ -426,7 +435,11 @@ export const STR: Record<Lang, Strings> = {
     },
   },
   ja: {
-    nav: { home: "ホーム", placement: "レベル測定", free: "自由会話", library: "ライブラリ", sentences: "暗記例文300", listening: "多聴", progress: "進捗" },
+    nav: {
+      home: "ホーム", placement: "レベル測定", free: "自由会話", library: "ライブラリ", sentences: "暗記例文300", listening: "多聴", progress: "進捗",
+      sectionToday: "今日の練習", sectionSelf: "自主練", sectionRecords: "記録・測定",
+      selfStudyHint: "メインは「今日の練習」。自主練はすきま時間に。目安の順番: 聞く(多聴) → 覚える(暗記例文) → 話す(自由会話)。",
+    },
     appShell: { backToMenu: "← メニューに戻る", textSize: "文字サイズ", language: "言語" },
     uiScale: { small: "小", medium: "中", large: "大", xlarge: "特大" },
     support: {

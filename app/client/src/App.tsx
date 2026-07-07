@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   fetchPracticeDays, fetchProgressSummary, getHealth, onProgressUpdate, progressLevelAction, sessionEnd,
   sessionEndKeepalive, sessionStart, type Health, type ProgressSummary,
@@ -43,6 +43,8 @@ export function App() {
   const [sessionId] = useState(() => crypto.randomUUID());
   // StrictMode の開発時二重マウントで session_start が重複記録されないようにする冪等ガード
   const startedRef = useRef(false);
+  // サイドバー「自主練」見出し横の ⓘ ポップオーバー開閉
+  const [selfHintOpen, setSelfHintOpen] = useState(false);
 
   useEffect(() => {
     getHealth()
@@ -67,14 +69,20 @@ export function App() {
     else setMode({ kind: "session", source: sel.source });
   }
 
-  const navItems: Array<{ key: string; icon: string; label: string; active: boolean; go: () => void }> = [
-    { key: "home", icon: "🏠", label: t.nav.home, active: mode.kind === "start", go: () => setMode({ kind: "start" }) },
-    { key: "placement", icon: "📐", label: t.nav.placement, active: mode.kind === "placement", go: () => setMode({ kind: "placement" }) },
-    { key: "free", icon: "💬", label: t.nav.free, active: mode.kind === "free", go: () => setMode({ kind: "free" }) },
-    { key: "library", icon: "📚", label: t.nav.library, active: mode.kind === "library", go: () => setMode({ kind: "library" }) },
-    { key: "sentences", icon: "📖", label: t.nav.sentences, active: mode.kind === "sentences", go: () => setMode({ kind: "sentences" }) },
-    { key: "listening", icon: "🎧", label: t.nav.listening, active: mode.kind === "listening", go: () => setMode({ kind: "listening" }) },
-    { key: "progress", icon: "📈", label: t.nav.progress, active: mode.kind === "progress", go: () => setMode({ kind: "progress" }) },
+  type NavSection = "today" | "self" | "records";
+  const navItems: Array<{ key: string; icon: string; label: string; active: boolean; go: () => void; section: NavSection }> = [
+    { key: "home", icon: "🏠", label: t.nav.home, active: mode.kind === "start", go: () => setMode({ kind: "start" }), section: "today" },
+    { key: "placement", icon: "📐", label: t.nav.placement, active: mode.kind === "placement", go: () => setMode({ kind: "placement" }), section: "records" },
+    { key: "free", icon: "💬", label: t.nav.free, active: mode.kind === "free", go: () => setMode({ kind: "free" }), section: "self" },
+    { key: "library", icon: "📚", label: t.nav.library, active: mode.kind === "library", go: () => setMode({ kind: "library" }), section: "records" },
+    { key: "sentences", icon: "📖", label: t.nav.sentences, active: mode.kind === "sentences", go: () => setMode({ kind: "sentences" }), section: "self" },
+    { key: "listening", icon: "🎧", label: t.nav.listening, active: mode.kind === "listening", go: () => setMode({ kind: "listening" }), section: "self" },
+    { key: "progress", icon: "📈", label: t.nav.progress, active: mode.kind === "progress", go: () => setMode({ kind: "progress" }), section: "records" },
+  ];
+  const navSections: Array<{ key: NavSection; label: string }> = [
+    { key: "today", label: t.nav.sectionToday },
+    { key: "self", label: t.nav.sectionSelf },
+    { key: "records", label: t.nav.sectionRecords },
   ];
 
   return (
@@ -82,11 +90,31 @@ export function App() {
       <aside className="sidebar">
         <h1 className="app-brand"><span className="brand-mark" aria-hidden="true" />learn-english</h1>
         <nav className="side-nav">
-          {navItems.map((n) => (
-            <button key={n.key} className={`side-item${n.active ? " is-active" : ""}`} onClick={n.go}>
-              <span className="side-icon" aria-hidden="true">{n.icon}</span>
-              {n.label}
-            </button>
+          {navSections.map((sec) => (
+            <Fragment key={sec.key}>
+              <p className="side-section">
+                {sec.label}
+                {sec.key === "self" && (
+                  <button
+                    className="info-btn"
+                    aria-label={t.support.helpAriaSuffix(sec.label)}
+                    title={t.nav.selfStudyHint}
+                    aria-expanded={selfHintOpen}
+                    aria-controls="self-study-hint"
+                    onClick={() => setSelfHintOpen((v) => !v)}
+                  >ⓘ</button>
+                )}
+              </p>
+              {sec.key === "self" && selfHintOpen && (
+                <div id="self-study-hint" className="info-pop">{t.nav.selfStudyHint}</div>
+              )}
+              {navItems.filter((n) => n.section === sec.key).map((n) => (
+                <button key={n.key} className={`side-item${n.active ? " is-active" : ""}`} onClick={n.go}>
+                  <span className="side-icon" aria-hidden="true">{n.icon}</span>
+                  {n.label}
+                </button>
+              ))}
+            </Fragment>
           ))}
         </nav>
         {mode.kind === "session" && (

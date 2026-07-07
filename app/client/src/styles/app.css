@@ -192,6 +192,13 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 }
 .side-item:hover { background: var(--bg); color: var(--text); }
 .side-item.is-active { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+/* ナビのセクション見出し（今日の練習/自主練/記録・測定） */
+.side-section {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  font-size: var(--fs-sm); font-weight: 650; color: var(--text-muted);
+  letter-spacing: 0.02em; margin: var(--sp-3) 0 var(--sp-1);
+}
+.side-section:first-child { margin-top: 0; }
 .sidebar-spacer { flex: 1; }
 .lang-toggle { display: flex; gap: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; }
 .lang-toggle button {
