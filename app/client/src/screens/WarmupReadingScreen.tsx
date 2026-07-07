@@ -6,7 +6,7 @@ import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { ChunkList } from "../ui/ChunkList";
-import { resolveSupport, useSupport } from "../support";
+import { showJaFromPrep, useSupport } from "../support";
 import { clozeText } from "../cloze";
 
 /**
@@ -22,7 +22,7 @@ export function WarmupReadingScreen(props: { topic: ContentItem }) {
   const prep = load.state.status === "ready" ? load.state.data : null;
   const chunks = prep?.chunks.filter((c) => typeof c.en === "string" && c.en) ?? [];
   // ja を表示するか: 個別トグル → preset → サーバの stage 既定（hintDefault）で解決
-  const showJa = prep ? resolveSupport(support.jaHint, support.preset, prep.hintDefault === "ja") : true;
+  const showJa = prep ? showJaFromPrep(support, prep) : true;
 
   return (
     <div className="stack">

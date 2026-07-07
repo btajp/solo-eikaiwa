@@ -12,7 +12,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { ChunkList } from "../ui/ChunkList";
 import { TimerChip } from "../ui/TimerChip";
-import { getSupport, resolveSupport, useSupport } from "../support";
+import { getSupport, resolveSupport, showJaFromPrep, useSupport } from "../support";
 
 /** メニュー params に roundsSec が無い場合（当日分の古いキャッシュ等）のフォールバック */
 const DEFAULT_ROUNDS_SEC = [120, 90, 60];
@@ -264,7 +264,7 @@ export function FourThreeTwoScreen(props: {
         )}
         {prepState === "ready" && prep && (() => {
           const filteredChunks = prep.chunks.filter((c) => typeof c.en === "string" && c.en);
-          const showJa = resolveSupport(support.jaHint, support.preset, prep.hintDefault === "ja");
+          const showJa = showJaFromPrep(support, prep);
           return (
           <div className="stack">
             {filteredChunks.length > 0 && (
