@@ -13,6 +13,7 @@ export function FeedbackRow({ context, lang }: { context: FeedbackContext; lang:
   const [phase, setPhase] = useState<"prompt" | "sent">("prompt");
   const [note, setNote] = useState("");
   const [retryHint, setRetryHint] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const enrichRef = useRef<{ level: number | null; stage: number | null }>({ level: null, stage: null });
   const aliveRef = useRef(true);
 
@@ -25,6 +26,8 @@ export function FeedbackRow({ context, lang }: { context: FeedbackContext; lang:
   }, []);
 
   async function submit(rating: FeedbackRating) {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setRetryHint(false);
     try {
       await postFeedback({
@@ -38,7 +41,10 @@ export function FeedbackRow({ context, lang }: { context: FeedbackContext; lang:
       if (aliveRef.current) setPhase("sent");
     } catch (err) {
       console.warn("feedback post failed:", err);
-      if (aliveRef.current) setRetryHint(true);
+      if (aliveRef.current) {
+        setRetryHint(true);
+        setIsSubmitting(false);
+      }
     }
   }
 
@@ -59,9 +65,9 @@ export function FeedbackRow({ context, lang }: { context: FeedbackContext; lang:
         aria-label={t.notePlaceholder}
       />
       <div className="lang-toggle" role="group" aria-label={t.prompt}>
-        <button onClick={() => submit("hard")}>{t.hard}</button>
-        <button onClick={() => submit("just-right")}>{t.justRight}</button>
-        <button onClick={() => submit("easy")}>{t.easy}</button>
+        <button onClick={() => submit("hard")} disabled={isSubmitting}>{t.hard}</button>
+        <button onClick={() => submit("just-right")} disabled={isSubmitting}>{t.justRight}</button>
+        <button onClick={() => submit("easy")} disabled={isSubmitting}>{t.easy}</button>
       </div>
       {retryHint && <span className="text-sm text-muted">{t.retryHint}</span>}
     </div>
