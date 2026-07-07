@@ -140,6 +140,8 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
 
   const today = new Date();
   const dateLabel = t.hero.date(today);
+  // 就寝前レビュー案内（P6-4）: ローカル20時以降のみ・情報的な一言。通知/強制/未達表示はしない
+  const showBedtime = today.getHours() >= 20;
 
   return (
     <div className="stack">
@@ -147,6 +149,8 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
         <p className="hero-greet">👋 {dateLabel}</p>
         <h2 className="hero-title">{t.hero.title}</h2>
       </div>
+
+      {showBedtime && <p className="hero-bedtime text-sm text-muted">{t.hero.bedtime}</p>}
 
       {/* 未測定の測定導線は「最初の一歩」なのでヒーロー直下。練習メニュー群とは別物として扱う */}
       {placementCard === "new" && <PlacementCallout kind="new" tp={tp} onGo={() => props.onSelect({ type: "placement" })} />}

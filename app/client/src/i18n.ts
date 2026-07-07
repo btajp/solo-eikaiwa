@@ -40,7 +40,7 @@ type SupportStrings = {
   };
 };
 type StatStrings = { stat: { title: string; thisWeekUnit: string; total: (n: number) => string } };
-type HeroStrings = { hero: { title: string; date: (d: Date) => string } };
+type HeroStrings = { hero: { title: string; date: (d: Date) => string; bedtime: string } };
 type QuickStrings = { quick: { label: string; note: string } };
 type IntensiveStrings = { intensive: { label: string; note: string } };
 type DrillsStrings = { drills: Record<DrillKey, { title: string; minutes: string; desc: string }> };
@@ -197,6 +197,7 @@ export const STR: Record<Lang, Strings> = {
     hero: {
       title: "Ready to practice your English?",
       date: (d) => `${WEEKDAYS_EN[d.getDay()]}, ${MONTHS_EN[d.getMonth()]} ${d.getDate()}`,
+      bedtime: "A little review before bed helps it stick.",
     },
     quick: { label: "Quick drills (5–10 min)", note: "short but daily wins" },
     intensive: { label: "Intensive sessions", note: "1–2 times a week" },
@@ -392,6 +393,7 @@ export const STR: Record<Lang, Strings> = {
     hero: {
       title: "今日も英語を話しましょう",
       date: (d) => `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS_JA[d.getDay()]}）`,
+      bedtime: "寝る前の少しの復習は、記憶の定着に少し有利です。",
     },
     quick: { label: "クイックドリル（5〜10分）", note: "短くても毎日が正解" },
     intensive: { label: "強化セッション", note: "週1〜2回おすすめ" },
