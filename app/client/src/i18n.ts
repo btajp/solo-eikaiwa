@@ -78,6 +78,7 @@ type ProgressStrings = {
     mrEmpty: string; mrError: string;
     mrPast: string;
     mrDate: (ymd: string) => string;
+    mrAlreadyThisMonth: string;
   };
 };
 type PlacementStrings = {
@@ -245,6 +246,7 @@ export const STR: Record<Lang, Strings> = {
       mrError: "Couldn't generate the review. Please try again.",
       mrPast: "Past reviews",
       mrDate: (ymd) => `Generated on ${ymd}`,
+      mrAlreadyThisMonth: "This month's review is already written — showing the latest.",
     },
     placement: {
       cardTitleNew: "Find your level (10 min)",
@@ -440,6 +442,7 @@ export const STR: Record<Lang, Strings> = {
       mrError: "レビューを生成できませんでした。もう一度お試しください。",
       mrPast: "過去のレビュー",
       mrDate: (ymd) => `${ymd} 生成`,
+      mrAlreadyThisMonth: "今月のレビューは生成済みです — 最新の内容を表示しています。",
     },
     placement: {
       cardTitleNew: "レベル測定（10分）",
