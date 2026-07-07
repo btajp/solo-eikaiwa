@@ -189,6 +189,10 @@ export function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
     findListening: (id: string) => (id === "morning-routine" ? FAKE_LISTENING_ITEM : undefined),
     listeningStore: makeFakeListeningStore(),
     feedbackStore: makeFakeFeedbackStore(),
+    getLlmSettings: () => null,
+    saveLlmSettings: (_s) => {},
+    applyLlmSettings: (_s) => {},
+    llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
     ...overrides,
   };
   return { deps, logFile, recordingsDir };

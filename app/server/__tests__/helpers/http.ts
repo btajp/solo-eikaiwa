@@ -12,3 +12,11 @@ export function postJson(path: string, body: unknown): Request {
 export function getReq(path: string): Request {
   return new Request(`http://localhost${path}`);
 }
+
+export function putJson(path: string, body: unknown): Request {
+  return new Request(`http://localhost${path}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
