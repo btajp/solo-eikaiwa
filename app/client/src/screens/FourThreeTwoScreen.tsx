@@ -61,6 +61,9 @@ export function FourThreeTwoScreen(props: {
   const [transcripts, setTranscripts] = useState<string[]>(() => Array(roundsSec.length).fill(""));
   // setState は非同期に反映されるため、finishRound が直後に読む用の同期ミラーを持つ
   const transcriptsRef = useRef<string[]>(Array(roundsSec.length).fill(""));
+  // STT（sttUpload）が失敗したラウンドの印。round_end の meta.sttFailed に伝え、技術障害を
+  // 降格シグナル（lowOutput）の観測対象から除外できるようにする（サーバ側 fttOutputSignals 参照）
+  const sttFailedRef = useRef<boolean[]>(Array(roundsSec.length).fill(false));
   const [ae, setAe] = useState<AeFeedback | null>(null);
   const [aeLoading, setAeLoading] = useState(false);
   const [aeSkippedNoRecording, setAeSkippedNoRecording] = useState(false);
@@ -119,6 +122,7 @@ export function FourThreeTwoScreen(props: {
           aborted: true,
           transcript: transcriptsRef.current[idx],
           elapsedSec: roundsSec[idx] - remainingRef.current,
+          ...(sttFailedRef.current[idx] ? { sttFailed: true } : {}),
         });
       }
     };
@@ -191,6 +195,9 @@ export function FourThreeTwoScreen(props: {
       setRecState("idle");
     } catch (err) {
       if (!aliveRef.current) return;
+      // STT呼び出しの失敗でtranscriptが空のままround_endが記録され得るため印を付ける
+      // （技術障害を英語力の低さのシグナルとして扱わないため。サーバ側 fttOutputSignals で観測対象外にする）
+      sttFailedRef.current[roundIndex] = true;
       setErrorMsg(err instanceof Error ? err.message : String(err));
       setRecState("idle");
     }
@@ -208,6 +215,7 @@ export function FourThreeTwoScreen(props: {
         round: roundIndex + 1,
         transcript: transcriptsRef.current[roundIndex],
         elapsedSec: roundsSec[roundIndex] - timer.remaining,
+        ...(sttFailedRef.current[roundIndex] ? { sttFailed: true } : {}),
       });
     }
     if (roundIndex === 0) {

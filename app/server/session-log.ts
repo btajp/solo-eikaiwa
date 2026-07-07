@@ -68,8 +68,11 @@ export function fttOutputSignals(
     const ymd = addDaysYmd(today, -i);
     for (const e of readEvents(path.join(dir, `${ymd}.jsonl`))) {
       if (e.type !== "round_end") continue;
-      const m = e.meta as { block?: string; elapsedSec?: number; transcript?: string } | undefined;
+      const m = e.meta as { block?: string; elapsedSec?: number; transcript?: string; sttFailed?: boolean } | undefined;
       if (!m || m.block !== "four-three-two") continue;
+      // STT（whisper）失敗ラウンドは transcript が空のまま記録されるが、これは技術障害であって
+      // 英語力の低さのシグナルではないため、観測対象（totalRounds/lowRoundsどちらも）から除外する
+      if (m.sttFailed === true) continue;
       totalRounds++;
       const elapsed = typeof m.elapsedSec === "number" ? m.elapsedSec : 0;
       const words = (m.transcript ?? "").trim().split(/\s+/).filter(Boolean).length;

@@ -79,4 +79,16 @@ describe("fttOutputSignals", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "sig-"));
     expect(fttOutputSignals("2026-07-06", 7, dir)).toEqual({ lowRounds: 0, totalRounds: 0 });
   });
+
+  test("sttFailed:trueのround_endはtotalRounds/lowRoundsどちらにも数えない（技術障害を英語力シグナルにしない）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "sig-stt-"));
+    const file = path.join(dir, "2026-07-06.jsonl");
+    const ev = (meta: Record<string, unknown>) =>
+      appendEvent(file, { ts: "2026-07-06T09:00:00Z", type: "round_end", sessionId: "s", meta });
+    ev({ block: "four-three-two", elapsedSec: 40, transcript: "", sttFailed: true }); // STT失敗 → 観測対象外
+    ev({ block: "four-three-two", elapsedSec: 40, transcript: "well um yeah" });      // 3語・sttFailedなし → low
+    const r = fttOutputSignals("2026-07-06", 7, dir);
+    expect(r.totalRounds).toBe(1);
+    expect(r.lowRounds).toBe(1);
+  });
 });
