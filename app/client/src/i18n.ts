@@ -154,6 +154,7 @@ type ShadowingStrings = { shadowing: {
 type LibraryStrings = { library: {
   title: string; loading: string; retry: string; empty: string;
   playAria: (title: string) => string; playing: string; transcript: string;
+  explainMore: string; explainLoading: string; explainError: string;
 } };
 type RoleplayStrings = { roleplay: { starters: string } };
 type FreeTalkScreenStrings = { freeTalkScreen: {
@@ -349,6 +350,8 @@ export const STR: Record<Lang, Strings> = {
       title: "📚 Model Talk Library", loading: "Loading…", retry: "Retry",
       empty: "Nothing yet. Model talks you generate in 4/3/2 prep or Shadowing will be saved here.",
       playAria: (title) => `Play "${title}"`, playing: "🔊 Playing…", transcript: "Transcript",
+      explainMore: "💡 Translation & notes", explainLoading: "Writing the translation and notes…",
+      explainError: "Couldn't load the explanation. Please try again.",
     },
     roleplay: { starters: "You could open with:" },
     freeTalkScreen: {
@@ -534,6 +537,8 @@ export const STR: Record<Lang, Strings> = {
       title: "📚 モデルトークライブラリ", loading: "読み込み中…", retry: "再試行",
       empty: "まだありません。4/3/2 の準備やシャドーイングでモデルトークを生成すると、ここに残ります。",
       playAria: (title) => `「${title}」を再生`, playing: "🔊 再生中…", transcript: "本文",
+      explainMore: "💡 日本語訳と解説", explainLoading: "日本語訳と解説を書いています…",
+      explainError: "解説を取得できませんでした。もう一度お試しください。",
     },
     roleplay: { starters: "こう切り出せます:" },
     freeTalkScreen: {

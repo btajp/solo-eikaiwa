@@ -6,6 +6,7 @@ import { stopPlayback } from "../audio";
 import { clozeText } from "../cloze";
 import { STR, type Lang } from "../i18n";
 import { useLoad } from "../useLoad";
+import { useExplain } from "../useExplain";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -25,8 +26,6 @@ export function PracticeTab({ lang, hideNote, clozeDefault }: { lang: Lang; hide
   const [dueTomorrow, setDueTomorrow] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [busy, setBusy] = useState(false);
-  // 「もっと詳しく」: null=未取得, "loading"=生成中, それ以外=解説テキスト
-  const [explain, setExplain] = useState<string | null>(null);
   const aliveRef = useRef(true);
 
   useEffect(() => {
@@ -73,7 +72,6 @@ export function PracticeTab({ lang, hideNote, clozeDefault }: { lang: Lang; hide
       setGradedCount((n) => n + 1);
       setIdx((i) => i + 1);
       setPhase(clozeDefault ? "cloze" : "prompt");
-      setExplain(null);
     } catch (err) {
       if (!aliveRef.current) return;
       setErrorMsg(err instanceof Error ? err.message : String(err));
@@ -139,27 +137,8 @@ export function PracticeTab({ lang, hideNote, clozeDefault }: { lang: Lang; hide
                 {t.playAgain}
               </Button>
               {/* 解説は固定300文専用 — チャンクは AE フィードバック由来の note を既に持つ */}
-              {current.kind === "sentence" && explain === null && (
-                <Button
-                  variant="ghost"
-                  onClick={async () => {
-                    setExplain("loading");
-                    try {
-                      const text = await fetchSentenceExplanation(current.no);
-                      if (aliveRef.current) setExplain(text);
-                    } catch {
-                      if (aliveRef.current) setExplain(t.explainError);
-                    }
-                  }}
-                >
-                  {t.explainMore}
-                </Button>
-              )}
             </div>
-            {current.kind === "sentence" && explain === "loading" && <p className="text-sm text-muted">{t.explainLoading}</p>}
-            {current.kind === "sentence" && explain !== null && explain !== "loading" && (
-              <p className="sentence-explain text-sm">{explain}</p>
-            )}
+            {current.kind === "sentence" && <SentenceExplain key={current.no} no={current.no} lang={lang} />}
             <div className="grade-row">
               <Button onClick={() => grade("good")} disabled={busy}>{t.gradeGood}</Button>
               <Button onClick={() => grade("soso")} disabled={busy}>{t.gradeSoso}</Button>
@@ -170,5 +149,23 @@ export function PracticeTab({ lang, hideNote, clozeDefault }: { lang: Lang; hide
         {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
       </Card>
     </div>
+  );
+}
+
+/** 例文1枚の「もっと詳しく」。no をキーにマウントするのでカードが変われば状態は自動でリセットされる。 */
+function SentenceExplain({ no, lang }: { no: number; lang: Lang }) {
+  const t = STR[lang].sentences;
+  const { state, request } = useExplain(() => fetchSentenceExplanation(no));
+  return (
+    <>
+      {state.status === "idle" && (
+        <Button variant="ghost" onClick={request}>{t.explainMore}</Button>
+      )}
+      {state.status === "loading" && <p className="text-sm text-muted">{t.explainLoading}</p>}
+      {state.status === "error" && (
+        <p className="text-sm text-muted">{t.explainError}<Button variant="ghost" onClick={request}>{t.retry}</Button></p>
+      )}
+      {state.status === "done" && <p className="sentence-explain text-sm">{state.text}</p>}
+    </>
   );
 }

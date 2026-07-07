@@ -1,10 +1,11 @@
 import { useState } from "react";
 import {
-  deleteChunk, fetchChunks, fetchSentences, type ChunkListItem, type SentenceItem,
+  deleteChunk, fetchChunks, fetchFixExplanation, fetchSentences, type ChunkListItem, type SentenceItem,
 } from "../api";
 import { STR, type Lang } from "../i18n";
 import { useLoad } from "../useLoad";
 import { usePlayRow } from "../usePlayRow";
+import { useExplain } from "../useExplain";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -85,6 +86,7 @@ export function BrowseTab({ lang }: { lang: Lang }) {
                 <span className="sentence-en">{c.en}</span>
                 <span className="sentence-ja-sub">{c.promptText}</span>
                 {c.note && <span className="text-sm text-muted">{c.note}</span>}
+                <ChunkExplain chunk={c} lang={lang} />
               </div>
               <span className="sentence-srs text-sm text-muted">{`st${c.srs.stage} ・ ${c.srs.due.slice(5)}`}</span>
               <Button variant={deletingId === c.id ? "danger" : "ghost"} onClick={() => onDeleteChunk(c.id)} ariaLabel={t.deleteAria(c.id)}>
@@ -119,5 +121,23 @@ export function BrowseTab({ lang }: { lang: Lang }) {
         </Card>
       ))}
     </div>
+  );
+}
+
+/** マイチャンク1件の「もっと詳しく」。チャンクは (元の言い方→自然な言い方, 理由) なので fix-explain を流用する。 */
+function ChunkExplain({ chunk, lang }: { chunk: ChunkListItem; lang: Lang }) {
+  const t = STR[lang].sentences;
+  const { state, request } = useExplain(() => fetchFixExplanation(chunk.promptText, chunk.en, chunk.note));
+  return (
+    <>
+      {state.status === "idle" && (
+        <Button variant="ghost" onClick={request}>{t.explainMore}</Button>
+      )}
+      {state.status === "loading" && <p className="text-sm text-muted">{t.explainLoading}</p>}
+      {state.status === "error" && (
+        <p className="text-sm text-muted">{t.explainError}<Button variant="ghost" onClick={request}>{t.retry}</Button></p>
+      )}
+      {state.status === "done" && <p className="sentence-explain text-sm">{state.text}</p>}
+    </>
   );
 }
