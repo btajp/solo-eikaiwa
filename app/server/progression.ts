@@ -7,8 +7,8 @@ export type HintLang = "ja" | "en";
 export type ModelTalkMode = "auto" | "button";
 export type PrepSupport = { chunkCount: number; hintLang: HintLang; modelTalk: ModelTalkMode };
 
-/** プレースメント未実施時の開始レベル（stage 2 のやや下 — 既存の「難しすぎた」フィードバック反映） */
-export const DEFAULT_LEVEL = 13;
+/** プレースメント未実施時の開始レベル（stage 1 の入口。出だしの負荷を下げる — 旧値13は重すぎるとのフィードバック反映） */
+export const DEFAULT_LEVEL = 5;
 
 /** ステージ境界レベル（この level で自動昇格が止まり、提案＋承認になる）。60→61 は同stageなので境界ではない */
 export const BOUNDARY_LEVELS: readonly number[] = [10, 20, 30, 40, 50];
@@ -22,9 +22,22 @@ function round5(x: number): number {
   return Math.round(x / 5) * 5;
 }
 
-/** 4/3/2 の初回ラウンド秒。Lv1=90 から 1.5秒/レベルで線形、Lv60=180 で頭打ち */
+/** 4/3/2 初回ラウンド秒の制御点 (level, sec)。区間線形補間・round5。単調非減少・Lv60 で 180 頭打ち。
+ *  stage1=60秒開始（初学者の負荷減）、Lv11/13 は現行同値（既存体感維持）。 */
+const FTT_FIRST_SEC_POINTS: ReadonlyArray<readonly [number, number]> = [
+  [1, 60], [11, 105], [21, 125], [31, 145], [41, 160], [51, 172], [60, 180],
+];
+
+/** 4/3/2 の初回ラウンド秒。制御点間を線形補間して round5 で丸める */
 function fttFirstSec(level: number): number {
-  return round5(90 + (Math.min(level, 60) - 1) * 1.5);
+  const L = Math.min(Math.max(level, 1), 60);
+  const pts = FTT_FIRST_SEC_POINTS;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [l0, s0] = pts[i];
+    const [l1, s1] = pts[i + 1];
+    if (L <= l1) return round5(s0 + ((L - l0) / (l1 - l0)) * (s1 - s0));
+  }
+  return round5(pts[pts.length - 1][1]);
 }
 
 /** 丸め順序は固定: 丸めた first に 0.75/0.5 を掛けてから再度 round5 */

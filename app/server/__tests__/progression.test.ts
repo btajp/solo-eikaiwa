@@ -18,13 +18,14 @@ describe("progression: stageOf", () => {
 });
 
 describe("progression: fttRoundsSec", () => {
-  test("丸め順序込みの検算値（丸めたfirstに0.75/0.5を掛けて再round5）", () => {
-    expect(fttRoundsSec(1)).toEqual([90, 70, 45]);
-    expect(fttRoundsSec(10)).toEqual([105, 80, 55]);
-    expect(fttRoundsSec(11)).toEqual([105, 80, 55]);
-    expect(fttRoundsSec(13)).toEqual([110, 85, 55]);
-    expect(fttRoundsSec(21)).toEqual([120, 90, 60]); // 現行固定値と一致
-    expect(fttRoundsSec(60)).toEqual([180, 135, 90]);
+  test("stage駆動の非線形カーブ（丸め順序込みの検算値）", () => {
+    expect(fttRoundsSec(1)).toEqual([60, 45, 30]);
+    expect(fttRoundsSec(5)).toEqual([80, 60, 40]);   // DEFAULT_LEVEL(stage1)
+    expect(fttRoundsSec(10)).toEqual([100, 75, 50]);
+    expect(fttRoundsSec(11)).toEqual([105, 80, 55]); // stage2 開始（現行と同値）
+    expect(fttRoundsSec(13)).toEqual([110, 85, 55]); // 既存ユーザー帯（現行と同値）
+    expect(fttRoundsSec(21)).toEqual([125, 95, 65]);
+    expect(fttRoundsSec(60)).toEqual([180, 135, 90]); // 上限維持
   });
   test("Lv61以降は難易度据え置き（Lv60と同値）", () => {
     expect(fttRoundsSec(61)).toEqual(fttRoundsSec(60));
@@ -32,7 +33,7 @@ describe("progression: fttRoundsSec", () => {
   });
   test("ミニ版は先頭2ラウンド", () => {
     expect(fttMiniRoundsSec(13)).toEqual([110, 85]);
-    expect(fttMiniRoundsSec(21)).toEqual([120, 90]);
+    expect(fttMiniRoundsSec(21)).toEqual([125, 95]);
   });
 });
 
@@ -58,9 +59,9 @@ describe("progression: prepParams", () => {
 });
 
 describe("progression: 定数と降格先", () => {
-  test("DEFAULT_LEVEL は 13（stage 2）", () => {
-    expect(DEFAULT_LEVEL).toBe(13);
-    expect(stageOf(DEFAULT_LEVEL)).toBe(2);
+  test("DEFAULT_LEVEL は 5（stage 1・測定しない初学者の出だしを軽くする）", () => {
+    expect(DEFAULT_LEVEL).toBe(5);
+    expect(stageOf(DEFAULT_LEVEL)).toBe(1);
   });
   test("境界レベルは 10,20,30,40,50（60は含まない: 60→61は同stage）", () => {
     expect([...BOUNDARY_LEVELS]).toEqual([10, 20, 30, 40, 50]);
