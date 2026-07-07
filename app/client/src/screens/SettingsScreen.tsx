@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   fetchLlmSettings, saveLlmSettings, saveLlmRoleSettings, LLM_ROLES,
+  fetchTtsSettings, saveTtsSettings,
   type LlmProvider, type LlmRole, type LlmRoleProvider, type LlmRoleView, type LlmSettingsView,
+  type TtsSettingsView,
 } from "../api";
 import { STR, type Lang } from "../i18n";
 import { Button } from "../ui/Button";
@@ -81,6 +83,11 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
     assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
   });
+  // 音声（TTS）の編集状態
+  const [ttsView, setTtsView] = useState<TtsSettingsView | null>(null);
+  const [ttsBaseUrl, setTtsBaseUrl] = useState("");
+  const [ttsModel, setTtsModel] = useState("");
+  const [ttsVoice, setTtsVoice] = useState("");
 
   function hydrate(v: LlmSettingsView) {
     setView(v);
@@ -91,10 +98,18 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     setRoles(v.roles);
   }
 
+  function hydrateTts(v: TtsSettingsView) {
+    setTtsView(v);
+    setTtsBaseUrl(v.baseUrl ?? "");
+    setTtsModel(v.model ?? "");
+    setTtsVoice(v.voice ?? "");
+  }
+
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     fetchLlmSettings().then(hydrate).catch(() => {});
+    fetchTtsSettings().then(hydrateTts).catch(() => {});
   }, []);
 
   function applyResult(v: LlmSettingsView) {
@@ -149,6 +164,26 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
           generation: { provider: "inherit" }, assessment: { provider: "inherit" },
         },
       }));
+    } catch { setResult(s.llm.saveFailed); } finally { setSaving(false); }
+  }
+
+  async function onSaveTts() {
+    setSaving(true); setResult(null);
+    try {
+      hydrateTts(await saveTtsSettings({
+        baseUrl: ttsBaseUrl.trim() || null,
+        model: ttsModel.trim() || null,
+        voice: ttsVoice.trim() || null,
+      }));
+      setResult(s.llm.applied);
+    } catch { setResult(s.llm.saveFailed); } finally { setSaving(false); }
+  }
+
+  async function onResetTts() {
+    setSaving(true); setResult(null);
+    try {
+      hydrateTts(await saveTtsSettings({ baseUrl: null, model: null, voice: null }));
+      setResult(s.llm.applied);
     } catch { setResult(s.llm.saveFailed); } finally { setSaving(false); }
   }
 
@@ -216,6 +251,30 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
         </details>
 
         {result && <div className="info-pop" role="status">{result}</div>}
+      </section>
+
+      {/* 音声（TTS） */}
+      <section className="support-panel stack">
+        <div className="stat-title">{s.settings.ttsSection}</div>
+        <div className="text-sm text-muted">{s.settings.ttsDesc}</div>
+        <div className="llm-fields stack">
+          <label className="llm-field">
+            <span className="text-sm text-muted">{s.settings.ttsBaseUrlLabel}</span>
+            <input className="llm-input" value={ttsBaseUrl} placeholder={s.settings.ttsBaseUrlPlaceholder} onChange={(e) => setTtsBaseUrl(e.target.value)} />
+          </label>
+          <label className="llm-field">
+            <span className="text-sm text-muted">{s.settings.ttsModelLabel}</span>
+            <input className="llm-input" value={ttsModel} placeholder={s.settings.ttsModelPlaceholder} onChange={(e) => setTtsModel(e.target.value)} />
+          </label>
+          <label className="llm-field">
+            <span className="text-sm text-muted">{s.settings.ttsVoiceLabel}</span>
+            <input className="llm-input" value={ttsVoice} placeholder={s.settings.ttsVoicePlaceholder} onChange={(e) => setTtsVoice(e.target.value)} />
+          </label>
+          <div className="text-sm text-muted">{ttsView?.apiKeyConfigured ? s.settings.ttsApiKeyConfigured : s.settings.ttsApiKeyOptional}</div>
+        </div>
+        <Button variant="secondary" onClick={onSaveTts} disabled={saving || !ttsView}>{saving ? s.llm.saving : s.llm.save}</Button>
+        <div className="text-sm text-muted">{s.settings.ttsResetDesc}</div>
+        <Button variant="secondary" onClick={onResetTts} disabled={saving || !ttsView}>{s.settings.ttsReset}</Button>
       </section>
 
       {/* 表示 */}
