@@ -20,10 +20,11 @@ export type MenuSource =
   | { type: "daily"; minutes: 60 | 30 }
   | { type: "quick"; drill: QuickDrillKind; domain?: RoleplayDomain };
 
-/** ブロックの表示タイトルを言語別に組み立てる。titleKey の無い旧キャッシュ（デプロイ当日など）は従来の JA title をそのまま使う */
+/** ブロックの表示タイトルを言語別に組み立てる。titleKey の無い旧キャッシュ（デプロイ当日など）は従来の JA title をそのまま使う。
+ * 未知の titleKey（server/client の型が将来ズレた場合や旧バンドルのタブ）もクラッシュせず JA title へフォールバックする */
 function blockTitle(block: MenuBlock, lang: Lang): string {
   if (!block.titleKey) return block.title;
-  return STR[lang].menuTitle[block.titleKey](block.topicTitle ?? "");
+  return STR[lang].menuTitle[block.titleKey]?.(block.topicTitle ?? "") ?? block.title;
 }
 
 /** メニューを取得し、ブロックを順番に進行させる。ブロックタイマーと進行イベント記録を持つ */
