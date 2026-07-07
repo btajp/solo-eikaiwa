@@ -20,6 +20,20 @@ type Props = {
 const GLOBAL_PROVIDERS: LlmProvider[] = ["env", "claude", "openai-compat", "codex"];
 const ROLE_PROVIDERS: LlmRoleProvider[] = ["inherit", "claude", "openai-compat", "codex"];
 
+type VoiceProviderKind = "kokoro" | "openai";
+const VOICE_PRESETS: Record<VoiceProviderKind, { female: string; male: string }> = {
+  kokoro: { female: "af_heart", male: "am_michael" },
+  openai: { female: "nova", male: "onyx" },
+};
+const VOICE_PRESET_FEMALE_VALUES = Object.values(VOICE_PRESETS).map((p) => p.female);
+const VOICE_PRESET_MALE_VALUES = Object.values(VOICE_PRESETS).map((p) => p.male);
+
+/** baseUrl から音声プロバイダを推定する（8880 または kokoro を含めば Kokoro系、それ以外は OpenAI系）。 */
+function detectVoiceProviderKind(baseUrl: string): VoiceProviderKind {
+  const lower = baseUrl.toLowerCase();
+  return lower.includes("8880") || lower.includes("kokoro") ? "kokoro" : "openai";
+}
+
 /** provider トグル + openai-compat/codex の条件フィールドを描く共有エディタ（全体設定とロール行で再利用）。 */
 function ProviderEditor<P extends string>(props: {
   lang: Lang;
@@ -167,6 +181,16 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     } catch { setResult(s.llm.saveFailed); } finally { setSaving(false); }
   }
 
+  const voicePreset: "female" | "male" | "custom" = VOICE_PRESET_FEMALE_VALUES.includes(ttsVoice.trim())
+    ? "female"
+    : VOICE_PRESET_MALE_VALUES.includes(ttsVoice.trim())
+    ? "male"
+    : "custom";
+
+  function applyVoicePreset(kind: "female" | "male") {
+    setTtsVoice(VOICE_PRESETS[detectVoiceProviderKind(ttsBaseUrl)][kind]);
+  }
+
   async function onSaveTts() {
     setSaving(true); setResult(null);
     try {
@@ -266,6 +290,15 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
             <span className="text-sm text-muted">{s.settings.ttsModelLabel}</span>
             <input className="llm-input" value={ttsModel} placeholder={s.settings.ttsModelPlaceholder} onChange={(e) => setTtsModel(e.target.value)} />
           </label>
+          <div className="llm-field">
+            <span className="text-sm text-muted">{s.settings.ttsVoicePresetLabel}</span>
+            <div className="lang-toggle" role="group" aria-label={s.settings.ttsVoicePresetLabel}>
+              <button className={voicePreset === "female" ? "is-active" : ""} disabled={!ttsView} onClick={() => applyVoicePreset("female")}>{s.settings.ttsVoiceFemale}</button>
+              <button className={voicePreset === "male" ? "is-active" : ""} disabled={!ttsView} onClick={() => applyVoicePreset("male")}>{s.settings.ttsVoiceMale}</button>
+              <button className={voicePreset === "custom" ? "is-active" : ""} disabled={!ttsView}>{s.settings.ttsVoiceCustom}</button>
+            </div>
+            <span className="text-sm text-muted">{s.settings.ttsVoicePresetNote}</span>
+          </div>
           <label className="llm-field">
             <span className="text-sm text-muted">{s.settings.ttsVoiceLabel}</span>
             <input className="llm-input" value={ttsVoice} placeholder={s.settings.ttsVoicePlaceholder} onChange={(e) => setTtsVoice(e.target.value)} />

@@ -89,6 +89,9 @@ type SettingsStrings = {
     ttsBaseUrlLabel: string; ttsBaseUrlPlaceholder: string;
     ttsModelLabel: string; ttsModelPlaceholder: string;
     ttsVoiceLabel: string; ttsVoicePlaceholder: string;
+    ttsVoicePresetLabel: string;
+    ttsVoiceFemale: string; ttsVoiceMale: string; ttsVoiceCustom: string;
+    ttsVoicePresetNote: string;
     ttsReset: string;
     ttsResetDesc: string;
     ttsApiKeyConfigured: string; ttsApiKeyOptional: string;
@@ -340,6 +343,11 @@ export const STR: Record<Lang, Strings> = {
       ttsModelPlaceholder: "gpt-4o-mini-tts",
       ttsVoiceLabel: "Voice",
       ttsVoicePlaceholder: "alloy",
+      ttsVoicePresetLabel: "Voice type",
+      ttsVoiceFemale: "Female",
+      ttsVoiceMale: "Male",
+      ttsVoiceCustom: "Custom",
+      ttsVoicePresetNote: "Presets pick a matching voice for the current Base URL (OpenAI / Kokoro).",
       ttsReset: "Reset to default",
       ttsResetDesc: "Clear the overrides and fall back to the environment / default endpoint.",
       ttsApiKeyConfigured: "TTS API key detected (app/.env).",
@@ -643,6 +651,11 @@ export const STR: Record<Lang, Strings> = {
       ttsModelPlaceholder: "gpt-4o-mini-tts",
       ttsVoiceLabel: "voice",
       ttsVoicePlaceholder: "alloy",
+      ttsVoicePresetLabel: "声のタイプ",
+      ttsVoiceFemale: "女性",
+      ttsVoiceMale: "男性",
+      ttsVoiceCustom: "カスタム",
+      ttsVoicePresetNote: "現在の Base URL（OpenAI / Kokoro）に合った声を入力欄にセットします。",
       ttsReset: "既定に戻す",
       ttsResetDesc: "上書きを消して、環境変数／既定エンドポイントに戻します。",
       ttsApiKeyConfigured: "TTS API キーを検出（app/.env）。",
