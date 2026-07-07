@@ -47,8 +47,8 @@ A local-first, research-grounded English speaking practice app for daily self-st
 - 生成されたモデルトークは自動でライブラリに保存され、あとから本文確認・再再生できる
 - ホームの GitHub 風カレンダーと練習記録（今週◯日・累計◯日）で継続が見える。連続日数を煽る演出は意図的に置いていません（切れたときのモチベーション低下が研究で示されているため）
 - **練習フィードバック**: セッション完了・自由会話・多聴の後に「今のはどうでしたか？（キツい/ちょうどいい/簡単 + 任意メモ）」の1タップ評価。溜まった記録は「フィードバック」画面で一覧・Markdown コピーでき、アプリ改善の入力に使えます（タップしなければ何も起きません）
-- サイドバーは**今日の練習 / 自主練 / 記録・測定**の3セクション構成。自主練の取り組み順ヒント（聞く→覚える→話す）を ⓘ で確認できます。LLM プロバイダの切替パネルもここにあります（後述）
-- UI はデフォルト英語。サイドバーの **EN / 日本語** トグルでいつでも切り替え可能
+- サイドバーは**今日の練習 / 自主練 / 記録・測定**の3セクション構成。自主練の取り組み順ヒント（聞く→覚える→話す）を ⓘ で確認できます。「記録・測定」の **⚙️ 設定**で LLM プロバイダ（用途別ルーティング含む・後述）と文字サイズ・言語を変更できます。
+- UI はデフォルト英語。**⚙️ 設定 → 表示**の **EN / 日本語** でいつでも切り替え可能
 
 ## 学習設計の根拠
 
@@ -135,7 +135,22 @@ cd app/client && bun run dev # UI :5173（/api をプロキシ）
 
 ## LLM プロバイダの切替
 
-コーチ・会話・コンテンツ生成が使う LLM バックエンドは環境変数 `LLM_PROVIDER` で切り替えられる。既定（未設定 or `claude`）は Anthropic Claude Agent SDK で、現行と完全に同一の挙動。設定は `app/.env`（gitignore 済み）に置く。LaunchAgent の plist には秘密情報を書かない。サイドバー下部の「LLM プロバイダ」パネルからも切替でき、保存すると実行中のアプリへ再起動なしで即時適用される（設定は SQLite の `llm_settings` 単一行に保存。**APIキーは UI・DB には保存されず `app/.env` の `OPENAI_COMPAT_API_KEY` のみ**）。「既定（環境変数）」を選ぶと `app/.env` の `LLM_PROVIDER` に従う状態へ戻る。
+コーチ・会話・コンテンツ生成が使う LLM バックエンドは環境変数 `LLM_PROVIDER` で切り替えられる。既定（未設定 or `claude`）は Anthropic Claude Agent SDK で、現行と完全に同一の挙動。設定は `app/.env`（gitignore 済み）に置く。LaunchAgent の plist には秘密情報を書かない。「記録・測定」の **⚙️ 設定 → 言語モデル**からも切替でき、保存すると実行中のアプリへ再起動なしで即時適用される（設定は SQLite の `llm_settings` 単一行に保存。**APIキーは UI・DB には保存されず `app/.env` の `OPENAI_COMPAT_API_KEY` のみ**）。「既定（環境変数）」を選ぶと `app/.env` の `LLM_PROVIDER` に従う状態へ戻る。
+
+**用途別ルーティング（設定画面）**: サイドバー「記録・測定」の **⚙️ 設定 → 言語モデル**で、LLM 呼び出しを4つの用途ロールに分けて別々のプロバイダに割り当てられる。
+
+| ロール | 使われる場面 |
+| --- | --- |
+| 会話 | 自由会話・ロールプレイの相手応答 |
+| コーチング | 添削・振り返り・訳・言い方ヒント・各種解説 |
+| 教材生成 | モデルトーク・4/3/2 準備・生成コンテンツ（CLI 含む） |
+| 測定 | レベル測定・月次レビュー |
+
+※ 生成 CLI（`scripts/generate-content.ts`）は設定画面のロール割当ではなく環境変数に従う（CLI プロセスには DB のロール設定が効かない）。
+
+各ロールの既定は「全体に従う（inherit）」で、全体の接続先（上記表の `LLM_PROVIDER` 相当）をそのまま使う。**推奨構成を適用**は、全体をローカル LLM（OpenAI 互換）に接続済みのときだけ有効で、会話だけをそのローカルモデルに割り当て、コーチング・教材生成・測定は既定（Claude）に残す（高頻度・低リスクの会話はローカルで速く安く、品質が要る用途は動作確認済みの Claude に寄せる、という配分）。**すべて既定に戻す**で全体=環境変数の既定・全ロール inherit に戻せる。ロール別設定は `llm_role_settings` テーブルに保存し、APIキーは持たせない（`app/.env` のみ）。**設定を何も変えなければ全ロール inherit のままで、現行と完全に同一の挙動**。
+
+会話ロールがローカル LLM（OpenAI 互換）に解決されるときは、アプリを操作している間、API リクエスト受信を契機にバックグラウンドで極小リクエスト（`max_tokens=1`）を送ってモデルを常駐させる（240秒に1回まで・fire-and-forget でリクエスト処理には無影響・失敗は無視）。Ollama 等の既定アンロード（5分）に対して「利用中は常駐・離脱後は自然に解放」になり、初回会話のコールドスタートを抑える。Claude/Codex のときは何もしない。
 
 | プロバイダ | `LLM_PROVIDER` | 必要な env |
 |---|---|---|
@@ -150,7 +165,7 @@ cd app/client && bun run dev # UI :5173（/api をプロキシ）
 - **品質の前提**: 各ドメインのプロンプトは Claude 向けに調整されており、多くが「STRICT JSON のみ」を要求する。弱いモデルでは JSON 逸脱や品質低下が起きうるが、全ドメインがパース失敗フォールバックを持つためアプリはクラッシュせず degrade する。ローカル小モデルでは出力品質が落ちる前提で使う。
 - **セッション継続**: OpenAI 互換・Codex はステートレスなため、会話の継続はサーバのインメモリ・トランスクリプトで再現する。サーバ再起動で会話履歴は失われ、進行中の会話は文脈を忘れて新セッションとして継続される（既定の Claude SDK はセッションをディスクに永続化するため再起動をまたいで復元される。この差は許容とする）。
 - **Codex の安全設定**: Codex アダプタは常に read-only サンドボックス（`-s read-only`）・非対話（`approval_policy="never"`）・中立な作業ディレクトリで `codex exec` を起動し、ユーザーの `~/.codex/config.toml`（`danger-full-access` 等）を CLI フラグで上書きする。テキスト応答のみを取得し、ファイル書き込みは機構的に禁止される。reasoning effort は既定で `medium` に上書きし、service tier は既定で `fast`（priority 配信）を要求する（config が `xhigh` 等でも会話の応答待ちが伸びないように。`CODEX_REASONING_EFFORT` / `CODEX_SERVICE_TIER` で変更可。tier はアカウント/モデルが非対応なら黙って標準配信になる）。
-- **crash-loop のリスクは env 直接設定のときのみ**: `app/.env` の `LLM_PROVIDER` に不正な値を設定、または `openai-compat` で `OPENAI_COMPAT_BASE_URL` / `OPENAI_COMPAT_MODEL` を未設定のまま起動すると、サーバは起動時に throw して落ちる（fail-fast）。常駐運用では LaunchAgent（KeepAlive）が再起動を繰り返す crash-loop になるため、`data/logs/server.stderr.log` のエラーを確認して `app/.env` を修正するか、`LLM_PROVIDER` を空に戻す。一方、UI（サイドバーの「LLM プロバイダ」パネル）からの変更は保存前に検証され不正な入力はエラー表示で弾かれ、起動時の DB 設定適用も fail-open（不正値は warn してフォールバックし常駐プロセスは落ちない）なので crash-loop にはならない。
+- **crash-loop のリスクは env 直接設定のときのみ**: `app/.env` の `LLM_PROVIDER` に不正な値を設定、または `openai-compat` で `OPENAI_COMPAT_BASE_URL` / `OPENAI_COMPAT_MODEL` を未設定のまま起動すると、サーバは起動時に throw して落ちる（fail-fast）。常駐運用では LaunchAgent（KeepAlive）が再起動を繰り返す crash-loop になるため、`data/logs/server.stderr.log` のエラーを確認して `app/.env` を修正するか、`LLM_PROVIDER` を空に戻す。一方、UI（**⚙️ 設定 → 言語モデル**）からの変更は保存前に検証され不正な入力はエラー表示で弾かれ、起動時の DB 設定適用も fail-open（不正値は warn してフォールバックし常駐プロセスは落ちない）なので crash-loop にはならない。
 - **CLI（generate-content 等）から使う場合**: Bun は cwd の `.env` しか自動ロードしないため、リポジトリルートからの `bun scripts/generate-content.ts …` では `app/.env` の設定は効かない。`LLM_PROVIDER=… bun scripts/generate-content.ts …` のように環境変数を直接付けるか、`cd app && bun ../scripts/generate-content.ts …` で実行する。
 
 ### ローカル LLM のおすすめ構成（Apple Silicon Mac の例）
@@ -160,10 +175,10 @@ brew install ollama && brew services start ollama
 ollama pull qwen3:30b-instruct   # Qwen3-30B-A3B-Instruct（MoE・約18GB・RAM 32GB 以上推奨）
 ```
 
-サイドバーの LLM パネルで **OpenAI 互換** を選び、Base URL `http://localhost:11434/v1`・モデル名 `qwen3:30b-instruct` を保存すれば完了（Ollama は API キー不要なので「キー未設定」表示のままで正常）。
+**⚙️ 設定 → 言語モデル**で **OpenAI 互換** を選び、Base URL `http://localhost:11434/v1`・モデル名 `qwen3:30b-instruct` を保存すれば完了（Ollama は API キー不要なので「キー未設定」表示のままで正常）。
 
 - **モデル選定の目安**: 訳・添削解説など日本語出力があるため、日英両対応のモデルを選ぶ（Qwen3 / Gemma 3 が有力）。**thinking 系の変種は避ける** — `<think>` タグが会話にそのまま表示・読み上げされてしまう。RAM 16GB の Mac なら `qwen3:8b` などの小型を。
-- **使い分けの目安**: 会話相手・ロールプレイ・訳はローカル 30B 級で実用的。添削の日本語解説・月次レビュー・レベル測定は Claude の品質が明確に上なので、用途に応じてパネルで切り替える運用がおすすめ。
+- **使い分けの目安**: 会話相手・ロールプレイ・訳はローカル 30B 級で実用的。添削の日本語解説・月次レビュー・レベル測定は Claude の品質が明確に上なので、**⚙️ 設定 → 言語モデル**の用途別ルーティングで会話だけをローカルに割り当てる運用がおすすめ（前述「推奨構成を適用」で一括設定できる）。
 - 長い自由会話で文脈が切れる場合は Ollama のコンテキスト長を広げる: `OLLAMA_CONTEXT_LENGTH=16384 brew services restart ollama`
 
 ## 自分用にカスタマイズする

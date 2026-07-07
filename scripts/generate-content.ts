@@ -12,14 +12,14 @@
  */
 import { openDb } from "../app/server/db";
 import { genSentences, genTopics, genScenarios, genTopicsBand, genListening } from "../app/server/content-gen";
-import { defaultRunner } from "../app/server/converse";
+import { runnerFor } from "../app/server/converse";
 import { makeProgressStore } from "../app/server/progress-store";
 import { stageOf } from "../app/server/progression";
 import { SENTENCES_FILE, SCENARIOS_DIR, TOPICS_DIR, LISTENING_DIR } from "../app/server/paths";
 
 const sub = process.argv[2];
 const dry = process.argv.includes("--dry");
-const runner = defaultRunner;
+const runner = runnerFor("generation");
 
 async function main(): Promise<void> {
   const db = openDb();

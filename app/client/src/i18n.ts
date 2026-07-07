@@ -1,6 +1,8 @@
 /** トップページ・サイドバーの表示言語（デフォルト英語、localStorageに保存） */
 export type Lang = "en" | "ja";
 
+import type { LlmRole } from "./api/llm-settings";
+
 export function loadLang(): Lang {
   const v = localStorage.getItem("lang");
   return v === "ja" ? "ja" : "en";
@@ -30,7 +32,7 @@ type SessionStrings = {
 
 type NavStrings = {
   nav: {
-    home: string; placement: string; free: string; library: string; sentences: string; listening: string; progress: string; feedback: string;
+    home: string; placement: string; free: string; library: string; sentences: string; listening: string; progress: string; feedback: string; settings: string;
     sectionToday: string; sectionSelf: string; sectionRecords: string; selfStudyHint: string;
   };
 };
@@ -62,6 +64,26 @@ type LlmPanelStrings = {
     apiKeyConfigured: string; apiKeyMissing: string;
     help: string; helpAria: string;
     envNote: (envProvider: string) => string;
+  };
+};
+type SettingsStrings = {
+  settings: {
+    title: string;
+    llmSection: string;
+    connectionTitle: string;
+    presetTitle: string;
+    recommendApply: string;
+    recommendDesc: string;
+    recommendDisabled: string;
+    resetApply: string;
+    resetDesc: string;
+    rolesTitle: string;
+    rolesSummary: string;
+    roleName: Record<LlmRole, string>;
+    roleDesc: Record<LlmRole, string>;
+    optInherit: string;
+    saveRoles: string;
+    displaySection: string;
   };
 };
 type StatStrings = { stat: { title: string; thisWeekUnit: string; total: (n: number) => string } };
@@ -234,7 +256,7 @@ type Strings =
   & MenuTitleStrings & SessionStrings
   & WarmupStrings & Ftt432Strings & ReflectionStrings & ChunkListStrings
   & ShadowingStrings & LibraryStrings & RoleplayStrings & FreeTalkScreenStrings & ListeningScreenStrings
-  & LevelChipStrings & FeedbackRowStrings & FeedbackScreenStrings & LlmPanelStrings;
+  & LevelChipStrings & FeedbackRowStrings & FeedbackScreenStrings & LlmPanelStrings & SettingsStrings;
 
 const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -243,7 +265,7 @@ const WEEKDAYS_JA = ["日", "月", "火", "水", "木", "金", "土"];
 export const STR: Record<Lang, Strings> = {
   en: {
     nav: {
-      home: "Home", placement: "Level Check", free: "Free Talk", library: "Library", sentences: "300 Sentences", listening: "Listening", progress: "Progress", feedback: "Feedback",
+      home: "Home", placement: "Level Check", free: "Free Talk", library: "Library", sentences: "300 Sentences", listening: "Listening", progress: "Progress", feedback: "Feedback", settings: "Settings",
       sectionToday: "Today's practice", sectionSelf: "Self-study", sectionRecords: "Records & level",
       selfStudyHint: "Your main path is Today's practice. Self-study fits spare moments — a good order: listen (Listening) → memorize (Sentences) → speak (Free talk).",
     },
@@ -274,6 +296,34 @@ export const STR: Record<Lang, Strings> = {
       help: "The API key is read from app/.env only and is never stored here. Reply quality depends on the model you choose; the default (Claude) is the tested baseline.",
       helpAria: "About the LLM provider setting",
       envNote: (p) => `Environment currently resolves to: ${p}`,
+    },
+    settings: {
+      title: "Settings",
+      llmSection: "Language model",
+      connectionTitle: "Overall provider",
+      presetTitle: "Quick setup",
+      recommendApply: "Apply recommended setup",
+      recommendDesc: "Use your local model for casual conversation and keep the tested default for coaching, content, and assessment.",
+      recommendDisabled: "Connect a local LLM above first to enable the recommended setup.",
+      resetApply: "Reset everything to default",
+      resetDesc: "Set the overall provider to the environment default and let every role follow it.",
+      rolesTitle: "Per-role model (advanced)",
+      rolesSummary: "Set a different model per role",
+      roleName: {
+        conversation: "Conversation",
+        coaching: "Coaching",
+        generation: "Content generation",
+        assessment: "Assessment",
+      },
+      roleDesc: {
+        conversation: "Free talk and role-play replies",
+        coaching: "Feedback, reflection, translation, phrasing hints, explanations",
+        generation: "Model talks, 4/3/2 prep, generated study material",
+        assessment: "Level check and monthly review",
+      },
+      optInherit: "Follow overall",
+      saveRoles: "Save per-role settings",
+      displaySection: "Display",
     },
     stat: { title: "Practice log", thisWeekUnit: "days this week", total: (n) => `${n} days total` },
     hero: {
@@ -506,7 +556,7 @@ export const STR: Record<Lang, Strings> = {
   },
   ja: {
     nav: {
-      home: "ホーム", placement: "レベル測定", free: "自由会話", library: "ライブラリ", sentences: "暗記例文300", listening: "多聴", progress: "進捗", feedback: "フィードバック",
+      home: "ホーム", placement: "レベル測定", free: "自由会話", library: "ライブラリ", sentences: "暗記例文300", listening: "多聴", progress: "進捗", feedback: "フィードバック", settings: "設定",
       sectionToday: "今日の練習", sectionSelf: "自主練", sectionRecords: "記録・測定",
       selfStudyHint: "メインは「今日の練習」。自主練はすきま時間に。目安の順番: 聞く(多聴) → 覚える(暗記例文) → 話す(自由会話)。",
     },
@@ -537,6 +587,34 @@ export const STR: Record<Lang, Strings> = {
       help: "APIキーは app/.env からのみ読み込み、ここには保存しません。応答品質は選んだモデルに依存します。既定（Claude）が動作確認済みの基準です。",
       helpAria: "LLM プロバイダ設定の説明",
       envNote: (p) => `環境変数の現在の解決先: ${p}`,
+    },
+    settings: {
+      title: "設定",
+      llmSection: "言語モデル",
+      connectionTitle: "全体の接続先",
+      presetTitle: "かんたん設定",
+      recommendApply: "推奨構成を適用",
+      recommendDesc: "自由会話はローカルモデルに任せ、添削・教材生成・測定は動作確認済みの既定のままにします。",
+      recommendDisabled: "先に上でローカルLLMを接続すると推奨構成が使えます。",
+      resetApply: "すべて既定に戻す",
+      resetDesc: "全体の接続先を環境変数の既定に戻し、各ロールはそれに従います。",
+      rolesTitle: "用途別モデル（詳細）",
+      rolesSummary: "ロールごとに別のモデルを指定する",
+      roleName: {
+        conversation: "会話",
+        coaching: "コーチング",
+        generation: "教材生成",
+        assessment: "測定",
+      },
+      roleDesc: {
+        conversation: "自由会話・ロールプレイの相手応答",
+        coaching: "添削・振り返り・訳・言い方ヒント・解説",
+        generation: "モデルトーク・4/3/2 準備・生成教材",
+        assessment: "レベル測定・月次レビュー",
+      },
+      optInherit: "全体に従う",
+      saveRoles: "用途別設定を保存",
+      displaySection: "表示",
     },
     stat: { title: "練習記録", thisWeekUnit: "日（今週）", total: (n) => `累計 ${n}日` },
     hero: {

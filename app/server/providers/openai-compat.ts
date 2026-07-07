@@ -61,3 +61,35 @@ export function makeOpenAICompatRunner(cfg: OpenAICompatConfig): ClaudeRunner {
     return { text, sessionId };
   };
 }
+
+/** warm 用の最小接続情報（defaultSystemPrompt/fetchFn を持たない・runner とは独立）。 */
+export type OpenAICompatWarmConfig = { baseUrl: string; apiKey?: string; model: string };
+
+/**
+ * ローカルモデルを常駐させておくための極小 chat completion（max_tokens=1）。
+ * 会話履歴（makeOpenAICompatRunner の store）には一切触れない。best-effort で、応答本文は使わない。
+ * 非2xx は throw し、呼び出し側（llm-warmup）の warn に回す。
+ */
+export async function warmOpenAICompat(cfg: OpenAICompatWarmConfig, fetchFn: typeof fetch = fetch): Promise<void> {
+  const endpoint = `${cfg.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (cfg.apiKey) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
+  const res = await fetchFn(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ model: cfg.model, messages: [{ role: "user", content: "ping" }], max_tokens: 1, stream: false }),
+  });
+  if (!res.ok) throw new Error(`OpenAI-compat warm failed: ${res.status}`);
+}
+
+/**
+ * env が openai-compat を指し必要値が揃っていれば warm 用 config を返す。それ以外（claude/codex/env・値欠落）は null。
+ * selectRunner の requireEnv（throw する）とは別に、warm は best-effort なので欠落時は null を返す（throw しない）。
+ */
+export function openAICompatWarmTargetFromEnv(env: Record<string, string | undefined>): OpenAICompatWarmConfig | null {
+  if ((env.LLM_PROVIDER ?? "").trim().toLowerCase() !== "openai-compat") return null;
+  const baseUrl = env.OPENAI_COMPAT_BASE_URL?.trim();
+  const model = env.OPENAI_COMPAT_MODEL?.trim();
+  if (!baseUrl || !model) return null;
+  return { baseUrl, apiKey: env.OPENAI_COMPAT_API_KEY?.trim() || undefined, model };
+}

@@ -12,6 +12,7 @@ import type { Menu, QuickKind } from "../../menu";
 import type { ListeningItem } from "../../listening";
 import type { ListeningStore } from "../../listening-store";
 import type { FeedbackStore } from "../../feedback-store";
+import type { LlmRole, LlmRoleSetting } from "../../llm-provider";
 
 export const FAKE_HEALTH = { ok: true, whisper: true, ffmpeg: true, claude: true, ttsKey: true, modelFile: true };
 export const FAKE_MENU = {
@@ -191,8 +192,16 @@ export function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
     feedbackStore: makeFakeFeedbackStore(),
     getLlmSettings: () => null,
     saveLlmSettings: (_s) => {},
+    getLlmRoleSettings: (): Record<LlmRole, LlmRoleSetting> => ({
+      conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+      coaching: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+      generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+      assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+    }),
+    saveLlmRoleSettings: (_role, _s) => {},
     applyLlmSettings: (_s) => {},
     llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    warmLlm: () => {},
     ...overrides,
   };
   return { deps, logFile, recordingsDir };

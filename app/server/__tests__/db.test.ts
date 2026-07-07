@@ -35,4 +35,12 @@ describe("db / libraryStore", () => {
     }
     expect(store.listModelTalks(2)).toHaveLength(2);
   });
+
+  test("openDb: llm_role_settings テーブルを作成する", () => {
+    const db = openDb(":memory:");
+    const row = db
+      .query<{ name: string }, [string]>("SELECT name FROM sqlite_master WHERE type='table' AND name = ?")
+      .get("llm_role_settings");
+    expect(row?.name).toBe("llm_role_settings");
+  });
 });

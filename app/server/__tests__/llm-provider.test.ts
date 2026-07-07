@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { selectRunner, settingsToEnv } from "../llm-provider";
+import { selectRunner, settingsToEnv, LLM_ROLES, isInheritRole, roleSettingToSettings } from "../llm-provider";
 import type { ClaudeRunner } from "../converse";
-import type { LlmSettings } from "../llm-provider";
+import type { LlmSettings, LlmRoleSetting } from "../llm-provider";
 
 /** 参照比較用のセンチネル runner（呼ばれない） */
 const sentinel: ClaudeRunner = async () => ({ text: "sentinel", sessionId: "s" });
@@ -96,5 +96,23 @@ describe("settingsToEnv", () => {
     });
     expect(r).not.toBe(sentinel);
     expect(typeof r).toBe("function");
+  });
+});
+
+describe("role settings helpers", () => {
+  test("LLM_ROLES は4ロール固定・順序も固定", () => {
+    expect([...LLM_ROLES]).toEqual(["conversation", "coaching", "generation", "assessment"]);
+  });
+
+  test("isInheritRole は provider==='inherit' のときだけ true", () => {
+    const inherit: LlmRoleSetting = { provider: "inherit", baseUrl: null, model: null, codexModel: null };
+    const claude: LlmRoleSetting = { provider: "claude", baseUrl: null, model: null, codexModel: null };
+    expect(isInheritRole(inherit)).toBe(true);
+    expect(isInheritRole(claude)).toBe(false);
+  });
+
+  test("roleSettingToSettings は provider/フィールドをそのまま LlmSettings へ写す", () => {
+    const rs: LlmRoleSetting = { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "llama3", codexModel: null };
+    expect(roleSettingToSettings(rs)).toEqual({ provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "llama3", codexModel: null });
   });
 });

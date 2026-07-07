@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { makeOpenAICompatRunner, type OpenAICompatConfig } from "../providers/openai-compat";
+import { makeOpenAICompatRunner, warmOpenAICompat, openAICompatWarmTargetFromEnv, type OpenAICompatConfig } from "../providers/openai-compat";
 
 type CapturedReq = { url: string; body: any; headers: Record<string, string> };
 
@@ -102,5 +102,44 @@ describe("makeOpenAICompatRunner", () => {
       new Response(JSON.stringify({ choices: [{ message: { content: "" } }] }), { status: 200 })) as unknown as typeof fetch;
     const runner = makeOpenAICompatRunner(baseCfg({ fetchFn: emptyFetch }));
     await expect(runner("hi")).rejects.toThrow(/empty/i);
+  });
+});
+
+describe("warmOpenAICompat", () => {
+  test("max_tokens=1 の極小 completion を /chat/completions に POST（baseUrl 正規化・apiKey で Authorization）", async () => {
+    const calls: CapturedReq[] = [];
+    await warmOpenAICompat({ baseUrl: "http://localhost:11434/v1/", apiKey: "sk-x", model: "m" }, fakeChatFetch("x", calls));
+    expect(calls[0].url).toBe("http://localhost:11434/v1/chat/completions");
+    expect(calls[0].body.model).toBe("m");
+    expect(calls[0].body.max_tokens).toBe(1);
+    expect(calls[0].headers["authorization"]).toBe("Bearer sk-x");
+  });
+
+  test("apiKey なし: Authorization を付けない", async () => {
+    const calls: CapturedReq[] = [];
+    await warmOpenAICompat({ baseUrl: "http://localhost:11434/v1", model: "m" }, fakeChatFetch("x", calls));
+    expect(calls[0].headers["authorization"]).toBeUndefined();
+  });
+
+  test("非2xx は throw する（呼び出し側の warn に回す）", async () => {
+    const badFetch = (async () => new Response("no", { status: 500 })) as unknown as typeof fetch;
+    await expect(warmOpenAICompat({ baseUrl: "http://x/v1", model: "m" }, badFetch)).rejects.toThrow(/500/);
+  });
+});
+
+describe("openAICompatWarmTargetFromEnv", () => {
+  test("openai-compat + 必須値ありで config を返す", () => {
+    expect(openAICompatWarmTargetFromEnv({
+      LLM_PROVIDER: "openai-compat",
+      OPENAI_COMPAT_BASE_URL: "http://localhost:11434/v1",
+      OPENAI_COMPAT_MODEL: "m",
+      OPENAI_COMPAT_API_KEY: "sk",
+    })).toEqual({ baseUrl: "http://localhost:11434/v1", apiKey: "sk", model: "m" });
+  });
+
+  test("claude/codex/値欠落は null（warm しない）", () => {
+    expect(openAICompatWarmTargetFromEnv({ LLM_PROVIDER: "claude" })).toBeNull();
+    expect(openAICompatWarmTargetFromEnv({ LLM_PROVIDER: "codex" })).toBeNull();
+    expect(openAICompatWarmTargetFromEnv({ LLM_PROVIDER: "openai-compat", OPENAI_COMPAT_BASE_URL: "http://x/v1" })).toBeNull();
   });
 });

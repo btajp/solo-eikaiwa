@@ -1,5 +1,10 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { selectRunner, settingsToEnv, type LlmSettings } from "./llm-provider";
+import {
+  selectRunner, settingsToEnv, roleSettingToSettings, isInheritRole, LLM_ROLES,
+  type LlmSettings, type LlmRole, type LlmRoleSetting,
+} from "./llm-provider";
+import { conversationWarmup } from "./llm-warmup";
+import { openAICompatWarmTargetFromEnv } from "./providers/openai-compat";
 import { appendEvent, markErrorLogged } from "./session-log";
 import { sessionLogPath } from "./paths";
 import { vocabConstraint } from "./progression";
@@ -78,34 +83,90 @@ export function makeClaudeRunner(queryFn: typeof query): ClaudeRunner {
  * claudeRunner は一度だけ生成して使い回すので、claude/env に戻すと同一参照へ戻る。
  */
 const claudeRunner = makeClaudeRunner(query);
-let currentRunner: ClaudeRunner = selectRunner({
-  claudeRunner,
-  defaultSystemPrompt: PARTNER_SYSTEM_PROMPT,
-});
-export const defaultRunner: ClaudeRunner = (prompt, resumeId, opts) =>
-  currentRunner(prompt, resumeId, opts);
 
-/** 現在アクティブな runner を返す（診断・テスト用のシーム）。 */
-export function getCurrentRunner(): ClaudeRunner {
-  return currentRunner;
+/** env を渡して runner を1つ解決する薄いヘルパ（env 省略で Bun.env・= 現行の初期化と同一）。 */
+function resolveRunner(env?: Record<string, string | undefined>): ClaudeRunner {
+  return selectRunner({
+    claudeRunner,
+    defaultSystemPrompt: PARTNER_SYSTEM_PROMPT,
+    ...(env ? { env } : {}),
+  });
 }
 
 /**
- * DB 由来の LLM 設定を実行中プロセスへ即時適用する（再起動不要）。
- * 既存 selectRunner を再利用し、新しいアダプタは作らない。settingsToEnv が DB 設定を env 形状へ写像し、
- * APIキーは env（.env）由来のみ。検証済み入力に対しては throw しない（openai-compat の必須値は route が保証）。
- * 不正な provider 等では selectRunner が throw しうるため、起動時適用側（index.ts）で fail-open ガードする。
+ * ロール別の「現在解決済み runner」。モジュールロード時は全ロール pure-env baseline
+ * （env/claude では resolveRunner が同一の claudeRunner を返すので、全ロール同一参照＝現行と完全一致）。
+ */
+const currentRunners = new Map<LlmRole, ClaudeRunner>(LLM_ROLES.map((r) => [r, resolveRunner()]));
+
+/**
+ * ロール別の「安定参照ラッパ」。呼び出し側（index.ts の runnerFor(role)）はこのラッパを保持し続け、
+ * applyLlmRoleSettings による currentRunners 差し替えが再起動なしで反映される。
+ */
+const roleWrappers = new Map<LlmRole, ClaudeRunner>(
+  LLM_ROLES.map((r) => [r, (prompt: string, resumeId?: string, opts?: { systemPrompt?: string }) =>
+    currentRunners.get(r)!(prompt, resumeId, opts)]),
+);
+
+/** ロールに紐づく安定参照ランナーを返す（index.ts の各呼び出し側がこれを注入する）。 */
+export function runnerFor(role: LlmRole): ClaudeRunner {
+  return roleWrappers.get(role)!;
+}
+
+/**
+ * 後方互換の全ドメイン既定ランナー（conversation ロールへ委譲する安定参照）。
+ * 各ドメイン関数の `runner: ClaudeRunner = defaultRunner` 既定はこのまま（実運用の配線は index.ts が runnerFor(role) を渡す）。
+ */
+export const defaultRunner: ClaudeRunner = (prompt, resumeId, opts) =>
+  currentRunners.get("conversation")!(prompt, resumeId, opts);
+
+/** 指定ロールの解決済み runner を返す（診断・テスト用のシーム）。既定は conversation（後方互換）。 */
+export function getCurrentRunner(role: LlmRole = "conversation"): ClaudeRunner {
+  return currentRunners.get(role)!;
+}
+
+/**
+ * 全体設定 + ロール別設定から4ロールの runner を一括再解決する（再起動不要）。
+ * inherit ロールは global の runner を共有参照する（= 全 inherit なら全ロール同一参照）。
+ * APIキーは env（.env）由来のみ（settingsToEnv が担保）。不正 provider 等では selectRunner が throw しうるため、
+ * 起動時適用側（index.ts）とルート層で fail-open ガードする。
+ */
+export function applyLlmRoleSettings(
+  global: LlmSettings,
+  roles: Record<LlmRole, LlmRoleSetting>,
+  env: Record<string, string | undefined> = Bun.env,
+): void {
+  const globalRunner = resolveRunner(settingsToEnv(global, env));
+  for (const role of LLM_ROLES) {
+    const rs = roles[role];
+    currentRunners.set(
+      role,
+      isInheritRole(rs) ? globalRunner : resolveRunner(settingsToEnv(roleSettingToSettings(rs), env)),
+    );
+  }
+  // conversation の解決先が openai-compat のときだけ warm 対象を更新する（inherit なら global を辿る）。
+  const convSetting = isInheritRole(roles.conversation) ? global : roleSettingToSettings(roles.conversation);
+  conversationWarmup.setTarget(openAICompatWarmTargetFromEnv(settingsToEnv(convSetting, env)));
+}
+
+/**
+ * 後方互換: 全体設定のみを適用する（全ロール inherit として apply）。
+ * 既存の起動時適用・テストがこの形で呼ぶ。ロール別上書きを保持したい配線は index.ts 側で
+ * applyLlmRoleSettings(global, roleStore.getAll()) を使う。
  */
 export function applyLlmSettings(
   settings: LlmSettings,
   env: Record<string, string | undefined> = Bun.env,
 ): void {
-  currentRunner = selectRunner({
-    claudeRunner,
-    defaultSystemPrompt: PARTNER_SYSTEM_PROMPT,
-    env: settingsToEnv(settings, env),
-  });
+  const allInherit = Object.fromEntries(
+    LLM_ROLES.map((r) => [r, { provider: "inherit" as const, baseUrl: null, model: null, codexModel: null }]),
+  ) as Record<LlmRole, LlmRoleSetting>;
+  applyLlmRoleSettings(settings, allInherit, env);
 }
+
+// 起動時: env 由来 provider（DB 未設定で env が openai-compat を指す構成）も warm 対象にする。
+// 以後は applyLlmRoleSettings が呼ばれるたびに最新の conversation 解決先へ更新される。
+conversationWarmup.setTarget(openAICompatWarmTargetFromEnv(Bun.env));
 
 export async function converseTurn(args: {
   userText: string;

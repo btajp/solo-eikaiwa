@@ -50,6 +50,9 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
     ...makeLlmSettingsRoutes(deps),
   ];
   return async function fetch(req: Request): Promise<Response> {
+    // 受信を契機にローカルLLM（conversation が openai-compat のとき）を温める。throttle 済み・fire-and-forget。
+    // リクエスト処理には一切影響させない（await しない・例外を伝播させない）。
+    try { deps.warmLlm(); } catch { /* warmup must never affect request handling */ }
     const url = new URL(req.url);
     try {
       for (const r of routes) {
