@@ -5,6 +5,33 @@ import { makeCodexRunner } from "./providers/codex";
 /** サイドバー設定UIで選べる LLM プロバイダ。"env" は「環境変数に従う」リセット用センチネル。 */
 export type LlmProvider = "env" | "claude" | "openai-compat" | "codex";
 
+/** LLM 呼び出しの用途ロール（4つ固定）。各ロールは全体設定を継承(inherit)するか、独自プロバイダを持つ。 */
+export type LlmRole = "conversation" | "coaching" | "generation" | "assessment";
+
+/** ロールの走査順（UI テーブルの並びと一致させる）。 */
+export const LLM_ROLES: readonly LlmRole[] = ["conversation", "coaching", "generation", "assessment"];
+
+/** ロール別プロバイダ。"inherit" は「全体設定に従う」センチネル。それ以外は LlmProvider の部分集合（"env" はロールでは扱わない）。 */
+export type LlmRoleProvider = "inherit" | "claude" | "openai-compat" | "codex";
+
+/** ロール別の永続化設定。APIキーは含めない（.env のみ）。inherit のときフィールドは null。 */
+export type LlmRoleSetting = {
+  provider: LlmRoleProvider;
+  baseUrl: string | null;
+  model: string | null;
+  codexModel: string | null;
+};
+
+/** inherit センチネルか判定する。 */
+export function isInheritRole(s: LlmRoleSetting): boolean {
+  return s.provider === "inherit";
+}
+
+/** 非 inherit のロール設定を settingsToEnv が食える LlmSettings へ写す（inherit では呼ばない前提）。 */
+export function roleSettingToSettings(s: LlmRoleSetting): LlmSettings {
+  return { provider: s.provider as LlmProvider, baseUrl: s.baseUrl, model: s.model, codexModel: s.codexModel };
+}
+
 /** DB(llm_settings 単一行)に永続化する LLM 設定。APIキーは含めない（.env のみ）。 */
 export type LlmSettings = {
   provider: LlmProvider;
