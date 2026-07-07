@@ -104,7 +104,7 @@ export function SessionRunner(props: { source: MenuSource; sessionId: string; la
       <div className="stack fade-in">
         <FeedbackRow context={{ blockKind: "session", refId: sourceSignature(props.source) }} lang={props.lang} />
         <div className="round-actions">
-          <Button variant="primary" size="lg" onClick={props.onExit}>{t.finish}</Button>
+          <Button variant="primary" size="lg" onClick={props.onExit}>{t.doneExit}</Button>
         </div>
       </div>
     );

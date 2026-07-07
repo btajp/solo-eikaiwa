@@ -22,7 +22,7 @@ type MenuTitleStrings = { menuTitle: Record<MenuTitleKey, (topicTitle: string) =
 type SessionStrings = {
   session: {
     building: string; retry: string; timerNote: string;
-    finish: string; next: string;
+    finish: string; next: string; doneExit: string;
     noTopic: string; noScenario: string; unknownBlock: (kind: string) => string;
     blockAria: (index: number, total: number) => string;
   };
@@ -372,7 +372,7 @@ export const STR: Record<Lang, Strings> = {
     },
     session: {
       building: "Building today's menu…", retry: "Retry", timerNote: "Move on at a natural stopping point",
-      finish: "✅ Finish session", next: "Next block →",
+      finish: "✅ Finish session", next: "Next block →", doneExit: "🏠 Back to home",
       noTopic: "No topic available", noScenario: "No scenario available",
       unknownBlock: (kind) => `Unknown block: ${kind}`,
       blockAria: (index, total) => `Block ${index + 1}/${total}`,
@@ -619,7 +619,7 @@ export const STR: Record<Lang, Strings> = {
     },
     session: {
       building: "今日のメニューを組んでいます…", retry: "再試行", timerNote: "キリのいいところで次へ",
-      finish: "✅ セッションを終える", next: "次のブロックへ →",
+      finish: "✅ セッションを終える", next: "次のブロックへ →", doneExit: "🏠 ホームに戻る",
       noTopic: "トピックがありません", noScenario: "シナリオがありません",
       unknownBlock: (kind) => `未知のブロック: ${kind}`,
       blockAria: (index, total) => `ブロック ${index + 1}/${total}`,
