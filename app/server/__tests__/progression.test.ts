@@ -53,7 +53,7 @@ describe("progression: prepParams", () => {
     expect(prepParams(3)).toEqual({ chunkCount: 6, hintLang: "ja", modelTalk: "auto" });
     expect(prepParams(4)).toEqual({ chunkCount: 5, hintLang: "en", modelTalk: "auto" });
     expect(prepParams(5)).toEqual({ chunkCount: 4, hintLang: "en", modelTalk: "button" });
-    expect(prepParams(6)).toEqual({ chunkCount: 4, hintLang: "en", modelTalk: "none" });
+    expect(prepParams(6)).toEqual({ chunkCount: 4, hintLang: "en", modelTalk: "button" });
   });
 });
 

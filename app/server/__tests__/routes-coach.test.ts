@@ -335,3 +335,59 @@ describe("routes: 言い方ヒント（phrase-hint）", () => {
     expect(receivedLen).toBe(500);
   });
 });
+
+describe("routes: 訂正の詳しい解説（fix-explain）", () => {
+  test("POST /api/coach/fix-explain は解説テキストを返し original/note を渡す", async () => {
+    let received: { original: string; better: string; note?: string } | undefined;
+    const { deps } = makeTestDeps({
+      fixExplain: async (args) => { received = args; return { text: "過去の出来事は went を使います。" }; },
+    });
+    const res = await makeFetchHandler(deps)(new Request("http://x/api/coach/fix-explain", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ original: "I go yesterday", better: "I went yesterday", note: "past tense" }),
+    }));
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { text: string }).text).toContain("went");
+    expect(received?.original).toBe("I go yesterday");
+    expect(received?.note).toBe("past tense");
+  });
+
+  test("POST /api/coach/fix-explain は original/better が空で 400", async () => {
+    const handler = makeFetchHandler(makeTestDeps().deps);
+    const noOriginal = await handler(new Request("http://x/api/coach/fix-explain", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ better: "x" }),
+    }));
+    expect(noOriginal.status).toBe(400);
+    const noBetter = await handler(new Request("http://x/api/coach/fix-explain", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ original: "x" }),
+    }));
+    expect(noBetter.status).toBe(400);
+  });
+
+  test("POST /api/coach/fix-explain は original/better の過長テキストに 400", async () => {
+    const handler = makeFetchHandler(makeTestDeps().deps);
+    const longOriginal = await handler(new Request("http://x/api/coach/fix-explain", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ original: "a".repeat(2001), better: "b" }),
+    }));
+    expect(longOriginal.status).toBe(400);
+    const longBetter = await handler(new Request("http://x/api/coach/fix-explain", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ original: "a", better: "b".repeat(2001) }),
+    }));
+    expect(longBetter.status).toBe(400);
+  });
+
+  test("POST /api/coach/fix-explain は note を500字に切り詰める", async () => {
+    let receivedLen = -1;
+    const { deps } = makeTestDeps({
+      fixExplain: async (args) => { receivedLen = args.note?.length ?? -1; return { text: "ok" }; },
+    });
+    const res = await makeFetchHandler(deps)(new Request("http://x/api/coach/fix-explain", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ original: "a", better: "b", note: "n".repeat(1200) }),
+    }));
+    expect(res.status).toBe(200);
+    expect(receivedLen).toBe(500);
+  });
+});

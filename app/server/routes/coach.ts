@@ -24,6 +24,8 @@ export type CoachRoutesDeps = {
   translationCache: TalkExplainCache;
   /** 言い方ヒント（会話コンテキスト付き・実体は coach.ts、テストはフェイク） */
   phraseHint: (args: { jaText: string; history?: Array<{ role: "you" | "ai"; text: string }> }) => Promise<{ suggestions: Array<{ en: string; ja: string }> }>;
+  /** 訂正（original→better）の詳しい日本語解説を生成（実体は coach.ts、テストはフェイク・キャッシュしない） */
+  fixExplain: (args: { original: string; better: string; note?: string }) => Promise<{ text: string }>;
   /** 詰まった表現の収集チャンク（実体は chunks.ts、テストはフェイク） */
   chunkStore: ChunkStore;
 };
@@ -113,6 +115,18 @@ async function handlePhraseHint(req: Request, deps: CoachRoutesDeps): Promise<Re
   return json(result);
 }
 
+async function handleFixExplain(req: Request, deps: CoachRoutesDeps): Promise<Response> {
+  const parsed = await parseJsonBody<{ original?: unknown; better?: unknown; note?: unknown }>(req);
+  if (!parsed.ok) return parsed.response;
+  const { original, better, note } = parsed.body;
+  if (typeof original !== "string" || original.trim().length === 0) return json({ error: "original must be a non-empty string" }, 400);
+  if (typeof better !== "string" || better.trim().length === 0) return json({ error: "better must be a non-empty string" }, 400);
+  if (original.length > 2000 || better.length > 2000) return json({ error: "text too long" }, 400);
+  const safeNote = typeof note === "string" ? note.slice(0, 500) : undefined;
+  const result = await deps.fixExplain({ original, better, note: safeNote });
+  return json(result);
+}
+
 export function makeCoachRoutes(deps: CoachRoutesDeps): RouteEntry[] {
   return [
     exact("POST", "/api/feedback/ae", (req) => handleAeFeedback(req, deps)),
@@ -124,5 +138,6 @@ export function makeCoachRoutes(deps: CoachRoutesDeps): RouteEntry[] {
     exact("POST", "/api/coach/translate", (req) =>
       respondHashCached(req, deps.translationCache, deps.translate, "[coach] translation cache write failed, continuing:")),
     exact("POST", "/api/coach/phrase-hint", (req) => handlePhraseHint(req, deps)),
+    exact("POST", "/api/coach/fix-explain", (req) => handleFixExplain(req, deps)),
   ];
 }

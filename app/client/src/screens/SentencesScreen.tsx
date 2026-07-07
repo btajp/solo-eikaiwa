@@ -11,6 +11,7 @@ import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { localYmd } from "../dates";
+import { resolveSupport, useSupport } from "../support";
 
 const NEW_PER_DAY = 10;
 const HIDE_NOTE_KEY = "sentences.hideNote";
@@ -27,11 +28,11 @@ function saveHideNote(v: boolean): void {
 }
 
 /** 練習タブ: ja→（声に出す）→[歯抜け]→答えを見る→自動再生→自己評価、の産出リトリーバルフロー */
-function PracticeTab({ lang, hideNote }: { lang: Lang; hideNote: boolean }) {
+function PracticeTab({ lang, hideNote, clozeDefault }: { lang: Lang; hideNote: boolean; clozeDefault: boolean }) {
   const t = STR[lang].sentences;
   const load = useLoad(() => fetchSentenceQueue(NEW_PER_DAY));
   const [idx, setIdx] = useState(0);
-  const [phase, setPhase] = useState<Phase>("prompt");
+  const [phase, setPhase] = useState<Phase>(clozeDefault ? "cloze" : "prompt");
   const [gradedCount, setGradedCount] = useState(0);
   const [dueTomorrow, setDueTomorrow] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
@@ -83,7 +84,7 @@ function PracticeTab({ lang, hideNote }: { lang: Lang; hideNote: boolean }) {
       stopPlayback();
       setGradedCount((n) => n + 1);
       setIdx((i) => i + 1);
-      setPhase("prompt");
+      setPhase(clozeDefault ? "cloze" : "prompt");
       setExplain(null);
     } catch (err) {
       if (!aliveRef.current) return;
@@ -330,6 +331,9 @@ export function SentencesScreen({ lang }: { lang: Lang }) {
   const t = STR[lang].sentences;
   const [tab, setTab] = useState<Tab>("practice");
   const [hideNote, setHideNote] = useState(() => loadHideNote());
+  const support = useSupport();
+  // cloze を最初から出すか: 個別トグル → preset → 既定 false（cloze は補助なので「多め/オン」でのみ既定表示）
+  const clozeDefault = resolveSupport(support.cloze, support.preset, false);
 
   function toggleHideNote() {
     setHideNote((v) => {
@@ -356,7 +360,7 @@ export function SentencesScreen({ lang }: { lang: Lang }) {
           {t.hideNoteLabel}
         </label>
       </div>
-      {tab === "practice" ? <PracticeTab lang={lang} hideNote={hideNote} /> : <BrowseTab lang={lang} />}
+      {tab === "practice" ? <PracticeTab lang={lang} hideNote={hideNote} clozeDefault={clozeDefault} /> : <BrowseTab lang={lang} />}
     </div>
   );
 }

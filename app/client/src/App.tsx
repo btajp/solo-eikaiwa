@@ -14,6 +14,7 @@ import { StartScreen, type StartSelection } from "./screens/StartScreen";
 import { Banner } from "./ui/Banner";
 import { Button } from "./ui/Button";
 import { localYmd } from "./dates";
+import { saveSupport, useSupport, type SupportPreset, type SupportToggle } from "./support";
 
 type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource } | { kind: "library" } | { kind: "sentences" } | { kind: "placement" } | { kind: "progress" };
 
@@ -100,6 +101,7 @@ export function App() {
           <button className={lang === "en" ? "is-active" : ""} onClick={() => switchLang("en")}>EN</button>
           <button className={lang === "ja" ? "is-active" : ""} onClick={() => switchLang("ja")}>日本語</button>
         </div>
+        <SupportPanel lang={lang} />
         <PracticeStat lang={lang} />
       </aside>
       <main className="app">
@@ -130,6 +132,44 @@ export function App() {
       {mode.kind === "placement" && <PlacementScreen lang={lang} onExit={() => setMode({ kind: "start" })} />}
       {mode.kind === "progress" && <ProgressScreen lang={lang} />}
       </main>
+    </div>
+  );
+}
+
+/** サイドバー常設の学習サポート設定（おまかせ/多め/少なめ＋個別トグル）。設定は support.ts が localStorage に永続化する */
+function SupportPanel({ lang }: { lang: Lang }) {
+  const s = useSupport();
+  const t = STR[lang].support;
+  function setPreset(preset: SupportPreset) {
+    // preset を変えたら個別オーバーライドはクリアして preset に主導権を戻す
+    saveSupport({ preset, jaHint: null, modelTalk: null, cloze: null });
+  }
+  function setToggle(key: "jaHint" | "modelTalk" | "cloze", value: SupportToggle) {
+    saveSupport({ ...s, [key]: value });
+  }
+  const toggles: Array<{ key: "jaHint" | "modelTalk" | "cloze"; label: string }> = [
+    { key: "jaHint", label: t.jaHint },
+    { key: "modelTalk", label: t.modelTalk },
+    { key: "cloze", label: t.cloze },
+  ];
+  return (
+    <div className="support-panel stack">
+      <div className="stat-title">{t.title}</div>
+      <div className="lang-toggle" role="group" aria-label={t.title}>
+        <button className={s.preset === "auto" ? "is-active" : ""} onClick={() => setPreset("auto")}>{t.presetAuto}</button>
+        <button className={s.preset === "more" ? "is-active" : ""} onClick={() => setPreset("more")}>{t.presetMore}</button>
+        <button className={s.preset === "less" ? "is-active" : ""} onClick={() => setPreset("less")}>{t.presetLess}</button>
+      </div>
+      {toggles.map((tg) => (
+        <div key={tg.key}>
+          <div className="text-sm text-muted">{tg.label}</div>
+          <div className="lang-toggle" role="group" aria-label={tg.label}>
+            <button className={s[tg.key] === null ? "is-active" : ""} onClick={() => setToggle(tg.key, null)}>{t.optAuto}</button>
+            <button className={s[tg.key] === true ? "is-active" : ""} onClick={() => setToggle(tg.key, true)}>{t.optOn}</button>
+            <button className={s[tg.key] === false ? "is-active" : ""} onClick={() => setToggle(tg.key, false)}>{t.optOff}</button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

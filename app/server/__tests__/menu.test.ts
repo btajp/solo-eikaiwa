@@ -418,9 +418,9 @@ describe("menu: レベル駆動", () => {
     const ftt = m.blocks.find((b) => b.kind === "four-three-two")!;
     expect(ftt.params.roundsSec).toEqual([120, 90, 60]);
   });
-  test("modelTalkMode が stage に応じて params に載る（level 45 → button, 55 → none, 13 → auto）", () => {
+  test("modelTalkMode が stage に応じて params に載る（level 45 → button, 55 → button, 13 → auto）", () => {
     // キャッシュは level を問わず同日1本なので、level ごとに別ディレクトリ（別キャッシュ）を使う
-    for (const [level, mode] of [[45, "button"], [55, "none"], [13, "auto"]] as const) {
+    for (const [level, mode] of [[45, "button"], [55, "button"], [13, "auto"]] as const) {
       const dirs = makeContentDirs();
       const m = buildTodayMenu(60, { ...dirs, level, today: () => new Date("2026-07-06T09:00:00") });
       const ftt = m.blocks.find((b) => b.kind === "four-three-two")!;

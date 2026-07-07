@@ -1,4 +1,5 @@
 import { defaultRunner, type ClaudeRunner } from "./converse";
+import type { HintLang } from "./progression";
 import type { SessionEvent } from "./session-log";
 
 export type AeItem = { quote: string; issue: string; better: string; why_ja: string };
@@ -126,6 +127,26 @@ export async function generatePhraseHints(
   return { suggestions: [{ en: text.trim(), ja: "" }] };
 }
 
+const FIX_EXPLAIN_SYSTEM = `You are an English coach for a Japanese learner (CEFR A2-B1).
+The learner said something that was corrected. You receive the original wording, the corrected ("better") version, and optionally a short note about the issue.
+Explain IN JAPANESE, plain text (no markdown, no headings), within 8 lines, in this order:
+1. なぜ better の言い方の方が自然・正しいのか（核心を1〜2文で）
+2. 使い回し例: 同じ直し方が効く別の英文を1つ、日本語訳付きで
+3. 覚え方のヒントを1文
+Write English example sentences in English; everything else in Japanese. Do not scold the learner.
+Do not use any tools — reply directly with text only.`;
+
+/** 訂正（original→better）の詳しい日本語解説を生成する（プレーンテキスト・キャッシュしない・ボタン起点） */
+export async function generateFixExplanation(
+  args: { original: string; better: string; note?: string },
+  runner: ClaudeRunner = defaultRunner,
+): Promise<{ text: string }> {
+  const noteLine = args.note?.trim() ? `\nIssue: ${args.note.trim()}` : "";
+  const prompt = `Original: ${args.original}\nBetter: ${args.better}${noteLine}`;
+  const { text } = await runner(prompt, undefined, { systemPrompt: FIX_EXPLAIN_SYSTEM });
+  return { text: text.trim() };
+}
+
 const MODEL_TALK_SYSTEM = `You produce a model monologue for an English learner (CEFR B1) to shadow.
 Rules: 120-150 words, spoken register, first person, plain high-frequency vocabulary, short sentences.
 No headings, no lists — just the monologue text.
@@ -162,7 +183,7 @@ export async function generateReflection(
   return { goodPhrases: [], fixes: [], noteForTomorrow_ja: text };
 }
 
-export type PrepPack = { chunks: Array<{ en: string; ja: string }>; outline: string[] };
+export type PrepPack = { chunks: Array<{ en: string; ja: string }>; outline: string[]; hintDefault: HintLang };
 
 function prepSystem(chunkCount: number): string {
   return `You prepare a Japanese IT professional (CEFR A2-B1) for a short English monologue.
@@ -181,28 +202,26 @@ Do not use any tools — reply directly with text only.`;
 }
 
 export async function generatePrepPack(
-  args: { topicTitle: string; hints: string[]; chunkCount?: number; hintLang?: "ja" | "en" },
+  args: { topicTitle: string; hints: string[]; chunkCount?: number; hintLang?: HintLang },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<PrepPack> {
   const chunkCount = args.chunkCount ?? 6;
+  // hintLang は「表示既定の供給者」。ja のデータ自体は常に返し、表示するかはクライアントが決める。
+  const hintDefault: HintLang = args.hintLang ?? "ja";
   const prompt = `Topic: ${args.topicTitle}\nHint angles:\n${args.hints.map((h) => `- ${h}`).join("\n")}`;
   const { text } = await runner(prompt, undefined, { systemPrompt: prepSystem(chunkCount) });
   const parsed = extractJson<PrepPack>(text);
   if (parsed && Array.isArray(parsed.chunks) && Array.isArray(parsed.outline)) {
-    // Sanitize chunks: keep only items where both en and ja are strings
-    const sanitizedChunks = parsed.chunks
+    // Sanitize chunks: keep only items where both en and ja are strings（ja は空にしない）
+    const chunks = parsed.chunks
       .filter((item) => typeof item?.en === "string" && item.en && typeof item?.ja === "string")
       .map((item) => ({ en: item.en, ja: item.ja }));
     // Sanitize outline: keep only string elements
-    const sanitizedOutline = parsed.outline.filter((el) => typeof el === "string");
-    // hintLang "en"（stage4+）は日本語併記をやめる。LLM出力に頼らずサーバ側で決定的に空にする
-    const chunks = args.hintLang === "en"
-      ? sanitizedChunks.map((c) => ({ ...c, ja: "" }))
-      : sanitizedChunks;
-    return { chunks, outline: sanitizedOutline };
+    const outline = parsed.outline.filter((el) => typeof el === "string");
+    return { chunks, outline, hintDefault };
   }
   // パース失敗時のフォールバック: チャンクなし・素のテキストをアウトラインとして表示できる形
-  return { chunks: [], outline: [text] };
+  return { chunks: [], outline: [text], hintDefault };
 }
 
 export function roleplayPrompt(scenario: { title: string; hints: string[] }): string {

@@ -4,7 +4,7 @@
  */
 
 export type HintLang = "ja" | "en";
-export type ModelTalkMode = "auto" | "button" | "none";
+export type ModelTalkMode = "auto" | "button";
 export type PrepSupport = { chunkCount: number; hintLang: HintLang; modelTalk: ModelTalkMode };
 
 /** プレースメント未実施時の開始レベル（stage 2 のやや下 — 既存の「難しすぎた」フィードバック反映） */
@@ -48,7 +48,7 @@ const PREP_TABLE: readonly PrepSupport[] = [
   { chunkCount: 6, hintLang: "ja", modelTalk: "auto" },   // stage 3
   { chunkCount: 5, hintLang: "en", modelTalk: "auto" },   // stage 4
   { chunkCount: 4, hintLang: "en", modelTalk: "button" }, // stage 5
-  { chunkCount: 4, hintLang: "en", modelTalk: "none" },   // stage 6
+  { chunkCount: 4, hintLang: "en", modelTalk: "button" }, // stage 6（none 廃止: stage6 でも聞く手段を残す）
 ];
 
 /** stage(1..6) → 準備支援パラメータ。範囲外は端にクランプ */

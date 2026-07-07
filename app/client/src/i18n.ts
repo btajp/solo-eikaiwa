@@ -13,6 +13,12 @@ export function saveLang(lang: Lang): void {
 type Strings = {
   nav: { home: string; placement: string; free: string; library: string; sentences: string; progress: string };
   uiScale: { small: string; medium: string; large: string; xlarge: string };
+  support: {
+    title: string;
+    presetAuto: string; presetMore: string; presetLess: string;
+    jaHint: string; modelTalk: string; cloze: string;
+    optAuto: string; optOn: string; optOff: string;
+  };
   stat: { title: string; thisWeekUnit: string; total: (n: number) => string };
   hero: { title: string; date: (d: Date) => string };
   quick: { label: string; note: string };
@@ -100,6 +106,12 @@ export const STR: Record<Lang, Strings> = {
   en: {
     nav: { home: "Home", placement: "Level Check", free: "Free Talk", library: "Library", sentences: "300 Sentences", progress: "Progress" },
     uiScale: { small: "A−", medium: "A", large: "A＋", xlarge: "A＋＋" },
+    support: {
+      title: "Support",
+      presetAuto: "Auto", presetMore: "More", presetLess: "Less",
+      jaHint: "Japanese hints", modelTalk: "Model talk", cloze: "Fill-in-the-blank",
+      optAuto: "Auto", optOn: "On", optOff: "Off",
+    },
     stat: { title: "Practice log", thisWeekUnit: "days this week", total: (n) => `${n} days total` },
     hero: {
       title: "Ready to practice your English?",
@@ -208,6 +220,12 @@ export const STR: Record<Lang, Strings> = {
   ja: {
     nav: { home: "ホーム", placement: "レベル測定", free: "自由会話", library: "ライブラリ", sentences: "暗記例文300", progress: "進捗" },
     uiScale: { small: "小", medium: "中", large: "大", xlarge: "特大" },
+    support: {
+      title: "サポート",
+      presetAuto: "自動", presetMore: "多め", presetLess: "少なめ",
+      jaHint: "日本語ヒント", modelTalk: "モデルトーク", cloze: "歯抜け既定",
+      optAuto: "自動", optOn: "オン", optOff: "オフ",
+    },
     stat: { title: "練習記録", thisWeekUnit: "日（今週）", total: (n) => `累計 ${n}日` },
     hero: {
       title: "今日も英語を話しましょう",

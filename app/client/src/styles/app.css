@@ -180,6 +180,7 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
   width: 256px; flex: none; display: flex; flex-direction: column; gap: var(--sp-4);
   padding: var(--sp-5) var(--sp-4); border-right: 1px solid var(--border);
   background: var(--surface); position: sticky; top: 0; height: 100vh;
+  overflow-y: auto; /* サポート設定追加で特大時に100vhを超えてもクリップせずスクロール */
 }
 .side-nav { display: flex; flex-direction: column; gap: 2px; }
 .side-item {

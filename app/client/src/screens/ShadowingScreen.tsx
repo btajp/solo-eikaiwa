@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchTalkExplanation, prefetchModelTalkAudio, type ContentItem } from "../api";
 import { playBlob, stopPlayback } from "../audio";
+import { getSupport, resolveSupport } from "../support";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 
 type State = "script" | "audio" | "ready" | "playing" | "error";
 
-/** モデルトークをTTSで聞きながら重ねて音読するシャドーイングブロック（知覚ドリル） */
+/** モデルトークをTTSで聞きながら重ねて音読するシャドーイングブロック（知覚ドリル）。既定はスクリプトを隠して聞く */
 export function ShadowingScreen(props: { topic: ContentItem }) {
   const [state, setState] = useState<State>("script");
   const [text, setText] = useState("");
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  // スクリプト表示の既定は preset に従う（多め=最初から表示 / おまかせ・少なめ=隠して聞く）。
+  // マウント時に固定し、ユーザーは「スクリプトを表示」ボタンでいつでも開ける。
+  const [showScript, setShowScript] = useState(() => resolveSupport(null, getSupport().preset, false));
   // 日本語訳と解説: null=未取得, "loading"=生成中, それ以外=本文
   const [explain, setExplain] = useState<string | null>(null);
   const aliveRef = useRef(true);
@@ -64,7 +68,7 @@ export function ShadowingScreen(props: { topic: ContentItem }) {
   return (
     <div className="stack">
       <p className="text-muted">
-        音声に少し遅れてかぶせるように声に出して繰り返します（シャドーイング）。まず1回聞くだけでもOK。
+        まずはスクリプトを見ずに、音声に少し遅れてかぶせるように声に出して繰り返します（シャドーイング）。1回聞くだけでもOK。行き詰まったら「スクリプトを表示」で確認できます。
       </p>
       {state === "script" && <p className="text-muted">✍ コーチがモデルトークを書いています…</p>}
       {state === "audio" && <p className="text-muted">🎙 音声を生成しています…</p>}
@@ -78,26 +82,33 @@ export function ShadowingScreen(props: { topic: ContentItem }) {
           <Button variant="primary" onClick={play} disabled={state === "playing"}>
             {state === "playing" ? "🔊 再生中…" : "▶ 再生（何度でも）"}
           </Button>
-          <Card className="reading-text">{text}</Card>
-          {explain === null && (
-            <Button
-              variant="ghost"
-              onClick={async () => {
-                setExplain("loading");
-                try {
-                  const t = await fetchTalkExplanation(text);
-                  if (aliveRef.current) setExplain(t);
-                } catch {
-                  if (aliveRef.current) setExplain("解説を取得できませんでした。もう一度お試しください。");
-                }
-              }}
-            >
-              💡 日本語訳と解説
-            </Button>
+          {!showScript && (
+            <Button variant="secondary" onClick={() => setShowScript(true)}>📄 スクリプトを表示</Button>
           )}
-          {explain === "loading" && <p className="text-sm text-muted">日本語訳と解説を書いています…</p>}
-          {explain !== null && explain !== "loading" && (
-            <p className="sentence-explain text-sm">{explain}</p>
+          {showScript && (
+            <>
+              <Card className="reading-text">{text}</Card>
+              {explain === null && (
+                <Button
+                  variant="ghost"
+                  onClick={async () => {
+                    setExplain("loading");
+                    try {
+                      const t = await fetchTalkExplanation(text);
+                      if (aliveRef.current) setExplain(t);
+                    } catch {
+                      if (aliveRef.current) setExplain("解説を取得できませんでした。もう一度お試しください。");
+                    }
+                  }}
+                >
+                  💡 日本語訳と解説
+                </Button>
+              )}
+              {explain === "loading" && <p className="text-sm text-muted">日本語訳と解説を書いています…</p>}
+              {explain !== null && explain !== "loading" && (
+                <p className="sentence-explain text-sm">{explain}</p>
+              )}
+            </>
           )}
         </div>
       )}

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  extractJson, generateAeFeedback, generateModelTalk, generatePhraseHints, generatePrepPack, generateReflection, generateUtteranceTranslation, roleplayPrompt,
+  extractJson, generateAeFeedback, generateFixExplanation, generateModelTalk, generatePhraseHints, generatePrepPack, generateReflection, generateUtteranceTranslation, roleplayPrompt,
   type AeFeedback, type PrepPack,
 } from "../coach";
 import type { ClaudeRunner } from "../converse";
@@ -90,18 +90,20 @@ describe("generateReflection", () => {
 });
 
 describe("generatePrepPack", () => {
-  const valid: PrepPack = {
+  // LLM の生JSON出力を模したフィクスチャ（hintDefault はサーバ側で args.hintLang から計算される別物なので含めない）
+  // satisfies で chunks/outline の形状ドリフトはコンパイル時に検出する
+  const valid = {
     chunks: [
       { en: "The main problem we had was ...", ja: "一番の問題は…でした" },
       { en: "What worked well was ...", ja: "うまくいったのは…です" },
     ],
     outline: ["Opening: what the topic is", "Point 1", "Wrap-up"],
-  };
+  } satisfies Omit<PrepPack, "hintDefault">;
 
   test("正常系: JSONを構造化して返し、topicとhintsがプロンプトに入る", async () => {
     const { runner, seen } = runnerReturning(JSON.stringify(valid));
     const result = await generatePrepPack({ topicTitle: "Zero trust", hints: ["definition — 定義", "example — 例"] }, runner);
-    expect(result).toEqual(valid);
+    expect(result).toEqual({ ...valid, hintDefault: "ja" });
     expect(seen[0].prompt).toContain("Zero trust");
     expect(seen[0].prompt).toContain("definition");
     expect(seen[0].systemPrompt).toContain("STRICT JSON");
@@ -121,12 +123,17 @@ describe("generatePrepPack", () => {
     expect(result.outline.join(" ")).toContain("just prose");
   });
 
-  test("hintLang \"en\" は全chunkのjaを空にする（stage4+はLLM出力に頼らずサーバ側で決定的に空にする）", async () => {
+  test("hintLang \"en\" でも ja はデータとして残し、hintDefault で表示既定だけを伝える（データ削除しない）", async () => {
     const { runner } = runnerReturning(JSON.stringify(valid));
     const result = await generatePrepPack({ topicTitle: "t", hints: [], hintLang: "en" }, runner);
-    expect(result.chunks).toHaveLength(valid.chunks.length);
-    expect(result.chunks.every((c) => c.ja === "")).toBe(true);
-    expect(result.chunks.map((c) => c.en)).toEqual(valid.chunks.map((c) => c.en));
+    expect(result.chunks.map((c) => c.ja)).toEqual(valid.chunks.map((c) => c.ja)); // ja は空にしない
+    expect(result.hintDefault).toBe("en"); // 表示既定は en（上級者は既定で英語のみ表示）
+  });
+
+  test("hintLang 省略時の hintDefault は ja（最大サポート側の既定）", async () => {
+    const { runner } = runnerReturning(JSON.stringify(valid));
+    const result = await generatePrepPack({ topicTitle: "t", hints: [] }, runner);
+    expect(result.hintDefault).toBe("ja");
   });
 
   test("chunkCount がシステムプロンプトの \"Exactly N chunks\" に反映される", async () => {
@@ -227,6 +234,24 @@ describe("generateUtteranceTranslation", () => {
     expect(result.text).toBe("私はたいていコーヒーで一日を始めます。");
     expect(seen[0].prompt).toBe("I usually start my day with coffee.");
     expect(seen[0].systemPrompt).toContain("translate");
+  });
+});
+
+describe("generateFixExplanation", () => {
+  test("original/better/note がプロンプトに入り、trim したテキストを返す", async () => {
+    const { runner, seen } = runnerReturning("  過去形は went。  ");
+    const result = await generateFixExplanation({ original: "I go", better: "I went", note: "past tense" }, runner);
+    expect(result.text).toBe("過去形は went。");
+    expect(seen[0].prompt).toContain("I go");
+    expect(seen[0].prompt).toContain("I went");
+    expect(seen[0].prompt).toContain("past tense");
+    expect(seen[0].systemPrompt).toContain("JAPANESE");
+  });
+
+  test("note 省略時は Issue 行を含めない", async () => {
+    const { runner, seen } = runnerReturning("x");
+    await generateFixExplanation({ original: "a", better: "b" }, runner);
+    expect(seen[0].prompt).not.toContain("Issue:");
   });
 });
 

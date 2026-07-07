@@ -91,12 +91,12 @@ export function sessionEndKeepalive(sessionId: string): void {
 }
 
 export type ContentItem = { id: string; kind: "topic" | "scenario"; title: string; titleJa: string; hints: string[]; starters?: string[] };
-export type MenuBlock = { id: string; kind: string; title: string; minutes: number; params: { topic?: ContentItem; scenario?: ContentItem; roundsSec?: number[]; modelTalkMode?: "auto" | "button" | "none" } };
+export type MenuBlock = { id: string; kind: string; title: string; minutes: number; params: { topic?: ContentItem; scenario?: ContentItem; roundsSec?: number[]; modelTalkMode?: "auto" | "button" } };
 export type Menu = { minutes: number; date: string; blocks: MenuBlock[] };
 export type AeItem = { quote: string; issue: string; better: string; why_ja: string };
 export type AeFeedback = { items: AeItem[]; praise: string };
 export type Reflection = { goodPhrases: string[]; fixes: Array<{ original: string; better: string }>; noteForTomorrow_ja: string };
-export type PrepPack = { chunks: Array<{ en: string; ja: string }>; outline: string[] };
+export type PrepPack = { chunks: Array<{ en: string; ja: string }>; outline: string[]; hintDefault: "ja" | "en" };
 
 export async function fetchMenu(minutes: 60 | 30): Promise<Menu> {
   const res = await fetch(`/api/menu/today?minutes=${minutes}`);
@@ -435,6 +435,17 @@ export async function fetchPhraseHints(
   });
   if (!res.ok) throw new Error(`phrase hint failed: ${await extractErrorMessage(res)}`);
   return ((await res.json()) as { suggestions: PhraseHint[] }).suggestions;
+}
+
+/** 訂正（original→better）の詳しい日本語解説（キャッシュなし・ボタン起点のオンデマンド生成） */
+export async function fetchFixExplanation(original: string, better: string, note?: string): Promise<string> {
+  const res = await fetch("/api/coach/fix-explain", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ original, better, note }),
+  });
+  if (!res.ok) throw new Error(`fix explain failed: ${await extractErrorMessage(res)}`);
+  return ((await res.json()) as { text: string }).text;
 }
 
 export type PlacementTaskDef = {

@@ -5,7 +5,7 @@ import { converseTurn } from "./converse";
 import { checkHealth } from "./health";
 import { buildQuickMenu, buildTodayMenu, invalidateTodayMenuCache } from "./menu";
 import { findScenario, findTopic } from "./content";
-import { generateAeFeedback, generateModelTalk, generatePhraseHints, generatePrepPack, generateReflection, generateSentenceExplanation, generateTalkExplanation, generateUtteranceTranslation, roleplayPrompt } from "./coach";
+import { generateAeFeedback, generateFixExplanation, generateModelTalk, generatePhraseHints, generatePrepPack, generateReflection, generateSentenceExplanation, generateTalkExplanation, generateUtteranceTranslation, roleplayPrompt } from "./coach";
 import { listPracticeDays, readEvents } from "./session-log";
 import { readSettings, writeSettings } from "./settings";
 import { makeFetchHandler, type RouteDeps } from "./routes";
@@ -82,6 +82,7 @@ const realDeps: RouteDeps = {
   translate: (text) => generateUtteranceTranslation({ text }),
   translationCache: makeTranslationCache(db),
   phraseHint: (args) => generatePhraseHints(args),
+  fixExplain: (args) => generateFixExplanation(args),
   metricsSummary,
   assessmentStore,
   assembleMonthData: () => assembleMonthData(),
