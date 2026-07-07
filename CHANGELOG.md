@@ -2,6 +2,12 @@
 
 このプロジェクトの特筆すべき変更を記録します。形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に、バージョニングは [Semantic Versioning](https://semver.org/lang/ja/) に従います。
 
+## [0.12.0] - 2026-07-07
+
+### Added
+
+- **例文練習の「音から始める」モード（P6-3）**: 練習ツールバーのトグルをオンにすると、次のカードから英文・日本語とも見せずに音声だけを先に再生。意味を思い浮かべて（または口に出して）から「答えを見る」で答え合わせ。自己評価・間隔反復はこれまでと同一。研究根拠: 聴覚形式の語彙知識と産出リコールがリスニング理解の最良予測子
+
 ## [0.11.0] - 2026-07-07
 
 ### Added
@@ -160,6 +166,7 @@
 - 学習データ（録音・トランスクリプト・進捗・DB・キャッシュ）は `data/` のローカルファイルで、リポジトリにコミットされない
 - 音声データはマシン外に出ない（外部送信はテキストのみ: Claude への発話テキスト、OpenAI TTS への応答テキスト）
 
+[0.12.0]: https://github.com/okash1n/learn-english/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/okash1n/learn-english/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/okash1n/learn-english/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/okash1n/learn-english/compare/v0.8.0...v0.9.0
