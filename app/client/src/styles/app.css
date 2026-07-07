@@ -330,6 +330,11 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 .hide-note-toggle ~ .hide-note-toggle { margin-left: var(--sp-3); }
 .hide-note-toggle input { accent-color: var(--accent); }
 
+/* 多聴スクリプト: 1本の文章として段落を流し、再生中の段落だけ淡くハイライト（box-shadowでレイアウトシフトなし） */
+.listening-para { margin: 0 0 var(--sp-4); }
+.listening-para:last-child { margin-bottom: 0; }
+.listening-para.is-playing { background: var(--accent-soft); border-radius: var(--radius-sm); box-shadow: 0 0 0 6px var(--accent-soft); }
+
 /* 進捗ダッシュボード */
 .stack-sm > * + * { margin-top: var(--sp-2); }
 .metric-bars { display: flex; align-items: flex-end; gap: 4px; height: 120px; }

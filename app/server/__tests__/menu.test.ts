@@ -259,14 +259,14 @@ describe("buildTodayMenu", () => {
 });
 
 describe("four-three-two の roundsSec", () => {
-  test("60分・30分とも roundsSec は DEFAULT_LEVEL(13) から計算される [110, 85, 55]", () => {
+  test("60分・30分とも roundsSec は DEFAULT_LEVEL(5) から計算される [80, 60, 40]", () => {
     const dirs = makeContentDirs();
     const m60 = buildTodayMenu(60, { ...dirs, today: JULY5 });
     const ftt60 = m60.blocks.find((b) => b.kind === "four-three-two")!;
-    expect(ftt60.params.roundsSec).toEqual([110, 85, 55]);
+    expect(ftt60.params.roundsSec).toEqual([80, 60, 40]);
     const m30 = buildTodayMenu(30, { ...dirs, today: JULY5 });
     const ftt30 = m30.blocks.find((b) => b.kind === "four-three-two")!;
-    expect(ftt30.params.roundsSec).toEqual([110, 85, 55]);
+    expect(ftt30.params.roundsSec).toEqual([80, 60, 40]);
   });
 });
 
@@ -284,13 +284,13 @@ describe("buildQuickMenu", () => {
     expect(state.usage.t1).toEqual(["2026-07-05"]);
   });
 
-  test("ftt-mini: four-three-two・8分・roundsSec=[110,85]（DEFAULT_LEVEL=13から計算）", () => {
+  test("ftt-mini: four-three-two・8分・roundsSec=[80,60]（DEFAULT_LEVEL=5から計算）", () => {
     const { topicsDir, scenariosDir, usageFile, menuCacheDir } = makeContentDirs();
     const deps: MenuDeps = { topicsDir, scenariosDir, usageFile, menuCacheDir, today: JULY5 };
     const m = buildQuickMenu("ftt-mini", deps);
     expect(m.minutes).toBe(8);
     expect(m.blocks[0].kind).toBe("four-three-two");
-    expect(m.blocks[0].params.roundsSec).toEqual([110, 85]);
+    expect(m.blocks[0].params.roundsSec).toEqual([80, 60]);
   });
 
   test("roleplay: scenario・10分 / shadowing: topic・5分", () => {
@@ -341,7 +341,7 @@ describe("buildQuickMenu", () => {
       path.join(scenariosDir, "s1.md"),
       `---\nid: s1\nkind: scenario\ntitle: "Hard Business"\ntitle_ja: "ja-s1"\ndomain: business\nlevel: [5, 6]\n---\nSetup:\n- Negotiate a contract\n`,
     );
-    // DEFAULT_LEVEL=13 → stage2。business は帯域外の s1 のみ → フォールバックで s1 が選ばれる
+    // DEFAULT_LEVEL=5 → stage1。business は帯域外の s1 のみ → フォールバックで s1 が選ばれる
     const deps: MenuDeps = { topicsDir, scenariosDir, usageFile, menuCacheDir, today: JULY5, domain: "business" };
     const m = buildQuickMenu("roleplay", deps);
     expect((m.blocks[0].params.scenario as { id: string }).id).toBe("s1");
@@ -438,11 +438,11 @@ describe("rotation 永続化の後方互換", () => {
 });
 
 describe("menu: レベル駆動", () => {
-  test("roundsSec はレベルから計算される（level 21 → [120,90,60]）", () => {
+  test("roundsSec はレベルから計算される（level 21 → [125,95,65]）", () => {
     const dirs = makeContentDirs();
     const m = buildTodayMenu(60, { ...dirs, level: 21, today: () => new Date("2026-07-06T09:00:00") });
     const ftt = m.blocks.find((b) => b.kind === "four-three-two")!;
-    expect(ftt.params.roundsSec).toEqual([120, 90, 60]);
+    expect(ftt.params.roundsSec).toEqual([125, 95, 65]);
   });
   test("modelTalkMode が stage に応じて params に載る（level 45 → button, 55 → button, 13 → auto）", () => {
     // キャッシュは level を問わず同日1本なので、level ごとに別ディレクトリ（別キャッシュ）を使う
@@ -521,7 +521,7 @@ describe("invalidateTodayMenuCache", () => {
     invalidateTodayMenuCache("2026-07-05", dirs.menuCacheDir);
     const second = buildTodayMenu(60, { ...dirs, level: 21, today });
     const f2 = second.blocks.find((b) => b.kind === "four-three-two")!;
-    expect(f2.params.roundsSec).toEqual([120, 90, 60]); // 新レベルが即時反映される
+    expect(f2.params.roundsSec).toEqual([125, 95, 65]); // 新レベルが即時反映される
     expect(second.level).toBe(21);
     expect(first.level).toBe(13);
   });

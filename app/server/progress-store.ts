@@ -7,7 +7,7 @@ import { addDaysYmd, localYmd } from "./dates";
 
 export type XpKind = "block" | "srs-grade" | "placement";
 export type UpRationale = { xpReached: true; practicedDays14: number; completionRate: number };
-export type DownRationale = { completionRate: number | null; fttAborts: number };
+export type DownRationale = { completionRate: number | null; fttAborts: number; lowOutputRounds: number };
 export type Proposal = { kind: "up" | "down"; toLevel: number; rationale: UpRationale | DownRationale };
 export type ProgressSummary = {
   level: number; xp: number; xpIntoLevel: number; xpToNext: number;
@@ -36,6 +36,8 @@ const PROMOTE_MIN_COMPLETION = 0.7;
 const DEMOTE_MAX_COMPLETION = 0.4;
 const DEMOTE_MIN_ATTEMPTS = 5;
 const DEMOTE_FTT_ABORTS = 3;
+const DEMOTE_LOW_OUTPUT_MIN = 4;      // この数以上の低産出ラウンドで降格材料に
+const DEMOTE_LOW_OUTPUT_WINDOW = 6;   // 信頼するのに必要な観測ラウンド数（totalRounds 下限）
 const DECLINE_COOLDOWN_DAYS = 7;
 
 type ProgressRow = { level: number; xp: number; xp_into_level: number };
@@ -64,7 +66,10 @@ export function ensureProgressSchema(db: Database): void {
   )`);
 }
 
-export function makeProgressStore(db: Database): ProgressStore {
+export function makeProgressStore(
+  db: Database,
+  fttSignals: (today: string) => { lowRounds: number; totalRounds: number } = () => ({ lowRounds: 0, totalRounds: 0 }),
+): ProgressStore {
   function nowTs(): string {
     return new Date().toISOString();
   }
@@ -138,15 +143,18 @@ export function makeProgressStore(db: Database): ProgressStore {
     if (stageOf(row.level) >= 2 && !inCooldown("decline-down", today)) {
       const week = completionRate7d(today);
       const ftt = fttAbortsLast5();
+      const out = fttSignals(today);
       const lowCompletion = week.count >= DEMOTE_MIN_ATTEMPTS && week.rate !== null && week.rate < DEMOTE_MAX_COMPLETION;
       // 仕様§5.2: 「直近5回中3回以上」中断。fttAbortsLast5 は直近5件までの窓なので、
       // 窓が5件揃っていること（count>=5）を下限にする（count<=DEMOTE_FTT_ABORTSは常に真になり無意味だった）。
       const manyAborts = ftt.count >= 5 && ftt.aborts >= DEMOTE_FTT_ABORTS;
-      if (lowCompletion || manyAborts) {
+      // 「完走するが苦しい」層: 完了/中断では拾えない、engagedだが極端に低語数のラウンドが続く状態
+      const lowOutput = out.totalRounds >= DEMOTE_LOW_OUTPUT_WINDOW && out.lowRounds >= DEMOTE_LOW_OUTPUT_MIN;
+      if (lowCompletion || manyAborts || lowOutput) {
         return {
           kind: "down",
           toLevel: demotionTargetLevel(row.level),
-          rationale: { completionRate: week.rate, fttAborts: ftt.aborts },
+          rationale: { completionRate: week.rate, fttAborts: ftt.aborts, lowOutputRounds: out.lowRounds },
         };
       }
     }

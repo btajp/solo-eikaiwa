@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { appendEvent, listPracticeDays, readEvents, type SessionEvent } from "../session-log";
+import { appendEvent, fttOutputSignals, listPracticeDays, readEvents, type SessionEvent } from "../session-log";
 
 describe("session-log", () => {
   test("appendEvent は1行1JSONで追記し readEvents で復元できる", () => {
@@ -57,5 +57,26 @@ describe("session-log: 日付形式の互換性", () => {
     writeFileSync(path.join(dir, "2026-07-06.jsonl"), "");
     writeFileSync(path.join(dir, "not-a-log.txt"), "");
     expect(listPracticeDays(dir)).toEqual(["2026-07-05", "2026-07-06"]);
+  });
+});
+
+describe("fttOutputSignals", () => {
+  test("engagedかつ低語数のみ lowRounds に数える（block一致・elapsed/語数で判定）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "sig-"));
+    const file = path.join(dir, "2026-07-06.jsonl");
+    const ev = (meta: Record<string, unknown>) =>
+      appendEvent(file, { ts: "2026-07-06T09:00:00Z", type: "round_end", sessionId: "s", meta });
+    ev({ block: "four-three-two", elapsedSec: 40, transcript: "well um yeah" });     // 3語 → low
+    ev({ block: "four-three-two", elapsedSec: 40, transcript: "I think we should ship the feature today because it is ready" }); // 12語 → not low
+    ev({ block: "four-three-two", elapsedSec: 5, transcript: "no" });                // engaged未満 → 数えるが low ではない
+    ev({ block: "roleplay", elapsedSec: 40, transcript: "hi" });                     // 別block → 無視
+    const r = fttOutputSignals("2026-07-06", 7, dir);
+    expect(r.totalRounds).toBe(3); // four-three-two の3件
+    expect(r.lowRounds).toBe(1);   // 1件目のみ
+  });
+
+  test("ログが無い日は 0/0", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "sig-"));
+    expect(fttOutputSignals("2026-07-06", 7, dir)).toEqual({ lowRounds: 0, totalRounds: 0 });
   });
 });

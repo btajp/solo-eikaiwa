@@ -251,6 +251,7 @@ export function FourThreeTwoScreen(props: {
           <p className="text-muted">
             {t.prepIntro(roundsSec.map((s) => t.min(minNum(s))).join("→"), roundsSec.length, t.min(minNum(PREP_SECONDS)))}
           </p>
+          <p className="text-sm text-muted">{t.prepMicNote}</p>
           <TimerChip remaining={prepTimer.remaining} expired={prepTimer.expired} note={t.prepTimerNote} />
         </Card>
         <ul className="text-muted">
@@ -353,9 +354,24 @@ export function FourThreeTwoScreen(props: {
           <li key={i}>{h}</li>
         ))}
       </ul>
+      {prep && (() => {
+        const filteredChunks = prep.chunks.filter((c) => typeof c.en === "string" && c.en);
+        if (filteredChunks.length === 0) return null;
+        const showJa = showJaFromPrep(support, prep);
+        return (
+          <details className="round-chunks">
+            <summary className="text-sm text-muted">{t.roundChunksToggle}</summary>
+            <ChunkList
+              chunks={filteredChunks} playingIdx={playRow.playingKey} onPlay={(i, text) => playRow.play(i, text)} showJa={showJa}
+              playAria={(en) => STR[props.lang].chunkList.playAria(en)}
+            />
+          </details>
+        );
+      })()}
       <div className={`round-timer${timer.expired ? " is-expired" : ""}`}>
         {formatMmSs(timer.remaining)} {timer.expired && <span className="text-sm">{t.timeUp}</span>}
       </div>
+      <p className="text-sm text-muted">{t.roundTimeboxNote}</p>
       <div className="round-actions">
         <button
           className={`btn btn-primary btn-lg record-btn${recState === "recording" ? " is-recording" : ""}`}

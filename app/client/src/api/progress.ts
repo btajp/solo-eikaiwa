@@ -3,7 +3,7 @@ import { extractErrorMessage } from "./http";
 export type LevelProposal = {
   kind: "up" | "down";
   toLevel: number;
-  rationale: { xpReached?: boolean; practicedDays14?: number; completionRate?: number | null; fttAborts?: number };
+  rationale: { xpReached?: boolean; practicedDays14?: number; completionRate?: number | null; fttAborts?: number; lowOutputRounds?: number };
 };
 export type ProgressSummary = {
   level: number; xp: number; xpIntoLevel: number; xpToNext: number;

@@ -59,6 +59,8 @@ export type NewContentCandidate = {
   domain: string;
   level: [number, number];
   hints: string[];
+  /** scenario専用の3件の英語オープナー。topicは常に未設定（既存挙動を変えない） */
+  starters?: string[];
 };
 
 /** menu.ts の parseContentFile が読める markdown に整形する（ラウンドトリップをテストで保証） */
@@ -75,6 +77,7 @@ export function contentToMarkdown(c: NewContentCandidate): string {
     "---",
     heading,
     ...c.hints.map((h) => `- ${h}`),
+    ...(c.starters ? c.starters.map((s) => `> ${s}`) : []),
     "",
   ].join("\n");
 }
@@ -285,6 +288,110 @@ Do not use any tools — reply directly with text only.`;
     throw err;
   }
   log(`完了: ${written.length} ファイルを追加しました。`);
+}
+
+export type GenScenariosDeps = {
+  runner: ClaudeRunner;
+  scenariosDir: string;
+  dry: boolean;
+  log?: (s: string) => void;
+};
+
+/** stage1 帯が枯渇しているドメインを補う固定プラン（domain/level を固定・語彙は stage1 レベリング） */
+export const SCENARIO_BAND_PLAN: ReadonlyArray<{ domain: (typeof DOMAINS)[number]; level: [number, number]; vocabStage: number }> = [
+  { domain: "business", level: [1, 3], vocabStage: 1 },
+  { domain: "it", level: [1, 3], vocabStage: 1 },
+];
+
+/**
+ * genScenarios 用の候補検証（domain/level はプラン固定なので検査しない — id/title/titleJa/hints/starters のみ）。
+ * hints/starters は roleplayPrompt（coach.ts）の Setup 注入と RoleplayScreen の表示が前提とする既存シナリオ形式
+ * （hints=英語のみのナラティブ、starters=英語オープナー3件）に合わせて検査する。
+ */
+function validateScenarioCandidate(
+  parsed: unknown, existingIds: Set<string>, dir: string,
+): { id: string; title: string; titleJa: string; hints: string[]; starters: string[] } | null {
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const c = parsed as Partial<NewContentCandidate>;
+  if (typeof c.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.id)) return null;
+  if (existingIds.has(c.id) || existsSync(path.join(dir, `${c.id}.md`))) return null;
+  if (typeof c.title !== "string" || !c.title.trim() || /[\n"]/.test(c.title)) return null;
+  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\n"]/.test(c.titleJa)) return null;
+  if (!Array.isArray(c.hints) || c.hints.length === 0) return null;
+  if (!c.hints.every((h) => typeof h === "string" && h.trim().length > 0)) return null;
+  if (!Array.isArray(c.starters) || c.starters.length !== 3) return null;
+  if (!c.starters.every((s) => typeof s === "string" && s.trim().length > 0 && !s.includes("\n"))) return null;
+  return {
+    id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(),
+    hints: c.hints.map((h) => h.trim()), starters: c.starters.map((s) => s.trim()),
+  };
+}
+
+/**
+ * 固定プラン（SCENARIO_BAND_PLAN）で stage1 帯のシナリオを補充する。domain/level はプランで固定し、
+ * 語彙制約は帯に連動（stage1）。全候補を検証してから一括書き込み（all-or-nothing）。
+ */
+export async function genScenarios(deps: GenScenariosDeps): Promise<void> {
+  const log = deps.log ?? console.log;
+  const existingIds = new Set(loadContent(deps.scenariosDir).map((c) => c.id));
+  const candidates: NewContentCandidate[] = [];
+
+  for (const p of SCENARIO_BAND_PLAN) {
+    const vocab = vocabConstraint(p.vocabStage);
+    const vocabLine = vocab ? `${vocab}\n` : "";
+    const domainDesc = p.domain === "daily" ? "everyday life" : p.domain === "business" ? "the workplace" : "software/IT work";
+    const system = `You create one original roleplay SCENARIO for an English speaking practice app (Japanese learner, beginner difficulty stage ${p.level[0]}-${p.level[1]} of 6).
+Domain: ${domainDesc}. A scenario sets up a roleplay that an AI coach will run with the learner by voice.
+Write exactly 3 "hints" lines, English only (no Japanese, no translations), in this order:
+1. The learner's role or task in the scene (what they are doing / who they are).
+2. Who the AI plays, starting with "The AI plays ...".
+3. The goal of the roleplay, starting with "Goal: ...".
+Also write exactly 3 "starters": short English sentences the learner could say to open the roleplay.
+Spoken register. Keep vocabulary and sentence structure approachable for a near-beginner. ${ORIGINALITY}
+${vocabLine}Do NOT reuse these existing ids: ${[...existingIds].join(", ") || "(none)"}
+Reply with STRICT JSON only:
+{"id":"kebab-case-id","title":"English title","titleJa":"日本語タイトル","hints":["You ...","The AI plays ...","Goal: ..."],"starters":["Opener sentence 1.","Opener sentence 2.","Opener sentence 3."]}
+Do not use any tools — reply directly with text only.`;
+    let cand: { id: string; title: string; titleJa: string; hints: string[]; starters: string[] } | null = null;
+    for (let attempt = 1; attempt <= 2 && !cand; attempt++) {
+      let text: string | undefined;
+      try {
+        ({ text } = await deps.runner(`Write the ${p.domain} beginner scenario now.`, undefined, { systemPrompt: system }));
+      } catch (err) {
+        console.warn("[content-gen] runner error:", err instanceof Error ? err.message : String(err));
+      }
+      if (text !== undefined) {
+        const parsed = extractJson<NewContentCandidate>(text);
+        cand = validateScenarioCandidate(parsed, existingIds, deps.scenariosDir);
+      }
+      if (!cand && attempt === 1) log(`  ${p.domain}/${p.level[0]}-${p.level[1]}: 検証NG — 再生成します`);
+    }
+    if (!cand) {
+      throw new Error(`エラー: ${p.domain}/${p.level[0]}-${p.level[1]} のシナリオが検証を通りませんでした。何も書き込みません。`);
+    }
+    existingIds.add(cand.id);
+    candidates.push({ ...cand, kind: "scenario", domain: p.domain, level: p.level });
+    log(`  + scenario: ${cand.id} [${p.domain}/${p.level[0]}-${p.level[1]}] ${cand.title}`);
+  }
+
+  if (deps.dry) {
+    log("--dry のため書き込みません");
+    return;
+  }
+
+  const written: string[] = [];
+  try {
+    for (const cand of candidates) {
+      const file = path.join(deps.scenariosDir, `${cand.id}.md`);
+      if (existsSync(file)) throw new Error(`エラー: ${file} は既に存在します。中止します。`);
+      writeFileSync(file, contentToMarkdown(cand));
+      written.push(file);
+    }
+  } catch (err) {
+    for (const f of written) rmSync(f, { force: true });
+    throw err;
+  }
+  log(`完了: ${written.length} 本の stage1 シナリオを追加しました。`);
 }
 
 export type NewListeningCandidate = { id: string; title: string; titleJa: string; paragraphs: string[] };

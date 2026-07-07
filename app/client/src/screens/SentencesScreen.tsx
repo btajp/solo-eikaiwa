@@ -6,6 +6,8 @@ import { BrowseTab } from "./BrowseTab";
 
 const HIDE_NOTE_KEY = "sentences.hideNote";
 const AUDIO_FIRST_KEY = "sentences.audioFirst";
+const NEW_PER_DAY_KEY = "sentences.newPerDay";
+const NEW_PER_DAY_OPTIONS = [3, 5, 10] as const;
 type Tab = "practice" | "browse";
 
 function loadHideNote(): boolean {
@@ -24,11 +26,21 @@ function saveAudioFirst(v: boolean): void {
   localStorage.setItem(AUDIO_FIRST_KEY, v ? "1" : "0");
 }
 
+function loadNewPerDay(): number {
+  const v = Number(localStorage.getItem(NEW_PER_DAY_KEY));
+  return (NEW_PER_DAY_OPTIONS as readonly number[]).includes(v) ? v : 10;
+}
+
+function saveNewPerDay(v: number): void {
+  localStorage.setItem(NEW_PER_DAY_KEY, String(v));
+}
+
 export function SentencesScreen({ lang }: { lang: Lang }) {
   const t = STR[lang].sentences;
   const [tab, setTab] = useState<Tab>("practice");
   const [hideNote, setHideNote] = useState(() => loadHideNote());
   const [audioFirst, setAudioFirst] = useState(() => loadAudioFirst());
+  const [newPerDay, setNewPerDay] = useState(() => loadNewPerDay());
   const support = useSupport();
   // cloze を最初から出すか: 個別トグル → 既定 false（cloze は補助なので「オン」でのみ既定表示）
   const clozeDefault = resolveSupport(support.cloze, false);
@@ -70,10 +82,19 @@ export function SentencesScreen({ lang }: { lang: Lang }) {
               <input type="checkbox" checked={audioFirst} onChange={toggleAudioFirst} />
               {t.audioFirstLabel}
             </label>
+            <label className="hide-note-toggle text-sm text-muted">
+              {t.newPerDayLabel}
+              <select
+                value={newPerDay}
+                onChange={(e) => { const v = Number(e.target.value); saveNewPerDay(v); setNewPerDay(v); }}
+              >
+                {NEW_PER_DAY_OPTIONS.map((n) => (<option key={n} value={n}>{n}</option>))}
+              </select>
+            </label>
           </>
         )}
       </div>
-      {tab === "practice" ? <PracticeTab lang={lang} hideNote={hideNote} clozeDefault={clozeDefault} audioFirst={audioFirst} /> : <BrowseTab lang={lang} />}
+      {tab === "practice" ? <PracticeTab lang={lang} hideNote={hideNote} clozeDefault={clozeDefault} audioFirst={audioFirst} newPerDay={newPerDay} /> : <BrowseTab lang={lang} />}
     </div>
   );
 }

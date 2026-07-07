@@ -176,9 +176,12 @@ function ListeningPlayback({ item, lang, onListened }: {
       {!showScript && <Button variant="secondary" onClick={() => setShowScript(true)}>{t.showScript}</Button>}
       {showScript && (
         <>
-          {item.paragraphs.map((p, i) => (
-            <Card key={i} className="reading-text">{p}</Card>
-          ))}
+          {/* 1本の地続きのスクリプト。段落は TTS 再生単位であって別々の文章ではないため、1枚のカードに通常の段落として流す */}
+          <Card className="reading-text">
+            {item.paragraphs.map((p, i) => (
+              <p key={i} className={`listening-para${playingIdx === i ? " is-playing" : ""}`}>{p}</p>
+            ))}
+          </Card>
           {explainer.state.status === "idle" && (
             <Button variant="ghost" onClick={explainer.request}>{t.explainMore}</Button>
           )}

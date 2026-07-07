@@ -7,7 +7,7 @@ import { loadContent, parseContentFile } from "../content";
 import { loadSentences, type Sentence } from "../sentences";
 import type { ClaudeRunner } from "../converse";
 import {
-  contentToMarkdown, genSentences, genTopics,
+  contentToMarkdown, genSentences, genTopics, genScenarios, SCENARIO_BAND_PLAN,
   validateNewSentences, validateTopicCandidate,
 } from "../content-gen";
 import { loadListening, parseListeningFile } from "../listening";
@@ -127,6 +127,20 @@ describe("content-gen / contentToMarkdown", () => {
     });
     expect(md).toContain("Roleplay setup:");
     expect(parseContentFile(md)!.kind).toBe("scenario");
+  });
+
+  test("starters を指定するとhints行の後に > 行として出力され、parseContentFileでstartersに戻る", () => {
+    const md = contentToMarkdown({
+      id: "hotel-checkin-2", kind: "scenario", title: "Hotel check-in trouble", titleJa: "ホテルのチェックイン",
+      domain: "daily", level: [1, 3],
+      hints: ["You are the guest with a reservation problem.", "The AI plays the front desk clerk.", "Goal: get a room for tonight."],
+      starters: ["Hi, I have a reservation.", "There seems to be a problem.", "Can you help me find a room?"],
+    });
+    const parsed = parseContentFile(md)!;
+    expect(parsed.hints).toHaveLength(3);
+    expect(parsed.starters).toEqual([
+      "Hi, I have a reservation.", "There seems to be a problem.", "Can you help me find a room?",
+    ]);
   });
 });
 
@@ -456,6 +470,63 @@ describe("content-gen / genTopics", () => {
     expect(seen[0].systemPrompt).not.toContain("word families");
     expect(seen[0].systemPrompt).not.toMatch(/\bnull\b/);
     cleanup(dirs);
+  });
+});
+
+describe("genScenarios（固定プラン・stage1帯）", () => {
+  test("プランは business/it の [1,3] を狙う", () => {
+    expect(SCENARIO_BAND_PLAN.map((p) => [p.domain, p.level])).toEqual([
+      ["business", [1, 3]], ["it", [1, 3]],
+    ]);
+  });
+
+  test("生成候補のdomain/levelはプランで固定され、検証通過分を全件書き込む（hints=英語ナラティブ・starters=3件）", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-sc-"));
+    let n = 0;
+    const runner = async () => {
+      n++;
+      return { text: JSON.stringify({
+        id: `stage1-sc-${n}`, title: `T${n}`, titleJa: `t${n}`,
+        domain: "daily", level: [4, 6], // モデルが誤った domain/level を返してもプランで上書きされる
+        hints: [
+          "You ask a coworker for help with a simple task.",
+          "The AI plays a helpful coworker.",
+          "Goal: get the help you need and say thanks.",
+        ],
+        starters: ["Can you help me for a second?", "I have a quick question.", "Do you have a minute?"],
+      }) };
+    };
+    await genScenarios({ runner: runner as never, scenariosDir: dir, dry: false, log: () => {} });
+    const files = readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
+    expect(files).toHaveLength(2);
+    const first = parseContentFile(readFileSync(path.join(dir, files[0]), "utf8"))!;
+    expect([first.domain, first.level[0]]).toEqual(["business", 1]); // プラン固定・stage1帯
+    expect(first.hints).toHaveLength(3);
+    expect(first.hints.every((h) => !/[぀-ヿ一-鿿]/.test(h))).toBe(true); // 英語のみのナラティブ（日本語混入なし）
+    expect(first.starters).toHaveLength(3);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("starters が3件でない候補は検証NGとして再生成される", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-sc-bad-"));
+    let n = 0;
+    const runner = async () => {
+      n++;
+      const starters = n === 1 ? ["Only one starter."] : ["One.", "Two.", "Three."];
+      return { text: JSON.stringify({
+        id: `stage1-sc-${n}`, title: `T${n}`, titleJa: `t${n}`,
+        hints: ["You ask for help.", "The AI plays a coworker.", "Goal: finish the task."],
+        starters,
+      }) };
+    };
+    await genScenarios({ runner: runner as never, scenariosDir: dir, dry: false, log: () => {} });
+    const files = readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
+    expect(files).toHaveLength(2);
+    for (const f of files) {
+      const parsed = parseContentFile(readFileSync(path.join(dir, f), "utf8"))!;
+      expect(parsed.starters).toHaveLength(3);
+    }
+    rmSync(dir, { recursive: true, force: true });
   });
 });
 
