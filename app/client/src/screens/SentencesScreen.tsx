@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { STR, type Lang } from "../i18n";
+import { LevelChip } from "../ui/LevelChip";
 import { resolveSupport, useSupport } from "../support";
 import { PracticeTab } from "./PracticeTab";
 import { BrowseTab } from "./BrowseTab";
@@ -63,6 +64,7 @@ export function SentencesScreen({ lang }: { lang: Lang }) {
     <div className="stack">
       <div className="hero">
         <h2 className="hero-title">{t.heroTitle}</h2>
+        <LevelChip kind="all" lang={lang} />
         <p className="hero-date">{t.heroDesc}</p>
       </div>
       <div className="filter-row sentences-toolbar">

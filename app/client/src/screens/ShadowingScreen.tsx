@@ -7,6 +7,7 @@ import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { ExplainBox } from "../ui/ExplainBox";
+import { LevelChip } from "../ui/LevelChip";
 
 type State = "script" | "audio" | "ready" | "playing" | "error";
 
@@ -68,6 +69,7 @@ export function ShadowingScreen(props: { topic: ContentItem; lang: Lang }) {
 
   return (
     <div className="stack">
+      <LevelChip kind="auto" lang={props.lang} />
       <p className="text-muted">
         {t.intro}
       </p>

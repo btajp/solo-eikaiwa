@@ -14,6 +14,7 @@ import { SessionRunner, type MenuSource } from "./screens/SessionRunner";
 import { StartScreen, type StartSelection } from "./screens/StartScreen";
 import { Banner } from "./ui/Banner";
 import { Button } from "./ui/Button";
+import { LevelChip } from "./ui/LevelChip";
 import { localYmd } from "./dates";
 import { saveSupport, useSupport, type SupportToggle } from "./support";
 
@@ -152,6 +153,7 @@ export function App() {
         <div className="stack">
           <div className="hero">
             <h2 className="hero-title">{t.freeTalk.title}</h2>
+            <LevelChip kind="auto" lang={lang} />
             <p className="hero-date">{t.freeTalk.desc}</p>
           </div>
           <FreeTalkScreen lang={lang} />

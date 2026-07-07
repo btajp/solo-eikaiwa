@@ -35,6 +35,8 @@ type NavStrings = {
   };
 };
 type AppShellStrings = { appShell: { backToMenu: string; textSize: string; language: string } };
+/** 難易度の実態を1語で開示するチップの文言。kind ("auto"/"band"/"all") は事実マップに厳密対応（嘘のチップは信頼を壊す） */
+type LevelChipStrings = { levelChip: { auto: string; band: string; all: string } };
 type UiScaleStrings = { uiScale: { small: string; medium: string; large: string; xlarge: string } };
 type SupportStrings = {
   support: {
@@ -200,7 +202,8 @@ type Strings =
   & CalendarStrings & FreeTalkHeaderStrings & ProgressStrings & PlacementStrings & SentencesStrings
   & MenuTitleStrings & SessionStrings
   & WarmupStrings & Ftt432Strings & ReflectionStrings & ChunkListStrings
-  & ShadowingStrings & LibraryStrings & RoleplayStrings & FreeTalkScreenStrings & ListeningScreenStrings;
+  & ShadowingStrings & LibraryStrings & RoleplayStrings & FreeTalkScreenStrings & ListeningScreenStrings
+  & LevelChipStrings;
 
 const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -214,6 +217,7 @@ export const STR: Record<Lang, Strings> = {
       selfStudyHint: "Your main path is Today's practice. Self-study fits spare moments — a good order: listen (Listening) → memorize (Sentences) → speak (Free talk).",
     },
     appShell: { backToMenu: "← Back to menu", textSize: "Text size", language: "Language" },
+    levelChip: { auto: "Adjusts to your level", band: "Pick by level band", all: "Same for all levels" },
     uiScale: { small: "A−", medium: "A", large: "A＋", xlarge: "A＋＋" },
     support: {
       title: "Support",
@@ -441,6 +445,7 @@ export const STR: Record<Lang, Strings> = {
       selfStudyHint: "メインは「今日の練習」。自主練はすきま時間に。目安の順番: 聞く(多聴) → 覚える(暗記例文) → 話す(自由会話)。",
     },
     appShell: { backToMenu: "← メニューに戻る", textSize: "文字サイズ", language: "言語" },
+    levelChip: { auto: "Lvに自動調整", band: "Lv帯で選ぶ", all: "全レベル共通" },
     uiScale: { small: "小", medium: "中", large: "大", xlarge: "特大" },
     support: {
       title: "サポート",

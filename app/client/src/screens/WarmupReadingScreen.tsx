@@ -7,6 +7,7 @@ import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { ChunkList } from "../ui/ChunkList";
+import { LevelChip } from "../ui/LevelChip";
 import { showJaFromPrep, useSupport } from "../support";
 import { clozeText } from "../cloze";
 
@@ -28,6 +29,7 @@ export function WarmupReadingScreen(props: { topic: ContentItem; lang: Lang }) {
 
   return (
     <div className="stack">
+      <LevelChip kind="auto" lang={props.lang} />
       <p className="text-muted">
         {t.intro}
       </p>

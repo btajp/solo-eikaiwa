@@ -13,6 +13,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { ChunkList } from "../ui/ChunkList";
 import { ExplainBox } from "../ui/ExplainBox";
+import { LevelChip } from "../ui/LevelChip";
 import { TimerChip } from "../ui/TimerChip";
 import { getSupport, resolveSupport, showJaFromPrep, useSupport } from "../support";
 
@@ -258,6 +259,7 @@ export function FourThreeTwoScreen(props: {
     return (
       <div className="stack">
         <Card header={t.prepTitle(props.topic.title)}>
+          <LevelChip kind="auto" lang={props.lang} />
           {props.lang === "ja" && props.topic.titleJa && <p className="text-muted">{props.topic.titleJa}</p>}
           <p className="text-muted">
             {t.prepIntro(roundsSec.map((s) => t.min(minNum(s))).join("→"), roundsSec.length, t.min(minNum(PREP_SECONDS)))}

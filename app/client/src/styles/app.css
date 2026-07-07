@@ -40,6 +40,14 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 .hero-title { font-size: var(--fs-hero); font-weight: 750; letter-spacing: -0.02em; margin: 0 0 var(--sp-1); }
 .hero-date { color: var(--text-muted); font-size: var(--fs-sm); margin: 0; }
 
+/* 難易度の実態チップ（自動調整/Lv帯/全レベル共通） */
+.level-chip {
+  display: inline-flex; align-items: center;
+  font-size: var(--fs-sm); color: var(--text-muted);
+  background: var(--accent-soft); border-radius: var(--radius-sm);
+  padding: 2px var(--sp-2); margin: 0 0 var(--sp-2);
+}
+
 /* セクションラベル */
 .section-label { font-size: var(--fs-sm); font-weight: 650; color: var(--text-muted); margin: 0 0 var(--sp-2); }
 .section-note { font-weight: 400; }

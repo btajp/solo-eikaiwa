@@ -11,6 +11,7 @@ import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { ExplainBox } from "../ui/ExplainBox";
+import { LevelChip } from "../ui/LevelChip";
 
 type LibraryData = { items: ListeningMeta[]; weeklyCount: number; stage: number };
 
@@ -36,6 +37,7 @@ export function ListeningScreen({ lang }: { lang: Lang }) {
     <div className="stack">
       <div className="hero">
         <h2 className="hero-title">{t.title}</h2>
+        <LevelChip kind="band" lang={lang} />
         <p className="hero-date">{t.desc}</p>
       </div>
       {state.status === "loading" && <p className="text-muted">{t.loading}</p>}
