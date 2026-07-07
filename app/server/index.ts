@@ -21,6 +21,7 @@ import { loadListening, findListening } from "./listening";
 import { makeListeningStore } from "./listening-store";
 import { makeFeedbackStore } from "./feedback-store";
 import { makeLlmSettingsStore } from "./llm-settings-store";
+import { makeTtsSettingsStore } from "./tts-settings-store";
 import { makeLlmRoleSettingsStore } from "./llm-role-settings-store";
 import { conversationWarmup } from "./llm-warmup";
 import { LLM_ROLES } from "./llm-provider";
@@ -41,6 +42,7 @@ const assessmentStore = makeAssessmentStore(db);
 const listeningStore = makeListeningStore(db);
 const feedbackStore = makeFeedbackStore(db);
 const llmSettingsStore = makeLlmSettingsStore(db);
+const ttsSettingsStore = makeTtsSettingsStore(db);
 const llmRoleSettingsStore = makeLlmRoleSettingsStore(db);
 const assembleMonthData = makeAssembleMonthData({
   db,
@@ -116,6 +118,10 @@ const realDeps: RouteDeps = {
     apiKeyConfigured: Boolean(Bun.env.OPENAI_COMPAT_API_KEY?.trim()),
   }),
   warmLlm: () => conversationWarmup.maybeWarm(),
+  getTtsSettings: () => ttsSettingsStore.get(),
+  saveTtsSettings: (s) => ttsSettingsStore.save(s),
+  // env 由来。TTS の APIキーは有無のみ開示（TTS_API_KEY 優先・無ければ OPENAI_API_KEY）。値は絶対に返さない。
+  ttsEnv: () => ({ apiKeyConfigured: Boolean((Bun.env.TTS_API_KEY ?? Bun.env.OPENAI_API_KEY)?.trim()) }),
 };
 
 // 起動時: DB に LLM 設定（全体 or ロール別）があれば実行中プロセスへ適用する（fail-open）。

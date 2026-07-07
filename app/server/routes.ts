@@ -16,6 +16,7 @@ import { makeAssessmentRoutes, type AssessmentRoutesDeps } from "./routes/assess
 import { makeListeningRoutes, type ListeningRoutesDeps } from "./routes/listening";
 import { makeFeedbackRoutes, type FeedbackRoutesDeps } from "./routes/feedback";
 import { makeLlmSettingsRoutes, type LlmSettingsRoutesDeps } from "./routes/llm-settings";
+import { makeTtsSettingsRoutes, type TtsSettingsRoutesDeps } from "./routes/tts-settings";
 
 /**
  * HTTP ハンドラが依存する副作用の総体。各ドメインの狭い Deps 型の交差で構成する。
@@ -27,7 +28,8 @@ export type RouteDeps =
   SystemRoutesDeps & ConverseRoutesDeps & SessionRoutesDeps & MenuRoutesDeps &
   SettingsRoutesDeps & LibraryRoutesDeps & CoachRoutesDeps & SentenceRoutesDeps &
   ChunkRoutesDeps & ProgressRoutesDeps & PlacementRoutesDeps & MetricsRoutesDeps &
-  AssessmentRoutesDeps & ListeningRoutesDeps & FeedbackRoutesDeps & LlmSettingsRoutesDeps;
+  AssessmentRoutesDeps & ListeningRoutesDeps & FeedbackRoutesDeps & LlmSettingsRoutesDeps &
+  TtsSettingsRoutesDeps;
 
 /** 現在の index.ts の全ルーティング・ハンドラをソケットを開かずにテストできる形に切り出したもの */
 export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Response> {
@@ -48,6 +50,7 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
     ...makeListeningRoutes(deps),
     ...makeFeedbackRoutes(deps),
     ...makeLlmSettingsRoutes(deps),
+    ...makeTtsSettingsRoutes(deps),
   ];
   return async function fetch(req: Request): Promise<Response> {
     // 受信を契機にローカルLLM（conversation が openai-compat のとき）を温める。throttle 済み・fire-and-forget。
