@@ -1,6 +1,7 @@
 import { type ContentItem } from "../api";
 import { STR, type Lang } from "../i18n";
 import { Card } from "../ui/Card";
+import { LevelChip } from "../ui/LevelChip";
 import { FreeTalkScreen } from "./FreeTalkScreen";
 
 export function RoleplayScreen(props: { scenario: ContentItem; lang: Lang }) {
@@ -12,6 +13,7 @@ export function RoleplayScreen(props: { scenario: ContentItem; lang: Lang }) {
     <div className="stack">
       <Card>
         <p className="text-muted">{heading}</p>
+        <LevelChip kind="auto" lang={props.lang} />
         <ul>
           {props.scenario.hints.map((h, i) => (<li key={i}>{h}</li>))}
         </ul>
