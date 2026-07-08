@@ -13,6 +13,17 @@ export type LlmRoleView = {
   codexModel: string | null;
 };
 
+/** ロール別チューニングの選択肢（サーバのホワイトリストと一致させる）。 */
+export type ClaudeModelOption = "haiku" | "sonnet" | "opus";
+export const CLAUDE_MODEL_OPTIONS: readonly ClaudeModelOption[] = ["haiku", "sonnet", "opus"];
+export type EffortOption = "low" | "medium" | "high" | "xhigh";
+export const EFFORT_OPTIONS: readonly EffortOption[] = ["low", "medium", "high", "xhigh"];
+export type ServiceTierOption = "fast" | "standard";
+export const SERVICE_TIER_OPTIONS: readonly ServiceTierOption[] = ["fast", "standard"];
+
+/** ロール別チューニングの値。null は「既定へ従う（未指定）」を表す。 */
+export type RoleTuning = { claudeModel: ClaudeModelOption | null; effort: EffortOption | null; serviceTier: ServiceTierOption | null };
+
 /** GET/PUT 応答。APIキー値は含まれない（有無のみ apiKeyConfigured）。 */
 export type LlmSettingsView = {
   provider: LlmProvider;
@@ -27,6 +38,8 @@ export type LlmSettingsView = {
   error?: string | null;
   /** ロール別の現在設定（未設定ロールは provider:"inherit"）。 */
   roles: Record<LlmRole, LlmRoleView>;
+  /** ロール別チューニング（未設定ロールは全項目null）。旧サーバ応答にはキー自体が無い場合がある（additive API）。 */
+  tuning: Record<LlmRole, RoleTuning>;
 };
 
 export type LlmSettingsInput = {
@@ -63,6 +76,8 @@ export type LlmRoleInput = {
 export type LlmRolesInput = {
   global?: LlmSettingsInput;
   roles?: Partial<Record<LlmRole, LlmRoleInput>>;
+  /** ロール別チューニング。常時全ロール分を含める（省略ロールはサーバ側で既存値保持）。 */
+  tuning?: Record<LlmRole, RoleTuning>;
 };
 
 export async function saveLlmRoleSettings(input: LlmRolesInput): Promise<LlmSettingsView> {

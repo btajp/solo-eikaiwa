@@ -1,28 +1,29 @@
 import { describe, expect, test } from "bun:test";
-import type { LlmRoleInput, LlmRoleView, LlmSettingsInput, LlmSettingsView, LlmRole } from "../api";
+import type { LlmRoleInput, LlmRoleView, LlmSettingsInput, LlmSettingsView, LlmRole, RoleTuning } from "../api";
 import { LLM_ROLES } from "../api";
 import {
   PRESETS, isLocalDefined, presetEnabled, hydrateConnection, hydrateTargets, buildRolesPayload, matchPreset,
-  presetTargets,
+  presetTargets, defaultTuning, hydrateTuning,
   type RoleTargets,
 } from "./llm-assignments";
 
 const LOCAL_CONN = { baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: "" };
 const EMPTY_CONN = { baseUrl: "", model: "", codexModel: "" };
 
-/** テスト用の LlmSettingsView 生成（roles は既定 inherit・上書き可）。 */
+/** テスト用の LlmSettingsView 生成（roles は既定 inherit・tuning は既定全null・上書き可）。 */
 function mkView(over: Partial<LlmSettingsView> = {}): LlmSettingsView {
   const inherit = { provider: "inherit" as const, baseUrl: null, model: null, codexModel: null };
   return {
     provider: "env", baseUrl: null, model: null, codexModel: null,
     apiKeyConfigured: false, envProvider: "claude",
     roles: { conversation: inherit, assist: inherit, coaching: inherit, generation: inherit, assessment: inherit },
+    tuning: defaultTuning(),
     ...over,
   };
 }
 
 /** buildRolesPayload の出力（PUT ペイロード）から GET 応答形の View を組み立てる（往復テスト用）。 */
-function fakeViewFromPayload(payload: { global: LlmSettingsInput; roles: Record<LlmRole, LlmRoleInput> }): LlmSettingsView {
+function fakeViewFromPayload(payload: { global: LlmSettingsInput; roles: Record<LlmRole, LlmRoleInput>; tuning?: Record<LlmRole, RoleTuning> }): LlmSettingsView {
   const roles = {} as Record<LlmRole, LlmRoleView>;
   for (const r of LLM_ROLES) {
     const role = payload.roles[r];
@@ -34,6 +35,7 @@ function fakeViewFromPayload(payload: { global: LlmSettingsInput; roles: Record<
     model: payload.global.model ?? null,
     codexModel: payload.global.codexModel ?? null,
     roles,
+    tuning: payload.tuning ?? defaultTuning(),
   });
 }
 
@@ -63,6 +65,7 @@ describe("buildRolesPayload", () => {
         generation: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
         assessment: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
       },
+      tuning: defaultTuning(),
     });
   });
 
@@ -117,6 +120,23 @@ describe("buildRolesPayload", () => {
     const conn = { baseUrl: "", model: "", codexModel: "" };
     const payload = buildRolesPayload(presetTargets("all-local", "codex"), conn, "codex");
     expect(payload.roles.conversation).toEqual({ provider: "codex", codexModel: null });
+  });
+});
+
+describe("buildRolesPayload: tuning の直列化", () => {
+  test("tuning引数省略時は全ロール null で直列化される", () => {
+    const payload = buildRolesPayload(PRESETS["all-local"], LOCAL_CONN);
+    expect(payload.tuning).toEqual(defaultTuning());
+  });
+
+  test("tuning引数を渡すとそのまま payload に乗る（割当やプリセットとは独立）", () => {
+    const tuning: Record<LlmRole, RoleTuning> = {
+      ...defaultTuning(),
+      conversation: { claudeModel: "opus", effort: "high", serviceTier: null },
+      assessment: { claudeModel: null, effort: null, serviceTier: "standard" },
+    };
+    const payload = buildRolesPayload(PRESETS.balanced, LOCAL_CONN, "claude", tuning);
+    expect(payload.tuning).toEqual(tuning);
   });
 });
 
@@ -225,5 +245,22 @@ describe("旧サーバ応答への後方互換（ロール行の欠落）", () =
     expect(hydrateConnection(view)).toEqual({
       baseUrl: "http://localhost:11434/v1", model: "qwen3:30b-instruct", codexModel: "",
     });
+  });
+  test("tuningキー自体が無い旧応答でもhydrateTuningは壊れず全ロールnullで復元する", () => {
+    const view = mkView();
+    delete (view as Record<string, unknown>).tuning;
+    expect(hydrateTuning(view)).toEqual(defaultTuning());
+  });
+  test("特定ロールのtuning行だけが無い旧応答でもhydrateTuningはそのロールをnullで復元する", () => {
+    const view = mkView({
+      tuning: {
+        ...defaultTuning(),
+        conversation: { claudeModel: "opus", effort: "high", serviceTier: null },
+      },
+    });
+    delete (view.tuning as Record<string, unknown>).assist;
+    const result = hydrateTuning(view);
+    expect(result.assist).toEqual({ claudeModel: null, effort: null, serviceTier: null });
+    expect(result.conversation).toEqual({ claudeModel: "opus", effort: "high", serviceTier: null });
   });
 });

@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import {
   fetchLlmSettings, saveLlmRoleSettings, LLM_ROLES,
   fetchTtsSettings, saveTtsSettings,
-  type LlmRole, type LlmSettingsView, type TtsSettingsView,
+  CLAUDE_MODEL_OPTIONS, EFFORT_OPTIONS, SERVICE_TIER_OPTIONS,
+  type LlmRole, type LlmSettingsView, type TtsSettingsView, type RoleTuning,
 } from "../api";
 import {
-  isLocalDefined, presetEnabled, presetTargets, matchPreset, hydrateConnection, hydrateTargets, buildRolesPayload,
+  isLocalDefined, presetEnabled, presetTargets, matchPreset, hydrateConnection, hydrateTargets, hydrateTuning,
+  buildRolesPayload, defaultTuning,
   type RoleTarget, type RoleTargets, type Connection, type PresetId, type CloudTarget,
 } from "../lib/llm-assignments";
 import { loadPreferredCloud, savePreferredCloud } from "../lib/preferred-cloud";
@@ -88,6 +90,8 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   const [targets, setTargets] = useState<RoleTargets>({
     conversation: "claude", assist: "claude", coaching: "claude", generation: "claude", assessment: "claude",
   });
+  // ロール別チューニングの編集状態（タブ切替で消えない・プリセット適用では変更しない）
+  const [tuning, setTuning] = useState<Record<LlmRole, RoleTuning>>(() => defaultTuning());
   // 音声（TTS）の編集状態
   const [ttsView, setTtsView] = useState<TtsSettingsView | null>(null);
   const [ttsBaseUrl, setTtsBaseUrl] = useState("");
@@ -101,6 +105,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     setConnModel(conn.model);
     setConnCodex(conn.codexModel);
     setTargets(hydrateTargets(v));
+    setTuning(hydrateTuning(v));
   }
 
   function hydrateTts(v: TtsSettingsView) {
@@ -129,7 +134,8 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     setSaving(true); setLlmResult(null);
     try {
       // cloud はローカル未定義時のフォールバック先にのみ影響する（優先クラウドが唯一の妥当な出典）。
-      applyResult(await saveLlmRoleSettings(buildRolesPayload(nextTargets, nextConn, preferredCloud)));
+      // tuning は割当・プリセットとは独立に現在の編集状態をそのまま乗せる（プリセット適用は tuning を変更しない）。
+      applyResult(await saveLlmRoleSettings(buildRolesPayload(nextTargets, nextConn, preferredCloud, tuning)));
       return true;
     } catch { setLlmResult(s.llm.saveFailed); return false; } finally { setSaving(false); }
   }
@@ -143,6 +149,10 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
 
   function setTarget(role: LlmRole, t: RoleTarget) {
     setTargets((prev) => ({ ...prev, [role]: t }));
+  }
+
+  function setTuningField<K extends keyof RoleTuning>(role: LlmRole, field: K, value: RoleTuning[K]) {
+    setTuning((prev) => ({ ...prev, [role]: { ...prev[role], [field]: value } }));
   }
 
   const voicePreset: "female" | "male" | "custom" = VOICE_PRESET_FEMALE_VALUES.includes(ttsVoice.trim())
@@ -177,6 +187,9 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
 
   const targetLabels: Record<RoleTarget, string> = {
     claude: s.settings.targetClaude, local: s.settings.targetLocal, codex: s.settings.targetCodex,
+  };
+  const tierLabels: Record<(typeof SERVICE_TIER_OPTIONS)[number], string> = {
+    fast: s.settings.tuningTierFast, standard: s.settings.tuningTierStandard,
   };
 
   return (
@@ -311,6 +324,51 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                   disabled={saving || !view}
                   onChange={(t) => setTarget(role, t)}
                 />
+                <details className="stack">
+                  <summary className="text-sm text-muted">{s.settings.tuningDetails}</summary>
+                  <div className="stack">
+                    {targets[role] === "claude" && (
+                      <label className="llm-field">
+                        <span className="text-sm text-muted">{s.settings.tuningModel}</span>
+                        <select
+                          className="llm-input"
+                          value={tuning[role].claudeModel ?? ""}
+                          disabled={saving || !view}
+                          onChange={(e) => setTuningField(role, "claudeModel", (e.target.value || null) as RoleTuning["claudeModel"])}
+                        >
+                          <option value="">{s.settings.tuningDefault}</option>
+                          {CLAUDE_MODEL_OPTIONS.map((m) => <option key={m} value={m}>{m}</option>)}
+                        </select>
+                      </label>
+                    )}
+                    <label className="llm-field">
+                      <span className="text-sm text-muted">{s.settings.tuningEffort}</span>
+                      <select
+                        className="llm-input"
+                        value={tuning[role].effort ?? ""}
+                        disabled={saving || !view}
+                        onChange={(e) => setTuningField(role, "effort", (e.target.value || null) as RoleTuning["effort"])}
+                      >
+                        <option value="">{s.settings.tuningDefault}</option>
+                        {EFFORT_OPTIONS.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
+                      </select>
+                    </label>
+                    {targets[role] === "codex" && (
+                      <label className="llm-field">
+                        <span className="text-sm text-muted">{s.settings.tuningTier}</span>
+                        <select
+                          className="llm-input"
+                          value={tuning[role].serviceTier ?? ""}
+                          disabled={saving || !view}
+                          onChange={(e) => setTuningField(role, "serviceTier", (e.target.value || null) as RoleTuning["serviceTier"])}
+                        >
+                          <option value="">{s.settings.tuningDefault}</option>
+                          {SERVICE_TIER_OPTIONS.map((t) => <option key={t} value={t}>{tierLabels[t]}</option>)}
+                        </select>
+                      </label>
+                    )}
+                  </div>
+                </details>
               </div>
             ))}
             <Button variant="secondary" onClick={() => void persist(targets, conn)} disabled={saving || !view}>{saving ? s.llm.saving : s.settings.saveAssignments}</Button>

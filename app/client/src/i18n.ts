@@ -98,6 +98,13 @@ type SettingsStrings = {
     targetLocal: string;
     targetCodex: string;
     targetLocalDisabled: string;
+    tuningDetails: string;
+    tuningModel: string;
+    tuningEffort: string;
+    tuningTier: string;
+    tuningDefault: string;
+    tuningTierFast: string;
+    tuningTierStandard: string;
     saveConnection: string;
     saveAssignments: string;
     displaySection: string;
@@ -378,6 +385,13 @@ export const STR: Record<Lang, Strings> = {
       targetLocal: "Local",
       targetCodex: "Codex",
       targetLocalDisabled: "Set up a local LLM connection in the Model connections tab to choose Local.",
+      tuningDetails: "Advanced",
+      tuningModel: "Model",
+      tuningEffort: "Effort",
+      tuningTier: "Delivery",
+      tuningDefault: "Default",
+      tuningTierFast: "Fast (priority)",
+      tuningTierStandard: "Standard",
       saveConnection: "Save connections",
       saveAssignments: "Save assignments",
       displaySection: "Display",
@@ -719,6 +733,13 @@ export const STR: Record<Lang, Strings> = {
       targetLocal: "ローカル",
       targetCodex: "Codex",
       targetLocalDisabled: "「モデル接続設定」タブでローカル LLM の接続先を設定すると「ローカル」を選べます。",
+      tuningDetails: "詳細設定",
+      tuningModel: "モデル",
+      tuningEffort: "effort（思考の深さ）",
+      tuningTier: "配信",
+      tuningDefault: "既定",
+      tuningTierFast: "fast（優先配信）",
+      tuningTierStandard: "standard（標準・安価）",
       saveConnection: "接続を保存",
       saveAssignments: "割当を保存",
       displaySection: "表示",

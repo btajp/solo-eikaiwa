@@ -1,4 +1,4 @@
-import { LLM_ROLES, type LlmRole, type LlmRoleInput, type LlmSettingsInput, type LlmSettingsView } from "../api";
+import { LLM_ROLES, type LlmRole, type LlmRoleInput, type LlmSettingsInput, type LlmSettingsView, type RoleTuning } from "../api";
 
 /** ロール割当の3値（UI が直接選ぶ）。inherit/env は UI に出さない。 */
 export type RoleTarget = "claude" | "local" | "codex";
@@ -44,6 +44,24 @@ export function presetTargets(id: PresetId, cloud: CloudTarget): RoleTargets {
   return out;
 }
 
+const EMPTY_TUNING: RoleTuning = { claudeModel: null, effort: null, serviceTier: null };
+
+/** 全ロール分の既定チューニング（全項目 null）を返す。buildRolesPayload の tuning 省略時の既定にも使う。 */
+export function defaultTuning(): Record<LlmRole, RoleTuning> {
+  const out = {} as Record<LlmRole, RoleTuning>;
+  for (const role of LLM_ROLES) out[role] = { ...EMPTY_TUNING };
+  return out;
+}
+
+/** GET 応答からロール別チューニングを復元する。tuning キー自体、または個別ロールの欠落に耐える（旧サーバ応答の後方互換）。 */
+export function hydrateTuning(view: LlmSettingsView): Record<LlmRole, RoleTuning> {
+  const out = {} as Record<LlmRole, RoleTuning>;
+  for (const role of LLM_ROLES) {
+    out[role] = view.tuning?.[role] ?? { ...EMPTY_TUNING };
+  }
+  return out;
+}
+
 /** llm_settings.provider（env は envProvider へ解決）を effective global provider として返す。 */
 function effectiveGlobalProvider(view: LlmSettingsView): string {
   return view.provider === "env" ? view.envProvider : view.provider;
@@ -79,12 +97,15 @@ export function hydrateTargets(view: LlmSettingsView): RoleTargets {
  * (targets, conn) を PUT /api/llm-settings/roles のペイロードへ直列化する。
  * - 接続は常に global（接続ストア）に保存する＝プリセット/割当保存でも接続は失われない。
  * - ローカル未定義のとき local ターゲットは優先クラウド（既定 claude）にフォールバックする（空 baseUrl で 400 になるのを防ぐ）。
+ * - tuning は常時（全ロール分）含める。省略時は全ロール null（既定）。割当やプリセット適用とは独立して素通しする
+ *   （プリセット適用は tuning を変更しない — 呼び出し側が現在の tuning state をそのまま渡す）。
  */
 export function buildRolesPayload(
   targets: RoleTargets,
   conn: Connection,
   cloud: CloudTarget = "claude",
-): { global: LlmSettingsInput; roles: Record<LlmRole, LlmRoleInput> } {
+  tuning: Record<LlmRole, RoleTuning> = defaultTuning(),
+): { global: LlmSettingsInput; roles: Record<LlmRole, LlmRoleInput>; tuning: Record<LlmRole, RoleTuning> } {
   const baseUrl = conn.baseUrl.trim();
   const model = conn.model.trim();
   const codexModel = conn.codexModel.trim() || null;
@@ -104,7 +125,7 @@ export function buildRolesPayload(
       : t === "codex" ? { provider: "codex", codexModel }
       : { provider: "claude" };
   }
-  return { global, roles };
+  return { global, roles, tuning };
 }
 
 /**
