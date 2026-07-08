@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { makeTestDeps } from "./helpers/route-deps";
 import { getReq, putJson } from "./helpers/http";
-import type { LlmSettings } from "../llm-provider";
+import type { LlmSettings, LlmRole } from "../llm-provider";
+import type { RoleTuning } from "../llm-role-tuning-store";
 
 describe("llm-settings API", () => {
   test("GET: 未設定なら provider:env と env 情報を返す（APIキーは boolean のみ）", async () => {
@@ -22,6 +23,13 @@ describe("llm-settings API", () => {
         generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
       },
+      tuning: {
+        conversation: { claudeModel: null, effort: null, serviceTier: null },
+        assist: { claudeModel: null, effort: null, serviceTier: null },
+        coaching: { claudeModel: null, effort: null, serviceTier: null },
+        generation: { claudeModel: null, effort: null, serviceTier: null },
+        assessment: { claudeModel: null, effort: null, serviceTier: null },
+      },
     });
   });
 
@@ -40,6 +48,13 @@ describe("llm-settings API", () => {
         coaching: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+      },
+      tuning: {
+        conversation: { claudeModel: null, effort: null, serviceTier: null },
+        assist: { claudeModel: null, effort: null, serviceTier: null },
+        coaching: { claudeModel: null, effort: null, serviceTier: null },
+        generation: { claudeModel: null, effort: null, serviceTier: null },
+        assessment: { claudeModel: null, effort: null, serviceTier: null },
       },
     });
   });
@@ -215,5 +230,143 @@ describe("llm-settings roles API", () => {
     expect(res.status).toBe(400);
     expect(savedGlobals).toHaveLength(0);
     expect(savedRoles).toHaveLength(0);
+  });
+});
+
+describe("llm-settings tuning API", () => {
+  const ALL_NULL_TUNING: Record<LlmRole, RoleTuning> = {
+    conversation: { claudeModel: null, effort: null, serviceTier: null },
+    assist: { claudeModel: null, effort: null, serviceTier: null },
+    coaching: { claudeModel: null, effort: null, serviceTier: null },
+    generation: { claudeModel: null, effort: null, serviceTier: null },
+    assessment: { claudeModel: null, effort: null, serviceTier: null },
+  };
+
+  test("GET: 保存済みチューニングを additive に tuning へ反映する", async () => {
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getLlmRoleTuning: () => ({
+        ...ALL_NULL_TUNING,
+        assessment: { claudeModel: "opus", effort: "xhigh", serviceTier: "standard" },
+      }),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(getReq("/api/llm-settings"));
+    const body = (await res.json()) as { tuning: Record<LlmRole, RoleTuning> };
+    expect(body.tuning.assessment).toEqual({ claudeModel: "opus", effort: "xhigh", serviceTier: "standard" });
+    expect(body.tuning.conversation).toEqual({ claudeModel: null, effort: null, serviceTier: null });
+  });
+
+  test("PUT /roles: tuning 込みで保存され、応答の tuning に反映される", async () => {
+    let current: Record<LlmRole, RoleTuning> = { ...ALL_NULL_TUNING };
+    const savedPatches: Array<Partial<Record<LlmRole, Partial<RoleTuning>>>> = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getLlmRoleTuning: () => current,
+      saveLlmRoleTuning: (t) => {
+        savedPatches.push(t);
+        current = { ...current, ...(t as Record<LlmRole, RoleTuning>) };
+      },
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      tuning: {
+        conversation: { claudeModel: "sonnet", effort: "low", serviceTier: null },
+        assessment: { claudeModel: "opus", effort: "xhigh", serviceTier: "standard" },
+      },
+    }));
+    expect(res.status).toBe(200);
+    expect(savedPatches).toEqual([{
+      conversation: { claudeModel: "sonnet", effort: "low", serviceTier: null },
+      assessment: { claudeModel: "opus", effort: "xhigh", serviceTier: "standard" },
+    }]);
+    const body = (await res.json()) as { tuning: Record<LlmRole, RoleTuning> };
+    expect(body.tuning.conversation).toEqual({ claudeModel: "sonnet", effort: "low", serviceTier: null });
+    expect(body.tuning.assessment).toEqual({ claudeModel: "opus", effort: "xhigh", serviceTier: "standard" });
+  });
+
+  test("PUT /roles: tuning 省略時は saveLlmRoleTuning を呼ばない（既存挙動不変）", async () => {
+    const savedPatches: unknown[] = [];
+    const savedRoles: string[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      saveLlmRoleSettings: (role) => savedRoles.push(role),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      roles: { generation: { provider: "inherit" } },
+    }));
+    expect(res.status).toBe(200);
+    expect(savedPatches).toHaveLength(0);
+    expect(savedRoles).toEqual(["generation"]);
+  });
+
+  test("PUT /roles 400: 未知ロール（tuning 側）は何も保存しない", async () => {
+    const savedPatches: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      tuning: { bogusRole: { claudeModel: "sonnet" } },
+    }));
+    expect(res.status).toBe(400);
+    expect(savedPatches).toHaveLength(0);
+  });
+
+  test.each([
+    ["claudeModel", { claudeModel: "gpt-5" }],
+    ["effort", { effort: "urgent" }],
+    ["serviceTier", { serviceTier: "priority" }],
+  ])("PUT /roles 400: tuning.%s の不正値は 400（保存しない）", async (_field, patch) => {
+    const savedPatches: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      tuning: { conversation: patch },
+    }));
+    expect(res.status).toBe(400);
+    expect(savedPatches).toHaveLength(0);
+  });
+
+  test("PUT /roles 400: global+roles+tuning 一括で tuning だけ不正でも何も保存しない（原子性）", async () => {
+    const savedGlobals: LlmSettings[] = [];
+    const savedRoles: string[] = [];
+    const savedTuning: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmSettings: (s) => savedGlobals.push(s),
+      saveLlmRoleSettings: (role) => savedRoles.push(role),
+      saveLlmRoleTuning: (t) => savedTuning.push(t),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      global: { provider: "claude" },
+      roles: { conversation: { provider: "inherit" } },
+      tuning: { assessment: { effort: "bogus" } },
+    }));
+    expect(res.status).toBe(400);
+    expect(savedGlobals).toHaveLength(0);
+    expect(savedRoles).toHaveLength(0);
+    expect(savedTuning).toHaveLength(0);
+  });
+
+  test("PUT /roles: null で明示クリアできる（クリアと未指定は区別される）", async () => {
+    const savedPatches: Array<Partial<Record<LlmRole, Partial<RoleTuning>>>> = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      tuning: { coaching: { claudeModel: null, effort: "medium" } },
+    }));
+    expect(res.status).toBe(200);
+    expect(savedPatches).toEqual([{ coaching: { claudeModel: null, effort: "medium" } }]);
   });
 });

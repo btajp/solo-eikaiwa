@@ -18,7 +18,7 @@ export function ensureLlmRoleSettingsSchema(db: Database): void {
 }
 
 export type LlmRoleSettingsStore = {
-  /** 4ロール分を必ず返す。未設定ロールは { provider: "inherit", … null } を埋める。 */
+  /** 全ロール分（LLM_ROLES）を必ず返す。未設定ロールは { provider: "inherit", … null } を埋める。 */
   getAll(): Record<LlmRole, LlmRoleSetting>;
   /** 1ロールを upsert（provider="inherit" で inherit へ戻す。DELETE は使わない）。妥当性は route が保証する。 */
   save(role: LlmRole, s: LlmRoleSetting): void;

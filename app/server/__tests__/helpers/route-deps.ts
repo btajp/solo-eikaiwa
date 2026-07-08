@@ -13,6 +13,7 @@ import type { ListeningItem } from "../../listening";
 import type { ListeningStore } from "../../listening-store";
 import type { FeedbackStore } from "../../feedback-store";
 import type { LlmRole, LlmRoleSetting } from "../../llm-provider";
+import type { RoleTuning } from "../../llm-role-tuning-store";
 
 export const FAKE_HEALTH = { ok: true, whisper: true, ffmpeg: true, claude: true, ttsKey: true, modelFile: true };
 export const FAKE_MENU = {
@@ -201,6 +202,14 @@ export function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
       assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
     }),
     saveLlmRoleSettings: (_role, _s) => {},
+    getLlmRoleTuning: (): Record<LlmRole, RoleTuning> => ({
+      conversation: { claudeModel: null, effort: null, serviceTier: null },
+      assist: { claudeModel: null, effort: null, serviceTier: null },
+      coaching: { claudeModel: null, effort: null, serviceTier: null },
+      generation: { claudeModel: null, effort: null, serviceTier: null },
+      assessment: { claudeModel: null, effort: null, serviceTier: null },
+    }),
+    saveLlmRoleTuning: (_t) => {},
     applyLlmSettings: (_s) => {},
     llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
     warmLlm: () => {},

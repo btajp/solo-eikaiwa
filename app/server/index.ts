@@ -23,6 +23,7 @@ import { makeFeedbackStore } from "./feedback-store";
 import { makeLlmSettingsStore } from "./llm-settings-store";
 import { makeTtsSettingsStore } from "./tts-settings-store";
 import { makeLlmRoleSettingsStore } from "./llm-role-settings-store";
+import { makeLlmRoleTuningStore } from "./llm-role-tuning-store";
 import { conversationWarmup } from "./llm-warmup";
 import { LLM_ROLES } from "./llm-provider";
 
@@ -44,6 +45,7 @@ const feedbackStore = makeFeedbackStore(db);
 const llmSettingsStore = makeLlmSettingsStore(db);
 const ttsSettingsStore = makeTtsSettingsStore(db);
 const llmRoleSettingsStore = makeLlmRoleSettingsStore(db);
+const llmRoleTuningStore = makeLlmRoleTuningStore(db);
 const assembleMonthData = makeAssembleMonthData({
   db,
   sentences,
@@ -110,6 +112,8 @@ const realDeps: RouteDeps = {
   saveLlmSettings: (s) => llmSettingsStore.save(s),
   getLlmRoleSettings: () => llmRoleSettingsStore.getAll(),
   saveLlmRoleSettings: (role, s) => llmRoleSettingsStore.save(role, s),
+  getLlmRoleTuning: () => llmRoleTuningStore.getAll(),
+  saveLlmRoleTuning: (t) => llmRoleTuningStore.setAll(t),
   // 「現在の全体設定 + 保存済みロール」で一括再解決する（PUT /api/llm-settings, /api/llm-settings/roles の共通経路）。
   applyLlmSettings: (s) => applyLlmRoleSettings(s, llmRoleSettingsStore.getAll()),
   // env 由来情報。APIキーは有無のみ（値は絶対に返さない）。
