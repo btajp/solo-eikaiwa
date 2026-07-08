@@ -81,6 +81,8 @@ type SettingsStrings = {
     presetHighQuality: string;
     presetHighQualityDesc: string;
     presetLocalRequired: string;
+    presetCustom: string;
+    presetBalancedOption: string;
     connectionSection: string;
     claudeNoSetup: string;
     localConnTitle: string;
@@ -342,6 +344,8 @@ export const STR: Record<Lang, Strings> = {
       presetHighQuality: "Best quality",
       presetHighQualityDesc: "Every role uses Claude, the tested baseline.",
       presetLocalRequired: "Add a local LLM connection below to enable the local presets.",
+      presetCustom: "Custom",
+      presetBalancedOption: "Balanced (Recommended)",
       connectionSection: "Connections",
       claudeNoSetup: "Claude needs no setup — it works with your Claude subscription.",
       localConnTitle: "Local LLM (OpenAI-compatible)",
@@ -660,6 +664,8 @@ export const STR: Record<Lang, Strings> = {
       presetHighQuality: "最高品質",
       presetHighQualityDesc: "すべての用途を Claude（動作確認済みの基準）で動かします。",
       presetLocalRequired: "下でローカル LLM の接続先を設定すると、ローカルを使うプリセットが選べます。",
+      presetCustom: "カスタム",
+      presetBalancedOption: "バランス（推奨）",
       connectionSection: "接続",
       claudeNoSetup: "Claude は設定不要です（Claude のサブスクリプションで動作します）。",
       localConnTitle: "ローカル LLM（OpenAI 互換）",

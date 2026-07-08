@@ -5,7 +5,7 @@ import {
   type LlmRole, type LlmSettingsView, type TtsSettingsView,
 } from "../api";
 import {
-  PRESETS, isLocalDefined, presetEnabled, hydrateConnection, hydrateTargets, buildRolesPayload,
+  PRESETS, isLocalDefined, presetEnabled, matchPreset, hydrateConnection, hydrateTargets, buildRolesPayload,
   type RoleTarget, type RoleTargets, type Connection, type PresetId,
 } from "../lib/llm-assignments";
 import { STR, type Lang } from "../i18n";
@@ -115,17 +115,19 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     setResult(v.applied === false ? s.llm.notApplied(v.error ?? "") : s.llm.applied);
   }
 
-  async function persist(nextTargets: RoleTargets, nextConn: Connection) {
+  async function persist(nextTargets: RoleTargets, nextConn: Connection): Promise<boolean> {
     setSaving(true); setResult(null);
     try {
       applyResult(await saveLlmRoleSettings(buildRolesPayload(nextTargets, nextConn)));
-    } catch { setResult(s.llm.saveFailed); } finally { setSaving(false); }
+      return true;
+    } catch { setResult(s.llm.saveFailed); return false; } finally { setSaving(false); }
   }
 
-  function applyPreset(id: PresetId) {
+  async function applyPreset(id: PresetId) {
+    const prev = targets;
     const next = PRESETS[id];
     setTargets(next);
-    void persist(next, conn);
+    if (!(await persist(next, conn))) setTargets(prev); // 失敗時は楽観更新を巻き戻す
   }
 
   function setTarget(role: LlmRole, t: RoleTarget) {
@@ -176,17 +178,33 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
       <section className="support-panel stack">
         <div className="stat-title">{s.settings.llmSection}</div>
 
-        {/* プリセット（最上部・ロール割当を書くだけ） */}
+        {/* プリセット（現在の割当から逆引き表示。手動変更でカスタムに落ちる） */}
         <div className="stack">
           <div className="stat-title">{s.settings.presetSection}</div>
-          <div className="text-sm text-muted">{s.settings.presetAllLocalDesc}</div>
-          <Button variant="secondary" onClick={() => applyPreset("all-local")} disabled={saving || !view || !presetEnabled("all-local", conn)}>{s.settings.presetAllLocal}</Button>
-          <div className="text-sm">{s.settings.presetBalancedBadge}</div>
-          <div className="text-sm text-muted">{s.settings.presetBalancedDesc}</div>
-          <Button variant="primary" onClick={() => applyPreset("balanced")} disabled={saving || !view || !presetEnabled("balanced", conn)}>{s.settings.presetBalanced}</Button>
-          <div className="text-sm text-muted">{s.settings.presetHighQualityDesc}</div>
-          <Button variant="secondary" onClick={() => applyPreset("high-quality")} disabled={saving || !view}>{s.settings.presetHighQuality}</Button>
-          {!localDefined && <div className="text-sm text-muted">{s.settings.presetLocalRequired}</div>}
+          {(() => {
+            const current = matchPreset(targets);
+            return (
+              <>
+                <select
+                  className="llm-input" value={current} disabled={saving || !view}
+                  aria-label={s.settings.presetSection}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "all-local" || v === "balanced" || v === "high-quality") void applyPreset(v);
+                  }}
+                >
+                  {current === "custom" && <option value="custom" disabled>{s.settings.presetCustom}</option>}
+                  <option value="all-local" disabled={!presetEnabled("all-local", conn)}>{s.settings.presetAllLocal}</option>
+                  <option value="balanced" disabled={!presetEnabled("balanced", conn)}>{s.settings.presetBalancedOption}</option>
+                  <option value="high-quality">{s.settings.presetHighQuality}</option>
+                </select>
+                {current === "all-local" && <div className="text-sm text-muted">{s.settings.presetAllLocalDesc}</div>}
+                {current === "balanced" && <div className="text-sm text-muted">{s.settings.presetBalancedDesc}</div>}
+                {current === "high-quality" && <div className="text-sm text-muted">{s.settings.presetHighQualityDesc}</div>}
+                {!localDefined && <div className="text-sm text-muted">{s.settings.presetLocalRequired}</div>}
+              </>
+            );
+          })()}
         </div>
 
         {/* 接続（ローカル LLM / Codex を定義する場所） */}
@@ -213,7 +231,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
             </label>
           </div>
           <div className="text-sm text-muted">{s.llm.help}</div>
-          <Button variant="secondary" onClick={() => persist(targets, conn)} disabled={saving || !view}>{saving ? s.llm.saving : s.settings.saveConnection}</Button>
+          <Button variant="secondary" onClick={() => void persist(targets, conn)} disabled={saving || !view}>{saving ? s.llm.saving : s.settings.saveConnection}</Button>
         </div>
 
         {/* 用途ごとのモデル（ロール割当） */}
@@ -234,7 +252,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
               />
             </div>
           ))}
-          <Button variant="secondary" onClick={() => persist(targets, conn)} disabled={saving || !view}>{saving ? s.llm.saving : s.settings.saveAssignments}</Button>
+          <Button variant="secondary" onClick={() => void persist(targets, conn)} disabled={saving || !view}>{saving ? s.llm.saving : s.settings.saveAssignments}</Button>
         </div>
 
         {result && <div className="info-pop" role="status">{result}</div>}
