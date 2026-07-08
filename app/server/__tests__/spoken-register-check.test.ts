@@ -6,8 +6,12 @@ import {
   findWrittenVocabHits,
   computeSpokenRegisterMetrics,
   checkSpokenRegister,
+  checkModelTalk,
+  checkPrepChunk,
+  checkScenarioStarter,
   WRITTEN_VOCAB_BAN_LIST,
   THRESHOLDS_BY_BAND,
+  PREP_CHUNK_WORD_RANGE,
 } from "../spoken-register-check";
 
 describe("splitSentences", () => {
@@ -198,6 +202,114 @@ describe("checkSpokenRegister: 書き言葉語彙ヒットでFAILする", () => 
     const text =
       "I usually skip breakfast. Moreover, I don't eat much at lunch either, so I'm always hungry by dinner.";
     const result = checkSpokenRegister(text, "beginner");
+    expect(result.pass).toBe(false);
+    expect(result.reasons.some((r) => r.includes("書き言葉語彙"))).toBe(true);
+  });
+});
+
+describe("checkModelTalk", () => {
+  test("checkSpokenRegisterと同一の判定を返す（同じ3指標・同じ帯別閾値）", () => {
+    const good =
+      "I usually skip breakfast and just grab coffee on my way out. This curry tastes a bit spicy, doesn't it?";
+    const bad =
+      "I work for a small software company. My job is not to write code. My job is to test the app before other people use it.";
+    expect(checkModelTalk(good, "beginner")).toEqual(checkSpokenRegister(good, "beginner"));
+    expect(checkModelTalk(bad, "beginner")).toEqual(checkSpokenRegister(bad, "beginner"));
+    expect(checkModelTalk(bad, "beginner").pass).toBe(false);
+  });
+});
+
+describe("checkPrepChunk", () => {
+  test("正常系: 完全な文・語数範囲内・placeholderなしはPASS", () => {
+    const result = checkPrepChunk({ en: "The main problem we had was a slow database query.", ja: "主な問題は遅いDBクエリでした。" });
+    expect(result.pass).toBe(true);
+    expect(result.reasons).toEqual([]);
+    expect(result.wordCount).toBe(10);
+  });
+
+  test("小文字始まりはFAIL（大文字始まりでない）", () => {
+    const result = checkPrepChunk({ en: "the main problem was a slow query.", ja: "ja" });
+    expect(result.pass).toBe(false);
+    expect(result.reasons.some((r) => r.includes("完全な文"))).toBe(true);
+  });
+
+  test("句読点で終わらない断片はFAIL", () => {
+    const result = checkPrepChunk({ en: "The main problem we had was a slow query", ja: "ja" });
+    expect(result.pass).toBe(false);
+    expect(result.reasons.some((r) => r.includes("完全な文"))).toBe(true);
+  });
+
+  test("感嘆符・疑問符で終わる短い相槌的発話もPASSする（文法完全性は要求しない）", () => {
+    expect(checkPrepChunk({ en: "Sounds good to me!", ja: "いいですね！" }).reasons.some((r) => r.includes("完全な文"))).toBe(false);
+  });
+
+  test(`語数が下限(${PREP_CHUNK_WORD_RANGE.minWords}語)未満はFAIL`, () => {
+    const result = checkPrepChunk({ en: "Sure thing.", ja: "了解。" });
+    expect(result.pass).toBe(false);
+    expect(result.reasons.some((r) => r.includes("語数"))).toBe(true);
+  });
+
+  test(`語数が上限(${PREP_CHUNK_WORD_RANGE.maxWords}語)超はFAIL`, () => {
+    const en =
+      "The main problem we had was a very slow database query that kept timing out during peak traffic hours every single day.";
+    const result = checkPrepChunk({ en, ja: "ja" });
+    expect(result.pass).toBe(false);
+    expect(result.reasons.some((r) => r.includes("語数"))).toBe(true);
+  });
+
+  test("[X]のようなplaceholderトークンを検出する", () => {
+    const result = checkPrepChunk({ en: "The main problem was [specific issue] we found.", ja: "ja" });
+    expect(result.pass).toBe(false);
+    expect(result.reasons.some((r) => r.includes("placeholder"))).toBe(true);
+  });
+
+  test("<topic>のような山括弧placeholderも検出する", () => {
+    const result = checkPrepChunk({ en: "We talked about <topic> during the meeting today.", ja: "ja" });
+    expect(result.pass).toBe(false);
+    expect(result.reasons.some((r) => r.includes("placeholder"))).toBe(true);
+  });
+
+  test("省略記号(...)を検出する（coach.tsのNo ellipses規則に対応）", () => {
+    const result = checkPrepChunk({ en: "The main problem was... something we found later.", ja: "ja" });
+    expect(result.pass).toBe(false);
+    expect(result.reasons.some((r) => r.includes("placeholder"))).toBe(true);
+  });
+
+  test("TODO/TBDトークンを検出する", () => {
+    expect(checkPrepChunk({ en: "This is a TODO placeholder sentence for now.", ja: "ja" }).pass).toBe(false);
+  });
+
+  test("空文字列は完全な文でも語数範囲内でもなくFAIL", () => {
+    const result = checkPrepChunk({ en: "", ja: "" });
+    expect(result.pass).toBe(false);
+    expect(result.wordCount).toBe(0);
+  });
+});
+
+describe("checkScenarioStarter", () => {
+  test("短縮形を含む発話はPASS", () => {
+    const result = checkScenarioStarter("I'd like to check in, please.");
+    expect(result.pass).toBe(true);
+    expect(result.hasContraction).toBe(true);
+  });
+
+  test("短縮形が無くても十分短い発話はPASS（短さの救済）", () => {
+    const result = checkScenarioStarter("Excuse me, is this seat taken?");
+    expect(result.hasContraction).toBe(false);
+    expect(result.pass).toBe(true);
+  });
+
+  test("短縮形が無く、かつ長い発話はFAIL（書き言葉調の可能性）", () => {
+    const result = checkScenarioStarter(
+      "I am wondering if it would be possible for you to help me with this particular issue today.",
+    );
+    expect(result.hasContraction).toBe(false);
+    expect(result.pass).toBe(false);
+    expect(result.reasons.some((r) => r.includes("短縮形"))).toBe(true);
+  });
+
+  test("書き言葉語彙は長さに関わらずFAILする", () => {
+    const result = checkScenarioStarter("Moreover, I'd like to start.");
     expect(result.pass).toBe(false);
     expect(result.reasons.some((r) => r.includes("書き言葉語彙"))).toBe(true);
   });

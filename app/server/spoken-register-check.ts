@@ -152,3 +152,117 @@ export function checkSpokenRegister(text: string, band: SpokenBand): SpokenRegis
   }
   return { band, metrics, pass: reasons.length === 0, reasons };
 }
+
+/**
+ * model talk（連続モノローグ）の口語レジスター検証。
+ * 設計doc §5: 「listening / model talk（連続モノローグ）: spoken-register 3指標を hard fail（帯別閾値）」
+ * — ロジックは checkSpokenRegister と完全に同一（同じ3指標・同じ帯別閾値）。model talk 生成パイプライン
+ * から意味の伝わる名前で呼べるようにする別名エクスポートであり、listening 側の呼び出しは
+ * checkSpokenRegister のまま変更しない（既存セマンティクス不変）。
+ */
+export function checkModelTalk(text: string, band: SpokenBand): SpokenRegisterResult {
+  return checkSpokenRegister(text, band);
+}
+
+export type PrepChunk = { en: string; ja: string };
+
+export type PrepChunkThresholds = { minWords: number; maxWords: number };
+
+/**
+ * prepPack 1chunk あたりの語数許容レンジ。
+ * coach.ts prepSystem() の帯別ガイド（stage1-2: 6-10語 / stage3: 8-14語 / stage4+: 8-16語）の全域を
+ * カバーする単一の外枠として設定する。本チェックはプロンプト側の帯別厳密さを補完する粗い機械ゲートであり、
+ * stage別の厳密な範囲判定はしない — 明らかな異常（1語のフラグメント・数十語の長文化）だけを検出する。
+ */
+export const PREP_CHUNK_WORD_RANGE: PrepChunkThresholds = { minWords: 4, maxWords: 20 };
+
+/**
+ * placeholder らしき文字列（未展開のテンプレート跡）を検出する。
+ * [name] / <topic> / {slot} のようなブラケット系、TODO/TBD、3つ以上の連続アンダースコア、そして
+ * 省略記号（coach.ts prepSystem が明示的に禁止する "..." / "…"）を対象にする。
+ */
+const PLACEHOLDER_RE = /\[[^\]]*\]|<[^>]*>|\{[^}]*\}|\bTODO\b|\bTBD\b|_{2,}|\.\.\.|…/i;
+
+/**
+ * 文の表層的な完全性判定（大文字始まり・句読点終わり）。
+ * 主語+動詞の厳密な文法完全性は判定しない — 相槌的な短い発話（例: "Sure thing." "Sounds good!"）も
+ * 正当な話し言葉の完結した発話として扱うため、意図的に表層規則のみで判定する
+ * （ブリーフの「natural spoken fragment rule」に対応 — 文法的完全性を要求すると自然な短い発話を
+ * 誤ってFAILさせてしまうため、句読点で閉じているかどうかだけを見る）。
+ */
+function looksLikeCompleteSentence(text: string): boolean {
+  if (!text) return false;
+  const startsOk = /^[A-Z0-9"'(]/.test(text);
+  const endsOk = /[.!?]["')]?$/.test(text);
+  return startsOk && endsOk;
+}
+
+export type PrepChunkResult = {
+  pass: boolean;
+  reasons: string[];
+  wordCount: number;
+};
+
+/**
+ * prepPack の1chunk単位の検証（listening/model talkの「集計」チェックとは別物 — 1文ごとに判定する）。
+ * 検査項目: ①完全な文か（大文字始まり・句読点終わり） ②語数が許容レンジ内か ③placeholderトークンが無いか。
+ */
+export function checkPrepChunk(chunk: PrepChunk): PrepChunkResult {
+  const text = (chunk.en ?? "").trim();
+  const reasons: string[] = [];
+  const wordCount = countWords(text);
+
+  if (!looksLikeCompleteSentence(text)) {
+    reasons.push(`完全な文になっていません（大文字始まり・句読点終わりが必要）: "${text}"`);
+  }
+  if (wordCount < PREP_CHUNK_WORD_RANGE.minWords || wordCount > PREP_CHUNK_WORD_RANGE.maxWords) {
+    reasons.push(
+      `語数 ${wordCount} 語が許容範囲 ${PREP_CHUNK_WORD_RANGE.minWords}-${PREP_CHUNK_WORD_RANGE.maxWords} 語の外です`,
+    );
+  }
+  const placeholder = text.match(PLACEHOLDER_RE);
+  if (placeholder) {
+    reasons.push(`placeholderらしき文字列を検出: "${placeholder[0]}"`);
+  }
+  return { pass: reasons.length === 0, reasons, wordCount };
+}
+
+export type ScenarioStarterResult = {
+  pass: boolean;
+  reasons: string[];
+  wordCount: number;
+  hasContraction: boolean;
+};
+
+/**
+ * starter（シナリオ冒頭セリフ）の短さ許容閾値。これ以下の語数なら短縮形が無くてもFAILにしない。
+ * 設計doc §5「hints/setupには短縮形率を要求しない」を受け、starters自体にも「短すぎて短縮形の
+ * 入り込む余地がない」単一発話（例: "Excuse me." "Sounds good!"）を誤ってFAILさせないための救済。
+ * 6語は THRESHOLDS_BY_BAND.beginner の文長下限帯（6-10語ガイド）の下端に合わせた値。
+ */
+const STARTER_SHORT_LENGTH_TOLERANCE = 6;
+
+/**
+ * シナリオ starters のみを対象にした口語検証（hints/setupのナラティブ文には適用しない — 呼び出し側の責務）。
+ * 設計doc §5: 「scenarios: starters（冒頭セリフ）のみ口語検証。hints/setupには短縮形率を要求しない」。
+ * 単一の短い発話は文全体で短縮形の機会が無いことがあるため、「短縮形あり」または
+ * 「短縮形が無くても十分に短い（STARTER_SHORT_LENGTH_TOLERANCE語以下）」のいずれかを満たせばPASSとする。
+ * 書き言葉語彙の禁止は長さに関わらず適用する。
+ */
+export function checkScenarioStarter(text: string): ScenarioStarterResult {
+  const trimmed = text.trim();
+  const wordCount = countWords(trimmed);
+  const hasContraction = countContractions(trimmed) > 0;
+  const reasons: string[] = [];
+
+  if (!hasContraction && wordCount > STARTER_SHORT_LENGTH_TOLERANCE) {
+    reasons.push(
+      `短縮形が無く、${wordCount}語（>${STARTER_SHORT_LENGTH_TOLERANCE}語の短文許容を超過）のため書き言葉調の可能性があります: "${trimmed}"`,
+    );
+  }
+  const vocabHits = findWrittenVocabHits(trimmed);
+  if (vocabHits.length > 0) {
+    reasons.push(`書き言葉語彙を検出: ${vocabHits.map((h) => `${h.term}×${h.count}`).join(", ")}`);
+  }
+  return { pass: reasons.length === 0, reasons, wordCount, hasContraction };
+}
