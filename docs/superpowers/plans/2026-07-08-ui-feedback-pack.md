@@ -481,6 +481,35 @@ export function matchPreset(targets: RoleTargets): PresetId | "custom" {
 
 - [ ] **Step 3: 検証 + Commit** — `cd app/client && bun run build` → 緑。`git commit -m "feat: メニュー文言を行為が伝わる表現へ改善し i18n 規約を改定（4/3/2ミニ→くり返しトーク等）"`
 
+### Task 10: GitHubリンクと About 画面（2026-07-08 ユーザー追加要望・Task 8 の後、Task 9 の前に実施）
+
+**Files:**
+- Modify: `app/client/src/App.tsx`（Mode union に `{ kind: "about" }` 追加・サイドバー下部にリンク行・render 分岐）
+- Create: `app/client/src/screens/AboutScreen.tsx`
+- Modify: `app/client/src/i18n.ts`（`AboutStrings` ドメイン新設: 型 + EN + JA）
+- Modify: `app/client/src/styles/app.css`（`.sidebar-links` / `.side-link`）
+
+**Interfaces:**
+- Produces: `AboutScreen({ lang }: { lang: Lang })`。リンク先は GitHub `https://github.com/okash1n/solo-eikaiwa` / LP `https://okash1n.github.io/solo-eikaiwa/`（外部リンクは `target="_blank" rel="noopener noreferrer"`）
+
+- [ ] **Step 1: i18n** — 型 `type AboutStrings = { about: { title: string; desc: string; lpButton: string; githubButton: string; license: string } }` を交差型に追加し、EN/JA:
+  - EN: `title: "About"`, `desc: "solo-eikaiwa is a local-first English speaking gym for daily self-study — recording, transcription, AI conversation, and speech all run on your Mac."`, `lpButton: "Visit the website"`, `githubButton: "View on GitHub"`, `license: "Open source under the MIT License."`
+  - JA: `title: "このアプリについて"`, `desc: "solo-eikaiwa は、録音・文字起こし・AI 会話・音声合成まで自分の Mac の上で完結する、毎日のひとり英会話ジムです。"`, `lpButton: "紹介ページ（LP）を開く"`, `githubButton: "GitHub リポジトリを開く"`, `license: "MIT ライセンスのオープンソースです。"`
+- [ ] **Step 2: AboutScreen** — hero 見出し（`about.title`）+ ブランド行（`app-brand` と同じ `brand-mark` + `solo-eikaiwa`）+ `about.desc` + ボタン2つ（LP=primary 相当の `<a class="cta">` か `Button` 内 `window.open` ではなく素の `<a>` にボタン風クラス）+ `about.license`（`text-sm text-muted`）。既存の `Screen`/`card` イディオムに合わせる
+- [ ] **Step 3: サイドバー** — `PracticeStat` の下に:
+
+```tsx
+        <div className="sidebar-links">
+          <a className="side-link" href="https://github.com/okash1n/solo-eikaiwa" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          </a>
+          <button className="side-link" onClick={() => setMode({ kind: "about" })}>{t.about.title}</button>
+        </div>
+```
+
+  Mode union と render 分岐（`{mode.kind === "about" && <AboutScreen lang={lang} />}`）を追加。CSS: `.sidebar-links { display: flex; align-items: center; gap: var(--sp-3); } .side-link { display: inline-flex; align-items: center; gap: var(--sp-1); font: inherit; font-size: var(--fs-sm); color: var(--text-muted); background: none; border: none; padding: 0; cursor: pointer; text-decoration: none; } .side-link:hover { color: var(--text); }`。860px 以下では `.sidebar-links { display: none; }`（他のフッター要素と同じ扱い）
+- [ ] **Step 4: 検証 + Commit** — 3ゲート緑。`git commit -m "feat: サイドバーにGitHubリンクとAbout画面（LPへの導線）を追加"`
+
 ### Task 9: 統合検証とマージ
 
 - [ ] **Step 1: 3ゲート** — `cd app && bun test` / `cd app && bun run typecheck` / `cd app/client && bun run build` → 全緑
