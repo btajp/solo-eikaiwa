@@ -11,7 +11,7 @@ import { loadSentences, type Sentence } from "./sentences";
 import { vocabConstraint } from "./progression";
 import { categoryBadRates, pickWorstCategories } from "./srs-analytics";
 import { spokenStyleFor, type SpokenBand } from "./spoken-style";
-import { BAND_STAGE_RANGE, type Band } from "./content-coverage";
+import { BAND_STAGE_RANGE, computeBandCoverageStatuses, prioritizeFillTasks, type Band } from "./content-coverage";
 import { checkTopicAnchor } from "./topic-anchor-check";
 import { checkScenarioStarter } from "./spoken-register-check";
 
@@ -586,64 +586,66 @@ export function validateListeningCandidate(
   return { id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(), paragraphs };
 }
 
-export type GenListeningDeps = {
-  runner: ClaudeRunner;
-  listeningDir: string;
-  dry: boolean;
-  log?: (s: string) => void;
-};
-
-/**
- * stage帯（下=1-3 / 上=4-6）× 3ドメイン = 6本の多聴素材を生成する。level と domain はプランで固定し、
- * 語彙制約は帯に連動（下帯は vocabConstraint あり・上帯は無し）。全候補を検証してから一括書き込み（all-or-nothing）。
- * いずれかが2回とも検証NGなら何も書き込まず throw する。
- */
-const LISTENING_PLAN: ReadonlyArray<{ domain: (typeof DOMAINS)[number]; level: [number, number]; vocabStage: number; band: SpokenBand }> = [
-  { domain: "daily", level: [1, 3], vocabStage: 2, band: "beginner" },
-  { domain: "business", level: [1, 3], vocabStage: 2, band: "beginner" },
-  { domain: "it", level: [1, 3], vocabStage: 2, band: "beginner" },
-  { domain: "daily", level: [4, 6], vocabStage: 5, band: "advanced" },
-  { domain: "business", level: [4, 6], vocabStage: 5, band: "advanced" },
-  { domain: "it", level: [4, 6], vocabStage: 5, band: "advanced" },
-];
-
 /**
  * it ドメインの多聴生成が「手順書調（I check the code. I run the test.）」に寄り、宣言的な手順文の連続で
  * 短縮形の入る余地が無くなる問題への対策（T3差し戻し・it×beginner residual FAIL）。
- * it は全帯（advanced含む）に注入して害はない（advancedは既に安定してPASSしていたため）。daily/business は不変。
+ * it は全帯（development/fluency含む）に注入して害はない。daily/business は不変。
  */
 const IT_DOMAIN_CASUAL_LINE =
   "Even when talking about software/IT work, talk about it casually like telling a coworker over coffee — NOT like a manual or tutorial. " +
   "Avoid sequences of bare procedural statements; add reactions and feelings (I'm glad..., it's annoying when..., don't you hate it when...) which naturally carry contractions.";
 
-export async function genListening(deps: GenListeningDeps): Promise<void> {
+/** content-coverage の帯語彙(foundation/development/fluency)から spoken-style の帯語彙(beginner/intermediate/advanced)への対応 */
+const SPOKEN_BAND_FOR_BAND: Record<Band, SpokenBand> = {
+  foundation: "beginner", development: "intermediate", fluency: "advanced",
+};
+
+export type GenListeningForTargetDeps = {
+  runner: ClaudeRunner;
+  listeningDir: string;
+  domain: Domain;
+  band: Band;
+  count: number;
+  dry: boolean;
+  log?: (s: string) => void;
+};
+
+/**
+ * --fill-coverage の生成本体（listening側）。genTopicsForTarget/genScenariosForTargetと対をなす。
+ * 指定した帯(BAND_STAGE_RANGEの範囲そのものをlevelにする)×domain×countでquota適合素材をcount本生成する。
+ * 各アイテムは3ラウンド規律（attempt<=3）で検証NGなら再生成する。全アイテム検証済み後に一括書き込み（all-or-nothing）。
+ */
+export async function genListeningForTarget(deps: GenListeningForTargetDeps): Promise<void> {
   const log = deps.log ?? console.log;
   const existingIds = new Set(loadListening(deps.listeningDir).map((it) => it.id));
+  const [lo, hi] = BAND_STAGE_RANGE[deps.band];
+  const vocab = vocabConstraint(lo);
+  const vocabLine = vocab ? `${vocab}\n` : "";
+  const domainDesc = DOMAIN_DESC[deps.domain];
+  const spokenBand = SPOKEN_BAND_FOR_BAND[deps.band];
+  // it ドメインのみマニュアル調回避の指示を追加する（daily/businessは従来どおり不変・全帯対象）
+  const itCasualLine = deps.domain === "it" ? `${IT_DOMAIN_CASUAL_LINE}\n` : "";
   const candidates: Array<NewListeningCandidate & { domain: string; level: [number, number] }> = [];
 
-  for (const p of LISTENING_PLAN) {
-    const vocab = vocabConstraint(p.vocabStage);
-    // stage>=4（vocab===null）は行自体を挿入しない（上級者向け素材の語彙制約なし）
-    const vocabLine = vocab ? `${vocab}\n` : "";
-    const domainDesc = p.domain === "daily" ? "everyday life" : p.domain === "business" ? "the workplace" : "software/IT work";
-    // it ドメインのみマニュアル調回避の指示を追加する（daily/businessは従来どおり不変）
-    const itCasualLine = p.domain === "it" ? `${IT_DOMAIN_CASUAL_LINE}\n` : "";
+  for (let i = 0; i < deps.count; i++) {
     const system = `You write an original short LISTENING script for a Japanese learner of English to listen to (about 2-4 minutes when read aloud, roughly 250-450 words).
-Topic domain: ${domainDesc}. Difficulty: aim at CEFR level band for learner stage ${p.level[0]}-${p.level[1]} of 6.
+Topic domain: ${domainDesc}. Difficulty: aim at CEFR level band for learner stage ${lo}-${hi} of 6.
 Write natural spoken-style prose (first or third person) in 3-5 short paragraphs. No headings, no bullet lists, no dialogue markers, no speaker labels.
-${spokenStyleFor(p.band)}
+${spokenStyleFor(spokenBand)}
 ${itCasualLine}${vocabLine}${ORIGINALITY}
 Do NOT reuse these existing ids: ${[...existingIds].join(", ") || "(none)"}
 Reply with STRICT JSON only — no markdown fences:
 {"id":"kebab-case-id","title":"English title","titleJa":"日本語タイトル","paragraphs":["paragraph 1 text", "paragraph 2 text", "..."]}
 Do not use any tools — reply directly with text only.`;
     let cand: NewListeningCandidate | null = null;
-    for (let attempt = 1; attempt <= 2 && !cand; attempt++) {
+    for (let attempt = 1; attempt <= 3 && !cand; attempt++) {
       let text: string | undefined;
       try {
-        ({ text } = await deps.runner(`Write the ${p.domain} listening script now.`, undefined, { systemPrompt: system }));
+        ({ text } = await deps.runner(
+          `Write the ${deps.domain} listening script (band ${deps.band}, item ${i + 1}/${deps.count}) now.`, undefined, { systemPrompt: system },
+        ));
       } catch (err) {
-        // SDK呼び出し自体の一過性エラー（例: tool_use起因のmaxTurns超過）も検証NGと同様に1回だけ再試行する。
+        // SDK呼び出し自体の一過性エラー（例: tool_use起因のmaxTurns超過）も検証NGと同様に再試行する。
         // 非一過性の障害（認証切れ等）が「検証NG」に化けて原因が消えないよう、実エラーは必ずログに残す
         console.warn("[content-gen] runner error:", err instanceof Error ? err.message : String(err));
       }
@@ -651,14 +653,14 @@ Do not use any tools — reply directly with text only.`;
         const parsed = extractJson<NewListeningCandidate>(text);
         cand = validateListeningCandidate(parsed, existingIds, deps.listeningDir);
       }
-      if (!cand && attempt === 1) log(`  ${p.domain}/${p.level[0]}-${p.level[1]}: 検証NG — 再生成します`);
+      if (!cand && attempt < 3) log(`  ${deps.domain}/${deps.band}: 検証NG — 再生成します(${attempt}/3)`);
     }
     if (!cand) {
-      throw new Error(`エラー: ${p.domain}/${p.level[0]}-${p.level[1]} の多聴素材が検証を通りませんでした。何も書き込みません。`);
+      throw new Error(`エラー: ${deps.domain}/${deps.band} の listening (${i + 1}/${deps.count}) が3回とも検証を通りませんでした。何も書き込みません。`);
     }
     existingIds.add(cand.id);
-    candidates.push({ ...cand, domain: p.domain, level: p.level });
-    log(`  + listening: ${cand.id} [${p.domain}/${p.level[0]}-${p.level[1]}] ${cand.title}`);
+    candidates.push({ ...cand, domain: deps.domain, level: [lo, hi] });
+    log(`  + listening: ${cand.id} [${deps.domain}/${lo}-${hi}] ${cand.title}`);
   }
 
   if (deps.dry) {
@@ -679,7 +681,42 @@ Do not use any tools — reply directly with text only.`;
     for (const f of written) rmSync(f, { force: true });
     throw err;
   }
-  log(`完了: ${written.length} 本の多聴素材を追加しました。`);
+  log(`完了: ${written.length} 本の ${deps.domain}/${deps.band} listening を追加しました。`);
+}
+
+export type GenListeningDeps = {
+  runner: ClaudeRunner;
+  listeningDir: string;
+  dry: boolean;
+  log?: (s: string) => void;
+};
+
+/**
+ * listening の3帯(foundation[1,2]/development[3,4]/fluency[5,6])×3domain×quota(4本)を、
+ * 既存ファイルからの適合数（bridge除外・content-coverage.computeBandCoverageStatusesに委譲）を
+ * 差し引いた不足分だけ生成する（旧: 固定6本プランを毎回丸ごと生成・既存ファイルと無関係に追加していた）。
+ * 既存6本（bridge: [1,3]/[4,6]）はquota集計から除外されるため、削除せずとも資産として残ったまま
+ * 新設計の9セル（3帯×3domain）それぞれの不足分（quota4本）だけが生成される。
+ * 中断後の再実行でも、既に書かれた分は loadListening 経由で不足数の再計算に反映されるため、
+ * 二重生成せず不足分のみを積み増す（べき等・再開可能）。
+ */
+export async function genListening(deps: GenListeningDeps): Promise<void> {
+  const log = deps.log ?? console.log;
+  const existing = loadListening(deps.listeningDir).map((it) => ({ id: it.id, domain: it.domain, level: it.level }));
+  const tasks = prioritizeFillTasks(computeBandCoverageStatuses("listening", existing));
+
+  if (tasks.length === 0) {
+    log("不足セルはありません（listening は全帯×domainでquota充足済み）。");
+    return;
+  }
+  for (const task of tasks) {
+    const zeroNote = task.zeroEvenWithBridge ? " ※bridge込みでも空白" : "";
+    log(`\n=== listening / ${task.domain} / ${task.band} (${task.neededCount}本)${zeroNote} ===`);
+    await genListeningForTarget({
+      runner: deps.runner, listeningDir: deps.listeningDir, domain: task.domain, band: task.band,
+      count: task.neededCount, dry: deps.dry, log,
+    });
+  }
 }
 
 const DOMAIN_DESC: Record<Domain, string> = {

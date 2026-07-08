@@ -131,6 +131,18 @@ export const THRESHOLDS_BY_BAND: Record<SpokenBand, BandThresholds> = {
   advanced: { maxAvgWordsPerSentence: 16, minContractionsPerSentence: 0.2, maxWrittenVocabHits: 0 },
 };
 
+/**
+ * frontmatter の level: [min, max] から帯を推定する（3帯 [1,2]/[3,4]/[5,6] の境界と一致: level[1]<=3 は beginner、
+ * level[0]>=4 は advanced、それ以外（development=[3,4]自体・帯をまたぐbridge）は intermediate）。
+ * 旧実装は scripts/check-spoken-register.ts 内にのみ private に存在しテストが無かった。genListening系の
+ * 帯決定とCLIの両方から参照できるよう、ここに一本化してエクスポートする。
+ */
+export function bandForLevel(level: [number, number]): SpokenBand {
+  if (level[1] <= 3) return "beginner";
+  if (level[0] >= 4) return "advanced";
+  return "intermediate";
+}
+
 export function checkSpokenRegister(text: string, band: SpokenBand): SpokenRegisterResult {
   const metrics = computeSpokenRegisterMetrics(text);
   const th = THRESHOLDS_BY_BAND[band];

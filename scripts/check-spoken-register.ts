@@ -11,16 +11,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parseFrontmatter, parseLevelRange } from "../app/server/content";
-import { checkSpokenRegister, type SpokenRegisterResult } from "../app/server/spoken-register-check";
+import { checkSpokenRegister, bandForLevel, type SpokenRegisterResult } from "../app/server/spoken-register-check";
 import type { SpokenBand } from "../app/server/spoken-style";
 import { LISTENING_DIR } from "../app/server/paths";
-
-/** frontmatter の level: [min, max] から帯を推定する（多聴の LISTENING_PLAN と同じ区切り: <=3 beginner / >=4 advanced） */
-function bandForLevel(level: [number, number]): SpokenBand {
-  if (level[1] <= 3) return "beginner";
-  if (level[0] >= 4) return "advanced";
-  return "intermediate";
-}
 
 /** frontmatter があれば除去して本文のみ返す。無ければファイル全体をそのまま返す */
 function extractBody(text: string): { body: string; band: SpokenBand } {

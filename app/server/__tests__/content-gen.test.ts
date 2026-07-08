@@ -13,7 +13,7 @@ import {
 } from "../content-gen";
 import { loadListening, parseListeningFile } from "../listening";
 import {
-  genListening, listeningToMarkdown, validateListeningCandidate,
+  genListening, genListeningForTarget, listeningToMarkdown, validateListeningCandidate,
 } from "../content-gen";
 import { pickWorstCategories, type CategoryRate } from "../srs-analytics";
 import { SPOKEN_STYLE_BLOCK, spokenStyleFor } from "../spoken-style";
@@ -749,103 +749,193 @@ describe("content-gen / validateListeningCandidate", () => {
   });
 });
 
-describe("content-gen / genListening", () => {
-  function listeningJson(id: string, overrides: Record<string, unknown> = {}) {
+// v0.26 content-ladder wave2: listening を3帯(foundation[1,2]/development[3,4]/fluency[5,6])×3domain×4本へ
+// 拡張。genListeningForTarget は genTopicsForTarget/genScenariosForTarget と対をなす帯×domain×count指定の
+// 生成本体（--fill-coverageの生成本体でもある）。genListening はそれをcontent-coverageの不足セル計算で
+// 駆動するラッパーへ変わった（旧: 固定6件プランを毎回丸ごと生成）。
+describe("content-gen / genListeningForTarget（帯×domain×count・--fill-coverageの生成本体）", () => {
+  function listeningTargetJson(id: string, overrides: Record<string, unknown> = {}) {
     return JSON.stringify({
       id, title: `Title ${id}`, titleJa: `タイトル${id}`,
       paragraphs: [`First paragraph of ${id}.`, `Second paragraph of ${id}.`],
       ...overrides,
     });
   }
-  // LISTENING_PLAN の6件分（下帯3・上帯3）を順に返す
-  const SIX = ["daily-lo", "biz-lo", "it-lo", "daily-hi", "biz-hi", "it-hi"].map((id) => listeningJson(id));
 
-  test("正常系: LISTENING_PLAN 分（6本）が listeningDir に書かれ loadListening で読める", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-run-"));
+  test("正常系: count本がlevel=帯範囲ちょうど・domain固定で書かれ loadListening で読める", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-lt-"));
     const logs: string[] = [];
-    await genListening({ runner: makeRunner(SIX), listeningDir: dir, dry: false, log: (s) => logs.push(s) });
+    await genListeningForTarget({
+      runner: makeRunner([listeningTargetJson("morning-a"), listeningTargetJson("morning-b")]),
+      listeningDir: dir, domain: "daily", band: "fluency", count: 2, dry: false, log: (s) => logs.push(s),
+    });
     const items = loadListening(dir);
-    expect(items).toHaveLength(6);
-    // 下帯 [1,3] と上帯 [4,6] の両方が生成される
-    expect(items.some((i) => i.level[0] === 1 && i.level[1] === 3)).toBe(true);
-    expect(items.some((i) => i.level[0] === 4 && i.level[1] === 6)).toBe(true);
+    expect(items).toHaveLength(2);
+    expect(items.every((i) => i.domain === "daily" && i.level[0] === 5 && i.level[1] === 6)).toBe(true);
     expect(logs.some((l) => l.startsWith("完了:"))).toBe(true);
     rmSync(dir, { recursive: true, force: true });
   });
 
-  test("dry=true は一切書かない", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-dry-"));
+  test("dry=trueは一切書かない", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-lt-dry-"));
     const logs: string[] = [];
-    await genListening({ runner: makeRunner(SIX), listeningDir: dir, dry: true, log: (s) => logs.push(s) });
+    await genListeningForTarget({
+      runner: makeRunner([listeningTargetJson("morning-a")]),
+      listeningDir: dir, domain: "daily", band: "fluency", count: 1, dry: true, log: (s) => logs.push(s),
+    });
     expect(loadListening(dir)).toHaveLength(0);
     expect(logs.some((l) => l.includes("--dry"))).toBe(true);
     rmSync(dir, { recursive: true, force: true });
   });
 
-  test("下帯は systemPrompt に高頻度語彙制約(word families)が入り、上帯には入らない", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-vocab-"));
-    const { runner, seen } = makeCapturingRunner(SIX);
-    await genListening({ runner, listeningDir: dir, dry: true });
-    // LISTENING_PLAN の先頭3件が下帯（vocabStage 2）、後半3件が上帯（vocabStage 5）
-    expect(seen[0].systemPrompt).toContain("word families");
-    expect(seen[3].systemPrompt).not.toContain("word families");
-    expect(seen[3].systemPrompt).not.toMatch(/\bnull\b/);
+  test("3回とも検証NGなら書き込みゼロでthrow（3ラウンド規律）", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-lt-3fail-"));
+    const bad = listeningTargetJson("bad", { paragraphs: ["only one"] }); // 段落2未満で検証NG
+    await expect(
+      genListeningForTarget({
+        runner: makeRunner([bad, bad, bad]),
+        listeningDir: dir, domain: "daily", band: "fluency", count: 1, dry: false,
+      }),
+    ).rejects.toThrow();
+    expect(loadListening(dir)).toHaveLength(0);
     rmSync(dir, { recursive: true, force: true });
   });
 
-  test("下帯・上帯とも systemPrompt に口語スタイルブロックを含み、帯別の文長ガイドが異なる", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-spoken-"));
-    const { runner, seen } = makeCapturingRunner(SIX);
-    await genListening({ runner, listeningDir: dir, dry: true });
-    // 下帯(seen[0])はbeginner、上帯(seen[3])はadvancedの文長ガイド付きで注入される
-    expect(seen[0].systemPrompt).toContain(SPOKEN_STYLE_BLOCK);
-    expect(seen[3].systemPrompt).toContain(SPOKEN_STYLE_BLOCK);
-    expect(seen[0].systemPrompt).toContain(spokenStyleFor("beginner"));
-    expect(seen[3].systemPrompt).toContain(spokenStyleFor("advanced"));
-    expect(seen[0].systemPrompt).not.toContain(spokenStyleFor("advanced"));
-    rmSync(dir, { recursive: true, force: true });
-  });
-
-  // T3差し戻し(2回目): it×beginner が「手順書調（I check the code. I run the test.）」に収束し
-  // 短縮形が入らなかったため、itドメインのみマニュアル調回避の指示を追加する。
-  test("it ドメインの systemPrompt のみマニュアル調回避の指示を含み、daily/business は不変", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-it-casual-"));
-    const { runner, seen } = makeCapturingRunner(SIX);
-    await genListening({ runner, listeningDir: dir, dry: true });
-    // LISTENING_PLAN 順: [0]daily-lo [1]business-lo [2]it-lo [3]daily-hi [4]business-hi [5]it-hi
-    expect(seen[2].systemPrompt).toContain("NOT like a manual or tutorial");
-    expect(seen[5].systemPrompt).toContain("NOT like a manual or tutorial"); // it は全帯(advancedも)対象でよい
-    expect(seen[0].systemPrompt).not.toContain("NOT like a manual or tutorial");
-    expect(seen[1].systemPrompt).not.toContain("NOT like a manual or tutorial");
-    expect(seen[3].systemPrompt).not.toContain("NOT like a manual or tutorial");
-    expect(seen[4].systemPrompt).not.toContain("NOT like a manual or tutorial");
-    rmSync(dir, { recursive: true, force: true });
-  });
-
-  test("runner が1回だけ例外を投げても再試行で回復し6本生成される（SDK一過性エラー耐性）", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-transient-"));
+  test("runner が1回だけ例外を投げても再試行で回復し生成される（SDK一過性エラー耐性）", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-lt-transient-"));
     let callIndex = 0;
-    let responseIndex = 0;
     const runner: ClaudeRunner = async () => {
       if (callIndex++ === 0) throw new Error("Claude result error (error_max_turns): stop_reason=tool_use");
-      const text = SIX[Math.min(responseIndex, SIX.length - 1)];
-      responseIndex++;
-      return { text, sessionId: "fake" };
+      return { text: listeningTargetJson("morning-a"), sessionId: "fake" };
     };
     const logs: string[] = [];
-    await genListening({ runner, listeningDir: dir, dry: false, log: (s) => logs.push(s) });
-    expect(loadListening(dir)).toHaveLength(6);
+    await genListeningForTarget({ runner, listeningDir: dir, domain: "daily", band: "fluency", count: 1, dry: false, log: (s) => logs.push(s) });
+    expect(loadListening(dir)).toHaveLength(1);
     expect(logs.some((l) => l.includes("検証NG"))).toBe(true);
     rmSync(dir, { recursive: true, force: true });
   });
 
-  test("不正候補が2回続くと書き込みゼロで throw（オーファン無し）", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-fail-"));
-    const bad = listeningJson("ok-id", { paragraphs: ["only one"] }); // 段落2未満で検証NG
-    await expect(
-      genListening({ runner: makeRunner([SIX[0], SIX[1], bad, bad]), listeningDir: dir, dry: false }),
-    ).rejects.toThrow();
-    expect(loadListening(dir)).toHaveLength(0); // 先に検証を通った候補も書かれない
+  test("foundation帯はsystemPromptにword families制約が入り、fluency帯には入らない", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-lt-vocab-"));
+    const seen: Array<{ systemPrompt?: string }> = [];
+    const runner: ClaudeRunner = async (_p, _r, opts) => {
+      seen.push({ systemPrompt: opts?.systemPrompt });
+      return { text: listeningTargetJson(`t-${seen.length}`), sessionId: "fake" };
+    };
+    await genListeningForTarget({ runner, listeningDir: dir, domain: "business", band: "foundation", count: 1, dry: true });
+    await genListeningForTarget({ runner, listeningDir: dir, domain: "business", band: "fluency", count: 1, dry: true });
+    expect(seen[0].systemPrompt).toContain("word families");
+    expect(seen[1].systemPrompt).not.toContain("word families");
+    expect(seen[1].systemPrompt).not.toMatch(/\bnull\b/);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("帯別のspoken-styleガイドが注入される(foundation=beginner/development=intermediate/fluency=advanced)", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-lt-spoken-"));
+    const seen: Array<{ systemPrompt?: string }> = [];
+    const runner: ClaudeRunner = async (_p, _r, opts) => {
+      seen.push({ systemPrompt: opts?.systemPrompt });
+      return { text: listeningTargetJson(`t-${seen.length}`), sessionId: "fake" };
+    };
+    await genListeningForTarget({ runner, listeningDir: dir, domain: "daily", band: "foundation", count: 1, dry: true });
+    await genListeningForTarget({ runner, listeningDir: dir, domain: "daily", band: "development", count: 1, dry: true });
+    await genListeningForTarget({ runner, listeningDir: dir, domain: "daily", band: "fluency", count: 1, dry: true });
+    expect(seen[0].systemPrompt).toContain(SPOKEN_STYLE_BLOCK);
+    expect(seen[0].systemPrompt).toContain(spokenStyleFor("beginner"));
+    expect(seen[1].systemPrompt).toContain(spokenStyleFor("intermediate"));
+    expect(seen[2].systemPrompt).toContain(spokenStyleFor("advanced"));
+    expect(seen[0].systemPrompt).not.toContain(spokenStyleFor("advanced"));
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  // T3差し戻し(2回目・v0.25): it×beginner が「手順書調」に収束したため追加したマニュアル調回避の指示。
+  // v0.26で development(intermediate)帯が新設されたため、そちらにも適用されることを確認する。
+  test("itドメインはfoundation/development/fluencyの全帯でマニュアル調回避の指示を含み、daily/businessは不変", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-lt-it-casual-"));
+    const seen: Array<{ systemPrompt?: string }> = [];
+    const runner: ClaudeRunner = async (_p, _r, opts) => {
+      seen.push({ systemPrompt: opts?.systemPrompt });
+      return { text: listeningTargetJson(`t-${seen.length}`), sessionId: "fake" };
+    };
+    await genListeningForTarget({ runner, listeningDir: dir, domain: "it", band: "development", count: 1, dry: true });
+    await genListeningForTarget({ runner, listeningDir: dir, domain: "daily", band: "development", count: 1, dry: true });
+    expect(seen[0].systemPrompt).toContain("NOT like a manual or tutorial");
+    expect(seen[1].systemPrompt).not.toContain("NOT like a manual or tutorial");
+    rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("content-gen / genListening（カバレッジ駆動: 不足セルのみ生成しbridgeは対象外・べき等）", () => {
+  function listeningJson(id: string) {
+    return JSON.stringify({ id, title: `Title ${id}`, titleJa: `タイトル${id}`, paragraphs: [`P1 of ${id}.`, `P2 of ${id}.`] });
+  }
+  function seedFullCell(dir: string, domain: string, level: [number, number], prefix: string) {
+    for (let i = 0; i < 4; i++) {
+      writeFileSync(path.join(dir, `${prefix}-${i}.md`), listeningToMarkdown({
+        id: `${prefix}-${i}`, title: `T${i}`, titleJa: `t${i}`, domain, level, paragraphs: ["First line here.", "Second line here."],
+      }));
+    }
+  }
+
+  test("空ディレクトリでは9セル(3band×3domain)×quota4本=36本を生成する", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-cov-"));
+    let n = 0;
+    const runner: ClaudeRunner = async () => ({ text: listeningJson(`item-${n++}`), sessionId: "fake" });
+    const logs: string[] = [];
+    await genListening({ runner, listeningDir: dir, dry: false, log: (s) => logs.push(s) });
+    expect(loadListening(dir)).toHaveLength(36);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("既存bridge教材([1,3]/[4,6]相当)はquota外・温存され、対応する帯も不足扱いのまま4本生成される", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-bridge-"));
+    writeFileSync(path.join(dir, "bridge-daily-lo.md"), listeningToMarkdown({
+      id: "bridge-daily-lo", title: "Bridge", titleJa: "橋渡し", domain: "daily", level: [1, 3], paragraphs: ["First line here.", "Second line here."],
+    }));
+    let n = 0;
+    const runner: ClaudeRunner = async () => ({ text: listeningJson(`item-${n++}`), sessionId: "fake" });
+    await genListening({ runner, listeningDir: dir, dry: false, log: () => {} });
+    const items = loadListening(dir);
+    expect(items.some((i) => i.id === "bridge-daily-lo")).toBe(true); // bridgeは残る
+    expect(items).toHaveLength(37); // bridge1本 + 9セル×4本(bridgeはquota集計から除外されるため全セル満額生成)
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("既にquota充足済みのセルはスキップされ、不足セルのみ生成される（べき等な再実行）", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-skip-"));
+    seedFullCell(dir, "daily", [1, 2], "daily-f"); // daily/foundation を先に4本quota充足させておく
+    let n = 0;
+    const runner: ClaudeRunner = async () => ({ text: listeningJson(`item-${n++}`), sessionId: "fake" });
+    await genListening({ runner, listeningDir: dir, dry: false, log: () => {} });
+    const items = loadListening(dir);
+    expect(items.filter((i) => i.domain === "daily" && i.level[0] === 1 && i.level[1] === 2)).toHaveLength(4); // 追加されない
+    expect(items).toHaveLength(4 + 8 * 4); // 既存4本 + 残り8セル×4本
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("全9セルquota充足済みなら何も生成せずログのみ返す", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-full-"));
+    let idx = 0;
+    for (const domain of ["daily", "business", "it"] as const) {
+      for (const level of [[1, 2], [3, 4], [5, 6]] as Array<[number, number]>) {
+        seedFullCell(dir, domain, level, `full-${idx++}`);
+      }
+    }
+    const logs: string[] = [];
+    const runner: ClaudeRunner = async () => { throw new Error("呼ばれてはいけない"); };
+    await genListening({ runner, listeningDir: dir, dry: false, log: (s) => logs.push(s) });
+    expect(logs.some((l) => l.includes("不足セルはありません"))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("dry=trueは一切書かない", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-dry2-"));
+    let n = 0;
+    const runner: ClaudeRunner = async () => ({ text: listeningJson(`item-${n++}`), sessionId: "fake" });
+    const logs: string[] = [];
+    await genListening({ runner, listeningDir: dir, dry: true, log: (s) => logs.push(s) });
+    expect(loadListening(dir)).toHaveLength(0);
+    expect(logs.some((l) => l.includes("--dry"))).toBe(true);
     rmSync(dir, { recursive: true, force: true });
   });
 });
