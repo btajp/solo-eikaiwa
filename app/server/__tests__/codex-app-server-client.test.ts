@@ -1,19 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { CodexAppServerClient, type AppServerProc, type SpawnAppServer } from "../providers/codex-app-server";
-
-/** 送信を記録し、応答スクリプトを手動発火できるフェイク */
-function makeFakeProc() {
-  const sent: Record<string, unknown>[] = [];
-  let onMsg: (m: Record<string, unknown>) => void = () => {};
-  let onExit: (c: number | null) => void = () => {};
-  const proc: AppServerProc = {
-    send: (m) => sent.push(m),
-    onMessage: (cb) => { onMsg = cb; },
-    onExit: (cb) => { onExit = cb; },
-    kill: () => {},
-  };
-  return { proc, sent, emit: (m: Record<string, unknown>) => onMsg(m), exit: (c: number | null) => onExit(c) };
-}
+import { CodexAppServerClient, type SpawnAppServer } from "../providers/codex-app-server";
+import { makeFakeProc } from "./helpers/fake-app-server";
 
 describe("CodexAppServerClient", () => {
   test("初回requestでinitializeハンドシェイクを行いid対応でレスポンスを返す", async () => {
@@ -175,5 +162,19 @@ describe("CodexAppServerClient", () => {
 
     expect(await turnA).toBe("Hi A");
     expect(await turnB).toBe("Hi B");
+  });
+
+  test("exit後に届く遅延ServerRequestは無視される（throwも送信もしない）", async () => {
+    const f = makeFakeProc();
+    const client = new CodexAppServerClient((() => f.proc) as SpawnAppServer);
+    const p = client.request("thread/start", {});
+    await Bun.sleep(0);
+    f.exit(1);
+    await expect(p).rejects.toThrow(/exited/);
+    const sentBefore = f.sent.length;
+    // 死んだプロセスからの遅延 ServerRequest: 世代ガードで無視される（proc.send への応答で throw しない）
+    expect(() => f.emit({ id: 7, method: "item/commandExecution/requestApproval", params: {} })).not.toThrow();
+    await Bun.sleep(0);
+    expect(f.sent.length).toBe(sentBefore);
   });
 });

@@ -1,4 +1,6 @@
 import { tmpdir } from "node:os";
+import type { ClaudeRunner } from "../converse";
+import { composeCodexPrompt, type CodexMsg } from "./codex";
 
 /** transport 層（spawn/handshake/exit/timeout）で発生したエラー。モデル起因のエラー（turn failed 等）とは区別するために使う。 */
 export class TransportError extends Error {}
@@ -108,8 +110,16 @@ export class CodexAppServerClient {
     }
     this.proc = proc;
     this.isAlive = true; // 自己修復: 新規spawnした時点でこのインスタンスは新プロセスに対して有効
-    proc.onMessage((msg) => this.handleMessage(msg));
-    proc.onExit((code) => this.handleExit(code));
+    // 世代ガード: exit 済み・差し替え済みの旧プロセスから遅延して届くメッセージ/exit は無視する。
+    // 特に遅延 ServerRequest は this.proc.send での応答を伴うため、ガード無しでは exit 後に throw する。
+    proc.onMessage((msg) => {
+      if (this.proc !== proc) return;
+      this.handleMessage(msg);
+    });
+    proc.onExit((code) => {
+      if (this.proc !== proc) return;
+      this.handleExit(code);
+    });
   }
 
   private ensureHandshake(): Promise<void> {
@@ -288,3 +298,135 @@ export const realSpawnAppServer: SpawnAppServer = () => {
     },
   };
 };
+
+// ---------------------------------------------------------------------------
+// runner 層: ClaudeRunner 適合（sessionId = threadId）
+// ---------------------------------------------------------------------------
+
+export type CodexAppServerConfig = {
+  model?: string;
+  reasoningEffort?: string;
+  serviceTier?: string;
+  defaultSystemPrompt: string;
+  spawn?: SpawnAppServer;          // テスト注入。既定 realSpawnAppServer
+  execFallback?: ClaudeRunner;     // transport障害時のフォールバック（既定なし=そのままthrow）
+};
+
+/**
+ * thread/start / thread/resume に毎回渡す共通パラメータ。
+ * 安全境界はプロトコルレベルで固定する: sandbox=read-only + approvalPolicy=never（config.toml に依存しない）。
+ * cwd は中立な tmpdir、system プロンプトは developerInstructions として渡す。
+ */
+function threadParams(cfg: CodexAppServerConfig, system: string): Record<string, unknown> {
+  return {
+    ...(cfg.model !== undefined ? { model: cfg.model } : {}),
+    ...(cfg.serviceTier !== undefined ? { serviceTier: cfg.serviceTier } : {}),
+    sandbox: "read-only",
+    approvalPolicy: "never",
+    cwd: tmpdir(),
+    developerInstructions: system,
+    ...(cfg.reasoningEffort !== undefined ? { config: { model_reasoning_effort: cfg.reasoningEffort } } : {}),
+  };
+}
+
+/**
+ * 保険トランスクリプトを新スレッドの初回入力へ畳む。system はスレッド作成時に
+ * developerInstructions として渡し済みのため composeCodexPrompt には空文字を渡し、
+ * 空の [SYSTEM INSTRUCTIONS] ヘッダ（見出し行 + 空本文の空行）はノイズになるので取り除く。
+ * 履歴が空なら素の prompt を返す。
+ */
+function foldPrompt(history: CodexMsg[], prompt: string): string {
+  if (history.length === 0) return prompt;
+  return composeCodexPrompt("", history, prompt).replace(/^\[SYSTEM INSTRUCTIONS\]\n+/, "");
+}
+
+/**
+ * codex app-server を常駐プロセスとして使う ClaudeRunner。セッション解決の階梯（上から順に試す）:
+ * 1. 既知の threadId（プロセス生存中・systemPrompt 一致）→ そのまま turn/start
+ * 2. 未知の threadId（サーバ/プロセス再起動後）→ thread/resume（ディスク rollout からの復元 = パリティ経路）
+ * 3. resume がリクエストレベルで失敗 / systemPrompt が変わった → 新 thread/start + 保険トランスクリプトの畳み込み
+ * 4. transport 障害（spawn 失敗・exit・timeout・handshake 失敗 = TransportError）→ cfg.execFallback があれば
+ *    同じ (prompt, resumeId, opts) で exec アダプタへフォールバック。無ければそのまま throw
+ * モデル起因の失敗（turn failed・空応答）はフォールバックせず throw（exec アダプタと同じ挙動）。
+ */
+export function makeCodexAppServerRunner(cfg: CodexAppServerConfig): ClaudeRunner {
+  const client = new CodexAppServerClient(cfg.spawn ?? realSpawnAppServer);
+  /** sessionId(=threadId) → スレッド作成/復元時に採用した systemPrompt。プロセス内スレッドの生存記憶。 */
+  const threads = new Map<string, { systemPrompt: string }>();
+  /** 保険のインメモリ・トランスクリプト（resume 不能時の畳み込み再投入用。exec アダプタの store と同様に保持し続ける）。 */
+  const transcript = new Map<string, CodexMsg[]>();
+
+  async function startThread(system: string): Promise<string> {
+    const res = await client.request("thread/start", threadParams(cfg, system));
+    const id = (res.thread as Record<string, unknown> | undefined)?.id;
+    if (typeof id !== "string" || !id) {
+      throw new Error("codex app-server: thread/start が thread.id を返しませんでした");
+    }
+    threads.set(id, { systemPrompt: system });
+    return id;
+  }
+
+  /** 旧セッションの履歴を初回入力に畳み込んだ新スレッドを作る（fold）。 */
+  async function startFolded(oldId: string, system: string, prompt: string) {
+    const history = transcript.get(oldId) ?? [];
+    const threadId = await startThread(system);
+    return { threadId, turnText: foldPrompt(history, prompt), history };
+  }
+
+  /** セッション階梯の 1〜3 段目を解決し、turn を打つ先のスレッドと入力テキストを決める。 */
+  async function resolveThread(resumeId: string | undefined, system: string, prompt: string):
+    Promise<{ threadId: string; turnText: string; history: CodexMsg[] }> {
+    if (!resumeId) {
+      return { threadId: await startThread(system), turnText: prompt, history: [] };
+    }
+    const known = threads.get(resumeId);
+    if (known) {
+      if (known.systemPrompt !== system) {
+        // developerInstructions はスレッド作成時に固定済みのため、systemPrompt が変わったら新スレッドへ畳み込む
+        threads.delete(resumeId);
+        return startFolded(resumeId, system, prompt);
+      }
+      if (client.alive()) {
+        return { threadId: resumeId, turnText: prompt, history: transcript.get(resumeId) ?? [] };
+      }
+      // 既知だがプロセスが自発終了している（in-flight なしの exit は例外として観測されない）
+      // → 死んだプロセスのスレッド記憶で turn/start を打たず、resume 経路で復元する
+      threads.delete(resumeId);
+    }
+    try {
+      await client.request("thread/resume", { threadId: resumeId, ...threadParams(cfg, system) });
+      threads.set(resumeId, { systemPrompt: system });
+      return { threadId: resumeId, turnText: prompt, history: transcript.get(resumeId) ?? [] };
+    } catch (err) {
+      if (err instanceof TransportError) throw err; // transport 障害は exec フォールバック判定へ
+      // リクエストレベルの resume 失敗（未知スレッド等）→ 新スレッド + 畳み込み（transcript が空なら素の prompt）
+      return startFolded(resumeId, system, prompt);
+    }
+  }
+
+  return async (prompt, resumeId, opts) => {
+    const system = opts?.systemPrompt ?? cfg.defaultSystemPrompt;
+    try {
+      const { threadId, turnText, history } = await resolveThread(resumeId, system, prompt);
+      const text = (await client.runTurn(threadId, turnText)).trim();
+      if (!text) throw new Error("Codex returned empty result");
+      transcript.set(threadId, [
+        ...history,
+        { role: "user", content: prompt },
+        { role: "assistant", content: text },
+      ]);
+      return { text, sessionId: threadId };
+    } catch (err) {
+      if (err instanceof TransportError) {
+        // プロセスは死んだ（または起動できなかった）ため、プロセス内スレッドの記憶は全て失効させる。
+        // 次の呼び出しは thread/resume（ディスク復元）から入り直す。transcript は保険として残す。
+        threads.clear();
+        if (cfg.execFallback) {
+          console.warn("codex app-server unavailable, falling back to exec:", err);
+          return cfg.execFallback(prompt, resumeId, opts);
+        }
+      }
+      throw err;
+    }
+  };
+}
