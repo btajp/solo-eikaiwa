@@ -5,6 +5,7 @@ import {
 } from "./llm-provider";
 import { conversationWarmup } from "./llm-warmup";
 import { openAICompatWarmTargetFromEnv } from "./providers/openai-compat";
+import { TransportError } from "./providers/errors";
 import { appendEvent, markErrorLogged } from "./session-log";
 import { sessionLogPath } from "./paths";
 import { vocabConstraint } from "./progression";
@@ -36,7 +37,14 @@ export function makeClaudeRunner(queryFn: typeof query): ClaudeRunner {
   return async (prompt, resumeId, opts) => {
     let sessionId = resumeId ?? "";
     let text = "";
-    for await (const msg of queryFn({
+    // 2相エラー分類（binding、providers/decorators.ts の withFallback の判定基盤）:
+    // SDK の async iterator から最初のメッセージを受け取る前に throw した例外はプロセス起動・
+    // ハンドシェイク等の transport 起因とみなし TransportError に包む（cause 保持）。
+    // 最初のメッセージ以後の失敗（下の result subtype エラー・末尾の空 text）はモデル起因として
+    // 現行どおり plain Error のまま投げる。メッセージ文字列の sniffing はしない — 「最初のメッセージを
+    // 受け取ったかどうか」という時系列だけで分岐する。
+    let receivedFirstMessage = false;
+    const iterator = queryFn({
       prompt,
       options: {
         systemPrompt: opts?.systemPrompt ?? PARTNER_SYSTEM_PROMPT,
@@ -51,7 +59,22 @@ export function makeClaudeRunner(queryFn: typeof query): ClaudeRunner {
         maxTurns: 1,
         ...(resumeId ? { resume: resumeId } : {}),
       },
-    })) {
+    })[Symbol.asyncIterator]();
+
+    while (true) {
+      let step: Awaited<ReturnType<typeof iterator.next>>;
+      try {
+        step = await iterator.next();
+      } catch (err) {
+        if (receivedFirstMessage) throw err;
+        throw new TransportError(
+          `Claude SDK failed before first message: ${err instanceof Error ? err.message : String(err)}`,
+          { cause: err },
+        );
+      }
+      if (step.done) break;
+      receivedFirstMessage = true;
+      const msg = step.value;
       if (msg.type === "system" && msg.subtype === "init") sessionId = msg.session_id;
       if (msg.type === "result") {
         if (msg.subtype === "success") {

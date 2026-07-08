@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { converseTurn, makeClaudeRunner, PARTNER_SYSTEM_PROMPT, partnerSystemPrompt } from "../converse";
 import { isErrorLogged, readEvents } from "../session-log";
+import { TransportError } from "../providers/errors";
 import type { query } from "@anthropic-ai/claude-agent-sdk";
 
 // Minimal fake message shapes; only the fields defaultRunner actually reads are populated.
@@ -82,6 +83,47 @@ describe("makeClaudeRunner", () => {
     );
 
     await expect(runner("hi")).rejects.toThrow(/empty/);
+  });
+
+  test("SDK が最初のメッセージ前に落ちたら TransportError に包む（cause 保持）", async () => {
+    const throwingQuery = (() => {
+      async function* gen(): AsyncGenerator<unknown> {
+        throw new Error("spawn ENOENT");
+      }
+      return gen();
+    }) as unknown as typeof query;
+
+    const runner = makeClaudeRunner(throwingQuery);
+    await expect(runner("hi")).rejects.toBeInstanceOf(TransportError);
+
+    let caught: unknown;
+    try {
+      await runner("hi");
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(TransportError);
+    expect((caught as TransportError).cause).toBeInstanceOf(Error);
+    expect(((caught as TransportError).cause as Error).message).toBe("spawn ENOENT");
+  });
+
+  test("最初のメッセージ以後の失敗（result subtype エラー）は plain Error のまま（TransportError ではない）", async () => {
+    const runner = makeClaudeRunner(
+      fakeQuery([
+        { type: "system", subtype: "init", session_id: "sess-abc" },
+        { type: "result", subtype: "error_during_execution", errors: ["boom"], stop_reason: null },
+      ]),
+    );
+
+    let caught: unknown;
+    try {
+      await runner("hi");
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught).not.toBeInstanceOf(TransportError);
+    expect((caught as Error).message).toMatch(/Claude result error/);
   });
 });
 
