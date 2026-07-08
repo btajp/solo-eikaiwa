@@ -196,4 +196,10 @@ describe("matchPreset", () => {
     const view = fakeViewFromPayload(payload);
     expect(matchPreset(hydrateTargets(view))).toEqual({ id: "balanced", cloud: "claude" });
   });
+  test("往復整合（codex優先）: buildRolesPayload→hydrateTargets→matchPreset が {id, cloud:codex} に戻る", () => {
+    const conn = { baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: "gpt-5-codex" };
+    const payload = buildRolesPayload(presetTargets("balanced", "codex"), conn, "codex");
+    const view = fakeViewFromPayload(payload);
+    expect(matchPreset(hydrateTargets(view))).toEqual({ id: "balanced", cloud: "codex" });
+  });
 });
