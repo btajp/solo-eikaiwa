@@ -2,8 +2,8 @@ import { extractErrorMessage } from "./http";
 
 export type LlmProvider = "env" | "claude" | "openai-compat" | "codex";
 
-export type LlmRole = "conversation" | "coaching" | "generation" | "assessment";
-export const LLM_ROLES: readonly LlmRole[] = ["conversation", "coaching", "generation", "assessment"];
+export type LlmRole = "conversation" | "assist" | "coaching" | "generation" | "assessment";
+export const LLM_ROLES: readonly LlmRole[] = ["conversation", "assist", "coaching", "generation", "assessment"];
 export type LlmRoleProvider = "inherit" | "claude" | "openai-compat" | "codex";
 
 export type LlmRoleView = {

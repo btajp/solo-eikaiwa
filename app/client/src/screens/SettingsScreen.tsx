@@ -86,7 +86,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   const [connCodex, setConnCodex] = useState("");
   // ロール割当の編集状態（3値）
   const [targets, setTargets] = useState<RoleTargets>({
-    conversation: "claude", coaching: "claude", generation: "claude", assessment: "claude",
+    conversation: "claude", assist: "claude", coaching: "claude", generation: "claude", assessment: "claude",
   });
   // 音声（TTS）の編集状態
   const [ttsView, setTtsView] = useState<TtsSettingsView | null>(null);

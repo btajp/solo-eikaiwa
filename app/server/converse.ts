@@ -159,7 +159,7 @@ export function getCurrentRunner(role: LlmRole = "conversation"): ClaudeRunner {
 }
 
 /**
- * 全体設定 + ロール別設定から4ロールの runner を一括再解決する（再起動不要）。
+ * 全体設定 + ロール別設定から5ロールの runner を一括再解決する（再起動不要）。
  * inherit ロールは global の runner を共有参照する（= 全 inherit なら全ロール同一参照）。
  * APIキーは env（.env）由来のみ（settingsToEnv が担保）。不正 provider 等では selectRunner が throw しうるため、
  * 起動時適用側（index.ts）とルート層で fail-open ガードする。
@@ -176,6 +176,12 @@ export function applyLlmRoleSettings(
       role,
       isInheritRole(rs) ? globalRunner : resolveRunner(settingsToEnv(roleSettingToSettings(rs), env)),
     );
+  }
+  // assist の連鎖規則（binding）: assist の設定行が inherit のとき、assist は coaching の解決済み
+  // ランナーと同一参照になる（coaching も inherit なら上のループで globalRunner が入っているため、
+  // 結果として従来どおり global と同一参照）。resolveRunner 自体は変更しない、この1点だけの実装。
+  if (isInheritRole(roles.assist)) {
+    currentRunners.set("assist", currentRunners.get("coaching")!);
   }
   // conversation の解決先が openai-compat のときだけ warm 対象を更新する（inherit なら global を辿る）。
   const convSetting = isInheritRole(roles.conversation) ? global : roleSettingToSettings(roles.conversation);

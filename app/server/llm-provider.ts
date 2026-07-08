@@ -7,11 +7,15 @@ import { withFallback, withTimeout } from "./providers/decorators";
 /** サイドバー設定UIで選べる LLM プロバイダ。"env" は「環境変数に従う」リセット用センチネル。 */
 export type LlmProvider = "env" | "claude" | "openai-compat" | "codex";
 
-/** LLM 呼び出しの用途ロール（4つ固定）。各ロールは全体設定を継承(inherit)するか、独自プロバイダを持つ。 */
-export type LlmRole = "conversation" | "coaching" | "generation" | "assessment";
+/**
+ * LLM 呼び出しの用途ロール（5つ固定）。各ロールは全体設定を継承(inherit)するか、独自プロバイダを持つ。
+ * assist（クイック支援）は連鎖規則（binding）を持つ: 行不在(inherit)のときは coaching の解決済みランナーと
+ * 同一参照になる（coaching も不在なら従来どおり global）。実装は converse.ts の applyLlmRoleSettings 内の1点。
+ */
+export type LlmRole = "conversation" | "assist" | "coaching" | "generation" | "assessment";
 
 /** ロールの走査順（UI テーブルの並びと一致させる）。 */
-export const LLM_ROLES: readonly LlmRole[] = ["conversation", "coaching", "generation", "assessment"];
+export const LLM_ROLES: readonly LlmRole[] = ["conversation", "assist", "coaching", "generation", "assessment"];
 
 /** ロール別プロバイダ。"inherit" は「全体設定に従う」センチネル。それ以外は LlmProvider の部分集合（"env" はロールでは扱わない）。 */
 export type LlmRoleProvider = "inherit" | "claude" | "openai-compat" | "codex";

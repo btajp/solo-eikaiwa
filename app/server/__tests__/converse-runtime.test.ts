@@ -43,7 +43,7 @@ const allInherit = (): Record<LlmRole, LlmRoleSetting> =>
 describe("runnerFor / applyLlmRoleSettings ロール別ルーティング", () => {
   afterAll(() => applyLlmSettings(CLAUDE, emptyEnv));
 
-  test("全ロール inherit + global=env なら4ロールとも同一の claude runner に解決する（既定不変）", () => {
+  test("全ロール inherit + global=env なら5ロールとも同一の claude runner に解決する（既定不変）", () => {
     applyLlmSettings(CLAUDE, emptyEnv);
     const claudeRef = getCurrentRunner("conversation");
     applyLlmRoleSettings({ provider: "env", baseUrl: null, model: null, codexModel: null }, allInherit(), emptyEnv);
@@ -73,6 +73,7 @@ describe("runnerFor / applyLlmRoleSettings ロール別ルーティング", () =
     );
     expect(getCurrentRunner("generation")).not.toBe(claudeRef);
     expect(getCurrentRunner("conversation")).toBe(claudeRef);
+    expect(getCurrentRunner("assist")).toBe(claudeRef);
     expect(getCurrentRunner("coaching")).toBe(claudeRef);
     expect(getCurrentRunner("assessment")).toBe(claudeRef);
   });
@@ -81,5 +82,40 @@ describe("runnerFor / applyLlmRoleSettings ロール別ルーティング", () =
     applyLlmSettings({ provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "llama3", codexModel: null }, emptyEnv);
     const conv = getCurrentRunner("conversation");
     for (const role of LLM_ROLES) expect(getCurrentRunner(role)).toBe(conv);
+  });
+});
+
+describe("assist ロールの連鎖規則（不在=coaching の解決結果を共有参照）", () => {
+  afterAll(() => applyLlmSettings(CLAUDE, emptyEnv));
+
+  test("assist 行が inherit のとき、coaching が openai-compat でも assist は coaching と同一 runner 参照になる", () => {
+    applyLlmRoleSettings(
+      CLAUDE,
+      { ...allInherit(), coaching: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "llama3", codexModel: null } },
+      emptyEnv,
+    );
+    expect(runnerFor("assist")).not.toBe(undefined);
+    expect(getCurrentRunner("assist")).toBe(getCurrentRunner("coaching"));
+  });
+
+  test("assist 行が明示設定のときは coaching と独立に解決する", () => {
+    applyLlmRoleSettings(
+      CLAUDE,
+      {
+        ...allInherit(),
+        coaching: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "llama3", codexModel: null },
+        assist: { provider: "codex", baseUrl: null, model: null, codexModel: "o4-mini" },
+      },
+      emptyEnv,
+    );
+    expect(getCurrentRunner("assist")).not.toBe(getCurrentRunner("coaching"));
+  });
+
+  test("assist・coaching とも inherit なら両方 global と同一参照（従来どおり）", () => {
+    applyLlmSettings(CLAUDE, emptyEnv);
+    const claudeRef = getCurrentRunner("conversation");
+    applyLlmRoleSettings({ provider: "env", baseUrl: null, model: null, codexModel: null }, allInherit(), emptyEnv);
+    expect(getCurrentRunner("assist")).toBe(claudeRef);
+    expect(getCurrentRunner("coaching")).toBe(claudeRef);
   });
 });

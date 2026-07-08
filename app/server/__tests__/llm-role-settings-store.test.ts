@@ -9,10 +9,10 @@ function freshStore() {
 }
 
 describe("llm-role-settings-store", () => {
-  test("getAll: 未設定なら4ロールとも inherit を返す", () => {
+  test("getAll: 未設定なら5ロールとも inherit を返す", () => {
     const store = freshStore();
     const all = store.getAll();
-    expect(Object.keys(all).sort()).toEqual(["assessment", "coaching", "conversation", "generation"]);
+    expect(Object.keys(all).sort()).toEqual(["assessment", "assist", "coaching", "conversation", "generation"]);
     for (const role of Object.keys(all) as Array<keyof typeof all>) {
       expect(all[role]).toEqual({ provider: "inherit", baseUrl: null, model: null, codexModel: null });
     }

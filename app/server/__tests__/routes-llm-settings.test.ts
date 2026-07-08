@@ -17,6 +17,7 @@ describe("llm-settings API", () => {
       apiKeyConfigured: false, envProvider: "claude",
       roles: {
         conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         coaching: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
@@ -35,6 +36,7 @@ describe("llm-settings API", () => {
       apiKeyConfigured: true, envProvider: "claude",
       roles: {
         conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         coaching: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
@@ -130,6 +132,7 @@ describe("llm-settings roles API", () => {
       getLlmSettings: () => null,
       getLlmRoleSettings: () => ({
         conversation: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "llama3", codexModel: null },
+        assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         coaching: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
@@ -172,12 +175,12 @@ describe("llm-settings roles API", () => {
     await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
       global: { provider: "env" },
       roles: {
-        conversation: { provider: "inherit" }, coaching: { provider: "inherit" },
+        conversation: { provider: "inherit" }, assist: { provider: "inherit" }, coaching: { provider: "inherit" },
         generation: { provider: "inherit" }, assessment: { provider: "inherit" },
       },
     }));
     expect(savedGlobals).toEqual([{ provider: "env", baseUrl: null, model: null, codexModel: null }]);
-    expect(savedRoles.sort()).toEqual(["assessment", "coaching", "conversation", "generation"]);
+    expect(savedRoles.sort()).toEqual(["assessment", "assist", "coaching", "conversation", "generation"]);
   });
 
   test("PUT /roles 400: 未知ロール・不正 provider・openai-compat の欠落（保存しない）", async () => {

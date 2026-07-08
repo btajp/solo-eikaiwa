@@ -110,8 +110,8 @@ describe("settingsToEnv", () => {
 });
 
 describe("role settings helpers", () => {
-  test("LLM_ROLES は4ロール固定・順序も固定", () => {
-    expect([...LLM_ROLES]).toEqual(["conversation", "coaching", "generation", "assessment"]);
+  test("LLM_ROLES は5ロール固定・順序も固定", () => {
+    expect([...LLM_ROLES]).toEqual(["conversation", "assist", "coaching", "generation", "assessment"]);
   });
 
   test("isInheritRole は provider==='inherit' のときだけ true", () => {

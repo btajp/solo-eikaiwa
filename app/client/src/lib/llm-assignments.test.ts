@@ -16,7 +16,7 @@ function mkView(over: Partial<LlmSettingsView> = {}): LlmSettingsView {
   return {
     provider: "env", baseUrl: null, model: null, codexModel: null,
     apiKeyConfigured: false, envProvider: "claude",
-    roles: { conversation: inherit, coaching: inherit, generation: inherit, assessment: inherit },
+    roles: { conversation: inherit, assist: inherit, coaching: inherit, generation: inherit, assessment: inherit },
     ...over,
   };
 }
@@ -58,6 +58,7 @@ describe("buildRolesPayload", () => {
       global: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: null },
       roles: {
         conversation: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
+        assist: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
         coaching: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
         generation: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
         assessment: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
@@ -65,10 +66,11 @@ describe("buildRolesPayload", () => {
     });
   });
 
-  test("バランス: 会話・教材生成=ローカル / コーチング・測定=Claude", () => {
+  test("バランス: 会話・クイック支援・教材生成=ローカル / コーチング・測定=Claude", () => {
     const payload = buildRolesPayload(PRESETS.balanced, LOCAL_CONN);
     expect(payload.roles).toEqual({
       conversation: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
+      assist: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
       coaching: { provider: "claude" },
       generation: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
       assessment: { provider: "claude" },
@@ -79,7 +81,7 @@ describe("buildRolesPayload", () => {
   test("最高品質: 全ロール Claude だが接続(global=openai-compat)は保持する", () => {
     const payload = buildRolesPayload(PRESETS["high-quality"], LOCAL_CONN);
     expect(payload.roles).toEqual({
-      conversation: { provider: "claude" }, coaching: { provider: "claude" },
+      conversation: { provider: "claude" }, assist: { provider: "claude" }, coaching: { provider: "claude" },
       generation: { provider: "claude" }, assessment: { provider: "claude" },
     });
     expect(payload.global).toEqual({ provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: null });
@@ -87,25 +89,25 @@ describe("buildRolesPayload", () => {
 
   test("接続に Codex model があれば global.codexModel と codex ロールに載る", () => {
     const conn = { baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: "gpt-5-codex" };
-    const targets: RoleTargets = { conversation: "codex", coaching: "local", generation: "local", assessment: "claude" };
+    const targets: RoleTargets = { conversation: "codex", assist: "local", coaching: "local", generation: "local", assessment: "claude" };
     const payload = buildRolesPayload(targets, conn);
     expect(payload.global).toEqual({ provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: "gpt-5-codex" });
     expect(payload.roles.conversation).toEqual({ provider: "codex", codexModel: "gpt-5-codex" });
   });
 
   test("buildRolesPayload: cloud省略時は従来どおりclaudeフォールバック", () => {
-    const targets: RoleTargets = { conversation: "local", coaching: "claude", generation: "local", assessment: "claude" };
+    const targets: RoleTargets = { conversation: "local", assist: "local", coaching: "claude", generation: "local", assessment: "claude" };
     const payload = buildRolesPayload(targets, EMPTY_CONN);
     expect(payload.global).toEqual({ provider: "env" });
     expect(payload.roles).toEqual({
-      conversation: { provider: "claude" }, coaching: { provider: "claude" },
+      conversation: { provider: "claude" }, assist: { provider: "claude" }, coaching: { provider: "claude" },
       generation: { provider: "claude" }, assessment: { provider: "claude" },
     });
   });
 
   test("ローカル未定義・Codex のみ定義なら global=codex", () => {
     const conn = { baseUrl: "", model: "", codexModel: "gpt-5-codex" };
-    const targets: RoleTargets = { conversation: "codex", coaching: "codex", generation: "codex", assessment: "codex" };
+    const targets: RoleTargets = { conversation: "codex", assist: "codex", coaching: "codex", generation: "codex", assessment: "codex" };
     const payload = buildRolesPayload(targets, conn);
     expect(payload.global).toEqual({ provider: "codex", codexModel: "gpt-5-codex" });
     expect(payload.roles.conversation).toEqual({ provider: "codex", codexModel: "gpt-5-codex" });
@@ -121,10 +123,10 @@ describe("buildRolesPayload", () => {
 describe("hydrateTargets（inherit の読み替え）", () => {
   test("既存ユーザー: llm_settings=openai-compat・全ロール inherit → 全ロール local", () => {
     const view = mkView({ provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" });
-    expect(hydrateTargets(view)).toEqual({ conversation: "local", coaching: "local", generation: "local", assessment: "local" });
+    expect(hydrateTargets(view)).toEqual({ conversation: "local", assist: "local", coaching: "local", generation: "local", assessment: "local" });
   });
   test("新規ユーザー: provider=env・envProvider=claude・全ロール inherit → 全ロール claude", () => {
-    expect(hydrateTargets(mkView())).toEqual({ conversation: "claude", coaching: "claude", generation: "claude", assessment: "claude" });
+    expect(hydrateTargets(mkView())).toEqual({ conversation: "claude", assist: "claude", coaching: "claude", generation: "claude", assessment: "claude" });
   });
   test("env の envProvider が openai-compat なら inherit は local", () => {
     expect(hydrateTargets(mkView({ provider: "env", envProvider: "openai-compat" })).conversation).toBe("local");
@@ -134,12 +136,13 @@ describe("hydrateTargets（inherit の読み替え）", () => {
       provider: "env",
       roles: {
         conversation: { provider: "openai-compat", baseUrl: "http://x/v1", model: "m", codexModel: null },
+        assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         coaching: { provider: "claude", baseUrl: null, model: null, codexModel: null },
         generation: { provider: "codex", baseUrl: null, model: null, codexModel: "c" },
         assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
       },
     });
-    expect(hydrateTargets(view)).toEqual({ conversation: "local", coaching: "claude", generation: "codex", assessment: "claude" });
+    expect(hydrateTargets(view)).toEqual({ conversation: "local", assist: "claude", coaching: "claude", generation: "codex", assessment: "claude" });
   });
 });
 
@@ -153,6 +156,7 @@ describe("hydrateConnection", () => {
       provider: "env",
       roles: {
         conversation: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: null },
+        assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         coaching: { provider: "codex", baseUrl: null, model: null, codexModel: "gpt-5-codex" },
         generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
@@ -168,7 +172,7 @@ describe("hydrateConnection", () => {
 describe("presetTargets", () => {
   test("claude枠が優先クラウドに置換される（localは不変）", () => {
     expect(presetTargets("balanced", "codex")).toEqual(
-      { conversation: "local", coaching: "codex", generation: "local", assessment: "codex" });
+      { conversation: "local", assist: "local", coaching: "codex", generation: "local", assessment: "codex" });
     expect(presetTargets("balanced", "claude")).toEqual(PRESETS.balanced);
   });
 });
@@ -188,7 +192,7 @@ describe("matchPreset", () => {
     expect(matchPreset({ ...PRESETS.balanced, generation: "codex" })).toBe("custom");
   });
   test("クラウド混在はcustom", () => {
-    expect(matchPreset({ conversation: "local", coaching: "claude", generation: "local", assessment: "codex" })).toBe("custom");
+    expect(matchPreset({ conversation: "local", assist: "local", coaching: "claude", generation: "local", assessment: "codex" })).toBe("custom");
   });
   test("往復整合: buildRolesPayload→hydrateTargets→matchPreset が元に戻る", () => {
     const conn = { baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: "" };

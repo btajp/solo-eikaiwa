@@ -195,6 +195,7 @@ export function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
     saveLlmSettings: (_s) => {},
     getLlmRoleSettings: (): Record<LlmRole, LlmRoleSetting> => ({
       conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+      assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
       coaching: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
       generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
       assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
