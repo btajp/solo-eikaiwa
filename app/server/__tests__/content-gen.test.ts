@@ -805,6 +805,22 @@ describe("content-gen / genListening", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  // T3差し戻し(2回目): it×beginner が「手順書調（I check the code. I run the test.）」に収束し
+  // 短縮形が入らなかったため、itドメインのみマニュアル調回避の指示を追加する。
+  test("it ドメインの systemPrompt のみマニュアル調回避の指示を含み、daily/business は不変", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-it-casual-"));
+    const { runner, seen } = makeCapturingRunner(SIX);
+    await genListening({ runner, listeningDir: dir, dry: true });
+    // LISTENING_PLAN 順: [0]daily-lo [1]business-lo [2]it-lo [3]daily-hi [4]business-hi [5]it-hi
+    expect(seen[2].systemPrompt).toContain("NOT like a manual or tutorial");
+    expect(seen[5].systemPrompt).toContain("NOT like a manual or tutorial"); // it は全帯(advancedも)対象でよい
+    expect(seen[0].systemPrompt).not.toContain("NOT like a manual or tutorial");
+    expect(seen[1].systemPrompt).not.toContain("NOT like a manual or tutorial");
+    expect(seen[3].systemPrompt).not.toContain("NOT like a manual or tutorial");
+    expect(seen[4].systemPrompt).not.toContain("NOT like a manual or tutorial");
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   test("runner が1回だけ例外を投げても再試行で回復し6本生成される（SDK一過性エラー耐性）", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "gen-listen-transient-"));
     let callIndex = 0;

@@ -594,6 +594,15 @@ const LISTENING_PLAN: ReadonlyArray<{ domain: (typeof DOMAINS)[number]; level: [
   { domain: "it", level: [4, 6], vocabStage: 5, band: "advanced" },
 ];
 
+/**
+ * it ドメインの多聴生成が「手順書調（I check the code. I run the test.）」に寄り、宣言的な手順文の連続で
+ * 短縮形の入る余地が無くなる問題への対策（T3差し戻し・it×beginner residual FAIL）。
+ * it は全帯（advanced含む）に注入して害はない（advancedは既に安定してPASSしていたため）。daily/business は不変。
+ */
+const IT_DOMAIN_CASUAL_LINE =
+  "Even when talking about software/IT work, talk about it casually like telling a coworker over coffee — NOT like a manual or tutorial. " +
+  "Avoid sequences of bare procedural statements; add reactions and feelings (I'm glad..., it's annoying when..., don't you hate it when...) which naturally carry contractions.";
+
 export async function genListening(deps: GenListeningDeps): Promise<void> {
   const log = deps.log ?? console.log;
   const existingIds = new Set(loadListening(deps.listeningDir).map((it) => it.id));
@@ -604,11 +613,13 @@ export async function genListening(deps: GenListeningDeps): Promise<void> {
     // stage>=4（vocab===null）は行自体を挿入しない（上級者向け素材の語彙制約なし）
     const vocabLine = vocab ? `${vocab}\n` : "";
     const domainDesc = p.domain === "daily" ? "everyday life" : p.domain === "business" ? "the workplace" : "software/IT work";
+    // it ドメインのみマニュアル調回避の指示を追加する（daily/businessは従来どおり不変）
+    const itCasualLine = p.domain === "it" ? `${IT_DOMAIN_CASUAL_LINE}\n` : "";
     const system = `You write an original short LISTENING script for a Japanese learner of English to listen to (about 2-4 minutes when read aloud, roughly 250-450 words).
 Topic domain: ${domainDesc}. Difficulty: aim at CEFR level band for learner stage ${p.level[0]}-${p.level[1]} of 6.
 Write natural spoken-style prose (first or third person) in 3-5 short paragraphs. No headings, no bullet lists, no dialogue markers, no speaker labels.
 ${spokenStyleFor(p.band)}
-${vocabLine}${ORIGINALITY}
+${itCasualLine}${vocabLine}${ORIGINALITY}
 Do NOT reuse these existing ids: ${[...existingIds].join(", ") || "(none)"}
 Reply with STRICT JSON only — no markdown fences:
 {"id":"kebab-case-id","title":"English title","titleJa":"日本語タイトル","paragraphs":["paragraph 1 text", "paragraph 2 text", "..."]}
