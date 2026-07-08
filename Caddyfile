@@ -1,9 +1,10 @@
 # ローカルHTTPS: https://solo-eikaiwa → 静的配信(app/client/dist) + /api/* → APIサーバ(3111, launchd常駐)
 # 使い方: 共有Caddyデーモン(com.local.https.caddy)が sites/*.caddy 経由でこのファイルを import する
 # /etc/hosts に「127.0.0.1 solo-eikaiwa」が必要。solo-eikaiwa.localhost は hosts 不要（Chrome系）。
+# learn-english / learn-english.localhost は旧名の互換エイリアス（利用中のURL・ブックマークを壊さない）。
 # 開発用の http://localhost:5173（Vite）はこの設定と独立に動作する。
 
-solo-eikaiwa, solo-eikaiwa.localhost {
+solo-eikaiwa, solo-eikaiwa.localhost, learn-english, learn-english.localhost {
 	bind 127.0.0.1
 	tls internal
 
