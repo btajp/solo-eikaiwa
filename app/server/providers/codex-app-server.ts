@@ -54,6 +54,8 @@ export class CodexAppServerClient {
   private handshakeDone = false;
   private handshakePromise: Promise<void> | undefined;
   private isAlive = true;
+  /** プロセス世代。spawn（初回含む）と exit のたびに進む。generation() 参照。 */
+  private gen = 0;
   /** threadId ごとの turn 収集器。同一 threadId につき同時に1つのみ、異なる threadId は並行可。 */
   private readonly turnCollectors = new Map<string, TurnCollector>();
 
@@ -64,6 +66,19 @@ export class CodexAppServerClient {
 
   alive(): boolean {
     return this.isAlive;
+  }
+
+  /**
+   * 現在のプロセス世代。spawn（初回含む）と exit の**両方**で進むため、記録時と値が違えば
+   * 「その記録を作ったプロセスはもう居ない（exit 済み・または再spawnを跨いだ）」ことを意味する。
+   * exit 側でも進めるのは、exit 直後〜次の spawn までの dead-window（in-flight なしの自発終了で
+   * エラーが誰にも観測されないケース）でも記録が確実に古くなるようにするため。
+   * runner がスレッド記憶（threadId → developerInstructions）の鮮度判定に使う。
+   * 大域フラグの alive() では「1セッションの復元が再spawnした後、他セッションの古い記憶が
+   * 生きているように見える」問題を検出できない（レビュー指摘）。
+   */
+  generation(): number {
+    return this.gen;
   }
 
   kill(): void {
@@ -110,6 +125,7 @@ export class CodexAppServerClient {
     }
     this.proc = proc;
     this.isAlive = true; // 自己修復: 新規spawnした時点でこのインスタンスは新プロセスに対して有効
+    this.gen++; // 新世代の開始（初回 spawn も再spawnも）
     // 世代ガード: exit 済み・差し替え済みの旧プロセスから遅延して届くメッセージ/exit は無視する。
     // 特に遅延 ServerRequest は this.proc.send での応答を伴うため、ガード無しでは exit 後に throw する。
     proc.onMessage((msg) => {
@@ -223,6 +239,7 @@ export class CodexAppServerClient {
 
   private handleExit(code: number | null): void {
     this.isAlive = false;
+    this.gen++; // プロセス死亡の時点で世代を進め、dead-window 中でも古い記録が鮮度判定を通らないようにする
     const err = new TransportError(`codex app-server exited (code ${code})`);
     for (const [id, pending] of this.pending) {
       clearTimeout(pending.timer);
@@ -342,8 +359,9 @@ function foldPrompt(history: CodexMsg[], prompt: string): string {
 
 /**
  * codex app-server を常駐プロセスとして使う ClaudeRunner。セッション解決の階梯（上から順に試す）:
- * 1. 既知の threadId（プロセス生存中・systemPrompt 一致）→ そのまま turn/start
- * 2. 未知の threadId（サーバ/プロセス再起動後）→ thread/resume（ディスク rollout からの復元 = パリティ経路）
+ * 1. 既知の threadId（同一プロセス世代・systemPrompt 一致）→ そのまま turn/start
+ * 2. 未知の threadId / 世代が古い threadId（サーバ・プロセス再起動後）→ thread/resume
+ *    （ディスク rollout からの復元 = パリティ経路）
  * 3. resume がリクエストレベルで失敗 / systemPrompt が変わった → 新 thread/start + 保険トランスクリプトの畳み込み
  * 4. transport 障害（spawn 失敗・exit・timeout・handshake 失敗 = TransportError）→ cfg.execFallback があれば
  *    同じ (prompt, resumeId, opts) で exec アダプタへフォールバック。無ければそのまま throw
@@ -351,8 +369,13 @@ function foldPrompt(history: CodexMsg[], prompt: string): string {
  */
 export function makeCodexAppServerRunner(cfg: CodexAppServerConfig): ClaudeRunner {
   const client = new CodexAppServerClient(cfg.spawn ?? realSpawnAppServer);
-  /** sessionId(=threadId) → スレッド作成/復元時に採用した systemPrompt。プロセス内スレッドの生存記憶。 */
-  const threads = new Map<string, { systemPrompt: string }>();
+  /**
+   * sessionId(=threadId) → スレッド作成/復元時に採用した systemPrompt と、その時点のプロセス世代。
+   * 世代が client.generation() と一致するエントリだけが「今のプロセスが知っているスレッド」。
+   * 大域の alive() 判定では不十分（別セッションの復元が再spawnすると alive() は true に戻り、
+   * 新プロセスが知らないスレッドの古い記憶が生きているように見える）ため、エントリごとに世代を持つ。
+   */
+  const threads = new Map<string, { systemPrompt: string; generation: number }>();
   /** 保険のインメモリ・トランスクリプト（resume 不能時の畳み込み再投入用。exec アダプタの store と同様に保持し続ける）。 */
   const transcript = new Map<string, CodexMsg[]>();
 
@@ -362,7 +385,7 @@ export function makeCodexAppServerRunner(cfg: CodexAppServerConfig): ClaudeRunne
     if (typeof id !== "string" || !id) {
       throw new Error("codex app-server: thread/start が thread.id を返しませんでした");
     }
-    threads.set(id, { systemPrompt: system });
+    threads.set(id, { systemPrompt: system, generation: client.generation() });
     return id;
   }
 
@@ -386,16 +409,19 @@ export function makeCodexAppServerRunner(cfg: CodexAppServerConfig): ClaudeRunne
         threads.delete(resumeId);
         return startFolded(resumeId, system, prompt);
       }
-      if (client.alive()) {
+      if (known.generation === client.generation()) {
         return { threadId: resumeId, turnText: prompt, history: transcript.get(resumeId) ?? [] };
       }
-      // 既知だがプロセスが自発終了している（in-flight なしの exit は例外として観測されない）
-      // → 死んだプロセスのスレッド記憶で turn/start を打たず、resume 経路で復元する
+      // 世代が古い = このスレッドを知っているプロセスはもう居ない（自発exitの dead-window、
+      // または他セッション起点の再spawn後の残留記憶）。素の turn/start は実サーバでは
+      // invalid_request（plain error → fold もフォールバックもされない）で恒久失敗するため、
+      // 記憶を捨てて resume 経路で復元する。世代比較は exit でも進むカウンタなので、
+      // 「プロセス死亡〜再spawn前」「再spawn後」の両方を1つの判定で包含する（alive() 判定は不要）。
       threads.delete(resumeId);
     }
     try {
       await client.request("thread/resume", { threadId: resumeId, ...threadParams(cfg, system) });
-      threads.set(resumeId, { systemPrompt: system });
+      threads.set(resumeId, { systemPrompt: system, generation: client.generation() });
       return { threadId: resumeId, turnText: prompt, history: transcript.get(resumeId) ?? [] };
     } catch (err) {
       if (err instanceof TransportError) throw err; // transport 障害は exec フォールバック判定へ
@@ -418,8 +444,9 @@ export function makeCodexAppServerRunner(cfg: CodexAppServerConfig): ClaudeRunne
       return { text, sessionId: threadId };
     } catch (err) {
       if (err instanceof TransportError) {
-        // プロセスは死んだ（または起動できなかった）ため、プロセス内スレッドの記憶は全て失効させる。
-        // 次の呼び出しは thread/resume（ディスク復元）から入り直す。transcript は保険として残す。
+        // プロセスは死んだ（または起動できなかった）。世代比較でも遅延検出されるが、死んだ記憶を
+        // eager に掃除しておく（次の呼び出しは thread/resume＝ディスク復元から入り直す）。
+        // transcript は保険として残す。
         threads.clear();
         if (cfg.execFallback) {
           console.warn("codex app-server unavailable, falling back to exec:", err);

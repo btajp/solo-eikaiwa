@@ -262,4 +262,41 @@ describe("makeCodexAppServerRunner", () => {
     expect(methods.indexOf("thread/resume")).toBeGreaterThanOrEqual(0);
     expect(methods.indexOf("thread/resume")).toBeLessThan(methods.indexOf("turn/start"));
   });
+
+  test("自発exit→再spawn後、他セッションも素のturn/startではなくthread/resumeで復元される（世代追跡）", async () => {
+    // レビュー指摘の再現: 同一プロセス上に2セッション → 自発exit（in-flightなし）→
+    // 先に t-A が resume で復元されると client は復活する（大域 alive() は true に戻る）。
+    // このとき t-B の次の呼び出しが「復活した client」に騙されて素の turn/start を打ってはならない
+    // （新プロセスは t-B を resume していないため、実サーバでは invalid_request で恒久失敗する）。
+    const f1 = makeScriptedProc({
+      "thread/start": threadStartOk(["t-A", "t-B"]),
+      "turn/start": turnOk(["A1", "B1"]),
+    });
+    const f2 = makeScriptedProc({
+      "thread/resume": (m) => [{ id: m.id, result: { thread: { id: (m.params as Msg).threadId } } }],
+      "turn/start": turnOk(["A2", "B2"]),
+    });
+    const procs = [f1, f2];
+    let spawned = 0;
+    const runner = makeCodexAppServerRunner({ ...CFG, spawn: () => procs[spawned++]!.proc });
+
+    const a = await runner("Hello A");
+    const b = await runner("Hello B");
+    expect([a.sessionId, b.sessionId]).toEqual(["t-A", "t-B"]);
+    f1.exit(0); // ターン外の自発終了（in-flight なし → エラーは観測されない）
+
+    const a2 = await runner("Continue A", "t-A"); // ここで新プロセスが spawn され client は復活する
+    expect(a2).toEqual({ text: "A2", sessionId: "t-A" });
+    const b2 = await runner("Continue B", "t-B");
+    expect(b2).toEqual({ text: "B2", sessionId: "t-B" });
+
+    // 両セッションとも新プロセスで resume されていること
+    const resumes = f2.sent.filter((m) => m.method === "thread/resume").map((m) => (m.params as Msg).threadId);
+    expect(resumes).toEqual(["t-A", "t-B"]);
+    // t-B の turn/start は必ず t-B の thread/resume の後（素の turn/start が先行していない）
+    const bResumeIdx = f2.sent.findIndex((m) => m.method === "thread/resume" && (m.params as Msg).threadId === "t-B");
+    const bTurnIdx = f2.sent.findIndex((m) => m.method === "turn/start" && (m.params as Msg).threadId === "t-B");
+    expect(bResumeIdx).toBeGreaterThanOrEqual(0);
+    expect(bResumeIdx).toBeLessThan(bTurnIdx);
+  });
 });

@@ -177,4 +177,34 @@ describe("CodexAppServerClient", () => {
     await Bun.sleep(0);
     expect(f.sent.length).toBe(sentBefore);
   });
+
+  test("再spawn後に旧プロセスから届く遅延メッセージは無視される（新世代のpendingを解決しない）", async () => {
+    const fakes: ReturnType<typeof makeFakeProc>[] = [];
+    const spawn: SpawnAppServer = () => {
+      const f = makeFakeProc();
+      fakes.push(f);
+      return f.proc;
+    };
+    const client = new CodexAppServerClient(spawn);
+    const first = client.request("thread/start", {});
+    await Bun.sleep(0);
+    fakes[0]!.exit(1);
+    await expect(first).rejects.toThrow(/exited/);
+
+    const second = client.request("thread/start", {});
+    await Bun.sleep(0);
+    expect(fakes.length).toBe(2);
+    const initId = fakes[1]!.sent[0]!.id; // 新プロセスの initialize リクエストid
+    // 旧プロセスオブジェクトから同じidの応答が遅れて届いても、新世代の pending を解決しない
+    fakes[0]!.emit({ id: initId, result: { userAgent: "stale" } });
+    await Bun.sleep(0);
+    expect(fakes[1]!.sent.length).toBe(1); // initialized 通知が出ていない = ハンドシェイク未解決のまま
+    // 正しい新プロセスからの応答で初めて進む
+    fakes[1]!.emit({ id: initId, result: {} });
+    await Bun.sleep(0);
+    expect(fakes[1]!.sent[1]).toEqual({ method: "initialized" });
+    expect(fakes[1]!.sent[2]?.method).toBe("thread/start");
+    fakes[1]!.emit({ id: fakes[1]!.sent[2]!.id, result: { thread: { id: "t-2" } } });
+    expect((await second).thread).toEqual({ id: "t-2" });
+  });
 });
