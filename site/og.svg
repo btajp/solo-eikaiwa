@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0f1512"/>
+  <rect x="80" y="175" width="280" height="280" rx="61" fill="#1e9c5a"/>
+  <rect x="124" y="236" width="192" height="123" rx="39" fill="#ffffff"/>
+  <path d="M168 359 L168 411 L225 359 Z" fill="#ffffff"/>
+  <rect x="168" y="280" width="26" height="39" rx="13" fill="#1e9c5a"/>
+  <rect x="207" y="258" width="26" height="79" rx="13" fill="#1e9c5a"/>
+  <rect x="246" y="271" width="26" height="53" rx="13" fill="#1e9c5a"/>
+  <text x="420" y="315" font-family="Hiragino Sans, sans-serif" font-size="72" font-weight="700" fill="#e6efe9">solo-eikaiwa</text>
+  <text x="422" y="390" font-family="Hiragino Sans, sans-serif" font-size="28" fill="#93a89b">ひとりで回す、自分専用の英会話ジム — macOS ローカル</text>
+</svg>
