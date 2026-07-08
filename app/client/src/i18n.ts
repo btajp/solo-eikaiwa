@@ -507,7 +507,7 @@ export const STR: Record<Lang, Strings> = {
     menuTitle: {
       warmup: () => "Read-Aloud Warm-up",
       ftt: (t) => `4/3/2: ${t}`,
-      "ftt-mini": (t) => `4/3/2 Mini: ${t}`,
+      "ftt-mini": (t) => `Repeat Talk (4/3/2): ${t}`,
       "roleplay-daily": (t) => `Daily Role-play: ${t}`,
       "roleplay-business": (t) => `Business Role-play: ${t}`,
       "roleplay-it": (t) => `IT Role-play: ${t}`,
@@ -834,7 +834,7 @@ export const STR: Record<Lang, Strings> = {
     menuTitle: {
       warmup: () => "音読ウォームアップ",
       ftt: (t) => `4/3/2: ${t}`,
-      "ftt-mini": (t) => `4/3/2ミニ: ${t}`,
+      "ftt-mini": (t) => `くり返しトーク（4/3/2）: ${t}`,
       "roleplay-daily": (t) => `日常ロールプレイ: ${t}`,
       "roleplay-business": (t) => `ビジネスロールプレイ: ${t}`,
       "roleplay-it": (t) => `ITロールプレイ: ${t}`,

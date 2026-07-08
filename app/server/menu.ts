@@ -167,7 +167,7 @@ export function buildQuickMenu(kind: QuickKind, deps: MenuDeps = {}): Menu {
       block = { id: "q1", kind: "warmup-reading", title: "音読ウォームアップ", titleKey: "warmup", minutes: 6, params: { topic } };
     } else if (kind === "ftt-mini") {
       block = {
-        id: "q1", kind: "four-three-two", title: `4/3/2ミニ: ${topic.title}`, titleKey: "ftt-mini", topicTitle: topic.title, minutes: 8,
+        id: "q1", kind: "four-three-two", title: `くり返しトーク（4/3/2）: ${topic.title}`, titleKey: "ftt-mini", topicTitle: topic.title, minutes: 8,
         params: { topic, roundsSec: fttMiniRoundsSec(level), modelTalkMode: prepParams(stage).modelTalk },
       };
     } else {
