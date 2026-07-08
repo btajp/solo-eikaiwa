@@ -27,7 +27,7 @@ type PocResult = {
   getUserMediaError: string | null;
 };
 
-async function postPocResult(result: PocResult): Promise<void> {
+async function postPocResult(result: unknown): Promise<void> {
   try {
     await fetch("/api/dev/poc-result", {
       method: "POST",
@@ -45,6 +45,11 @@ async function runPoc(): Promise<PocResult> {
     supported: typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(mimeType),
   }));
   const chosenMimeType = supported.find((s) => s.supported)?.mimeType ?? null;
+
+  // getUserMediaはマイク許可(TCC)ダイアログでブロックされうるため、対応mimeType一覧だけは
+  // 許可を待たずに先行記録する（PoCの核心である「WKWebViewはaudio/mp4系を録音できるか」は
+  // これだけで判定できる）。最終レコード（下のreturn値）とは別の早期POST。
+  void postPocResult({ phase: "support-matrix", supported, chosenMimeType });
 
   let stream: MediaStream;
   try {
