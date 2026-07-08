@@ -408,8 +408,8 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
             <div className="llm-field">
               <span className="text-sm text-muted">{s.settings.preferredCloudLabel}</span>
               <div className="lang-toggle" role="group" aria-label={s.settings.preferredCloudLabel}>
-                <button className={preferredCloud === "claude" ? "is-active" : ""} disabled={saving} onClick={() => setPreferredCloud("claude")}>Claude</button>
-                <button className={preferredCloud === "codex" ? "is-active" : ""} disabled={saving} onClick={() => setPreferredCloud("codex")}>Codex</button>
+                <button className={preferredCloud === "claude" ? "is-active" : ""} disabled={saving} onClick={() => setPreferredCloud("claude")}>{s.settings.targetClaude}</button>
+                <button className={preferredCloud === "codex" ? "is-active" : ""} disabled={saving} onClick={() => setPreferredCloud("codex")}>{s.settings.targetCodex}</button>
               </div>
               <span className="text-sm text-muted">{s.settings.preferredCloudNote}</span>
             </div>
