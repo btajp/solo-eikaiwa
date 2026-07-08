@@ -5,9 +5,10 @@ import {
   type LlmRole, type LlmSettingsView, type TtsSettingsView,
 } from "../api";
 import {
-  PRESETS, isLocalDefined, presetEnabled, matchPreset, hydrateConnection, hydrateTargets, buildRolesPayload,
-  type RoleTarget, type RoleTargets, type Connection, type PresetId,
+  isLocalDefined, presetEnabled, presetTargets, matchPreset, hydrateConnection, hydrateTargets, buildRolesPayload,
+  type RoleTarget, type RoleTargets, type Connection, type PresetId, type CloudTarget,
 } from "../lib/llm-assignments";
+import { loadPreferredCloud, savePreferredCloud } from "../lib/preferred-cloud";
 import { STR, type Lang } from "../i18n";
 import { Button } from "../ui/Button";
 
@@ -72,6 +73,12 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<"conn" | "roles" | "display">("conn");
   const fetchedRef = useRef(false);
+  // プリセット適用時のクラウド枠（課金先）。localStorage永続・既存割当には影響しない。
+  const [preferredCloud, setPreferredCloudState] = useState<CloudTarget>(() => loadPreferredCloud());
+  function setPreferredCloud(c: CloudTarget) {
+    setPreferredCloudState(c);
+    savePreferredCloud(c);
+  }
 
   // 接続の編集状態
   const [connBaseUrl, setConnBaseUrl] = useState("");
@@ -121,14 +128,15 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   async function persist(nextTargets: RoleTargets, nextConn: Connection): Promise<boolean> {
     setSaving(true); setLlmResult(null);
     try {
-      applyResult(await saveLlmRoleSettings(buildRolesPayload(nextTargets, nextConn)));
+      // cloud はローカル未定義時のフォールバック先にのみ影響する（優先クラウドが唯一の妥当な出典）。
+      applyResult(await saveLlmRoleSettings(buildRolesPayload(nextTargets, nextConn, preferredCloud)));
       return true;
     } catch { setLlmResult(s.llm.saveFailed); return false; } finally { setSaving(false); }
   }
 
   async function applyPreset(id: PresetId) {
     const prev = targets;
-    const next = PRESETS[id];
+    const next = presetTargets(id, preferredCloud);
     setTargets(next);
     if (!(await persist(next, conn))) setTargets(prev); // 失敗時は楽観更新を巻き戻す
   }
@@ -249,8 +257,18 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
           {/* プリセット（現在の割当から逆引き表示。手動変更でカスタムに落ちる） */}
           <div className="stack">
             <div className="stat-title">{s.settings.presetSection}</div>
+            <div className="llm-field">
+              <span className="text-sm text-muted">{s.settings.preferredCloudLabel}</span>
+              <div className="lang-toggle" role="group" aria-label={s.settings.preferredCloudLabel}>
+                <button className={preferredCloud === "claude" ? "is-active" : ""} disabled={saving} onClick={() => setPreferredCloud("claude")}>Claude</button>
+                <button className={preferredCloud === "codex" ? "is-active" : ""} disabled={saving} onClick={() => setPreferredCloud("codex")}>Codex</button>
+              </div>
+              <span className="text-sm text-muted">{s.settings.preferredCloudNote}</span>
+            </div>
             {(() => {
-              const current = matchPreset(targets);
+              // matchPreset は { id, cloud } | "custom" を返す（優先クラウド対応）。表示は一致したクラウドを反映する（優先設定ではない）。
+              const m = matchPreset(targets);
+              const current = m === "custom" ? "custom" : m.id;
               return (
                 <>
                   <select
@@ -267,8 +285,8 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                     <option value="high-quality">{s.settings.presetHighQuality}</option>
                   </select>
                   {current === "all-local" && <div className="text-sm text-muted">{s.settings.presetAllLocalDesc}</div>}
-                  {current === "balanced" && <div className="text-sm text-muted">{s.settings.presetBalancedDesc}</div>}
-                  {current === "high-quality" && <div className="text-sm text-muted">{s.settings.presetHighQualityDesc}</div>}
+                  {m !== "custom" && current === "balanced" && <div className="text-sm text-muted">{s.settings.presetBalancedDesc(m.cloud)}</div>}
+                  {m !== "custom" && current === "high-quality" && <div className="text-sm text-muted">{s.settings.presetHighQualityDesc(m.cloud)}</div>}
                   {!localDefined && <div className="text-sm text-muted">{s.settings.presetLocalRequired}</div>}
                 </>
               );

@@ -4,6 +4,9 @@ import { LLM_ROLES, type LlmRole, type LlmRoleInput, type LlmSettingsInput, type
 export type RoleTarget = "claude" | "local" | "codex";
 export type RoleTargets = Record<LlmRole, RoleTarget>;
 
+/** 優先クラウド（プリセットの "claude" 枠に代入するクラウド先）。 */
+export type CloudTarget = "claude" | "codex";
+
 /** 接続入力（接続セクションの3フィールド。空文字＝未指定）。 */
 export type Connection = { baseUrl: string; model: string; codexModel: string };
 
@@ -29,6 +32,16 @@ export function isLocalDefined(conn: Connection): boolean {
 export function presetEnabled(id: PresetId, conn: Connection): boolean {
   if (id === "high-quality") return true;
   return isLocalDefined(conn);
+}
+
+/** プリセットの "claude" 枠を優先クラウドへ写像したロール割当を返す（"local" 枠は不変）。 */
+export function presetTargets(id: PresetId, cloud: CloudTarget): RoleTargets {
+  const preset = PRESETS[id];
+  const out = {} as RoleTargets;
+  for (const role of LLM_ROLES) {
+    out[role] = preset[role] === "claude" ? cloud : preset[role];
+  }
+  return out;
 }
 
 /** llm_settings.provider（env は envProvider へ解決）を effective global provider として返す。 */
@@ -63,11 +76,12 @@ export function hydrateTargets(view: LlmSettingsView): RoleTargets {
 /**
  * (targets, conn) を PUT /api/llm-settings/roles のペイロードへ直列化する。
  * - 接続は常に global（接続ストア）に保存する＝プリセット/割当保存でも接続は失われない。
- * - ローカル未定義のとき local ターゲットは claude にフォールバックする（空 baseUrl で 400 になるのを防ぐ）。
+ * - ローカル未定義のとき local ターゲットは優先クラウド（既定 claude）にフォールバックする（空 baseUrl で 400 になるのを防ぐ）。
  */
 export function buildRolesPayload(
   targets: RoleTargets,
   conn: Connection,
+  cloud: CloudTarget = "claude",
 ): { global: LlmSettingsInput; roles: Record<LlmRole, LlmRoleInput> } {
   const baseUrl = conn.baseUrl.trim();
   const model = conn.model.trim();
@@ -82,7 +96,7 @@ export function buildRolesPayload(
 
   const roles = {} as Record<LlmRole, LlmRoleInput>;
   for (const role of LLM_ROLES) {
-    const t = !localDefined && targets[role] === "local" ? "claude" : targets[role];
+    const t = !localDefined && targets[role] === "local" ? cloud : targets[role];
     roles[role] =
       t === "local" ? { provider: "openai-compat", baseUrl, model }
       : t === "codex" ? { provider: "codex", codexModel }
@@ -91,8 +105,22 @@ export function buildRolesPayload(
   return { global, roles };
 }
 
-/** 現在の割当が一致するプリセット（値一致・適用履歴ではない）。どれとも一致しなければ "custom"。 */
-export function matchPreset(targets: RoleTargets): PresetId | "custom" {
-  return (Object.keys(PRESETS) as PresetId[])
-    .find((id) => LLM_ROLES.every((r) => PRESETS[id][r] === targets[r])) ?? "custom";
+/**
+ * 現在の割当が一致するプリセット（値一致・適用履歴ではない）。
+ * 各プリセット×優先クラウド（claude/codex）の総当たりで緩く一致させ、一致した { id, cloud } を返す。
+ * どれとも一致しなければ "custom"。
+ * 注: all-local はクラウド枠を持たないため、一致すれば常に cloud: "claude"（総当たり順で先に一致）を返す。
+ *     これは実クラウド選択に依らない仕様上の割り切りであり、意図的に許容する。
+ */
+export function matchPreset(targets: RoleTargets): { id: PresetId; cloud: CloudTarget } | "custom" {
+  const ids = Object.keys(PRESETS) as PresetId[];
+  const clouds: CloudTarget[] = ["claude", "codex"];
+  for (const id of ids) {
+    for (const cloud of clouds) {
+      if (LLM_ROLES.every((r) => presetTargets(id, cloud)[r] === targets[r])) {
+        return { id, cloud };
+      }
+    }
+  }
+  return "custom";
 }

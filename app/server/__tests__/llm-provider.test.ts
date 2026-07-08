@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { selectRunner, settingsToEnv, LLM_ROLES, isInheritRole, roleSettingToSettings } from "../llm-provider";
 import type { ClaudeRunner } from "../converse";
 import type { LlmSettings, LlmRoleSetting } from "../llm-provider";
+import { __resetCodexAppServerRegistry } from "../providers/codex-app-server";
 
 /** 参照比較用のセンチネル runner（呼ばれない） */
 const sentinel: ClaudeRunner = async () => ({ text: "sentinel", sessionId: "s" });
@@ -43,10 +44,19 @@ describe("selectRunner", () => {
       .toThrow(/OPENAI_COMPAT_MODEL/);
   });
 
-  test("codex: claudeRunner とは別の runner を返す", () => {
-    const r = selectRunner(args({ LLM_PROVIDER: "codex" }));
-    expect(r).not.toBe(sentinel);
-    expect(typeof r).toBe("function");
+  // codex は内部で codex-app-server の registry（module-level singleton）を経由する。
+  // 常駐プロセスの spawn はここでは行わない（runner を呼ぶまで lazy）ため、ここでは形状のみを検証する。
+  // プロセス共有・killのデデュープ挙動は providers/__tests__/codex-app-server-runner.test.ts で
+  // getCodexAppServerRunner を直接叩いて検証する（selectRunner 経由では spawn フェイクを注入できないため）。
+  test("codex: claudeRunner とは別の runner を返す（app-server runner。実プロセスはlazyなのでここでは起動しない）", () => {
+    __resetCodexAppServerRegistry(); // 他テストファイルとの registry 共有状態から分離する
+    try {
+      const r = selectRunner(args({ LLM_PROVIDER: "codex" }));
+      expect(r).not.toBe(sentinel);
+      expect(typeof r).toBe("function");
+    } finally {
+      __resetCodexAppServerRegistry(); // 未spawnのclientを残さない（後続テストへの汚染防止）
+    }
   });
 
   test("未知プロバイダ: 明示エラー", () => {

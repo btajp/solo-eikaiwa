@@ -3,6 +3,7 @@ import type { LlmRoleInput, LlmRoleView, LlmSettingsInput, LlmSettingsView, LlmR
 import { LLM_ROLES } from "../api";
 import {
   PRESETS, isLocalDefined, presetEnabled, hydrateConnection, hydrateTargets, buildRolesPayload, matchPreset,
+  presetTargets,
   type RoleTargets,
 } from "./llm-assignments";
 
@@ -92,7 +93,7 @@ describe("buildRolesPayload", () => {
     expect(payload.roles.conversation).toEqual({ provider: "codex", codexModel: "gpt-5-codex" });
   });
 
-  test("ローカル未定義で local ターゲットは claude にフォールバック・global=env", () => {
+  test("buildRolesPayload: cloud省略時は従来どおりclaudeフォールバック", () => {
     const targets: RoleTargets = { conversation: "local", coaching: "claude", generation: "local", assessment: "claude" };
     const payload = buildRolesPayload(targets, EMPTY_CONN);
     expect(payload.global).toEqual({ provider: "env" });
@@ -108,6 +109,12 @@ describe("buildRolesPayload", () => {
     const payload = buildRolesPayload(targets, conn);
     expect(payload.global).toEqual({ provider: "codex", codexModel: "gpt-5-codex" });
     expect(payload.roles.conversation).toEqual({ provider: "codex", codexModel: "gpt-5-codex" });
+  });
+
+  test("buildRolesPayload: ローカル未定義時のフォールバック先は優先クラウド", () => {
+    const conn = { baseUrl: "", model: "", codexModel: "" };
+    const payload = buildRolesPayload(presetTargets("all-local", "codex"), conn, "codex");
+    expect(payload.roles.conversation).toEqual({ provider: "codex", codexModel: null });
   });
 });
 
@@ -158,19 +165,41 @@ describe("hydrateConnection", () => {
   });
 });
 
+describe("presetTargets", () => {
+  test("claude枠が優先クラウドに置換される（localは不変）", () => {
+    expect(presetTargets("balanced", "codex")).toEqual(
+      { conversation: "local", coaching: "codex", generation: "local", assessment: "codex" });
+    expect(presetTargets("balanced", "claude")).toEqual(PRESETS.balanced);
+  });
+});
+
 describe("matchPreset", () => {
-  test("3プリセットの完全一致を判定する", () => {
-    expect(matchPreset(PRESETS["all-local"])).toBe("all-local");
-    expect(matchPreset(PRESETS.balanced)).toBe("balanced");
-    expect(matchPreset(PRESETS["high-quality"])).toBe("high-quality");
+  test("3プリセットの完全一致を判定する（cloud=claude）", () => {
+    expect(matchPreset(PRESETS["all-local"])).toEqual({ id: "all-local", cloud: "claude" });
+    expect(matchPreset(PRESETS.balanced)).toEqual({ id: "balanced", cloud: "claude" });
+    expect(matchPreset(PRESETS["high-quality"])).toEqual({ id: "high-quality", cloud: "claude" });
+  });
+  test("両クラウドを試す緩い一致（{id, cloud}を返す）", () => {
+    expect(matchPreset(PRESETS.balanced)).toEqual({ id: "balanced", cloud: "claude" });
+    expect(matchPreset(presetTargets("balanced", "codex"))).toEqual({ id: "balanced", cloud: "codex" });
+    expect(matchPreset(presetTargets("high-quality", "codex"))).toEqual({ id: "high-quality", cloud: "codex" });
   });
   test("1ロールでも異なれば custom", () => {
     expect(matchPreset({ ...PRESETS.balanced, generation: "codex" })).toBe("custom");
+  });
+  test("クラウド混在はcustom", () => {
+    expect(matchPreset({ conversation: "local", coaching: "claude", generation: "local", assessment: "codex" })).toBe("custom");
   });
   test("往復整合: buildRolesPayload→hydrateTargets→matchPreset が元に戻る", () => {
     const conn = { baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: "" };
     const payload = buildRolesPayload(PRESETS.balanced, conn);
     const view = fakeViewFromPayload(payload);
-    expect(matchPreset(hydrateTargets(view))).toBe("balanced");
+    expect(matchPreset(hydrateTargets(view))).toEqual({ id: "balanced", cloud: "claude" });
+  });
+  test("往復整合（codex優先）: buildRolesPayload→hydrateTargets→matchPreset が {id, cloud:codex} に戻る", () => {
+    const conn = { baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: "gpt-5-codex" };
+    const payload = buildRolesPayload(presetTargets("balanced", "codex"), conn, "codex");
+    const view = fakeViewFromPayload(payload);
+    expect(matchPreset(hydrateTargets(view))).toEqual({ id: "balanced", cloud: "codex" });
   });
 });

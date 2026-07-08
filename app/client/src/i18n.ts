@@ -2,6 +2,7 @@
 export type Lang = "en" | "ja";
 
 import type { LlmRole } from "./api/llm-settings";
+import type { CloudTarget } from "./lib/llm-assignments";
 
 export function loadLang(): Lang {
   const v = localStorage.getItem("lang");
@@ -79,12 +80,14 @@ type SettingsStrings = {
     presetAllLocalDesc: string;
     presetBalanced: string;
     presetBalancedBadge: string;
-    presetBalancedDesc: string;
+    presetBalancedDesc: (cloud: CloudTarget) => string;
     presetHighQuality: string;
-    presetHighQualityDesc: string;
+    presetHighQualityDesc: (cloud: CloudTarget) => string;
     presetLocalRequired: string;
     presetCustom: string;
     presetBalancedOption: string;
+    preferredCloudLabel: string;
+    preferredCloudNote: string;
     connectionSection: string;
     claudeNoSetup: string;
     localConnTitle: string;
@@ -321,7 +324,7 @@ export const STR: Record<Lang, Strings> = {
       notApplied: (msg) => `Saved, but not applied: ${msg}`,
       saveFailed: "Could not save settings.",
       apiKeyConfigured: "API key: set in app/.env", apiKeyMissing: "API key: not set (app/.env)",
-      help: "The API key is read from app/.env only and is never stored here. Reply quality depends on the model you choose; the default (Claude) is the tested baseline.",
+      help: "The API key is read from app/.env only and is never stored here. Reply quality depends on the model you choose; Claude is the tested baseline.",
       helpAria: "About the LLM provider setting",
       envNote: (p) => `Environment currently resolves to: ${p}`,
     },
@@ -352,12 +355,16 @@ export const STR: Record<Lang, Strings> = {
       presetAllLocalDesc: "Every role uses your local model.",
       presetBalanced: "Balanced",
       presetBalancedBadge: "Recommended",
-      presetBalancedDesc: "Conversation and content generation run locally; coaching and assessment use Claude, where the quality gap is largest and the usage least frequent.",
+      presetBalancedDesc: (cloud) => cloud === "claude"
+        ? "Conversation and content generation run locally; coaching and assessment use Claude, where the quality gap is largest and the usage least frequent."
+        : "Conversation and content generation run locally; coaching and assessment use Codex, where the quality gap is largest and the usage least frequent.",
       presetHighQuality: "Best quality",
-      presetHighQualityDesc: "Every role uses Claude, the tested baseline.",
+      presetHighQualityDesc: (cloud) => cloud === "claude" ? "Every role uses Claude, the tested baseline." : "Every role uses Codex.",
       presetLocalRequired: "Set up a local LLM connection in the Model connections tab to enable the local presets.",
       presetCustom: "Custom",
       presetBalancedOption: "Balanced (Recommended)",
+      preferredCloudLabel: "Preferred cloud",
+      preferredCloudNote: "Used for the cloud slots when you apply a preset — pick the provider you subscribe to.",
       connectionSection: "Model connections",
       claudeNoSetup: "Claude needs no setup — it works with your Claude subscription.",
       localConnTitle: "Local LLM (OpenAI-compatible)",
@@ -655,7 +662,7 @@ export const STR: Record<Lang, Strings> = {
       notApplied: (msg) => `保存しましたが適用できませんでした: ${msg}`,
       saveFailed: "設定を保存できませんでした。",
       apiKeyConfigured: "APIキー: app/.env に設定済み", apiKeyMissing: "APIキー: 未設定（app/.env）",
-      help: "APIキーは app/.env からのみ読み込み、ここには保存しません。応答品質は選んだモデルに依存します。既定（Claude）が動作確認済みの基準です。",
+      help: "APIキーは app/.env からのみ読み込み、ここには保存しません。応答品質は選んだモデルに依存します。Claude は動作確認済みの基準です。",
       helpAria: "LLM プロバイダ設定の説明",
       envNote: (p) => `環境変数の現在の解決先: ${p}`,
     },
@@ -686,12 +693,16 @@ export const STR: Record<Lang, Strings> = {
       presetAllLocalDesc: "すべての用途をローカルモデルで動かします。",
       presetBalanced: "バランス",
       presetBalancedBadge: "推奨",
-      presetBalancedDesc: "会話・教材生成はローカル、コーチング・測定は品質差が最も大きく実行頻度も低いため Claude を使います。",
+      presetBalancedDesc: (cloud) => cloud === "claude"
+        ? "会話・教材生成はローカル、コーチング・測定は品質差が最も大きく実行頻度も低いため Claude を使います。"
+        : "会話・教材生成はローカル、コーチング・測定は品質差が最も大きく実行頻度も低いため Codex を使います。",
       presetHighQuality: "最高品質",
-      presetHighQualityDesc: "すべての用途を Claude（動作確認済みの基準）で動かします。",
+      presetHighQualityDesc: (cloud) => cloud === "claude" ? "すべての用途を Claude（動作確認済みの基準）で動かします。" : "すべての用途を Codex で動かします。",
       presetLocalRequired: "「モデル接続設定」タブでローカル LLM の接続先を設定すると、ローカルを使うプリセットが選べます。",
       presetCustom: "カスタム",
       presetBalancedOption: "バランス（推奨）",
+      preferredCloudLabel: "優先クラウド",
+      preferredCloudNote: "プリセット適用時のクラウド枠に使われます。課金しているサービスに合わせてください。",
       connectionSection: "モデル接続設定",
       claudeNoSetup: "Claude は設定不要です（Claude のサブスクリプションで動作します）。",
       localConnTitle: "ローカル LLM（OpenAI 互換）",
