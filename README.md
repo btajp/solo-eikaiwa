@@ -104,7 +104,7 @@ TTS_VOICE=af_sky                        # サーバが受け付ける voice
 # TTS_API_KEY=...                       # 鍵が要るエンドポイントのみ（未指定なら OPENAI_API_KEY にフォールバック）
 ```
 
-同じ項目は「⚙️ 設定 → 音声（TTS）」からも変更でき、DB 設定が env を上書きします。
+同じ項目は「⚙️ 設定 → モデル接続設定」（音声/TTS の設定はモデル接続設定タブ内に統合済み）からも変更でき、DB 設定が env を上書きします。
 
 ### 起動: 常駐（推奨）
 
@@ -146,16 +146,16 @@ cd app/client && bun run dev # UI :5173（/api をプロキシ）
 
 ## LLM プロバイダの切替
 
-コーチ・会話・コンテンツ生成が使う LLM バックエンドは環境変数 `LLM_PROVIDER` で切り替えられる。既定（未設定 or `claude`）は Anthropic Claude Agent SDK で、現行と完全に同一の挙動。env 直接運用（ヘッドレス・CLI）の設定は `app/.env`（gitignore 済み）に置く。LaunchAgent の plist には秘密情報を書かない。ふだんの切替は「記録・測定」の **⚙️ 設定 → 言語モデル**から行い、保存すると実行中のアプリへ再起動なしで即時適用される（設定は SQLite の `llm_settings`〔接続〕・`llm_role_settings`〔ロール割当〕に保存。**APIキーは UI・DB には保存されず `app/.env` の `OPENAI_COMPAT_API_KEY` のみ**）。
+コーチ・会話・コンテンツ生成が使う LLM バックエンドは環境変数 `LLM_PROVIDER` で切り替えられる。既定（未設定 or `claude`）は Anthropic Claude Agent SDK で、現行と完全に同一の挙動。env 直接運用（ヘッドレス・CLI）の設定は `app/.env`（gitignore 済み）に置く。LaunchAgent の plist には秘密情報を書かない。ふだんの切替は「記録・測定」の **⚙️ 設定**（**モデル接続設定** / **用途ごとのモデル**の2タブ）から行い、保存すると実行中のアプリへ再起動なしで即時適用される（設定は SQLite の `llm_settings`〔接続〕・`llm_role_settings`〔ロール割当〕に保存。**APIキーは UI・DB には保存されず `app/.env` の `OPENAI_COMPAT_API_KEY` のみ**）。
 
-**設定画面の構成（接続 / 用途ごとのモデル / プリセット）**: **⚙️ 設定 → 言語モデル**は3つに分かれる。**接続**でローカル LLM（OpenAI 互換）の Base URL・モデル名と Codex の任意モデル名を一度だけ定義する（Claude はサブスクリプションで動くため設定不要）。**用途ごとのモデル**で、LLM 呼び出しを4つの用途に分け、それぞれ **Claude / ローカル / Codex** を直接割り当てる。**プリセット**は割当をワンタップで書き換えるボタン。
+**設定画面の構成（モデル接続設定 / 用途ごとのモデル）**: **⚙️ 設定**の**モデル接続設定**タブでローカル LLM（OpenAI 互換）の Base URL・モデル名と Codex の任意モデル名を一度だけ定義する（Claude はサブスクリプションで動くため設定不要）。**用途ごとのモデル**タブで、LLM 呼び出しを4つの用途に分け、それぞれ **Claude / ローカル / Codex** を直接割り当てる（タブ先頭の**プリセット**は割当をワンタップで書き換えるボタン）。
 
-| ロール | 使われる場面 |
-| --- | --- |
-| 会話 | 自由会話・ロールプレイの相手応答 |
-| コーチング | 添削・振り返り・訳・言い方ヒント・各種解説 |
-| 教材生成 | モデルトーク・4/3/2 準備・生成コンテンツ（CLI 含む） |
-| 測定 | レベル測定・月次レビュー |
+| ロール | 使われる場面 | 推奨 |
+| --- | --- | --- |
+| 会話 | 自由会話・ロールプレイの相手応答 | ローカル — 応答が最も速いため（品質が物足りなければ Claude・Codex へ） |
+| コーチング | 添削・振り返り・訳・言い方ヒント・各種解説 | Claude・Codex — 速度より文章の品質が重要なため |
+| 教材生成 | モデルトーク・4/3/2 準備・生成コンテンツ（CLI 含む） | ローカル — 出力が定型的で要求性能は低め（品質重視なら Claude へ） |
+| 測定 | レベル測定・月次レビュー | Claude — 実行頻度が低く、質の高さが最優先のため |
 
 ※ 生成 CLI（`scripts/generate-content.ts`）は設定画面のロール割当ではなく環境変数に従う（CLI プロセスには DB のロール設定が効かない）。
 
@@ -176,7 +176,7 @@ cd app/client && bun run dev # UI :5173（/api をプロキシ）
 - **品質の前提**: 各ドメインのプロンプトは Claude 向けに調整されており、多くが「STRICT JSON のみ」を要求する。弱いモデルでは JSON 逸脱や品質低下が起きうるが、全ドメインがパース失敗フォールバックを持つためアプリはクラッシュせず degrade する。ローカル小モデルでは出力品質が落ちる前提で使う。
 - **セッション継続**: OpenAI 互換・Codex はステートレスなため、会話の継続はサーバのインメモリ・トランスクリプトで再現する。サーバ再起動で会話履歴は失われ、進行中の会話は文脈を忘れて新セッションとして継続される（既定の Claude SDK はセッションをディスクに永続化するため再起動をまたいで復元される。この差は許容とする）。
 - **Codex の安全設定**: Codex アダプタは常に read-only サンドボックス（`-s read-only`）・非対話（`approval_policy="never"`）・中立な作業ディレクトリで `codex exec` を起動し、ユーザーの `~/.codex/config.toml`（`danger-full-access` 等）を CLI フラグで上書きする。テキスト応答のみを取得し、ファイル書き込みは機構的に禁止される。reasoning effort は既定で `medium` に上書きし、service tier は既定で `fast`（priority 配信）を要求する（config が `xhigh` 等でも会話の応答待ちが伸びないように。`CODEX_REASONING_EFFORT` / `CODEX_SERVICE_TIER` で変更可。tier はアカウント/モデルが非対応なら黙って標準配信になる）。
-- **crash-loop のリスクは env 直接設定のときのみ**: `app/.env` の `LLM_PROVIDER` に不正な値を設定、または `openai-compat` で `OPENAI_COMPAT_BASE_URL` / `OPENAI_COMPAT_MODEL` を未設定のまま起動すると、サーバは起動時に throw して落ちる（fail-fast）。常駐運用では LaunchAgent（KeepAlive）が再起動を繰り返す crash-loop になるため、`data/logs/server.stderr.log` のエラーを確認して `app/.env` を修正するか、`LLM_PROVIDER` を空に戻す。一方、UI（**⚙️ 設定 → 言語モデル**）からの変更は保存前に検証され不正な入力はエラー表示で弾かれ、起動時の DB 設定適用も fail-open（不正値は warn してフォールバックし常駐プロセスは落ちない）なので crash-loop にはならない。
+- **crash-loop のリスクは env 直接設定のときのみ**: `app/.env` の `LLM_PROVIDER` に不正な値を設定、または `openai-compat` で `OPENAI_COMPAT_BASE_URL` / `OPENAI_COMPAT_MODEL` を未設定のまま起動すると、サーバは起動時に throw して落ちる（fail-fast）。常駐運用では LaunchAgent（KeepAlive）が再起動を繰り返す crash-loop になるため、`data/logs/server.stderr.log` のエラーを確認して `app/.env` を修正するか、`LLM_PROVIDER` を空に戻す。一方、UI（**⚙️ 設定 → モデル接続設定 / 用途ごとのモデル**）からの変更は保存前に検証され不正な入力はエラー表示で弾かれ、起動時の DB 設定適用も fail-open（不正値は warn してフォールバックし常駐プロセスは落ちない）なので crash-loop にはならない。
 - **CLI（generate-content 等）から使う場合**: Bun は cwd の `.env` しか自動ロードしないため、リポジトリルートからの `bun scripts/generate-content.ts …` では `app/.env` の設定は効かない。`LLM_PROVIDER=… bun scripts/generate-content.ts …` のように環境変数を直接付けるか、`cd app && bun ../scripts/generate-content.ts …` で実行する。
 
 ### ローカル LLM のおすすめ構成（Apple Silicon Mac の例）
@@ -186,17 +186,17 @@ brew install ollama && brew services start ollama
 ollama pull qwen3:30b-instruct   # Qwen3-30B-A3B-Instruct（MoE・約18GB・RAM 32GB 以上推奨）
 ```
 
-**⚙️ 設定 → 言語モデル → 接続**の「ローカル LLM（OpenAI 互換）」に Base URL `http://localhost:11434/v1`・モデル名 `qwen3:30b-instruct` を入力して保存すれば完了（Ollama は API キー不要なので「キー未設定」表示のままで正常）。あとはプリセット **オールローカル**（全部ローカル）や **バランス**（会話・教材生成だけローカル）で用途割当を一括設定できる。
+**⚙️ 設定 → モデル接続設定**の「ローカル LLM（OpenAI 互換）」に Base URL `http://localhost:11434/v1`・モデル名 `qwen3:30b-instruct` を入力して保存すれば完了（Ollama は API キー不要なので「キー未設定」表示のままで正常）。あとはプリセット **オールローカル**（全部ローカル）や **バランス**（会話・教材生成だけローカル）で用途割当を一括設定できる。
 
 - **モデル選定の目安**: 訳・添削解説など日本語出力があるため、日英両対応のモデルを選ぶ（Qwen3 / Gemma 3 が有力）。**thinking 系の変種は避ける** — `<think>` タグが会話にそのまま表示・読み上げされてしまう。RAM 16GB の Mac なら `qwen3:8b` などの小型を。
-- **使い分けの目安**: 会話相手・ロールプレイ・訳はローカル 30B 級で実用的。添削の日本語解説・月次レビュー・レベル測定は Claude の品質が明確に上なので、**⚙️ 設定 → 言語モデル**の**用途ごとのモデル**で品質が要る用途だけ Claude に寄せる運用がおすすめ（プリセット **バランス** で一括設定できる）。
+- **使い分けの目安**: 会話相手・ロールプレイはローカル 30B 級で実用的（応答速度が最優先のため）。教材生成（モデルトーク・4/3/2 準備）も出力が定型的でローカルで十分だが、品質を上げたいときは Claude へ。添削の日本語解説（コーチング）・月次レビューやレベル測定（測定）は Claude の品質が明確に上なので、**⚙️ 設定 → 用途ごとのモデル**で品質が要る用途だけ Claude・Codex に寄せる運用がおすすめ（プリセット **バランス** で一括設定できる）。モデル性能が効く順は **測定 > コーチング > 教材生成**（会話は性能より応答の速さが効く）。
 - 長い自由会話で文脈が切れる場合は Ollama のコンテキスト長を広げる: `OLLAMA_CONTEXT_LENGTH=16384 brew services restart ollama`
 
 ## 音声（TTS）プロバイダの切替
 
 読み上げ音声（AI 応答・例文・モデルトーク）の合成先は OpenAI 互換の `/v1/audio/speech` を叩く。既定は OpenAI（`https://api.openai.com/v1`・`gpt-4o-mini-tts`・`alloy`）で、`OPENAI_API_KEY` があれば OpenAI、無ければ macOS `say` にフォールバックする（現行どおり）。ここを **Base URL・モデル・voice** の3点で差し替えられる。
 
-- 設定場所: サイドバー「記録・測定」の **⚙️ 設定 → 音声（TTS）**、または `app/.env` の `TTS_BASE_URL` / `TTS_MODEL` / `TTS_VOICE` / `TTS_API_KEY`（DB 設定が env を上書き）。
+- 設定場所: サイドバー「記録・測定」の **⚙️ 設定 → モデル接続設定**（音声/TTS の設定はモデル接続設定タブ内に統合済み）、または `app/.env` の `TTS_BASE_URL` / `TTS_MODEL` / `TTS_VOICE` / `TTS_API_KEY`（DB 設定が env を上書き）。
 - **APIキーは UI・DB に保存されない**（`app/.env` の `TTS_API_KEY`・無指定なら `OPENAI_API_KEY` のみ）。Base URL が既定以外を指すときは**鍵なしでも**エンドポイントを試す（ローカルサーバ向け）。合成に失敗したら `say` にフォールバックする。
 - 暗記例文300の**同梱音声**は既定（OpenAI）のキーで事前生成されているため、TTS を差し替えると同梱にヒットせずローカル TTS の声で都度合成される（アプリ全体で声が揃う）。既定に戻せば同梱音声に戻る。
 - キャッシュ（`data/tts-cache`）はモデル名と voice でキー分けされる。**同じモデル名かつ同じ voice のまま Base URL だけ別プロバイダに変える**と旧キャッシュと混ざりうるので、その場合は `data/tts-cache` を消すか voice/モデル名を変える。
@@ -213,7 +213,7 @@ docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest
 
 Apple Silicon の MPS 加速で速くしたい場合は、Docker ではなくリポジトリの手順に沿って `uv` でネイティブ実行する（詳細は公式 README・**導入時に確認**）。Kokoro-82M は小型モデルで、Apple Silicon の CPU でも短文なら概ねリアルタイム（RTF < 1・1文あたり数百 ms〜1〜2 秒程度）。
 
-設定は「⚙️ 設定 → 音声（TTS）」で **Base URL `http://localhost:8880/v1`・モデル `kokoro`・voice `af_sky`**（54種の voice から選択・日英中対応）を保存すれば完了。kokoro-fastapi は鍵不要なので「TTS API キーなし」表示のままで正常。
+設定は「⚙️ 設定 → モデル接続設定」で **Base URL `http://localhost:8880/v1`・モデル `kokoro`・voice `af_sky`**（54種の voice から選択・日英中対応）を保存すれば完了。kokoro-fastapi は鍵不要なので「TTS API キーなし」表示のままで正常。
 
 ## 自分用にカスタマイズする
 

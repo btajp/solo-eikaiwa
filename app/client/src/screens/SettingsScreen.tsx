@@ -245,6 +245,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
 
       {tab === "roles" && (
         <section className="support-panel stack">
+          <div className="info-pop">{s.settings.roleQualityNote}</div>
           {/* プリセット（現在の割当から逆引き表示。手動変更でカスタムに落ちる） */}
           <div className="stack">
             <div className="stat-title">{s.settings.presetSection}</div>
@@ -282,6 +283,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
               <div key={role} className="stack">
                 <div className="text-sm">{s.settings.roleName[role]}</div>
                 <div className="text-sm text-muted">{s.settings.roleDesc[role]}</div>
+                <div className="text-sm text-muted">{s.settings.roleReason[role]}</div>
                 <RoleTargetToggle
                   value={targets[role]}
                   localEnabled={localDefined}

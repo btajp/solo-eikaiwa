@@ -72,6 +72,8 @@ type SettingsStrings = {
     llmSection: string;
     roleName: Record<LlmRole, string>;
     roleDesc: Record<LlmRole, string>;
+    roleReason: Record<LlmRole, string>;
+    roleQualityNote: string;
     presetSection: string;
     presetAllLocal: string;
     presetAllLocalDesc: string;
@@ -335,6 +337,13 @@ export const STR: Record<Lang, Strings> = {
         generation: "Model talks, 4/3/2 prep, generated study material",
         assessment: "Level check and monthly review",
       },
+      roleReason: {
+        conversation: "Recommended: local — fastest responses. Switch to Claude or Codex if quality falls short.",
+        coaching: "Recommended: Claude or Codex — writing quality matters more than speed.",
+        generation: "Recommended: local — fairly templated output with modest quality demands. Switch to Claude for higher quality.",
+        assessment: "Recommended: Claude — runs infrequently and quality matters most.",
+      },
+      roleQualityNote: "Where model quality matters most: Assessment > Coaching > Content generation. Conversation benefits more from response speed.",
       presetSection: "Presets",
       presetAllLocal: "All local",
       presetAllLocalDesc: "Every role uses your local model.",
@@ -655,6 +664,13 @@ export const STR: Record<Lang, Strings> = {
         generation: "モデルトーク・4/3/2 準備・生成教材",
         assessment: "レベル測定・月次レビュー",
       },
+      roleReason: {
+        conversation: "推奨: ローカル — 応答が最も速いため。品質が物足りなければ Claude や Codex へ。",
+        coaching: "推奨: Claude / Codex — 速度より文章の品質が重要なため。",
+        generation: "推奨: ローカル — 出力が定型的で要求性能は低め。品質を上げたいときは Claude へ。",
+        assessment: "推奨: Claude — 実行頻度が低く、質の高さが最優先のため。",
+      },
+      roleQualityNote: "モデル性能が効く順: 測定 > コーチング > 教材生成。会話は性能より応答の速さが効きます。",
       presetSection: "プリセット",
       presetAllLocal: "オールローカル",
       presetAllLocalDesc: "すべての用途をローカルモデルで動かします。",
