@@ -2,6 +2,7 @@ import {
   LLM_ROLES, SERVICE_TIER_OPTIONS, CLAUDE_MODEL_OPTIONS,
   type LlmRole, type LlmRoleInput, type LlmSettingsInput, type LlmSettingsView, type RoleTuning,
   type ClaudeModelOption, type ServiceTierOption, type CatalogModel, type CatalogModelEffort, type CatalogResult,
+  type AuthMode, type LlmAuthProvider,
 } from "../api";
 
 /** ロール割当の3値（UI が直接選ぶ）。inherit/env は UI に出さない。 */
@@ -64,6 +65,22 @@ export function hydrateTuning(view: LlmSettingsView): Record<LlmRole, RoleTuning
     out[role] = view.tuning?.[role] ?? { ...EMPTY_TUNING };
   }
   return out;
+}
+
+/** GET 応答から認証モードを復元する。authModes キー自体、または個別 provider の欠落に耐える（旧サーバ応答の後方互換・行不在は既定 "subscription"）。 */
+export function hydrateAuthModes(view: LlmSettingsView): Record<LlmAuthProvider, AuthMode> {
+  return {
+    claude: view.authModes?.claude ?? "subscription",
+    codex: view.authModes?.codex ?? "subscription",
+  };
+}
+
+/** GET 応答から env キー検出状態を復元する。authKeys キー自体、または個別 provider の欠落に耐える（旧サーバ応答の後方互換・既定 false）。 */
+export function hydrateAuthKeys(view: LlmSettingsView): { anthropic: boolean; codex: boolean } {
+  return {
+    anthropic: view.authKeys?.anthropic ?? false,
+    codex: view.authKeys?.codex ?? false,
+  };
 }
 
 /**

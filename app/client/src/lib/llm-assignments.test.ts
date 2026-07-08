@@ -6,6 +6,7 @@ import {
   presetTargets, defaultTuning, hydrateTuning, RECOMMENDED_TUNING, applyRecommendedTuning,
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
   tierOptionsForCodexModel, codexDefaultEffortLabel, localModelSelectOptions, resolveEffective, clampClaudeEffort,
+  hydrateAuthModes, hydrateAuthKeys,
   type RoleTargets,
 } from "./llm-assignments";
 
@@ -20,6 +21,8 @@ function mkView(over: Partial<LlmSettingsView> = {}): LlmSettingsView {
     apiKeyConfigured: false, envProvider: "claude",
     roles: { conversation: inherit, assist: inherit, coaching: inherit, generation: inherit, assessment: inherit },
     tuning: defaultTuning(),
+    authModes: { claude: "subscription", codex: "subscription" },
+    authKeys: { anthropic: false, codex: false },
     ...over,
   };
 }
@@ -353,6 +356,27 @@ describe("旧サーバ応答への後方互換（ロール行の欠落）", () =
     const result = hydrateTuning(view);
     expect(result.assist).toEqual({ claudeModel: null, effort: null, serviceTier: null });
     expect(result.conversation).toEqual({ claudeModel: "opus", effort: "high", serviceTier: null });
+  });
+  test("authModesキー自体が無い旧応答でもhydrateAuthModesは壊れず両providerともsubscriptionで復元する", () => {
+    const view = mkView();
+    delete (view as Record<string, unknown>).authModes;
+    expect(hydrateAuthModes(view)).toEqual({ claude: "subscription", codex: "subscription" });
+  });
+  test("特定providerのauthModes行だけが無い旧応答でもhydrateAuthModesはそのproviderをsubscriptionで復元する", () => {
+    const view = mkView({ authModes: { claude: "api-key", codex: "subscription" } });
+    delete (view.authModes as Record<string, unknown>).codex;
+    const result = hydrateAuthModes(view);
+    expect(result.claude).toBe("api-key");
+    expect(result.codex).toBe("subscription");
+  });
+  test("authKeysキー自体が無い旧応答でもhydrateAuthKeysは壊れず両方falseで復元する", () => {
+    const view = mkView();
+    delete (view as Record<string, unknown>).authKeys;
+    expect(hydrateAuthKeys(view)).toEqual({ anthropic: false, codex: false });
+  });
+  test("authKeysが有るときhydrateAuthKeysはそのまま復元する", () => {
+    const view = mkView({ authKeys: { anthropic: true, codex: false } });
+    expect(hydrateAuthKeys(view)).toEqual({ anthropic: true, codex: false });
   });
 });
 

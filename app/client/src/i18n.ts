@@ -94,6 +94,12 @@ type SettingsStrings = {
     claudeNoSetup: string;
     localConnTitle: string;
     codexConnTitle: string;
+    authModeLabel: string;
+    authSubscription: string;
+    authApiKey: string;
+    authKeyDetected: string;
+    authKeyMissing: string;
+    authApiKeyNote: string;
     roleAssignSection: string;
     roleAssignDesc: string;
     targetClaude: string;
@@ -392,6 +398,12 @@ export const STR: Record<Lang, Strings> = {
       claudeNoSetup: "Claude needs no setup — it works with your Claude subscription.",
       localConnTitle: "Local LLM (OpenAI-compatible)",
       codexConnTitle: "Codex (optional)",
+      authModeLabel: "Authentication",
+      authSubscription: "Subscription (default)",
+      authApiKey: "API key (pay-as-you-go)",
+      authKeyDetected: "API key: configured in app/.env",
+      authKeyMissing: "API key: not set (add it to app/.env)",
+      authApiKeyNote: "API keys are billed pay-as-you-go via api.openai.com / the Anthropic API (separate from your subscription allowance). The key itself is never stored in the UI.",
       roleAssignSection: "Model per role",
       roleAssignDesc: "Choose which model handles each role.",
       targetClaude: "Claude",
@@ -751,6 +763,12 @@ export const STR: Record<Lang, Strings> = {
       claudeNoSetup: "Claude は設定不要です（Claude のサブスクリプションで動作します）。",
       localConnTitle: "ローカル LLM（OpenAI 互換）",
       codexConnTitle: "Codex（任意）",
+      authModeLabel: "認証",
+      authSubscription: "サブスクリプション（既定）",
+      authApiKey: "APIキー（従量課金）",
+      authKeyDetected: "APIキー: app/.env に設定済み",
+      authKeyMissing: "APIキー: 未設定（app/.env に追記してください）",
+      authApiKeyNote: "APIキーは api.openai.com / Anthropic API の従量課金です（サブスクの利用枠とは別）。キーは UI には保存されません。",
       roleAssignSection: "用途ごとのモデル",
       roleAssignDesc: "各用途をどのモデルに任せるか選びます。",
       targetClaude: "Claude",

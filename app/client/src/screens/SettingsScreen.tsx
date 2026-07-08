@@ -3,11 +3,13 @@ import {
   fetchLlmSettings, saveLlmRoleSettings, LLM_ROLES,
   fetchTtsSettings, saveTtsSettings,
   fetchLlmModels,
-  EFFORT_OPTIONS, SERVICE_TIER_OPTIONS,
+  EFFORT_OPTIONS, SERVICE_TIER_OPTIONS, AUTH_MODE_OPTIONS,
   type LlmRole, type LlmSettingsView, type TtsSettingsView, type RoleTuning, type LlmModelsResponse, type CatalogModelEffort,
+  type AuthMode,
 } from "../api";
 import {
   isLocalDefined, presetEnabled, presetTargets, matchPreset, hydrateConnection, hydrateTargets, hydrateTuning,
+  hydrateAuthModes, hydrateAuthKeys,
   buildRolesPayload, defaultTuning, applyRecommendedTuning,
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
   tierOptionsForCodexModel, codexDefaultEffortLabel, localModelSelectOptions, resolveEffective, clampClaudeEffort,
@@ -99,6 +101,10 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   });
   // ロール別チューニングの編集状態（タブ切替で消えない・プリセット適用では変更しない）
   const [tuning, setTuning] = useState<Record<LlmRole, RoleTuning>>(() => defaultTuning());
+  // 認証モードの編集状態（claude/codex）。キー検出状態は view から都度導出する（読み取り専用のため state 化しない）。
+  const [authClaude, setAuthClaude] = useState<AuthMode>("subscription");
+  const [authCodex, setAuthCodex] = useState<AuthMode>("subscription");
+  const authKeys = view ? hydrateAuthKeys(view) : { anthropic: false, codex: false };
   // 音声（TTS）の編集状態
   const [ttsView, setTtsView] = useState<TtsSettingsView | null>(null);
   const [ttsBaseUrl, setTtsBaseUrl] = useState("");
@@ -113,6 +119,9 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     setConnCodex(conn.codexModel);
     setTargets(hydrateTargets(v));
     setTuning(hydrateTuning(v));
+    const authModes = hydrateAuthModes(v);
+    setAuthClaude(authModes.claude);
+    setAuthCodex(authModes.codex);
   }
 
   function hydrateTts(v: TtsSettingsView) {
@@ -159,8 +168,11 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     setSaving(true); setLlmResult(null);
     try {
       // cloud はローカル未定義時のフォールバック先にのみ影響する（優先クラウドが唯一の妥当な出典）。
-      // tuning は割当・プリセットとは独立に現在の編集状態をそのまま乗せる（プリセット適用は tuning を変更しない）。
-      applyResult(await saveLlmRoleSettings(buildRolesPayload(nextTargets, nextConn, preferredCloud, tuning)));
+      // tuning・auth は割当・プリセットとは独立に現在の編集状態をそのまま乗せる（プリセット適用はどちらも変更しない）。
+      applyResult(await saveLlmRoleSettings({
+        ...buildRolesPayload(nextTargets, nextConn, preferredCloud, tuning),
+        auth: { claude: authClaude, codex: authCodex },
+      }));
       return true;
     } catch { setLlmResult(s.llm.saveFailed); return false; } finally { setSaving(false); }
   }
@@ -248,7 +260,25 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
       {tab === "conn" && (
         <section className="support-panel stack">
           <div className="stat-title">{s.settings.connectionSection}</div>
-          <div className="text-sm text-muted">{s.settings.claudeNoSetup}</div>
+          <div className="llm-fields stack">
+            <div className="text-sm">Claude</div>
+            <div className="text-sm text-muted">{s.settings.claudeNoSetup}</div>
+            <label className="llm-field">
+              <span className="text-sm text-muted">{s.settings.authModeLabel}</span>
+              <select
+                className="llm-input" value={authClaude} disabled={saving || !view}
+                onChange={(e) => setAuthClaude(e.target.value as AuthMode)}
+              >
+                {AUTH_MODE_OPTIONS.map((m) => (
+                  <option key={m} value={m} disabled={m === "api-key" && !authKeys.anthropic}>
+                    {m === "subscription" ? s.settings.authSubscription : s.settings.authApiKey}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="text-sm text-muted">{authKeys.anthropic ? s.settings.authKeyDetected : s.settings.authKeyMissing}</div>
+            <div className="text-sm text-muted">{s.settings.authApiKeyNote}</div>
+          </div>
           <div className="llm-fields stack">
             <div className="text-sm">{s.settings.localConnTitle}</div>
             <label className="llm-field">
@@ -295,6 +325,21 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                 );
               })()}
             </label>
+            <label className="llm-field">
+              <span className="text-sm text-muted">{s.settings.authModeLabel}</span>
+              <select
+                className="llm-input" value={authCodex} disabled={saving || !view}
+                onChange={(e) => setAuthCodex(e.target.value as AuthMode)}
+              >
+                {AUTH_MODE_OPTIONS.map((m) => (
+                  <option key={m} value={m} disabled={m === "api-key" && !authKeys.codex}>
+                    {m === "subscription" ? s.settings.authSubscription : s.settings.authApiKey}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="text-sm text-muted">{authKeys.codex ? s.settings.authKeyDetected : s.settings.authKeyMissing}</div>
+            <div className="text-sm text-muted">{s.settings.authApiKeyNote}</div>
           </div>
           <div className="text-sm text-muted">{s.llm.help}</div>
           <Button variant="secondary" onClick={() => void persist(targets, conn)} disabled={saving || !view}>{saving ? s.llm.saving : s.settings.saveConnection}</Button>
