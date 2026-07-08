@@ -1,5 +1,12 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { makeCodexAppServerRunner, type CodexAppServerConfig } from "../providers/codex-app-server";
+import {
+  makeCodexAppServerRunner,
+  getCodexAppServerRunner,
+  __resetCodexAppServerRegistry,
+  isTestedCodexVersion,
+  TESTED_CODEX_VERSION,
+  type CodexAppServerConfig,
+} from "../providers/codex-app-server";
 import { makeScriptedProc, type FakeProcHandle } from "./helpers/fake-app-server";
 
 type Msg = Record<string, unknown>;
@@ -298,5 +305,96 @@ describe("makeCodexAppServerRunner", () => {
     const bTurnIdx = f2.sent.findIndex((m) => m.method === "turn/start" && (m.params as Msg).threadId === "t-B");
     expect(bResumeIdx).toBeGreaterThanOrEqual(0);
     expect(bResumeIdx).toBeLessThan(bTurnIdx);
+  });
+});
+
+describe("getCodexAppServerRunner（registry: 接続設定キー単位でのプロセス共有）", () => {
+  test("同一設定でrunnerを2回作ってもspawnは1回（プロセス共有）", async () => {
+    __resetCodexAppServerRegistry();
+    let spawnCalls = 0;
+    const f = makeScriptedProc({
+      "thread/start": threadStartOk(["t-1", "t-2"]),
+      "turn/start": turnOk(["Hi there", "Yo"]),
+    });
+    const cfg: CodexAppServerConfig = { ...CFG, spawn: () => { spawnCalls++; return f.proc; } };
+
+    const runnerA = getCodexAppServerRunner(cfg);
+    const runnerB = getCodexAppServerRunner(cfg); // 同一キー: 新規プロセスは spawn されないはず
+
+    await runnerA("Hello");
+    await runnerB("World");
+
+    expect(spawnCalls).toBe(1);
+  });
+
+  test("設定キーが変わると旧プロセスがkillされ新プロセスをspawnする", async () => {
+    __resetCodexAppServerRegistry();
+    const f1 = makeScriptedProc({ "thread/start": threadStartOk(["t-1"]), "turn/start": turnOk(["Hi there"]) });
+    const f2 = makeScriptedProc({ "thread/start": threadStartOk(["t-2"]), "turn/start": turnOk(["Yo"]) });
+    let killCalls = 0;
+    f1.proc.kill = () => { killCalls++; };
+
+    const runnerA = getCodexAppServerRunner({ ...CFG, model: "gpt-a", spawn: () => f1.proc });
+    await runnerA("Hello"); // f1 を実際に spawn させる（proc がセットされないと kill() は no-op）
+    expect(killCalls).toBe(0);
+
+    const runnerB = getCodexAppServerRunner({ ...CFG, model: "gpt-b", spawn: () => f2.proc }); // キーが変わる
+    expect(killCalls).toBe(1); // 旧クライアント(f1)が kill される
+
+    const res = await runnerB("World");
+    expect(res.sessionId).toBe("t-2"); // 新クライアント(f2)で新規スレッドが作られる
+  });
+
+  test("model/reasoningEffort/serviceTierが未指定(undefined)でも同一キーとして扱われる（正規化）", async () => {
+    __resetCodexAppServerRegistry();
+    let spawnCalls = 0;
+    const f = makeScriptedProc({
+      "thread/start": threadStartOk(["t-1", "t-2"]),
+      "turn/start": turnOk(["Hi there", "Yo"]),
+    });
+    const base = { defaultSystemPrompt: "SYS" };
+    const runnerA = getCodexAppServerRunner({ ...base, model: undefined, spawn: () => { spawnCalls++; return f.proc; } });
+    const runnerB = getCodexAppServerRunner({ ...base, spawn: () => { spawnCalls++; return f.proc; } }); // model キー自体を省略
+
+    await runnerA("Hello");
+    await runnerB("World");
+
+    expect(spawnCalls).toBe(1);
+  });
+
+  test("__resetCodexAppServerRegistry: reset後は同一キーでも新規spawnする（テスト間分離）", async () => {
+    __resetCodexAppServerRegistry();
+    let spawnCalls = 0;
+    const f = makeScriptedProc({
+      "thread/start": threadStartOk(["t-1", "t-2"]),
+      "turn/start": turnOk(["Hi there", "Yo"]),
+    });
+    const cfg: CodexAppServerConfig = { ...CFG, spawn: () => { spawnCalls++; return f.proc; } };
+
+    const runner1 = getCodexAppServerRunner(cfg);
+    await runner1("Hello");
+    expect(spawnCalls).toBe(1);
+
+    __resetCodexAppServerRegistry();
+
+    const runner2 = getCodexAppServerRunner(cfg); // 同一キーだが reset 済みなので新規 client
+    await runner2("Again");
+    expect(spawnCalls).toBe(2);
+  });
+});
+
+describe("isTestedCodexVersion", () => {
+  test("動作確認済みバージョンと完全一致すればtrue", () => {
+    expect(isTestedCodexVersion(TESTED_CODEX_VERSION)).toBe(true);
+  });
+
+  test("動作確認済みバージョンに前方一致すればtrue（末尾に改行等が付く実際のCLI出力を許容）", () => {
+    expect(isTestedCodexVersion(`${TESTED_CODEX_VERSION}\n`)).toBe(true);
+    expect(isTestedCodexVersion(`codex-cli ${TESTED_CODEX_VERSION}`.replace("codex-cli ", ""))).toBe(true);
+  });
+
+  test("異なるバージョンはfalse", () => {
+    expect(isTestedCodexVersion("0.999.0")).toBe(false);
+    expect(isTestedCodexVersion("")).toBe(false);
   });
 });

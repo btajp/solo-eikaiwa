@@ -1,6 +1,7 @@
 import type { ClaudeRunner } from "./converse";
 import { makeOpenAICompatRunner } from "./providers/openai-compat";
 import { makeCodexRunner } from "./providers/codex";
+import { getCodexAppServerRunner } from "./providers/codex-app-server";
 
 /** サイドバー設定UIで選べる LLM プロバイダ。"env" は「環境変数に従う」リセット用センチネル。 */
 export type LlmProvider = "env" | "claude" | "openai-compat" | "codex";
@@ -77,15 +78,25 @@ export function selectRunner(args: SelectRunnerArgs): ClaudeRunner {
         defaultSystemPrompt: args.defaultSystemPrompt,
       });
 
-    case "codex":
-      return makeCodexRunner({
+    case "codex": {
+      // codex app-server（常駐プロセス）を既定経路にし、transport 障害時のみ codex exec（ワンショット）へ
+      // フォールバックする。接続設定（model/reasoningEffort/serviceTier）はどちらの経路でも同一値を渡す。
+      const codexConnection = {
         model: env.CODEX_MODEL?.trim() || undefined,
         // 会話用途では xhigh 級の長考がレイテンシに直撃するため、既定を medium に固定（env で変更可）
         reasoningEffort: env.CODEX_REASONING_EFFORT?.trim() || "medium",
         // Fast サービスティアを既定に（無効な環境ではサーバ側で黙って無視されるため安全）
         serviceTier: env.CODEX_SERVICE_TIER?.trim() || "fast",
+      };
+      return getCodexAppServerRunner({
+        ...codexConnection,
         defaultSystemPrompt: args.defaultSystemPrompt,
+        execFallback: makeCodexRunner({
+          ...codexConnection,
+          defaultSystemPrompt: args.defaultSystemPrompt,
+        }),
       });
+    }
 
     default:
       throw new Error(`Unknown LLM_PROVIDER: ${provider} (expected claude | openai-compat | codex)`);

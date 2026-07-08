@@ -258,6 +258,38 @@ export class CodexAppServerClient {
   }
 }
 
+/** 動作確認済みの codex CLI バージョン（前方一致で判定）。乖離時は警告のみ（動作は継続）。 */
+export const TESTED_CODEX_VERSION = "0.142.5";
+
+/** `codex --version` の出力が動作確認済みバージョンと前方一致するか判定する純関数（単体テスト対象）。 */
+export function isTestedCodexVersion(actual: string): boolean {
+  return actual.trim().startsWith(TESTED_CODEX_VERSION);
+}
+
+/** 版チェックはプロセス起動のたびではなく、実プロセスの初回 spawn 時に一度だけ行う（module-level フラグ）。 */
+let versionChecked = false;
+
+/**
+ * `codex --version` を1回だけ実行し、動作確認済みバージョンと異なれば警告を出す。
+ * バージョン取得自体が失敗しても（codex 未インストール等）ここでは無視する
+ * — 本体の spawn がすぐ後に続き、そちらで実際の失敗が顕在化するため。
+ */
+function checkCodexVersionOnce(): void {
+  if (versionChecked) return;
+  versionChecked = true;
+  try {
+    const result = Bun.spawnSync(["codex", "--version"]);
+    const actual = new TextDecoder().decode(result.stdout).trim();
+    if (!isTestedCodexVersion(actual)) {
+      console.warn(
+        `codex ${actual} はテスト済み ${TESTED_CODEX_VERSION} と異なります（動作は継続・異常時はexecフォールバック）`,
+      );
+    }
+  } catch {
+    // 版チェック自体の失敗は無視（本体 spawn で改めて顕在化する）
+  }
+}
+
 /**
  * 実際に `codex app-server` を起動する transport。stdout を改行区切りで JSON.parse し（失敗行は無視）、
  * stdin へ1行JSONを書き込む。プロセス起動・実IOに依存するため単体テスト対象外
@@ -265,6 +297,7 @@ export class CodexAppServerClient {
  * ここは Task 7 の手動スモークで確認する）。
  */
 export const realSpawnAppServer: SpawnAppServer = () => {
+  checkCodexVersionOnce();
   const proc = Bun.spawn(["codex", "app-server"], {
     stdin: "pipe",
     stdout: "pipe",
@@ -368,7 +401,14 @@ function foldPrompt(history: CodexMsg[], prompt: string): string {
  * モデル起因の失敗（turn failed・空応答）はフォールバックせず throw（exec アダプタと同じ挙動）。
  */
 export function makeCodexAppServerRunner(cfg: CodexAppServerConfig): ClaudeRunner {
-  const client = new CodexAppServerClient(cfg.spawn ?? realSpawnAppServer);
+  return buildRunner(new CodexAppServerClient(cfg.spawn ?? realSpawnAppServer), cfg);
+}
+
+/** makeCodexAppServerRunner の本体。client を外部から受け取れるように分離し、registry（下記）が
+ * 常駐プロセスを設定キー単位で使い回せるようにする（同じ client を複数回 buildRunner しても
+ * 新規プロセスは spawn されない＝ CodexAppServerClient.ensureStarted の lazy 判定に従う）。
+ */
+function buildRunner(client: CodexAppServerClient, cfg: CodexAppServerConfig): ClaudeRunner {
   /**
    * sessionId(=threadId) → スレッド作成/復元時に採用した systemPrompt と、その時点のプロセス世代。
    * 世代が client.generation() と一致するエントリだけが「今のプロセスが知っているスレッド」。
@@ -456,4 +496,44 @@ export function makeCodexAppServerRunner(cfg: CodexAppServerConfig): ClaudeRunne
       throw err;
     }
   };
+}
+
+// ---------------------------------------------------------------------------
+// registry 層: 接続設定（model/reasoningEffort/serviceTier）単位で常駐プロセス（client）を共有する
+// ---------------------------------------------------------------------------
+
+type CodexAppServerRegistryEntry = { key: string; client: CodexAppServerClient };
+
+/** module-level singleton。applyLlmRoleSettings が設定保存のたびに selectRunner → getCodexAppServerRunner
+ * を再実行しても、接続設定が変わらない限り既存プロセスを使い回すための唯一の保持場所。 */
+let registry: CodexAppServerRegistryEntry | null = null;
+
+/** 接続設定（プロセスの起動条件そのもの）だけをキーにする。defaultSystemPrompt/spawn/execFallback は
+ * ロール設定の変更では変わらない値、またはプロセス寿命に無関係な値なのでキーに含めない。
+ * JSON.stringify は値が undefined のキーを省略するため、未指定と明示 undefined は同じキーになる（正規化）。 */
+function connectionKey(cfg: CodexAppServerConfig): string {
+  return JSON.stringify({ model: cfg.model, reasoningEffort: cfg.reasoningEffort, serviceTier: cfg.serviceTier });
+}
+
+/**
+ * codex app-server 常駐プロセスを接続設定単位でデデュープする ClaudeRunner ファクトリ。
+ * - 同一キー（同一 model/reasoningEffort/serviceTier）で呼ばれた場合、既存の client（=既に spawn 済みかもしれない
+ *   常駐プロセス）をそのまま使う新しい runner を返す（新規プロセスは spawn されない）。
+ * - キーが変わった場合は旧 client を kill() してから新規 client を作る。
+ * - defaultSystemPrompt/execFallback は呼び出しごとの cfg をそのまま使う（値は実運用では固定だが、
+ *   仮に変わっても次回呼び出しの runner に反映される）。
+ */
+export function getCodexAppServerRunner(cfg: CodexAppServerConfig): ClaudeRunner {
+  const key = connectionKey(cfg);
+  if (!registry || registry.key !== key) {
+    registry?.client.kill();
+    registry = { key, client: new CodexAppServerClient(cfg.spawn ?? realSpawnAppServer) };
+  }
+  return buildRunner(registry.client, cfg);
+}
+
+/** テスト用: registry をリセットする（現在の client があれば kill してから破棄）。テスト間の分離用。 */
+export function __resetCodexAppServerRegistry(): void {
+  registry?.client.kill();
+  registry = null;
 }
