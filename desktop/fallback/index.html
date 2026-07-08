@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>solo-eikaiwa</title>
+<style>
+  :root {
+    --bg: #f4f2ee;
+    --fg: #1f1d1a;
+    --sub: #6b6660;
+    --accent: #1e9c5a;
+    --accent-soft: #e4f4ea;
+    --card: #ffffff;
+    --border: #e3ded6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #181716;
+      --fg: #f2efe9;
+      --sub: #a39d94;
+      --accent: #4ec584;
+      --accent-soft: #1d3527;
+      --card: #221f1d;
+      --border: #37332e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+  }
+  .badge {
+    display: inline-block;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 16px;
+  }
+  h1 { font-size: 20px; margin: 0 0 8px; }
+  p { line-height: 1.7; margin: 0 0 12px; color: var(--sub); }
+  p.en { font-size: 13px; }
+  code {
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  button {
+    margin-top: 16px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+  #status { margin-top: 12px; font-size: 13px; min-height: 1.4em; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge">solo-eikaiwa</span>
+    <h1>サーバが起動していません</h1>
+    <p>ローカルサーバ（http://127.0.0.1:3111）に接続できませんでした。ターミナルで以下を実行して常駐サーバを起動してください。</p>
+    <p><code>./scripts/install-daemon.sh</code></p>
+    <p class="en">Could not reach the local server at http://127.0.0.1:3111. Run <code>./scripts/install-daemon.sh</code> from the repository root to start the background server, then retry.</p>
+    <button id="retry">再試行 / Retry</button>
+    <div id="status"></div>
+  </div>
+  <script>
+    const button = document.getElementById("retry");
+    const status = document.getElementById("status");
+
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      status.textContent = "確認中... / Checking...";
+      try {
+        const attached = await window.__TAURI__.core.invoke("retry_attach");
+        if (!attached) {
+          status.textContent = "まだ起動していません。/ Still not running.";
+        }
+        // 成功時は Rust 側がこのウィンドウを実アプリのURLへ遷移させるため、ここでは何もしない。
+      } catch (err) {
+        status.textContent = "確認に失敗しました。/ Check failed.";
+        console.error(err);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
