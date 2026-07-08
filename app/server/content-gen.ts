@@ -1034,8 +1034,10 @@ const SPOKEN_FUNCTION_BAND_DIFFICULTY_DESC: Record<Band, string> = {
  * spoken function 例文候補の検証。既存 validateNewSentences（domain/空文字/重複/no連番）に加えて、
  * 帯別の書き言葉語彙禁止（1文でも書き言葉語彙を含めば候補全体を不採用）と帯別語数上限（同）を課す。
  * 通過した候補には band を付与して返す（既存の300文には無い additive フィールド）。
- * バッチ結合テキストに対する checkSpokenRegister（平均文長・短縮形率の集計チェック）は呼び出し側の責務
- * （genListeningForTargetのcheckSpokenRegister呼び出しと同様、構造検証とは別レイヤーとして分離する）。
+ * 短縮形率はここでは検査しない（呼び出し側が帯全体の集計でのみ checkSpokenRegister を課す）。
+ * 理由: request（依頼）機能の自然な定番表現 "Can/Could you ...?" は短縮できない語順のため短縮形が
+ * ほぼ0%でも完全に自然な話し言葉であり、カテゴリ単体に短縮形率を要求すると誤ってFAILする
+ * （spoken-register-check.checkScenarioStarterが単一発話への短縮形要求を撤回した理由と同じ較正実績）。
  */
 export function validateSpokenFunctionSentences(
   cands: unknown, existing: Sentence[], categoryNo: number, category: string, band: Band,
@@ -1065,11 +1067,14 @@ export type GenSpokenFunctionSentencesForTargetDeps = {
  * セル内のカテゴリ単位でスキップ判定するため--fill-coverageのcomputeBandCoverageStatusesは使わない
  * — 帯×domain×typeの粒度ではなく帯×カテゴリの粒度で完結する専用ロジック）。
  * 各カテゴリのバッチ生成は3ラウンド規律（genListeningForTarget等と同じ）で、構造検証
- * （validateSpokenFunctionSentences）に加えバッチ結合テキストの checkSpokenRegister をhard-failゲートする。
- * 全カテゴリ処理後、帯全体（新規+既存の充足済み分を合わせた最大30文）の結合テキストでも checkSpokenRegister を
- * 通し（コーパス粒度の最終確認 — 個々のバッチは合格でも、既にべき等スキップされた既存カテゴリの質が
- * 低ければ帯全体としては閾値を割り込みうるため）、FAILならこの呼び出し全体を書き込みゼロで throw する
- * （同じ帯を再実行すれば、既存カテゴリはそのまま・不足カテゴリだけ再生成される）。
+ * （validateSpokenFunctionSentences: 既存フォーマット + 書き言葉語彙禁止 + 帯別語数上限）をhard-failゲートする。
+ * カテゴリ単体では checkSpokenRegister（短縮形率等）を課さない — request（依頼）のように定番表現が
+ * 短縮不能で短縮形率が自然に0%近くなる機能があるため（validateSpokenFunctionSentencesのコメント参照）。
+ * 全カテゴリ処理後、帯全体（新規+既存の充足済み分を合わせた最大30文・複数機能を横断した集計）でのみ
+ * checkSpokenRegister を通す（コーパス粒度の最終確認 — request単体は短縮形0%でも、他機能[refusal/
+ * clarification等]の短縮形が多い分で帯全体としては自然な話し言葉の水準に収まる想定）。
+ * FAILならこの呼び出し全体を書き込みゼロで throw する（同じ帯を再実行すれば、既存カテゴリはそのまま・
+ * 不足カテゴリだけ再生成される）。
  */
 export async function genSpokenFunctionSentencesForTarget(deps: GenSpokenFunctionSentencesForTargetDeps): Promise<void> {
   const log = deps.log ?? console.log;
@@ -1116,8 +1121,7 @@ Do not use any tools — reply directly with text only.`;
       }
       if (text !== undefined) {
         const parsed = extractJson<{ sentences?: unknown }>(text);
-        const cand = parsed ? validateSpokenFunctionSentences(parsed.sentences, all, categoryNo, category, deps.band) : null;
-        validated = cand && checkSpokenRegister(cand.map((s) => s.en).join(" "), spokenBand).pass ? cand : null;
+        validated = parsed ? validateSpokenFunctionSentences(parsed.sentences, all, categoryNo, category, deps.band) : null;
       }
       if (!validated && attempt < 3) log(`  ${fn}/${deps.band}: 検証NG — 再生成します(${attempt}/3)`);
     }

@@ -1292,23 +1292,64 @@ describe("content-gen / spoken function 例文", () => {
       rmSync(dir, { recursive: true, force: true });
     });
 
-    test("checkSpokenRegisterでFAILする候補(短縮形0%の教科書調)は再生成される", async () => {
+    // 注意: カテゴリ単体には短縮形率(checkSpokenRegister)を要求しない — request(依頼)の定番表現
+    // "Can/Could you ...?" は短縮不能で自然に短縮形0%になりうるため（validateSpokenFunctionSentencesの
+    // コメント参照）。カテゴリ単体の再生成トリガーは書き言葉語彙・帯別語数上限のみ。
+    test("書き言葉語彙(written vocab)を含む候補は再生成される", async () => {
       const { dir, file } = setupFile();
-      const textbookBatch = JSON.stringify({ sentences: [
-        { domain: "daily", en: "I do not want to interrupt you right now.", ja: "邪魔したくない", note: "" },
-        { domain: "daily", en: "I do not think that is a good idea.", ja: "良くないと思う", note: "" },
-        { domain: "business", en: "I do not have time for this today.", ja: "今日は時間がない", note: "" },
-        { domain: "business", en: "I do not agree with that plan at all.", ja: "その計画には賛成しない", note: "" },
-        { domain: "it", en: "I do not know how to fix this bug.", ja: "直し方が分からない", note: "" },
-        { domain: "it", en: "I do not see the point of this change.", ja: "この変更の意味が分からない", note: "" },
+      const bannedBatch = JSON.stringify({ sentences: [
+        { domain: "daily", en: "Moreover, could you help me with this request?", ja: "さらに、これを手伝ってもらえますか", note: "" },
+        { domain: "daily", en: "Furthermore, I need this done by noon.", ja: "さらに、正午までに終わらせてほしい", note: "" },
+        { domain: "business", en: "Therefore, please send me the request file.", ja: "したがって、依頼ファイルを送ってください", note: "" },
+        { domain: "business", en: "In addition, could you check this request?", ja: "加えて、この依頼を確認してもらえますか", note: "" },
+        { domain: "it", en: "Please utilize this tool for the request.", ja: "この依頼にはこのツールを使ってください", note: "" },
+        { domain: "it", en: "Numerous individuals asked for this request.", ja: "多くの人がこの依頼をした", note: "" },
       ] });
       const logs: string[] = [];
       await genSpokenFunctionSentencesForTarget({
-        runner: makeRunner([textbookBatch, goodBatch("request"), ...SPOKEN_FUNCTIONS.slice(1).map((f) => goodBatch(f))]),
+        runner: makeRunner([bannedBatch, goodBatch("request"), ...SPOKEN_FUNCTIONS.slice(1).map((f) => goodBatch(f))]),
         sentencesFile: file, band: "foundation", dry: false, log: (s) => logs.push(s),
       });
       expect(loadSentences(file)).toHaveLength(5 + 30);
       expect(logs.some((l) => l.includes("検証NG"))).toBe(true);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("帯別語数上限を超える候補は再生成される", async () => {
+      const { dir, file } = setupFile();
+      const tooLongBatch = JSON.stringify({ sentences: Array.from({ length: 6 }, (_, i) => ({
+        domain: (["daily", "business", "it"] as const)[i % 3],
+        en: "Would it be possible for you to help me carry this heavy box up the stairs please",
+        ja: `長い依頼文${i}`, note: "",
+      })) });
+      const logs: string[] = [];
+      await genSpokenFunctionSentencesForTarget({
+        runner: makeRunner([tooLongBatch, goodBatch("request"), ...SPOKEN_FUNCTIONS.slice(1).map((f) => goodBatch(f))]),
+        sentencesFile: file, band: "foundation", dry: false, log: (s) => logs.push(s),
+      });
+      expect(loadSentences(file)).toHaveLength(5 + 30);
+      expect(logs.some((l) => l.includes("検証NG"))).toBe(true);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    // request(依頼)の自然な定番表現("Can/Could you ...?")は短縮不能で短縮形0%になりうるが、
+    // カテゴリ単体としては正当な話し言葉のため検証を通ることの回帰防止テスト（実LLM生成での実障害の再現）。
+    test("短縮形0%でもrequestの定番表現(Can/Could you...?)は単体では正当として通る", async () => {
+      const { dir, file } = setupFile();
+      const requestNoContraction = JSON.stringify({ sentences: [
+        { domain: "daily", en: "Can you pass me the salt, please?", ja: "塩を取ってもらえますか。", note: "" },
+        { domain: "daily", en: "Could you help me carry these bags?", ja: "この袋を運ぶのを手伝ってもらえますか。", note: "" },
+        { domain: "business", en: "Can you send me the file by noon?", ja: "お昼までにファイルを送ってもらえますか。", note: "" },
+        { domain: "business", en: "Could you check this report for me?", ja: "この報告書を確認してもらえますか。", note: "" },
+        { domain: "it", en: "Can you restart the server, please?", ja: "サーバーを再起動してもらえますか。", note: "" },
+        { domain: "it", en: "Could you reset my password for me?", ja: "パスワードをリセットしてもらえますか。", note: "" },
+      ] });
+      await genSpokenFunctionSentencesForTarget({
+        runner: makeRunner([requestNoContraction, ...SPOKEN_FUNCTIONS.slice(1).map((f) => goodBatch(f))]),
+        sentencesFile: file, band: "foundation", dry: false, log: () => {},
+      });
+      const requestSentences = loadSentences(file).filter((s) => s.category_no === SPOKEN_FUNCTION_CATEGORY_NO.request);
+      expect(requestSentences).toHaveLength(6);
       rmSync(dir, { recursive: true, force: true });
     });
 
