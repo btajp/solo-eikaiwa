@@ -42,6 +42,29 @@ describe("sentences / loadSentences", () => {
   test("ファイルが無ければ throw（起動時に気づけること）", () => {
     expect(() => loadSentences("/nonexistent/nope.json")).toThrow();
   });
+
+  // v0.26 content-ladder wave4: spoken function例文が付ける band フィールド(additive)への耐性。
+  // band は省略可・値がある場合は3値のいずれかのみ有効とする。
+  test("band フィールドがある項目も読み込める（省略可・foundation/development/fluencyのいずれか）", () => {
+    const file = writeFixture([...FIVE, { no: 6, category_no: 26, category: "会話機能: 依頼する", domain: "daily", en: "Can you help me?", ja: "手伝ってくれる？", note: "", band: "foundation" }]);
+    const loaded = loadSentences(file);
+    expect(loaded).toHaveLength(6);
+    expect(loaded.find((s) => s.no === 6)?.band).toBe("foundation");
+  });
+
+  test("band に不正な値がある項目は警告してスキップする（他項目は読み込める）", () => {
+    const file = writeFixture([...FIVE, { no: 6, category_no: 26, category: "x", domain: "daily", en: "x", ja: "x", note: "", band: "not-a-band" }]);
+    expect(loadSentences(file)).toHaveLength(5);
+  });
+
+  // band 以外の未知フィールドが将来追加されても既存項目の読み込みを壊さないことの耐性テスト
+  // （content-gen.tsのgenSpokenFunctionSentences等、追加メタデータを持つ生成物を想定した回帰防止）。
+  test("既知フィールド以外の未知の追加フィールドがあっても読み込みを壊さない（将来の拡張耐性）", () => {
+    const file = writeFixture([{ ...FIVE[0], sourceHash: "abc123", promptVersion: 2 }]);
+    const loaded = loadSentences(file);
+    expect(loaded).toHaveLength(1);
+    expect(loaded[0].en).toBe(FIVE[0].en);
+  });
 });
 
 describe("sentences / 日付ヘルパ", () => {
@@ -136,6 +159,17 @@ describe("sentences / queue", () => {
     const store = makeSentenceStore(openDb(":memory:"), outOfOrder);
     const q = store.queue(2, "2026-07-06");
     expect(q.map((s) => s.no)).toEqual([1, 2]);
+  });
+});
+
+describe("sentences / SentenceStore の band 耐性", () => {
+  test("band付きの例文もlist/queueでbandがそのまま透過する（SRS選定ロジックは不変）", () => {
+    const withBand: Sentence[] = [
+      { no: 1, category_no: 26, category: "会話機能: 依頼する", domain: "daily", en: "Can you help me?", ja: "手伝ってくれる？", note: "", band: "foundation" },
+    ];
+    const store = makeSentenceStore(openDb(":memory:"), withBand);
+    expect(store.list()[0].band).toBe("foundation");
+    expect(store.queue(1, "2026-07-06")[0].band).toBe("foundation");
   });
 });
 

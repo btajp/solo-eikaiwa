@@ -1,19 +1,19 @@
 import type { Database } from "bun:sqlite";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { normalizeEn } from "./chunks";
-import { extractJson } from "./coach";
+import { extractJson, generateSentenceExplanation } from "./coach";
 import type { ClaudeRunner } from "./converse";
 import { loadContent, type Domain } from "./content";
 import { loadListening } from "./listening";
-import { loadSentences, type Sentence } from "./sentences";
+import { loadBundledExplanations, loadSentences, type Sentence } from "./sentences";
 import { vocabConstraint } from "./progression";
 import { categoryBadRates, pickWorstCategories } from "./srs-analytics";
 import { spokenStyleFor, type SpokenBand } from "./spoken-style";
-import { BAND_STAGE_RANGE, computeBandCoverageStatuses, prioritizeFillTasks, type Band } from "./content-coverage";
+import { BAND_STAGE_RANGE, BANDS, computeBandCoverageStatuses, prioritizeFillTasks, type Band } from "./content-coverage";
 import { checkTopicAnchor } from "./topic-anchor-check";
-import { checkScenarioStarter, checkSpokenRegister } from "./spoken-register-check";
+import { checkScenarioStarter, checkSpokenRegister, countWords, findWrittenVocabHits } from "./spoken-register-check";
 
 const ORIGINALITY = "All output must be completely original — do not copy or adapt sentences from existing textbooks or courses.";
 
@@ -974,4 +974,271 @@ Do not use any tools — reply directly with text only.`;
     throw err;
   }
   log(`完了: ${written.length} 本の ${deps.domain}/${deps.band} scenario を追加しました。`);
+}
+
+// v0.26 content-ladder wave4: spoken function 例文（依頼/断り/聞き返し/言い換え/相槌）+90（帯別30・解説つき）。
+// 設計doc §3「domain非依存・帯別30」。既存の文法/機能カテゴリ(1-25)とは別枠として category_no 26-30 を固定で
+// 割り当てる（category_no は将来にわたって不変な識別子のため、実行時の動的採番ではなく固定表にする）。
+export const SPOKEN_FUNCTIONS = ["request", "refusal", "clarification", "paraphrase", "backchannel"] as const;
+export type SpokenFunction = (typeof SPOKEN_FUNCTIONS)[number];
+
+export const SPOKEN_FUNCTION_CATEGORY_NO: Record<SpokenFunction, number> = {
+  request: 26, refusal: 27, clarification: 28, paraphrase: 29, backchannel: 30,
+};
+
+/** 既存の「機能: 依頼・許可・提案」等（category_no 22-25・複数機能の合成カテゴリ）と区別するため「会話機能:」を使う */
+export const SPOKEN_FUNCTION_CATEGORY_JA: Record<SpokenFunction, string> = {
+  request: "会話機能: 依頼する",
+  refusal: "会話機能: 断る",
+  clarification: "会話機能: 聞き返す",
+  paraphrase: "会話機能: 言い換える",
+  backchannel: "会話機能: 相槌を打つ",
+};
+
+const SPOKEN_FUNCTION_DESC: Record<SpokenFunction, string> = {
+  request: "making a polite request — asking someone to do something for you",
+  refusal: "politely declining or saying no to a request, invitation, or offer",
+  clarification: "asking someone to repeat, clarify, or explain something you didn't catch or understand",
+  paraphrase: "rephrasing or restating an idea in different words, e.g. to check or confirm understanding",
+  backchannel: "short reactive phrases used while listening to someone (agreeing, showing interest, surprise, etc.)",
+};
+
+/**
+ * 帯×カテゴリあたりのquota（5カテゴリ×6件=30文/帯・3帯で計90文）。checkPrepChunk等の粗い外枠とは異なり、
+ * ここは「1回のバッチ生成で何件を依頼するか」を兼ねる（genSentencesの「4文まとめて生成」と同じ発想の拡張）。
+ */
+const SPOKEN_FUNCTION_QUOTA_PER_CATEGORY = 6;
+
+/**
+ * spoken function 例文の帯別・文あたりの語数上限（hard cap）。spoken-style.LENGTH_CAP_BY_BANDのガイド
+ * （6-10/9-13/10-15語）に、THRESHOLDS_BY_BANDのmaxAvgWordsPerSentence(11/14/16)よりさらに数語の
+ * 余裕を持たせた「明らかな逸脱だけを弾く」粗いゲート。文単位の主要な質ゲートはcheckSpokenRegister
+ * （バッチ結合テキストへの平均文長・短縮形率チェック）が担う。
+ */
+const SPOKEN_FUNCTION_WORD_CAP: Record<Band, number> = {
+  foundation: 13, development: 16, fluency: 19,
+};
+
+/** content-coverage.Band(foundation/development/fluency) → spoken-style.SpokenBand(beginner/intermediate/advanced) */
+const SPOKEN_BAND_FOR_CONTENT_BAND: Record<Band, SpokenBand> = {
+  foundation: "beginner", development: "intermediate", fluency: "advanced",
+};
+
+const SPOKEN_FUNCTION_BAND_DIFFICULTY_DESC: Record<Band, string> = {
+  foundation: "beginner difficulty stage 1-2 of 6",
+  development: "intermediate difficulty stage 3-4 of 6",
+  fluency: "advanced difficulty stage 5-6 of 6",
+};
+
+/**
+ * spoken function 例文候補の検証。既存 validateNewSentences（domain/空文字/重複/no連番）に加えて、
+ * 帯別の書き言葉語彙禁止（1文でも書き言葉語彙を含めば候補全体を不採用）と帯別語数上限（同）を課す。
+ * 通過した候補には band を付与して返す（既存の300文には無い additive フィールド）。
+ * バッチ結合テキストに対する checkSpokenRegister（平均文長・短縮形率の集計チェック）は呼び出し側の責務
+ * （genListeningForTargetのcheckSpokenRegister呼び出しと同様、構造検証とは別レイヤーとして分離する）。
+ */
+export function validateSpokenFunctionSentences(
+  cands: unknown, existing: Sentence[], categoryNo: number, category: string, band: Band,
+): Sentence[] | null {
+  const base = validateNewSentences(cands, existing, categoryNo, category);
+  if (!base) return null;
+  const cap = SPOKEN_FUNCTION_WORD_CAP[band];
+  for (const s of base) {
+    if (findWrittenVocabHits(s.en).length > 0) return null;
+    if (countWords(s.en) > cap) return null;
+  }
+  return base.map((s) => ({ ...s, band }));
+}
+
+export type GenSpokenFunctionSentencesForTargetDeps = {
+  runner: ClaudeRunner;
+  sentencesFile: string;
+  band: Band;
+  dry: boolean;
+  log?: (s: string) => void;
+};
+
+/**
+ * 指定した帯(band)1つ分の spoken function 例文（5カテゴリ×quota6件=最大30文）を生成する。
+ * カテゴリ×帯セルごとに既存件数（category_no一致 かつ band一致）を数え、quota(6件)充足済みなら
+ * そのカテゴリはスキップする（べき等・中断後の再実行対応。genListeningForTarget等と違い、こちらは
+ * セル内のカテゴリ単位でスキップ判定するため--fill-coverageのcomputeBandCoverageStatusesは使わない
+ * — 帯×domain×typeの粒度ではなく帯×カテゴリの粒度で完結する専用ロジック）。
+ * 各カテゴリのバッチ生成は3ラウンド規律（genListeningForTarget等と同じ）で、構造検証
+ * （validateSpokenFunctionSentences）に加えバッチ結合テキストの checkSpokenRegister をhard-failゲートする。
+ * 全カテゴリ処理後、帯全体（新規+既存の充足済み分を合わせた最大30文）の結合テキストでも checkSpokenRegister を
+ * 通し（コーパス粒度の最終確認 — 個々のバッチは合格でも、既にべき等スキップされた既存カテゴリの質が
+ * 低ければ帯全体としては閾値を割り込みうるため）、FAILならこの呼び出し全体を書き込みゼロで throw する
+ * （同じ帯を再実行すれば、既存カテゴリはそのまま・不足カテゴリだけ再生成される）。
+ */
+export async function genSpokenFunctionSentencesForTarget(deps: GenSpokenFunctionSentencesForTargetDeps): Promise<void> {
+  const log = deps.log ?? console.log;
+  const sentences = loadSentences(deps.sentencesFile);
+  const [lo] = BAND_STAGE_RANGE[deps.band];
+  const spokenBand = SPOKEN_BAND_FOR_CONTENT_BAND[deps.band];
+  const vocab = vocabConstraint(lo);
+  const vocabLine = vocab ? `${vocab}\n` : "";
+
+  let all = [...sentences];
+  const bandAdded: Sentence[] = [];
+  let anyGenerated = false;
+
+  for (const fn of SPOKEN_FUNCTIONS) {
+    const categoryNo = SPOKEN_FUNCTION_CATEGORY_NO[fn];
+    const category = SPOKEN_FUNCTION_CATEGORY_JA[fn];
+    const existingInCell = all.filter((s) => s.category_no === categoryNo && s.band === deps.band);
+    bandAdded.push(...existingInCell);
+    const needed = SPOKEN_FUNCTION_QUOTA_PER_CATEGORY - existingInCell.length;
+    if (needed <= 0) {
+      log(`  ${fn}/${deps.band}: 充足済み（スキップ）`);
+      continue;
+    }
+
+    const existingInCategory = all.filter((s) => s.category_no === categoryNo);
+    const system = `You write original English example sentences for a Japanese learner (${SPOKEN_FUNCTION_BAND_DIFFICULTY_DESC[deps.band]}) practicing a spoken conversational function: ${SPOKEN_FUNCTION_DESC[fn]}.
+Write exactly ${needed} original spoken-register sentences using this function. Domains: spread freely across daily life, business/work, and IT/tech situations — the function itself is not tied to any one domain.
+${spokenStyleFor(spokenBand)}
+${vocabLine}${ORIGINALITY}
+Avoid these existing sentences in this category (do not duplicate or closely paraphrase):
+${existingInCategory.slice(0, 12).map((s) => `- ${s.en}`).join("\n")}
+Reply with STRICT JSON only: {"sentences":[{"domain":"daily|business|it","en":"...","ja":"自然な和訳","note":"使う場面や言い方のポイント1行(日本語)"}]}
+Do not use any tools — reply directly with text only.`;
+
+    let validated: Sentence[] | null = null;
+    for (let attempt = 1; attempt <= 3 && !validated; attempt++) {
+      let text: string | undefined;
+      try {
+        ({ text } = await deps.runner(`Generate the ${needed} sentences for spoken function: ${fn} (band ${deps.band}).`, undefined, { systemPrompt: system }));
+      } catch (err) {
+        // SDK呼び出し自体の一過性エラー（例: tool_use起因のmaxTurns超過）も検証NGと同様に再試行する。
+        // 非一過性の障害（認証切れ等）が「検証NG」に化けて原因が消えないよう、実エラーは必ずログに残す
+        console.warn("[content-gen] runner error:", err instanceof Error ? err.message : String(err));
+      }
+      if (text !== undefined) {
+        const parsed = extractJson<{ sentences?: unknown }>(text);
+        const cand = parsed ? validateSpokenFunctionSentences(parsed.sentences, all, categoryNo, category, deps.band) : null;
+        validated = cand && checkSpokenRegister(cand.map((s) => s.en).join(" "), spokenBand).pass ? cand : null;
+      }
+      if (!validated && attempt < 3) log(`  ${fn}/${deps.band}: 検証NG — 再生成します(${attempt}/3)`);
+    }
+    if (!validated) {
+      throw new Error(`エラー: spoken function「${fn}」(band ${deps.band}) の生成が3回とも検証を通りませんでした。何も書き込みません。`);
+    }
+    all = [...all, ...validated];
+    bandAdded.push(...validated);
+    anyGenerated = true;
+    for (const s of validated) log(`  + no.${s.no} [${deps.band}/${fn}] ${s.en}`);
+  }
+
+  if (!anyGenerated) {
+    log(`  band ${deps.band}: 全カテゴリ充足済み（生成不要）。`);
+    return;
+  }
+
+  const aggregate = checkSpokenRegister(bandAdded.map((s) => s.en).join(" "), spokenBand);
+  if (!aggregate.pass) {
+    throw new Error(
+      `エラー: band ${deps.band} の合計${bandAdded.length}文での口語レジスター集計検証がFAILしました: ` +
+      `${aggregate.reasons.join(" / ")}。何も書き込みません。`,
+    );
+  }
+  log(`  band ${deps.band}: 集計チェックPASS（${bandAdded.length}文・平均${aggregate.metrics.avgWordsPerSentence.toFixed(2)}語/文・短縮形率${aggregate.metrics.contractionsPerSentence.toFixed(2)}）`);
+
+  if (deps.dry) {
+    log("--dry のため書き込みません");
+    return;
+  }
+  // 書き込み前バリデーション: temp に書いて loadSentences が全件読めることを確認してから本番に書く（genSentencesと同型）
+  const work = mkdtempSync(path.join(tmpdir(), "gen-sf-"));
+  try {
+    const tempFile = path.join(work, "sentences.json");
+    writeFileSync(tempFile, JSON.stringify(all, null, 2) + "\n");
+    const check = loadSentences(tempFile);
+    if (check.length !== all.length) {
+      throw new Error(`エラー: 生成物のバリデーションに失敗（${all.length}件中${check.length}件のみ有効）。書き込みを中止します。`);
+    }
+    writeFileSync(deps.sentencesFile, JSON.stringify(all, null, 2) + "\n");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+  log(`完了: band ${deps.band} に ${all.length - sentences.length} 文を追記しました（計 ${all.length} 文）。`);
+}
+
+export type GenSpokenFunctionSentencesDeps = {
+  runner: ClaudeRunner;
+  sentencesFile: string;
+  dry: boolean;
+  log?: (s: string) => void;
+};
+
+/**
+ * spoken function 例文の3帯ラッパー（foundation→development→fluencyの順に genSpokenFunctionSentencesForTarget
+ * を呼ぶ・genListeningがgenListeningForTargetを帯ごとに呼ぶのと同じ構造）。帯ごとに書き込みが確定するため、
+ * 途中の帯で失敗しても、それより前に完了した帯の内容はファイルに残る（中断後の再実行で続きから進められる）。
+ */
+export async function genSpokenFunctionSentences(deps: GenSpokenFunctionSentencesDeps): Promise<void> {
+  const log = deps.log ?? console.log;
+  for (const band of BANDS) {
+    log(`\n=== spoken functions / ${band} ===`);
+    await genSpokenFunctionSentencesForTarget({
+      runner: deps.runner, sentencesFile: deps.sentencesFile, band, dry: deps.dry, log,
+    });
+  }
+}
+
+export type GenSentenceExplanationsDeps = {
+  runner: ClaudeRunner;
+  sentencesFile: string;
+  explanationsFile: string;
+  dry: boolean;
+  log?: (s: string) => void;
+};
+
+/**
+ * sentences.json にあって explanations.json に無い no のぶんだけ解説を生成して追記する（同梱解説の欠損補充）。
+ * 生成は coach.ts の generateSentenceExplanation を再利用する（ルートの都度生成・DBキャッシュと同一プロンプト
+ * ・同一フォーマット = explanations.json のスキーマ {no, text} とも一致する）。
+ * 1件ずつ生成する（文ごとに文脈が異なる自由記述の解説をバッチ化する利点が薄いため）。
+ * 個々の生成失敗（runner例外・空文字）はその no をスキップしてログに残し、全体は止めない
+ * （解説はUXの補助でありSRS等の必須データではない — 未生成分は routes 側の都度生成+DBキャッシュに
+ * フォールバックする既存経路が担保するため、他の gen* 系のようなall-or-nothingにはしない）。
+ */
+export async function genMissingSentenceExplanations(deps: GenSentenceExplanationsDeps): Promise<void> {
+  const log = deps.log ?? console.log;
+  const sentences = loadSentences(deps.sentencesFile);
+  const existing = loadBundledExplanations(deps.explanationsFile);
+  const missing = sentences.filter((s) => !existing.has(s.no));
+  if (missing.length === 0) {
+    log("解説の欠損はありません。");
+    return;
+  }
+  log(`解説を生成します: ${missing.length}件`);
+
+  const added: Array<{ no: number; text: string }> = [];
+  for (const s of missing) {
+    try {
+      const { text } = await generateSentenceExplanation({ en: s.en, ja: s.ja, note: s.note }, deps.runner);
+      const trimmed = text.trim();
+      if (trimmed.length === 0) {
+        log(`  no.${s.no}: 空の解説を無視します`);
+        continue;
+      }
+      added.push({ no: s.no, text: trimmed });
+      log(`  + no.${s.no} の解説を生成しました`);
+    } catch (err) {
+      log(`  no.${s.no}: 解説生成に失敗しました（スキップ）: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  if (deps.dry) {
+    log("--dry のため書き込みません");
+    return;
+  }
+  if (added.length === 0) return;
+
+  const raw: unknown = existsSync(deps.explanationsFile) ? JSON.parse(readFileSync(deps.explanationsFile, "utf8")) : [];
+  const arr = Array.isArray(raw) ? (raw as Array<{ no: number; text: string }>) : [];
+  const merged = [...arr, ...added];
+  writeFileSync(deps.explanationsFile, JSON.stringify(merged, null, 2) + "\n");
+  log(`完了: 解説 ${added.length}件を追記しました（計 ${merged.length}件）。`);
 }

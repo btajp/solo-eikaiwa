@@ -2,6 +2,7 @@ import type { Database } from "bun:sqlite";
 import { existsSync, readFileSync } from "node:fs";
 import { addDaysYmd, localYmd } from "./dates";
 import { EXPLANATIONS_FILE, SENTENCES_FILE } from "./paths";
+import { BANDS, type Band } from "./content-coverage";
 
 export type Sentence = {
   no: number;
@@ -11,6 +12,12 @@ export type Sentence = {
   en: string;
   ja: string;
   note: string;
+  /**
+   * v0.26 content-ladder wave4: spoken function 例文の帯タグ（省略可・additive）。
+   * 既存300文には無く、新規のspoken function例文にのみ付く。sentences300全体のラダー化は別論点
+   * （設計doc §9）— この項目はメタデータとして持つのみで、選定ロジック（queue等）は一切参照しない。
+   */
+  band?: Band;
 };
 
 export type SrsState = { stage: number; due: string; reviews: number };
@@ -54,7 +61,10 @@ function isValidSentence(x: unknown): x is Sentence {
     (DOMAINS as readonly string[]).includes(s.domain as string) &&
     typeof s.en === "string" && s.en.length > 0 &&
     typeof s.ja === "string" &&
-    typeof s.note === "string"
+    typeof s.note === "string" &&
+    // band は省略可。値がある場合のみ3値のいずれかを要求する（不正値は項目ごとスキップに倒す）。
+    // 未知の追加フィールド（band以外）はここで検査しないため、そのまま許容される（将来の拡張耐性）。
+    (s.band === undefined || (BANDS as readonly string[]).includes(s.band as string))
   );
 }
 

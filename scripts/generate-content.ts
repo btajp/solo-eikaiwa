@@ -7,6 +7,8 @@
  *   bun scripts/generate-content.ts topics-band [--dry]  # stage1帯のbusiness/ITお題を2本ずつ生成
  *   bun scripts/generate-content.ts listening   [--dry]  # content-coverageの不足セル分だけ多聴素材を生成
  *                                                          # （3帯[1,2]/[3,4]/[5,6]×3domain×quota4本・既存のbridge教材はquota外で温存・べき等）
+ *   bun scripts/generate-content.ts spoken-functions [--dry]  # spoken function例文(依頼/断り/聞き返し/言い換え/相槌)を
+ *                                                          # 3帯×5カテゴリ×quota6本=最大90文生成 + 解説を同一フローで生成（帯×カテゴリ単位でべき等）
  *   bun scripts/generate-content.ts topics-target    --band <foundation|development|fluency> --domain <daily|business|it> --count <n> [--dry]
  *                                                          # 帯×domain×countを明示指定してtopicを生成（experienceAnchor必須）
  *   bun scripts/generate-content.ts scenarios-target --band <...> --domain <...> --count <n> [--dry]
@@ -28,13 +30,14 @@ import { openDb } from "../app/server/db";
 import {
   genSentences, genTopics, genScenarios, genTopicsBand, genListening,
   genTopicsForTarget, genScenariosForTarget, genListeningForTarget,
+  genSpokenFunctionSentences, genMissingSentenceExplanations,
 } from "../app/server/content-gen";
 import { resolveCliRunner } from "../app/server/converse";
 import { resolveProviderKey } from "../app/server/llm-provider";
 import { CLAUDE_MODELS, EFFORTS, SERVICE_TIERS, type RoleTuning } from "../app/server/llm-role-tuning-store";
 import { makeProgressStore } from "../app/server/progress-store";
 import { stageOf } from "../app/server/progression";
-import { SENTENCES_FILE, SCENARIOS_DIR, TOPICS_DIR, LISTENING_DIR } from "../app/server/paths";
+import { SENTENCES_FILE, EXPLANATIONS_FILE, SCENARIOS_DIR, TOPICS_DIR, LISTENING_DIR } from "../app/server/paths";
 import { loadContent, DOMAINS, type Domain } from "../app/server/content";
 import { loadListening } from "../app/server/listening";
 import {
@@ -184,9 +187,13 @@ async function main(): Promise<void> {
     await genTopicsBand({ runner, topicsDir: TOPICS_DIR, dry, log: console.log });
   } else if (sub === "listening") {
     await genListening({ runner, listeningDir: LISTENING_DIR, dry, log: console.log });
+  } else if (sub === "spoken-functions") {
+    // 帯別30(計90)の例文本体を先に確定させてから、その差分ぶんだけ解説を生成する（同じ実行フロー内で完結）
+    await genSpokenFunctionSentences({ runner, sentencesFile: SENTENCES_FILE, dry, log: console.log });
+    await genMissingSentenceExplanations({ runner, sentencesFile: SENTENCES_FILE, explanationsFile: EXPLANATIONS_FILE, dry, log: console.log });
   } else {
     console.error(
-      "使い方: bun scripts/generate-content.ts <sentences|topics|scenarios|topics-band|listening|topics-target|scenarios-target|listening-target> [--dry]\n" +
+      "使い方: bun scripts/generate-content.ts <sentences|topics|scenarios|topics-band|listening|spoken-functions|topics-target|scenarios-target|listening-target> [--dry]\n" +
       "       bun scripts/generate-content.ts --fill-coverage [--dry]",
     );
     process.exit(1);

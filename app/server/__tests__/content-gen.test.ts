@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { openDb } from "../db";
@@ -15,6 +15,12 @@ import { loadListening, parseListeningFile } from "../listening";
 import {
   genListening, genListeningForTarget, listeningToMarkdown, validateListeningCandidate,
 } from "../content-gen";
+import {
+  SPOKEN_FUNCTIONS, SPOKEN_FUNCTION_CATEGORY_NO, SPOKEN_FUNCTION_CATEGORY_JA,
+  validateSpokenFunctionSentences, genSpokenFunctionSentencesForTarget, genSpokenFunctionSentences,
+  genMissingSentenceExplanations,
+} from "../content-gen";
+import { loadBundledExplanations } from "../sentences";
 import { pickWorstCategories, type CategoryRate } from "../srs-analytics";
 import { SPOKEN_STYLE_BLOCK, spokenStyleFor } from "../spoken-style";
 
@@ -1152,5 +1158,326 @@ describe("genScenariosForTarget（帯×domain×count・starter口語検証必須
     });
     expect(readdirSync(dir).filter((f) => f.endsWith(".md"))).toEqual([]);
     rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+// v0.26 content-ladder wave4: spoken function 例文(依頼/断り/聞き返し/言い換え/相槌) +90（帯別30・解説つき）。
+// 設計doc §3「spoken function 例文 = 依頼・断り・聞き返し・言い換え・相槌等（domain非依存・帯別30）」。
+// category_no は固定26-30（既存グラマーカテゴリ1-25・機能カテゴリ22-25とは別枠）。band は additive（sentences.tsで検証済み）。
+describe("content-gen / spoken function 例文", () => {
+  test("SPOKEN_FUNCTIONS は5件・category_noは26-30を固定で割り当てる", () => {
+    expect(SPOKEN_FUNCTIONS).toEqual(["request", "refusal", "clarification", "paraphrase", "backchannel"]);
+    expect(SPOKEN_FUNCTIONS.map((f) => SPOKEN_FUNCTION_CATEGORY_NO[f])).toEqual([26, 27, 28, 29, 30]);
+    expect(new Set(SPOKEN_FUNCTIONS.map((f) => SPOKEN_FUNCTION_CATEGORY_NO[f])).size).toBe(5);
+    for (const f of SPOKEN_FUNCTIONS) expect(SPOKEN_FUNCTION_CATEGORY_JA[f].length).toBeGreaterThan(0);
+  });
+
+  describe("validateSpokenFunctionSentences", () => {
+    const VALID_CANDS = [
+      { domain: "daily", en: "Can you help me carry this?", ja: "これ運ぶの手伝ってくれる？", note: "依頼のcan you" },
+      { domain: "business", en: "Could you send me the file?", ja: "ファイルを送ってもらえますか？", note: "丁寧な依頼" },
+    ];
+
+    test("正常系: band付きSentence[]を返しnoを既存最大+1から連番で振る", () => {
+      const out = validateSpokenFunctionSentences(VALID_CANDS, EXISTING, 26, "会話機能: 依頼する", "foundation")!;
+      expect(out).not.toBeNull();
+      expect(out.map((s) => s.no)).toEqual([6, 7]);
+      expect(out.every((s) => s.category_no === 26 && s.band === "foundation")).toBe(true);
+    });
+
+    test("書き言葉語彙(moreover等)を含む文があれば候補全体を不採用にする", () => {
+      const withBanned = [
+        ...VALID_CANDS,
+        { domain: "it", en: "Moreover, could you clarify this point?", ja: "さらに、この点を明確にしてもらえますか？", note: "" },
+      ];
+      expect(validateSpokenFunctionSentences(withBanned, EXISTING, 26, "会話機能: 依頼する", "foundation")).toBeNull();
+    });
+
+    test("帯別語数上限を超える文があれば候補全体を不採用にする（foundationは短文のみ許容）", () => {
+      const tooLong = [
+        ...VALID_CANDS,
+        { domain: "daily", en: "Would it be possible for you to help me carry this heavy box up the stairs please", ja: "長い依頼文", note: "" },
+      ];
+      expect(validateSpokenFunctionSentences(tooLong, EXISTING, 26, "会話機能: 依頼する", "foundation")).toBeNull();
+    });
+
+    test("不正domainは既存のvalidateNewSentencesと同様に不採用（検証の再利用を確認）", () => {
+      const badDomain = [{ domain: "casual", en: "Can you help me?", ja: "手伝って", note: "" }];
+      expect(validateSpokenFunctionSentences(badDomain, EXISTING, 26, "会話機能: 依頼する", "foundation")).toBeNull();
+    });
+  });
+
+  describe("genSpokenFunctionSentencesForTarget（帯単位・カテゴリ×6件quota・べき等）", () => {
+    const EXISTING5: Sentence[] = [1, 2, 3, 4, 5].map((no) => ({
+      no, category_no: 1, category: "現在形", domain: "daily",
+      en: `Existing sentence number ${no}.`, ja: "既存文", note: "",
+    }));
+
+    function setupFile(extra: Sentence[] = []) {
+      const dir = mkdtempSync(path.join(tmpdir(), "gen-sf-"));
+      const file = path.join(dir, "sentences.json");
+      writeFileSync(file, JSON.stringify([...EXISTING5, ...extra], null, 2) + "\n");
+      return { dir, file };
+    }
+
+    /** 短くて短縮形を含む自然な会話文6件を1カテゴリ分返す（foundation/development/fluencyいずれの閾値も通る） */
+    function goodBatch(prefix: string, n = 6): string {
+      // 全文に prefix(カテゴリ名) を含める: カテゴリ間で文面が重複するとnormalizeEnの既存重複チェックに
+      // 弾かれてしまうため（validateNewSentencesは既存全文=all累積分と正規化重複しないことを要求する）。
+      // 各文をほぼ同じ長さ(7-9語)・短縮形ちょうど1個にそろえてあるため、n=4/6どちらにスライスしても
+      // 平均文長・短縮形率の閾値(foundation: 11語/0.2)を安定して満たす。
+      const templates = [
+        `I can't quite catch that about the ${prefix}.`,
+        `So you're saying the ${prefix} is done, right?`,
+        `Sorry, I can't make it to the ${prefix} today.`,
+        `Oh, that's great news about the ${prefix}!`,
+        `We're glad to hear about the ${prefix} today.`,
+        `It's nice of you to explain the ${prefix}.`,
+      ];
+      return JSON.stringify({ sentences: templates.slice(0, n).map((en, i) => ({
+        domain: (["daily", "business", "it"] as const)[i % 3], en, ja: `日本語訳${i}`, note: "会話機能の例文",
+      })) });
+    }
+
+    test("正常系: 空の帯セルは5カテゴリ×6件=30文をband付きで追加する", async () => {
+      const { dir, file } = setupFile();
+      const logs: string[] = [];
+      await genSpokenFunctionSentencesForTarget({
+        runner: makeRunner(SPOKEN_FUNCTIONS.map((f) => goodBatch(f))),
+        sentencesFile: file, band: "foundation", dry: false, log: (s) => logs.push(s),
+      });
+      const after = loadSentences(file);
+      expect(after).toHaveLength(5 + 30);
+      const added = after.slice(5);
+      expect(added.every((s) => s.band === "foundation")).toBe(true);
+      expect(new Set(added.map((s) => s.category_no)).size).toBe(5);
+      expect(new Set(added.map((s) => s.no)).size).toBe(30); // no重複なし
+      expect(logs.some((l) => l.includes("集計チェックPASS"))).toBe(true);
+      expect(logs.some((l) => l.startsWith("完了:"))).toBe(true);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("既にquota(6件)充足済みのカテゴリはスキップされ、不足カテゴリのみ生成される（べき等な再実行）", async () => {
+      const preExisting: Sentence[] = Array.from({ length: 6 }, (_, i) => ({
+        no: 100 + i, category_no: SPOKEN_FUNCTION_CATEGORY_NO.request, category: SPOKEN_FUNCTION_CATEGORY_JA.request,
+        domain: "daily", en: `Can you help me with task ${i}, please?`, ja: "既存の依頼文", note: "", band: "foundation",
+      }));
+      const { dir, file } = setupFile(preExisting);
+      const remaining = SPOKEN_FUNCTIONS.filter((f) => f !== "request");
+      const logs: string[] = [];
+      await genSpokenFunctionSentencesForTarget({
+        runner: makeRunner(remaining.map((f) => goodBatch(f))),
+        sentencesFile: file, band: "foundation", dry: false, log: (s) => logs.push(s),
+      });
+      const after = loadSentences(file);
+      expect(after).toHaveLength(5 + 6 + 24); // 既存5 + request6(据え置き) + 残り4カテゴリ×6
+      expect(logs.some((l) => l.includes("request") && l.includes("充足済み"))).toBe(true);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("一部だけ既存(2件)のカテゴリは不足分(4件)だけ生成し、カテゴリ合計は6件になる", async () => {
+      const partial: Sentence[] = Array.from({ length: 2 }, (_, i) => ({
+        no: 100 + i, category_no: SPOKEN_FUNCTION_CATEGORY_NO.backchannel, category: SPOKEN_FUNCTION_CATEGORY_JA.backchannel,
+        domain: "daily", en: `Oh really, number ${i}?`, ja: "既存の相槌文", note: "", band: "foundation",
+      }));
+      const { dir, file } = setupFile(partial);
+      const others = SPOKEN_FUNCTIONS.filter((f) => f !== "backchannel");
+      const responses = [...others.map((f) => goodBatch(f)), goodBatch("backchannel", 4)];
+      await genSpokenFunctionSentencesForTarget({
+        runner: makeRunner(responses), sentencesFile: file, band: "foundation", dry: false, log: () => {},
+      });
+      const after = loadSentences(file);
+      const backchannelCount = after.filter((s) => s.category_no === SPOKEN_FUNCTION_CATEGORY_NO.backchannel).length;
+      expect(backchannelCount).toBe(6);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("checkSpokenRegisterでFAILする候補(短縮形0%の教科書調)は再生成される", async () => {
+      const { dir, file } = setupFile();
+      const textbookBatch = JSON.stringify({ sentences: [
+        { domain: "daily", en: "I do not want to interrupt you right now.", ja: "邪魔したくない", note: "" },
+        { domain: "daily", en: "I do not think that is a good idea.", ja: "良くないと思う", note: "" },
+        { domain: "business", en: "I do not have time for this today.", ja: "今日は時間がない", note: "" },
+        { domain: "business", en: "I do not agree with that plan at all.", ja: "その計画には賛成しない", note: "" },
+        { domain: "it", en: "I do not know how to fix this bug.", ja: "直し方が分からない", note: "" },
+        { domain: "it", en: "I do not see the point of this change.", ja: "この変更の意味が分からない", note: "" },
+      ] });
+      const logs: string[] = [];
+      await genSpokenFunctionSentencesForTarget({
+        runner: makeRunner([textbookBatch, goodBatch("request"), ...SPOKEN_FUNCTIONS.slice(1).map((f) => goodBatch(f))]),
+        sentencesFile: file, band: "foundation", dry: false, log: (s) => logs.push(s),
+      });
+      expect(loadSentences(file)).toHaveLength(5 + 30);
+      expect(logs.some((l) => l.includes("検証NG"))).toBe(true);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("3回とも検証NGなら書き込みゼロでthrow（3ラウンド規律）", async () => {
+      const { dir, file } = setupFile();
+      const bad = JSON.stringify({ sentences: [{ domain: "casual", en: "x", ja: "y", note: "z" }] });
+      const before = readFileSync(file, "utf8");
+      await expect(
+        genSpokenFunctionSentencesForTarget({
+          runner: makeRunner([bad, bad, bad]), sentencesFile: file, band: "foundation", dry: false,
+        }),
+      ).rejects.toThrow();
+      expect(readFileSync(file, "utf8")).toBe(before);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("dry=trueは一切書かない", async () => {
+      const { dir, file } = setupFile();
+      const before = readFileSync(file, "utf8");
+      await genSpokenFunctionSentencesForTarget({
+        runner: makeRunner(SPOKEN_FUNCTIONS.map((f) => goodBatch(f))),
+        sentencesFile: file, band: "foundation", dry: true,
+      });
+      expect(readFileSync(file, "utf8")).toBe(before);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    // 集計(コーパス粒度)ゲートの実効性: 4カテゴリが既に教科書調(短縮形0%)で充足済み(べき等スキップ対象)、
+    // 残り1カテゴリだけ今回新規生成する。新規バッチ自体は単体でcheckSpokenRegisterをPASSするが、
+    // 既存4カテゴリ(24文・短縮形0%)と合算した帯全体(30文)では短縮形率が閾値未満になりFAILする。
+    // 「After generation: corpus-level spoken-register check must PASS for all bands」ゲートの再発防止テスト。
+    test("個々のカテゴリは検証を通っても、帯全体(30文)の集計で短縮形率が閾値未満ならthrowし何も追加しない", () => {
+      return (async () => {
+        const textbookCategories = SPOKEN_FUNCTIONS.filter((f) => f !== "backchannel");
+        const preExisting: Sentence[] = textbookCategories.flatMap((f) => Array.from({ length: 6 }, (_, i) => ({
+          no: 200 + SPOKEN_FUNCTION_CATEGORY_NO[f] * 10 + i, category_no: SPOKEN_FUNCTION_CATEGORY_NO[f],
+          category: SPOKEN_FUNCTION_CATEGORY_JA[f], domain: "daily" as const,
+          en: `I need to talk about ${f} number ${i}.`, ja: "教科書調の既存文", note: "", band: "foundation" as const,
+        })));
+        const { dir, file } = setupFile(preExisting);
+        const before = readFileSync(file, "utf8");
+        // このバッチ単体は短縮形2/6文=0.333で単体のcheckSpokenRegisterはPASSするが、
+        // 既存24文(短縮形0)と合算した帯全体30文では 2/30=0.067 < 0.2 となり集計チェックのみFAILする
+        // （単体チェックとの違いを明確にするため、あえて標準のgoodBatchより短縮形を絞った専用バッチを使う）。
+        const sparseContractionBatch = JSON.stringify({ sentences: [
+          { domain: "daily", en: "Oh really, that's interesting news.", ja: "そうなんだ", note: "" },
+          { domain: "business", en: "Got it, thank you very much.", ja: "了解、ありがとう", note: "" },
+          { domain: "it", en: "I see what you mean now.", ja: "言いたいことが分かった", note: "" },
+          { domain: "daily", en: "Sure, that sounds good to me.", ja: "それでいいと思う", note: "" },
+          { domain: "business", en: "Wow, I did not expect that.", ja: "それは予想外だった", note: "" },
+          { domain: "it", en: "No way, that's really surprising!", ja: "まさか、本当に驚いた", note: "" },
+        ] });
+        await expect(
+          genSpokenFunctionSentencesForTarget({
+            runner: makeRunner([sparseContractionBatch]), sentencesFile: file, band: "foundation", dry: false,
+          }),
+        ).rejects.toThrow(/集計/);
+        expect(readFileSync(file, "utf8")).toBe(before); // backchannelの新規6文も書き込まれない(all-or-nothing)
+        rmSync(dir, { recursive: true, force: true });
+      })();
+    });
+  });
+
+  describe("genSpokenFunctionSentences（3帯ラッパー・foundation→development→fluencyの順）", () => {
+    test("3帯すべてを生成し計90文(帯別30)が追加される", async () => {
+      const dir = mkdtempSync(path.join(tmpdir(), "gen-sfw-"));
+      const file = path.join(dir, "sentences.json");
+      const EXISTING5: Sentence[] = [1, 2, 3, 4, 5].map((no) => ({
+        no, category_no: 1, category: "現在形", domain: "daily", en: `Existing ${no}.`, ja: "既存", note: "",
+      }));
+      writeFileSync(file, JSON.stringify(EXISTING5, null, 2) + "\n");
+
+      function goodBatchFor(band: string, fn: string): string {
+        return JSON.stringify({ sentences: Array.from({ length: 6 }, (_, i) => ({
+          domain: (["daily", "business", "it"] as const)[i % 3],
+          en: `I can't ${fn} ${band} thing ${i}, sorry about that!`,
+          ja: `日本語${band}${fn}${i}`, note: "",
+        })) });
+      }
+      const bandsOrder = ["foundation", "development", "fluency"];
+      const responses = bandsOrder.flatMap((band) => SPOKEN_FUNCTIONS.map((fn) => goodBatchFor(band, fn)));
+      const logs: string[] = [];
+      await genSpokenFunctionSentences({ runner: makeRunner(responses), sentencesFile: file, dry: false, log: (s) => logs.push(s) });
+
+      const after = loadSentences(file);
+      const added = after.slice(5);
+      expect(added).toHaveLength(90);
+      for (const band of bandsOrder) {
+        expect(added.filter((s) => s.band === band)).toHaveLength(30);
+      }
+      expect(new Set(added.map((s) => s.no)).size).toBe(90);
+      rmSync(dir, { recursive: true, force: true });
+    });
+  });
+
+  describe("genMissingSentenceExplanations（解説の欠損補充・部分失敗を許容）", () => {
+    const SENTS: Sentence[] = [1, 2, 3].map((no) => ({
+      no, category_no: 26, category: "会話機能: 依頼する", domain: "daily", en: `Sentence ${no}.`, ja: `文${no}`, note: "note",
+    }));
+
+    function setup(explanationsSeed: Array<{ no: number; text: string }> = []) {
+      const dir = mkdtempSync(path.join(tmpdir(), "gen-explain-"));
+      const sentencesFile = path.join(dir, "sentences.json");
+      const explanationsFile = path.join(dir, "explanations.json");
+      writeFileSync(sentencesFile, JSON.stringify(SENTS, null, 2) + "\n");
+      if (explanationsSeed.length > 0) writeFileSync(explanationsFile, JSON.stringify(explanationsSeed, null, 2) + "\n");
+      return { dir, sentencesFile, explanationsFile };
+    }
+
+    test("解説が無い全noに生成し新規explanations.jsonへ書く", async () => {
+      const { dir, sentencesFile, explanationsFile } = setup();
+      const logs: string[] = [];
+      await genMissingSentenceExplanations({
+        runner: makeRunner(["解説1", "解説2", "解説3"]), sentencesFile, explanationsFile, dry: false, log: (s) => logs.push(s),
+      });
+      const map = loadBundledExplanations(explanationsFile);
+      expect(map.size).toBe(3);
+      expect(map.get(1)).toBe("解説1");
+      expect(logs.some((l) => l.startsWith("完了:"))).toBe(true);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("既存解説がある分はスキップし、欠損分だけ追記する（既存は保持）", async () => {
+      const { dir, sentencesFile, explanationsFile } = setup([{ no: 1, text: "既存の解説1" }]);
+      await genMissingSentenceExplanations({
+        runner: makeRunner(["解説2", "解説3"]), sentencesFile, explanationsFile, dry: false, log: () => {},
+      });
+      const map = loadBundledExplanations(explanationsFile);
+      expect(map.size).toBe(3);
+      expect(map.get(1)).toBe("既存の解説1"); // 既存は変更されない
+      expect(map.get(2)).toBe("解説2");
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("全て欠損なしなら何もせず正常終了", async () => {
+      const { dir, sentencesFile, explanationsFile } = setup([
+        { no: 1, text: "a" }, { no: 2, text: "b" }, { no: 3, text: "c" },
+      ]);
+      const logs: string[] = [];
+      await genMissingSentenceExplanations({
+        runner: makeRunner(["呼ばれないはず"]), sentencesFile, explanationsFile, dry: false, log: (s) => logs.push(s),
+      });
+      expect(logs.some((l) => l.includes("欠損はありません"))).toBe(true);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("1件の生成失敗はスキップして継続し、他は正常に書き込まれる", async () => {
+      const { dir, sentencesFile, explanationsFile } = setup();
+      let n = 0;
+      const runner: ClaudeRunner = async () => {
+        n++;
+        if (n === 2) throw new Error("一時的な失敗");
+        return { text: `解説${n}`, sessionId: "fake" };
+      };
+      const logs: string[] = [];
+      await genMissingSentenceExplanations({ runner, sentencesFile, explanationsFile, dry: false, log: (s) => logs.push(s) });
+      const map = loadBundledExplanations(explanationsFile);
+      expect(map.size).toBe(2); // no.2は失敗してスキップ
+      expect(logs.some((l) => l.includes("失敗"))).toBe(true);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    test("dry=trueは一切書かない", async () => {
+      const { dir, sentencesFile, explanationsFile } = setup();
+      await genMissingSentenceExplanations({
+        runner: makeRunner(["解説1", "解説2", "解説3"]), sentencesFile, explanationsFile, dry: true, log: () => {},
+      });
+      expect(existsSync(explanationsFile)).toBe(false);
+      rmSync(dir, { recursive: true, force: true });
+    });
   });
 });
