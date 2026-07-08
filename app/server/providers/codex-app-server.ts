@@ -2,6 +2,7 @@ import { tmpdir } from "node:os";
 import type { ClaudeRunner } from "../converse";
 import { composeCodexPrompt, type CodexMsg } from "./codex";
 import { TransportError } from "./errors";
+import { appendTurn } from "./transcript";
 
 // 既存の import 元（このモジュールから TransportError を import しているテスト等）との互換のため re-export する。
 export { TransportError };
@@ -477,14 +478,19 @@ function buildRunner(
   async function startFolded(oldId: string, system: string, prompt: string) {
     const history = transcript.get(oldId) ?? [];
     const threadId = await startThread(system);
-    return { threadId, turnText: foldPrompt(history, prompt), history };
+    // 新スレッドの transcript エントリを旧履歴で先に播種しておく。こうすることで、この後
+    // appendTurn(transcript, threadId, ...) が内部で読む transcript.get(threadId) が旧履歴を
+    // 引き継いだ状態になり、[...history, 新往復] を書き戻す従来の挙動と一致する
+    // （新スレッドIDには当然まだ何も入っていないため、播種しないと旧履歴が失われる）。
+    transcript.set(threadId, history);
+    return { threadId, turnText: foldPrompt(history, prompt) };
   }
 
   /** セッション階梯の 1〜3 段目を解決し、turn を打つ先のスレッドと入力テキストを決める。 */
   async function resolveThread(resumeId: string | undefined, system: string, prompt: string):
-    Promise<{ threadId: string; turnText: string; history: CodexMsg[] }> {
+    Promise<{ threadId: string; turnText: string }> {
     if (!resumeId) {
-      return { threadId: await startThread(system), turnText: prompt, history: [] };
+      return { threadId: await startThread(system), turnText: prompt };
     }
     const known = threads.get(resumeId);
     if (known) {
@@ -494,7 +500,7 @@ function buildRunner(
         return startFolded(resumeId, system, prompt);
       }
       if (known.generation === client.generation()) {
-        return { threadId: resumeId, turnText: prompt, history: transcript.get(resumeId) ?? [] };
+        return { threadId: resumeId, turnText: prompt };
       }
       // 世代が古い = このスレッドを知っているプロセスはもう居ない（自発exitの dead-window、
       // または他セッション起点の再spawn後の残留記憶）。素の turn/start は実サーバでは
@@ -506,7 +512,7 @@ function buildRunner(
     try {
       await client.request("thread/resume", { threadId: resumeId, ...threadParams(cfg, system) });
       threads.set(resumeId, { systemPrompt: system, generation: client.generation() });
-      return { threadId: resumeId, turnText: prompt, history: transcript.get(resumeId) ?? [] };
+      return { threadId: resumeId, turnText: prompt };
     } catch (err) {
       if (err instanceof TransportError) throw err; // transport 障害は exec フォールバック判定へ
       // リクエストレベルの resume 失敗（未知スレッド等）→ 新スレッド + 畳み込み（transcript が空なら素の prompt）
@@ -517,14 +523,10 @@ function buildRunner(
   return async (prompt, resumeId, opts) => {
     const system = opts?.systemPrompt ?? cfg.defaultSystemPrompt;
     try {
-      const { threadId, turnText, history } = await resolveThread(resumeId, system, prompt);
+      const { threadId, turnText } = await resolveThread(resumeId, system, prompt);
       const text = (await client.runTurn(threadId, turnText)).trim();
       if (!text) throw new Error("Codex returned empty result");
-      transcript.set(threadId, [
-        ...history,
-        { role: "user", content: prompt },
-        { role: "assistant", content: text },
-      ]);
+      appendTurn(transcript, threadId, prompt, text);
       return { text, sessionId: threadId };
     } catch (err) {
       if (err instanceof TransportError) {

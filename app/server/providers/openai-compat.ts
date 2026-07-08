@@ -1,4 +1,5 @@
 import type { ClaudeRunner } from "../converse";
+import { appendTurn, resolveSessionId, type ChatTurn } from "./transcript";
 
 /** OpenAI 互換 chat completions で ClaudeRunner を実現する設定。 */
 export type OpenAICompatConfig = {
@@ -13,7 +14,8 @@ export type OpenAICompatConfig = {
   fetchFn?: typeof fetch;
 };
 
-type ChatMsg = { role: "user" | "assistant"; content: string };
+/** transcript.ts の ChatTurn の型エイリアス（このモジュール内での呼び名を維持）。 */
+type ChatMsg = ChatTurn;
 
 type ChatResponse = { choices?: Array<{ message?: { content?: string } }> };
 
@@ -28,7 +30,7 @@ export function makeOpenAICompatRunner(cfg: OpenAICompatConfig): ClaudeRunner {
   const store = new Map<string, ChatMsg[]>();
 
   return async (prompt, resumeId, opts) => {
-    const sessionId = resumeId && store.has(resumeId) ? resumeId : crypto.randomUUID();
+    const sessionId = resolveSessionId(store, resumeId);
     const history = store.get(sessionId) ?? [];
     const system = opts?.systemPrompt ?? cfg.defaultSystemPrompt;
 
@@ -53,11 +55,7 @@ export function makeOpenAICompatRunner(cfg: OpenAICompatConfig): ClaudeRunner {
     const text = data.choices?.[0]?.message?.content ?? "";
     if (!text) throw new Error("OpenAI-compat returned empty result");
 
-    store.set(sessionId, [
-      ...history,
-      { role: "user", content: prompt },
-      { role: "assistant", content: text },
-    ]);
+    appendTurn(store, sessionId, prompt, text);
     return { text, sessionId };
   };
 }

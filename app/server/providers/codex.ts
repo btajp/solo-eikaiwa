@@ -2,8 +2,10 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ClaudeRunner } from "../converse";
+import { appendTurn, resolveSessionId, type ChatTurn } from "./transcript";
 
-export type CodexMsg = { role: "user" | "assistant"; content: string };
+/** 既存 export 互換のための型エイリアス（codex-app-server.ts 等が CodexMsg として import する）。 */
+export type CodexMsg = ChatTurn;
 
 /**
  * system 指示・これまでの会話・新しい user 発話を、codex exec が読む1つのプロンプト文字列に畳む。
@@ -60,7 +62,7 @@ export function makeCodexRunner(cfg: CodexConfig): ClaudeRunner {
   const store = new Map<string, CodexMsg[]>();
 
   return async (prompt, resumeId, opts) => {
-    const sessionId = resumeId && store.has(resumeId) ? resumeId : crypto.randomUUID();
+    const sessionId = resolveSessionId(store, resumeId);
     const history = store.get(sessionId) ?? [];
     const system = opts?.systemPrompt ?? cfg.defaultSystemPrompt;
 
@@ -71,11 +73,7 @@ export function makeCodexRunner(cfg: CodexConfig): ClaudeRunner {
     })).trim();
     if (!text) throw new Error("Codex returned empty result");
 
-    store.set(sessionId, [
-      ...history,
-      { role: "user", content: prompt },
-      { role: "assistant", content: text },
-    ]);
+    appendTurn(store, sessionId, prompt, text);
     return { text, sessionId };
   };
 }
