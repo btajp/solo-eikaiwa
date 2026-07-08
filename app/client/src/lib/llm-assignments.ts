@@ -376,11 +376,19 @@ export function resolveEffective(
       : codexModel
       ? { confirmed: false, text: codexModel }
       : { confirmed: false, text: "", cliDefault: true };
+    // 実測: tiers 非対応の codex モデル（例: gpt-5.4-mini/5.3-spark）へ配信ティアを送っても黙って無視され、
+    // 標準ルーティングになる（claude effort の effortIgnored と同じ「非対応値は静かに無視される」パターン）。
+    // カタログが利用可能で選択中モデルに tiers が無ければ、保存値に関わらず実効は「標準（既定）」とする。
+    // カタログ不可時は判定材料が無いため従来どおり保存値をそのまま表示する。
+    const catalogAvailable = catalog?.codex?.available === true;
+    const tierIgnored = catalogAvailable && !(row?.tiers && row.tiers.length > 0);
     return {
       provider,
       model,
       effort: { value: tuning.effort ?? row?.defaultEffort ?? CODEX_DEFAULT_EFFORT, isDefault: tuning.effort === null },
-      tier: { value: tuning.serviceTier ?? CODEX_DEFAULT_TIER, isDefault: tuning.serviceTier === null },
+      tier: tierIgnored
+        ? { value: "standard", isDefault: true }
+        : { value: tuning.serviceTier ?? CODEX_DEFAULT_TIER, isDefault: tuning.serviceTier === null },
     };
   }
 

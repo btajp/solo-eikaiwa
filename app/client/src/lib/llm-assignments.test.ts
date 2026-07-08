@@ -597,6 +597,33 @@ describe("resolveEffective", () => {
     expect(r.model).toEqual({ confirmed: false, text: "gpt-9-mystery" });
   });
 
+  test("codex・tiers非対応モデル(gpt-5.4-mini)+保存値fast+カタログ有: 実効配信は標準（既定）扱い（実測: 非対応tierは黙って無視される）", () => {
+    const view = mkView({
+      provider: "codex", codexModel: "gpt-5.4-mini",
+      tuning: { ...defaultTuning(), conversation: { claudeModel: null, effort: null, serviceTier: "fast" } },
+    });
+    const r = resolveEffective("conversation", view, { claude: UNAVAILABLE_CATALOG, codex: CODEX_CATALOG, local: UNAVAILABLE_CATALOG });
+    expect(r.tier).toEqual({ value: "standard", isDefault: true });
+  });
+
+  test("codex・tiers非対応モデル+保存値fast+カタログ不可: 判定材料が無いため保存値をそのまま表示する", () => {
+    const view = mkView({
+      provider: "codex", codexModel: "gpt-5.4-mini",
+      tuning: { ...defaultTuning(), conversation: { claudeModel: null, effort: null, serviceTier: "fast" } },
+    });
+    const r = resolveEffective("conversation", view);
+    expect(r.tier).toEqual({ value: "fast", isDefault: false });
+  });
+
+  test("codex・tiers対応モデル(gpt-5.5)+保存値fast+カタログ有: 保存値がそのまま実効になる（回帰確認）", () => {
+    const view = mkView({
+      provider: "codex", codexModel: "gpt-5.5",
+      tuning: { ...defaultTuning(), conversation: { claudeModel: null, effort: null, serviceTier: "fast" } },
+    });
+    const r = resolveEffective("conversation", view, { claude: UNAVAILABLE_CATALOG, codex: CODEX_CATALOG, local: UNAVAILABLE_CATALOG });
+    expect(r.tier).toEqual({ value: "fast", isDefault: false });
+  });
+
   test("local: 常に確認済み（設定値がそのまま実効値のため、カタログ不要）・effort/tierはnull", () => {
     const view = mkView({ provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3:30b-instruct" });
     expect(resolveEffective("conversation", view)).toEqual({

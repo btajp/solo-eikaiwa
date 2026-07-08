@@ -489,71 +489,73 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                   />
                   {/* 実効サマリ（常時表示）: 現在この用途で実際に使われているプロバイダ・具体モデル・effort・配信 */}
                   {effective && <div className="text-sm text-muted">{effectiveLine(effective)}</div>}
-                  <details className="stack">
-                    <summary className="text-sm text-muted">{s.settings.tuningDetails}</summary>
-                    <div className="stack">
-                      {targets[role] === "claude" && (
+                  {/* ローカル割当は openai-compat 経路が tuning（model/effort/serviceTier）を完全に無視するため
+                      （llm-provider.ts の selectRunner・README にも明記）、詳細設定自体を出さない
+                      （出しても中身が空になる＝意味のない disclosure を見せない） */}
+                  {targets[role] !== "local" && (
+                    <details className="stack">
+                      <summary className="text-sm text-muted">{s.settings.tuningDetails}</summary>
+                      <div className="stack">
+                        {targets[role] === "claude" && (
+                          <label className="llm-field">
+                            <span className="text-sm text-muted">{s.settings.tuningModel}</span>
+                            <select
+                              className="llm-input"
+                              value={tuning[role].claudeModel ?? ""}
+                              disabled={saving || !view}
+                              onChange={(e) => {
+                                const newAlias = (e.target.value || null) as RoleTuning["claudeModel"];
+                                // モデル切替で選択中の effort が新モデルで無効化される場合（実測: 非対応 effort は
+                                // 黙って無視される）、UI 上に「効かない値」を残さないよう同じ更新で null にクランプする。
+                                const clampedEffort = clampClaudeEffort(catalogClaude, newAlias ?? "sonnet", tuning[role].effort) as RoleTuning["effort"];
+                                setTuning((prev) => ({ ...prev, [role]: { ...prev[role], claudeModel: newAlias, effort: clampedEffort } }));
+                              }}
+                            >
+                              {/* 既定はコード定数（サーバは env チューニングを読まない）ため、静的表記が常に真 */}
+                              <option value="">{s.settings.tuningDefaultWith("sonnet")}</option>
+                              {claudeModelSelectOptions(catalogClaude).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                          </label>
+                        )}
                         <label className="llm-field">
-                          <span className="text-sm text-muted">{s.settings.tuningModel}</span>
+                          <span className="text-sm text-muted">{s.settings.tuningEffort}</span>
                           <select
                             className="llm-input"
-                            value={tuning[role].claudeModel ?? ""}
+                            value={tuning[role].effort ?? ""}
                             disabled={saving || !view}
-                            onChange={(e) => {
-                              const newAlias = (e.target.value || null) as RoleTuning["claudeModel"];
-                              // モデル切替で選択中の effort が新モデルで無効化される場合（実測: 非対応 effort は
-                              // 黙って無視される）、UI 上に「効かない値」を残さないよう同じ更新で null にクランプする。
-                              const clampedEffort = clampClaudeEffort(catalogClaude, newAlias ?? "sonnet", tuning[role].effort) as RoleTuning["effort"];
-                              setTuning((prev) => ({ ...prev, [role]: { ...prev[role], claudeModel: newAlias, effort: clampedEffort } }));
-                            }}
+                            onChange={(e) => setTuningField(role, "effort", (e.target.value || null) as RoleTuning["effort"])}
                           >
-                            {/* 既定はコード定数（サーバは env チューニングを読まない）ため、静的表記が常に真 */}
-                            <option value="">{s.settings.tuningDefaultWith("sonnet")}</option>
-                            {claudeModelSelectOptions(catalogClaude).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            {/* claude の既定effortはSDK標準（未指定）、codex はカタログのdefaultEffort優先（不可時コード既定medium）。
+                                このセクション自体が local では出ないため、ここに来るのは claude/codex のみ */}
+                            <option value="">
+                              {targets[role] === "claude"
+                                ? s.settings.tuningDefaultWith(s.settings.tuningSdkStandard)
+                                : s.settings.tuningDefaultWith(codexEffortDefaultLabel)}
+                            </option>
+                            {/* claude: haiku 等 effort 非対応モデルではカタログ側が空配列を返し、既定のみ選択可になる */}
+                            {targets[role] === "claude" && claudeEffortOptions.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
+                            {targets[role] === "codex" && codexEffortOptions.map((ef) => (
+                              <option key={ef.id} value={ef.id}>{ef.description ? `${ef.id} — ${ef.description}` : ef.id}</option>
+                            ))}
                           </select>
                         </label>
-                      )}
-                      <label className="llm-field">
-                        <span className="text-sm text-muted">{s.settings.tuningEffort}</span>
-                        <select
-                          className="llm-input"
-                          value={tuning[role].effort ?? ""}
-                          disabled={saving || !view}
-                          onChange={(e) => setTuningField(role, "effort", (e.target.value || null) as RoleTuning["effort"])}
-                        >
-                          {/* claude の既定effortはSDK標準（未指定）、codex はカタログのdefaultEffort優先（不可時コード既定medium）。
-                              local は対応項目なしのため実効値を併記しない */}
-                          <option value="">
-                            {targets[role] === "claude"
-                              ? s.settings.tuningDefaultWith(s.settings.tuningSdkStandard)
-                              : targets[role] === "codex"
-                              ? s.settings.tuningDefaultWith(codexEffortDefaultLabel)
-                              : s.settings.tuningDefault}
-                          </option>
-                          {/* claude: haiku 等 effort 非対応モデルではカタログ側が空配列を返し、既定のみ選択可になる */}
-                          {targets[role] === "claude" && claudeEffortOptions.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
-                          {targets[role] === "codex" && codexEffortOptions.map((ef) => (
-                            <option key={ef.id} value={ef.id}>{ef.description ? `${ef.id} — ${ef.description}` : ef.id}</option>
-                          ))}
-                          {targets[role] === "local" && EFFORT_OPTIONS.map((ef) => <option key={ef} value={ef}>{ef}</option>)}
-                        </select>
-                      </label>
-                      {targets[role] === "codex" && (
-                        <label className="llm-field">
-                          <span className="text-sm text-muted">{s.settings.tuningTier}</span>
-                          <select
-                            className="llm-input"
-                            value={tuning[role].serviceTier ?? ""}
-                            disabled={saving || !view}
-                            onChange={(e) => setTuningField(role, "serviceTier", (e.target.value || null) as RoleTuning["serviceTier"])}
-                          >
-                            <option value="">{s.settings.tuningDefaultWith("fast")}</option>
-                            {codexTierOptions.map((t) => <option key={t} value={t}>{tierLabels[t]}</option>)}
-                          </select>
-                        </label>
-                      )}
-                    </div>
-                  </details>
+                        {targets[role] === "codex" && (
+                          <label className="llm-field">
+                            <span className="text-sm text-muted">{s.settings.tuningTier}</span>
+                            <select
+                              className="llm-input"
+                              value={tuning[role].serviceTier ?? ""}
+                              disabled={saving || !view}
+                              onChange={(e) => setTuningField(role, "serviceTier", (e.target.value || null) as RoleTuning["serviceTier"])}
+                            >
+                              <option value="">{s.settings.tuningDefaultWith("fast")}</option>
+                              {codexTierOptions.map((t) => <option key={t} value={t}>{tierLabels[t]}</option>)}
+                            </select>
+                          </label>
+                        )}
+                      </div>
+                    </details>
+                  )}
                 </div>
               );
             })}
