@@ -10,7 +10,7 @@ import {
   isLocalDefined, presetEnabled, presetTargets, matchPreset, hydrateConnection, hydrateTargets, hydrateTuning,
   buildRolesPayload, defaultTuning, applyRecommendedTuning,
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
-  tierOptionsForCodexModel, codexDefaultEffortLabel, localModelSelectOptions, resolveEffective,
+  tierOptionsForCodexModel, codexDefaultEffortLabel, localModelSelectOptions, resolveEffective, clampClaudeEffort,
   type RoleTarget, type RoleTargets, type Connection, type PresetId, type CloudTarget, type EffectiveResolution,
 } from "../lib/llm-assignments";
 import { loadPreferredCloud, savePreferredCloud } from "../lib/preferred-cloud";
@@ -140,7 +140,9 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   }
 
   useEffect(() => {
-    if (tab !== "roles" || catalogFetchedRef.current) return;
+    // 接続タブ・用途タブのどちらもモデル一覧を使うため、先に開いた方が一度だけ取得する
+    // （表示タブは使わないため対象外・app 起動時には叩かない＝Settings 画面を開いて初めて取得する）。
+    if (tab === "display" || catalogFetchedRef.current) return;
     catalogFetchedRef.current = true;
     refreshCatalog(false);
   }, [tab]);
@@ -440,7 +442,13 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                             className="llm-input"
                             value={tuning[role].claudeModel ?? ""}
                             disabled={saving || !view}
-                            onChange={(e) => setTuningField(role, "claudeModel", (e.target.value || null) as RoleTuning["claudeModel"])}
+                            onChange={(e) => {
+                              const newAlias = (e.target.value || null) as RoleTuning["claudeModel"];
+                              // モデル切替で選択中の effort が新モデルで無効化される場合（実測: 非対応 effort は
+                              // 黙って無視される）、UI 上に「効かない値」を残さないよう同じ更新で null にクランプする。
+                              const clampedEffort = clampClaudeEffort(catalogClaude, newAlias ?? "sonnet", tuning[role].effort) as RoleTuning["effort"];
+                              setTuning((prev) => ({ ...prev, [role]: { ...prev[role], claudeModel: newAlias, effort: clampedEffort } }));
+                            }}
                           >
                             {/* 既定はコード定数（サーバは env チューニングを読まない）ため、静的表記が常に真 */}
                             <option value="">{s.settings.tuningDefaultWith("sonnet")}</option>

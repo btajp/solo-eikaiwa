@@ -76,7 +76,9 @@ export const RECOMMENDED_TUNING: Record<LlmRole, { claude: RoleTuning; codex: Ro
     codex: { claudeModel: null, effort: "low", serviceTier: "fast" },
   },
   assist: {
-    claude: { claudeModel: "haiku", effort: "low", serviceTier: null },
+    // haiku は effort 非対応（実測 2026-07-08: `claude -p --model haiku --effort low` は成功するが
+    // effort は黙って無視される）。無視される値を書き込む/表示するのは UI 真実性違反のため null（既定）にする。
+    claude: { claudeModel: "haiku", effort: null, serviceTier: null },
     codex: { claudeModel: null, effort: "low", serviceTier: "fast" },
   },
   coaching: {
@@ -353,7 +355,35 @@ export function resolveEffective(
   const model: EffectiveModelInfo = row?.resolvedModel
     ? { confirmed: true, text: row.resolvedModel }
     : { confirmed: false, text: alias };
+  // 実測（2026-07-08）: `claude -p --model <alias> --effort <値>` はモデルが対応しない effort でも
+  // エラーにならず、その effort を黙って無視する（例: haiku + low）。カタログが利用可能で、選択中モデルが
+  // effort 非対応（efforts欄なし）または保存値がそのモデルの対応リストに無ければ、実際には無視されて
+  // SDK 標準相当の挙動になる — 保存値をそのまま「実効」に出すと嘘になるため sdk-standard を返す。
+  // カタログ不可時は判定材料が無いため従来どおり保存値をそのまま表示する（「実体未確認」が不確実性を示す）。
+  const catalogAvailable = catalog?.claude?.available === true;
+  const effortIgnored =
+    catalogAvailable && (!row?.efforts || (tuning.effort !== null && !row.efforts.some((e) => e.id === tuning.effort)));
   const effort: EffectiveTuningValue =
-    tuning.effort === null ? { value: "sdk-standard", isDefault: true } : { value: tuning.effort, isDefault: false };
+    tuning.effort !== null && !effortIgnored
+      ? { value: tuning.effort, isDefault: false }
+      : { value: "sdk-standard", isDefault: true };
   return { provider, model, effort, tier: null };
+}
+
+/**
+ * claude モデル DD の onChange 用: モデル切替後に選択中の effort が新モデルで無効化される場合、
+ * effort を null（既定へ戻す）にクランプする純関数。実測（2026-07-08）で `claude -p` が非対応 effort を
+ * 黙って無視することが確認されたため、UI 上に「効かない値」を残さないための処置。
+ * カタログ不可時は判定材料が無いため現在値をそのまま維持する（clamp しない）。
+ */
+export function clampClaudeEffort(
+  catalog: CatalogResult | undefined,
+  newAlias: string,
+  currentEffort: string | null,
+): string | null {
+  if (!catalog?.available) return currentEffort;
+  const efforts = effortOptionsForClaudeAlias(catalog, newAlias);
+  if (efforts.length === 0) return null;
+  if (currentEffort !== null && !efforts.includes(currentEffort)) return null;
+  return currentEffort;
 }

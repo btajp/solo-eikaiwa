@@ -5,7 +5,7 @@ import {
   PRESETS, isLocalDefined, presetEnabled, hydrateConnection, hydrateTargets, buildRolesPayload, matchPreset,
   presetTargets, defaultTuning, hydrateTuning, RECOMMENDED_TUNING, applyRecommendedTuning,
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
-  tierOptionsForCodexModel, codexDefaultEffortLabel, localModelSelectOptions, resolveEffective,
+  tierOptionsForCodexModel, codexDefaultEffortLabel, localModelSelectOptions, resolveEffective, clampClaudeEffort,
   type RoleTargets,
 } from "./llm-assignments";
 
@@ -238,7 +238,8 @@ describe("RECOMMENDED_TUNING", () => {
         codex: { claudeModel: null, effort: "low", serviceTier: "fast" },
       },
       assist: {
-        claude: { claudeModel: "haiku", effort: "low", serviceTier: null },
+        // haiku は effort 非対応（実測: `claude -p --model haiku --effort low` は成功するが黙って無視される）
+        claude: { claudeModel: "haiku", effort: null, serviceTier: null },
         codex: { claudeModel: null, effort: "low", serviceTier: "fast" },
       },
       coaching: {
@@ -309,6 +310,12 @@ describe("applyRecommendedTuning", () => {
     const targets: RoleTargets = { conversation: "claude", assist: "codex", coaching: "claude", generation: "codex", assessment: "claude" };
     applyRecommendedTuning(current, targets);
     expect(current).toEqual(snapshot);
+  });
+
+  test("assistをclaude割当にすると推奨effortはnull（haikuはeffort非対応のため）", () => {
+    const current = defaultTuning();
+    const targets: RoleTargets = { conversation: "local", assist: "claude", coaching: "local", generation: "local", assessment: "local" };
+    expect(applyRecommendedTuning(current, targets).assist).toEqual({ claudeModel: "haiku", effort: null, serviceTier: null });
   });
 });
 
@@ -484,6 +491,24 @@ describe("resolveEffective", () => {
     expect(r.effort).toEqual({ value: "sdk-standard", isDefault: true });
   });
 
+  test("claude・haiku指定+effort明示指定(high)+カタログ一致: 実測(非対応effortは黙って無視される)によりSDK標準へ落とす", () => {
+    const view = mkView({
+      provider: "env", envProvider: "claude",
+      tuning: { ...defaultTuning(), conversation: { claudeModel: "haiku", effort: "high", serviceTier: null } },
+    });
+    const r = resolveEffective("conversation", view, { claude: CLAUDE_CATALOG, codex: UNAVAILABLE_CATALOG, local: UNAVAILABLE_CATALOG });
+    expect(r.effort).toEqual({ value: "sdk-standard", isDefault: true });
+  });
+
+  test("claude・haiku指定+effort明示指定+カタログ不可: 判定材料が無いため保存値をそのまま表示する", () => {
+    const view = mkView({
+      provider: "env", envProvider: "claude",
+      tuning: { ...defaultTuning(), conversation: { claudeModel: "haiku", effort: "high", serviceTier: null } },
+    });
+    const r = resolveEffective("conversation", view);
+    expect(r.effort).toEqual({ value: "high", isDefault: false });
+  });
+
   test("claude・effort明示指定はそのまま反映される(isDefault:false)", () => {
     const view = mkView({
       provider: "env", envProvider: "claude",
@@ -591,5 +616,28 @@ describe("resolveEffective", () => {
     delete (view.roles as Record<string, unknown>).assist;
     expect(() => resolveEffective("assist", view)).not.toThrow();
     expect(resolveEffective("assist", view).provider).toBe("local");
+  });
+});
+
+describe("clampClaudeEffort", () => {
+  test("モデル切替先が新effortに対応: 現在値を維持する（sonnet→sonnet, high）", () => {
+    expect(clampClaudeEffort(CLAUDE_CATALOG, "sonnet", "high")).toBe("high");
+  });
+  test("モデル切替先がeffort非対応(haiku): nullへクランプする（sonnet[high]→haiku）", () => {
+    expect(clampClaudeEffort(CLAUDE_CATALOG, "haiku", "high")).toBeNull();
+  });
+  test("現在値が既にnull・切替先がeffort非対応でもnullのまま", () => {
+    expect(clampClaudeEffort(CLAUDE_CATALOG, "haiku", null)).toBeNull();
+  });
+  test("現在値が切替先の対応リストに無い（例: maxのみ持たないモデル）場合もnullへクランプする", () => {
+    const catalog: CatalogResult = {
+      available: true, fetchedAt: "2026-07-08T00:00:00.000Z",
+      models: [{ id: "sonnet", displayName: "Sonnet", description: "", efforts: [{ id: "low" }, { id: "medium" }] }],
+    };
+    expect(clampClaudeEffort(catalog, "sonnet", "xhigh")).toBeNull();
+  });
+  test("カタログ不可時は判定材料が無いため現在値をそのまま維持する（clampしない）", () => {
+    expect(clampClaudeEffort(undefined, "haiku", "high")).toBe("high");
+    expect(clampClaudeEffort(UNAVAILABLE_CATALOG, "haiku", "high")).toBe("high");
   });
 });

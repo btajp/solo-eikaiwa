@@ -365,7 +365,7 @@ export const STR: Record<Lang, Strings> = {
       },
       roleReason: {
         conversation: "Recommended: local — fastest responses. On cloud, sonnet / low is a good baseline.",
-        assist: "Recommended: local — simple tasks that need an instant answer. On cloud, haiku / low is enough.",
+        assist: "Recommended: local — simple tasks that need an instant answer. On cloud, haiku is enough (it ignores the effort setting).",
         coaching: "Recommended: Claude / Codex — quality matters most here (corrections stay in your SRS, explanations are cached permanently). sonnet / high is a good baseline.",
         generation: "Recommended: local — templated output with modest demands. For higher quality, use sonnet / medium.",
         assessment: "Recommended: Claude / Codex — runs less than monthly and the verdict affects everything. opus / xhigh; standard delivery is fine since there's no rush.",
@@ -724,7 +724,7 @@ export const STR: Record<Lang, Strings> = {
       },
       roleReason: {
         conversation: "推奨: ローカル — 応答が最も速いため。クラウドなら sonnet / low が目安。",
-        assist: "推奨: ローカル — 単純で即答が欲しいタスク。クラウドなら haiku / low で十分。",
+        assist: "推奨: ローカル — 単純で即答が欲しいタスク。クラウドなら haiku で十分（effort指定は無視されます）。",
         coaching: "推奨: Claude / Codex — 品質勝負（SRSに残る添削・恒久キャッシュされる解説）。sonnet / high が目安。",
         generation: "推奨: ローカル — 定型的で要求低め。品質を上げるなら sonnet / medium。",
         assessment: "推奨: Claude / Codex — 月1未満で判断が全体に波及。opus / xhigh・急がないので standard 配信で十分。",
