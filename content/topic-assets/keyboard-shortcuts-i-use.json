@@ -1,0 +1,83 @@
+{
+  "topicId": "keyboard-shortcuts-i-use",
+  "sourceHash": "72a8b5d1237e5bfe0e43445aa8b97177449fb69f20c2ac99e7e72ecfacf6a984",
+  "promptVersion": "v1",
+  "byStage": {
+    "3": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about the keyboard shortcuts I use every day.",
+            "ja": "今日は私が毎日使っているキーボードショートカットについて話したいです。"
+          },
+          {
+            "en": "Copy and paste are the ones I use most at work.",
+            "ja": "コピーと貼り付けは、仕事で一番よく使うものです。"
+          },
+          {
+            "en": "I hit undo a lot when I make a small mistake.",
+            "ja": "小さなミスをしたとき、私は元に戻すをよく押します。"
+          },
+          {
+            "en": "Switching between windows is much faster with a simple shortcut.",
+            "ja": "簡単なショートカットを使うと、ウィンドウの切り替えがずっと速くなります。"
+          },
+          {
+            "en": "There are some shortcuts I keep forgetting, like the one for screenshots.",
+            "ja": "スクリーンショットのものみたいに、なかなか覚えられないショートカットもあります。"
+          },
+          {
+            "en": "So in the end, shortcuts save me a lot of time each day.",
+            "ja": "だから結局、ショートカットは毎日たくさんの時間を節約してくれます。"
+          }
+        ],
+        "outline": [
+          "Opening: shortcuts I use daily",
+          "Point 1: copy, paste, and undo",
+          "Point 2: window switching is faster",
+          "Wrap-up: some are hard to remember, but they save time"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I use keyboard shortcuts every day, and they save me time. Copy and paste are the ones I use most. I press copy, then I press paste, and it's done. It's so much faster than typing again. When I make a mistake, I hit undo a lot. One quick key, and my mistake is gone. That feels really nice. I also like switching between windows with a shortcut. I don't need my mouse for that. It's faster, and my hands stay on the keys. But there are some shortcuts I keep forgetting. I learn them, and then I forget them the next day. So I write a few on a small note. Maybe I just need more practice. Little by little, they become easy. Now I use them without thinking. What shortcuts do you use most? Tell me, please."
+      }
+    },
+    "4": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about the keyboard shortcuts I use every day at work.",
+            "ja": "今日は、仕事で毎日使っているキーボードショートカットについて話したいです。"
+          },
+          {
+            "en": "The ones I use most are copy and paste, because I move text around all the time.",
+            "ja": "一番よく使うのはコピーと貼り付けで、いつも文字をあちこち動かしているからです。"
+          },
+          {
+            "en": "I also hit undo a lot when I make a mistake in my code.",
+            "ja": "コードでミスをしたとき、元に戻すもよく押します。"
+          },
+          {
+            "en": "Switching between windows is much faster with a shortcut than using the mouse.",
+            "ja": "ウィンドウの切り替えは、マウスを使うよりショートカットの方がずっと速いです。"
+          },
+          {
+            "en": "There are still some shortcuts I keep forgetting, so I want to practice them more.",
+            "ja": "それでもなかなか覚えられないショートカットがあるので、もっと練習したいです。"
+          }
+        ],
+        "outline": [
+          "Opening: shortcuts I use daily",
+          "Point 1: copy, paste, and undo",
+          "Point 2: switching windows is faster",
+          "Wrap-up: some I still forget"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I use keyboard shortcuts every day, and they save me lots of time. Copy and paste are the ones I use most. I press copy, then I press paste, and it's so quick. When I make a mistake, I hit undo a lot. It fixes my error in one second, so I don't worry much. Switching between windows is faster with a shortcut too. I just hold two keys, and the next window pops up. My hands stay on the keyboard, so I don't reach for the mouse. But there are some shortcuts I keep forgetting. I learn them, I use them once, and then they slip away. So I write the tricky ones on a small note. Little by little, I remember more of them. Shortcuts feel hard at first, but they really help me work faster."
+      }
+    }
+  }
+}

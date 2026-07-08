@@ -1,0 +1,71 @@
+{
+  "topicId": "how-i-debug-a-problem",
+  "sourceHash": "33e342e90ba378697f37f4bf60536bdd2abfd91b1b59394b33989c792b86e892",
+  "promptVersion": "v1",
+  "byStage": {
+    "5": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "When something breaks, the first thing I check is the error message on my screen.",
+            "ja": "何かが動かなくなったとき、まず最初に確認するのは画面のエラーメッセージです。"
+          },
+          {
+            "en": "After that, I read the logs carefully to find where the problem starts.",
+            "ja": "その後、問題がどこで始まっているかを見つけるためにログを注意深く読みます。"
+          },
+          {
+            "en": "Usually, I add some print lines because I like seeing the values step by step.",
+            "ja": "たいてい私はprint文をいくつか足します、値を一つずつ見るのが好きだからです。"
+          },
+          {
+            "en": "When I finally find the cause, I feel really happy and a little proud of myself.",
+            "ja": "やっと原因が分かったとき、私は本当に嬉しくて、少し自分を誇らしく感じます。"
+          }
+        ],
+        "outline": [
+          "Opening: how I start when something breaks",
+          "Point 1: read the error message and logs",
+          "Point 2: add print lines to check values",
+          "Wrap-up: how I feel when I find the cause"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "When something breaks, I don't panic. I stop and look at the screen first. I try to see what changed. Then I read the error message slowly. I don't skip it. It's usually telling me a lot. So I check the logs too, line by line. I look for the first red line, not the last one. Honestly, I'm a bit lazy. I just add print lines everywhere. I print the values and watch them. Sometimes I use a real debugger, but not often. It feels slower to me. I keep testing small parts until something looks wrong. Then, when I finally find it, oh, it's the best feeling. My whole body relaxes. I want to jump up and smile. It's often a tiny mistake, like one wrong letter. But finding it makes me really happy."
+      }
+    },
+    "6": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "When something breaks, the first thing I do is check the error message carefully.",
+            "ja": "何かが動かなくなったとき、まず最初にすることはエラーメッセージを注意深く確認することです。"
+          },
+          {
+            "en": "The main problem last time was a null value coming from the API.",
+            "ja": "前回の主な問題は、APIから来るnull値でした。"
+          },
+          {
+            "en": "What usually works for me is adding print lines to see the real data.",
+            "ja": "私にたいてい効くのは、実際のデータを見るためにprint文を足すことです。"
+          },
+          {
+            "en": "When I finally find the cause, I feel really relieved and a little proud.",
+            "ja": "やっと原因が見つかったとき、私はとてもほっとして、少し誇らしく感じます。"
+          }
+        ],
+        "outline": [
+          "Opening: where I start when something breaks",
+          "Point 1: read the error message and logs first",
+          "Point 2: add print lines to find the real cause",
+          "Wrap-up: how relieved I feel when I find it"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "When something breaks, I always start with the same question. What did I change last? So I look at my most recent code first. That's usually where the problem is hiding. Then I read the error message slowly. I used to skip it, but that was a mistake. The message often tells me the exact line. I check the logs too, from top to bottom. Honestly, I love adding print lines everywhere. It's messy, but I can see what's really happening. Sometimes I open the debugger and step through it. That helps with the tricky bugs. And when I finally find the cause, oh, it feels so good. I feel like a detective who solved the case. I smile, I fix it, and I delete all those print lines."
+      }
+    }
+  }
+}

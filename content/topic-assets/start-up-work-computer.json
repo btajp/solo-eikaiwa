@@ -1,0 +1,99 @@
+{
+  "topicId": "start-up-work-computer",
+  "sourceHash": "864c9202b3c7235bc394b05d99d820a248f196812f53cef92e9f28306801dbfb",
+  "promptVersion": "v1",
+  "byStage": {
+    "1": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about starting my work computer.",
+            "ja": "今日は仕事用のパソコンを起動することについて話したいです。"
+          },
+          {
+            "en": "First I press the power button and wait.",
+            "ja": "まず電源ボタンを押して待ちます。"
+          },
+          {
+            "en": "Then I type my password to log in.",
+            "ja": "それからパスワードを入力してログインします。"
+          },
+          {
+            "en": "Sometimes it is slow in the morning.",
+            "ja": "朝は遅いこともあります。"
+          },
+          {
+            "en": "So I get some coffee and wait a little.",
+            "ja": "だからコーヒーを持ってきて少し待ちます。"
+          },
+          {
+            "en": "After that I open the apps I need.",
+            "ja": "その後、必要なアプリを開きます。"
+          },
+          {
+            "en": "I usually open my email and chat first.",
+            "ja": "たいていメールとチャットを最初に開きます。"
+          },
+          {
+            "en": "That's how I start my work computer every day.",
+            "ja": "そうやって私は毎日仕事用のパソコンを起動します。"
+          }
+        ],
+        "outline": [
+          "Opening: talk about starting my work computer",
+          "Point 1: press power, wait, and log in",
+          "Point 2: it's slow in the morning, then open apps",
+          "Wrap-up: this is my daily start"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I start my work computer every morning. First, I press the power button. Then I wait a little. The screen turns on slowly. I type my password to log in. I use the same password every day. Sometimes it's slow in the morning. I just sit and wait. I drink my coffee. Then the computer is ready. I open the apps I need. I open my email first. After that, I open my chat app. Then I open my work files. Now I'm ready to start. It's a simple routine. I do it every day. I don't think about it much."
+      }
+    },
+    "2": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about starting my work computer.",
+            "ja": "今日は仕事用のパソコンを起動することについて話したいです。"
+          },
+          {
+            "en": "First I press the power button and wait.",
+            "ja": "まず電源ボタンを押して待ちます。"
+          },
+          {
+            "en": "Then I type my password to log in.",
+            "ja": "それからパスワードを入力してログインします。"
+          },
+          {
+            "en": "Sometimes it is slow in the morning.",
+            "ja": "朝は動きが遅いこともあります。"
+          },
+          {
+            "en": "When it is slow, I make some coffee and wait.",
+            "ja": "遅いときは、コーヒーを入れて待ちます。"
+          },
+          {
+            "en": "After that I open the apps I need.",
+            "ja": "その後、必要なアプリを開きます。"
+          },
+          {
+            "en": "So that is how I start my work day.",
+            "ja": "というわけで、これが私の一日の仕事の始め方です。"
+          }
+        ],
+        "outline": [
+          "Opening: starting my work computer",
+          "Point 1: press power, type password",
+          "Point 2: slow mornings and waiting",
+          "Wrap-up: open apps and start the day"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I want to tell you about my mornings. First I press the power button. Then I wait for a little bit. The screen turns on slowly. I see the login box. So I type my password. Then I press enter and log in. Sometimes it's really slow in the morning. I don't know why. Maybe it's tired too. I just wait and drink my coffee. After that, it's ready to work. Then I open the apps I need. I open my email first. Next I open my chat and my notes. Now I'm all set. I'm ready to start my day. That's my simple morning routine."
+      }
+    }
+  }
+}

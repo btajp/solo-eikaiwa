@@ -1,0 +1,83 @@
+{
+  "topicId": "booking-meeting-room",
+  "sourceHash": "957060c63dd2fa8c9cb597dbeaa1b909b4ce89f07e0a5156eb616ca43cc683d2",
+  "promptVersion": "v1",
+  "byStage": {
+    "3": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about how I book a meeting room at work.",
+            "ja": "今日は職場で会議室をどう予約するかについて話したいです。"
+          },
+          {
+            "en": "I usually book a room when my team needs to plan a new project.",
+            "ja": "私はたいてい、チームが新しいプロジェクトを計画するときに部屋を予約します。"
+          },
+          {
+            "en": "First I check the time and how many people will join the meeting.",
+            "ja": "まず私は時間と、何人が会議に参加するかを確認します。"
+          },
+          {
+            "en": "When the room is already taken, I look for another free room nearby.",
+            "ja": "部屋がもう埋まっているときは、近くの別の空いている部屋を探します。"
+          },
+          {
+            "en": "I always check small things, like the size and if there's a screen.",
+            "ja": "私はいつも、広さや画面があるかどうかなど、小さなことを確認します。"
+          },
+          {
+            "en": "So booking a room is easy for me when I plan a few steps ahead.",
+            "ja": "だから数手先を計画しておけば、私にとって部屋の予約は簡単です。"
+          }
+        ],
+        "outline": [
+          "Opening: how I book a meeting room",
+          "Point 1: when I need it and who joins",
+          "Point 2: what I check and backup plans",
+          "Wrap-up: planning ahead makes it easy"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I book a meeting room almost every week at work. First, I open our office app on my computer. I choose a day and a time. Then I pick a room that is free. I usually need a room for our team meeting. About five people join, so the room can't be too small. I always check the start time and the end time. I also check how many chairs the room has. Sometimes the room I want is already taken. When that happens, I look for another free room. If I can't find one, I move my meeting to a later time. I like a room with a big screen too. Before the meeting, I send a message to everyone. I tell them the room number and the time. It's easy when I plan it early."
+      }
+    },
+    "4": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "The way I usually book a room is through our shared online calendar.",
+            "ja": "私がいつも部屋を予約する方法は、共有のオンラインカレンダーを使うことです。"
+          },
+          {
+            "en": "I usually need a room when my team has our weekly planning meeting.",
+            "ja": "私はたいてい、チームの週次の計画ミーティングがあるときに部屋が必要になります。"
+          },
+          {
+            "en": "When the room is already taken, I just move our meeting to a later time.",
+            "ja": "部屋がもう埋まっているときは、ミーティングを後の時間に移すだけです。"
+          },
+          {
+            "en": "One small thing I always check is whether the room is big enough for everyone.",
+            "ja": "私がいつも確認する小さなことの一つは、部屋が全員に十分な広さかどうかです。"
+          },
+          {
+            "en": "So booking a room is easy for me once I check the time and size.",
+            "ja": "だから時間と広ささえ確認すれば、部屋の予約は私にとって簡単です。"
+          }
+        ],
+        "outline": [
+          "Opening: how I book a room online",
+          "Point 1: when I need it and who joins",
+          "Point 2: what I do when it's taken",
+          "Wrap-up: small checks like time and size"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I usually book a meeting room online. We've got a simple app for that. I open it, pick a time, and grab a free room. Most of the time I need a room in the afternoon. My small team joins, so about four or five people. Sometimes my manager comes too, and one client. When I plan, I check the time first. I don't want to clash with another meeting. I also check the size. A big group needs a bigger room. Then I look at the screen and the wifi. If the room is already taken, I don't panic. I just pick the next free slot, or I find another floor. Plus I can ask a colleague to swap. That's it, really. It's quick, and it keeps everyone happy. I always send an invite after I book."
+      }
+    }
+  }
+}

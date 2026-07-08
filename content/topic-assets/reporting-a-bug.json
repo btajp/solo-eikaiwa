@@ -1,0 +1,83 @@
+{
+  "topicId": "reporting-a-bug",
+  "sourceHash": "f95efa8c7528c1e924054cb15e3feb5355f12601116e869051ea0663b62079d1",
+  "promptVersion": "v1",
+  "byStage": {
+    "3": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about a bug I found at work.",
+            "ja": "今日は、仕事で見つけた不具合についてお話ししたいと思います。"
+          },
+          {
+            "en": "The last bug I noticed was a login button that didn't work.",
+            "ja": "この前気づいた不具合は、動かないログインボタンでした。"
+          },
+          {
+            "en": "First, I write down the steps and take a few screenshots.",
+            "ja": "まず、手順を書き留めて、スクリーンショットを何枚か撮ります。"
+          },
+          {
+            "en": "Then I tell my team on Slack with a short and clear message.",
+            "ja": "それから、短くて分かりやすいメッセージでチームにSlackでSlackで伝えます。"
+          },
+          {
+            "en": "To show the problem, I explain each step so others can see it too.",
+            "ja": "問題を見せるために、他の人も分かるように各手順を説明します。"
+          },
+          {
+            "en": "When it got fixed, I felt really happy and relieved about it.",
+            "ja": "それが直ったとき、私は本当に嬉しくて、ほっとしました。"
+          }
+        ],
+        "outline": [
+          "Opening: a bug I found at work",
+          "How I write it down and tell my team",
+          "Steps I take to show the problem",
+          "Wrap-up: how I felt when it was fixed"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "Last week I found a bug at work. The app crashed when I clicked \"save.\" It happened every time, so I knew it wasn't just me. First, I wrote it down in my notes. I like to keep things simple and clear. Then I told my team on our chat. I said what I did and what went wrong. I also wrote the steps, one by one. So they could see the same problem too. I took a short video of my screen as well. Pictures help more than long words, I think. My teammate read it and started to fix it fast. When it got fixed, I felt really happy and calm. It's a good feeling when you help make things better. Small bugs matter, and I'm glad I spoke up."
+      }
+    },
+    "4": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about a bug I found last week at work.",
+            "ja": "今日は、先週仕事で見つけた不具合についてお話ししたいです。"
+          },
+          {
+            "en": "The last bug I noticed was a login page that froze on mobile phones.",
+            "ja": "この前気づいた不具合は、スマホでログインページが固まるというものでした。"
+          },
+          {
+            "en": "How I tell my team is I write a short note with clear steps in our chat.",
+            "ja": "チームへの伝え方としては、はっきりした手順を書いた短いメモをチャットに投稿します。"
+          },
+          {
+            "en": "The steps I take to show the problem are recording my screen and adding the error log.",
+            "ja": "問題を見せるための手順は、画面を録画してエラーログを添えることです。"
+          },
+          {
+            "en": "When it got fixed, I felt really relieved because our users could log in again.",
+            "ja": "直ったとき、ユーザーがまたログインできるようになって、本当にほっとしました。"
+          }
+        ],
+        "outline": [
+          "Opening: introduce a recent bug at work",
+          "Point 1: how I record and report it to the team",
+          "Point 2: the steps I use to reproduce and show it",
+          "Wrap-up: how relieved I felt when it was fixed"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "So, the last bug I found at work was pretty annoying. When I clicked \"save,\" the page just froze. My data didn't get stored at all. First, I wrote it down in my notebook. I like to keep short, clear notes. Then I told my team on our chat app. I tried to explain it in simple words. To show the problem, I took some screenshots. I also wrote the exact steps I took. Click here, type this, then it breaks. I even made a short screen recording. That way, my teammates could see it fast. A few days later, someone fixed it. Honestly, I felt really happy and relieved. It's nice when people listen to you. It's a small thing, but it helped everyone. Now the app works well, and I feel proud. Reporting bugs isn't scary anymore for me."
+      }
+    }
+  }
+}

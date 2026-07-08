@@ -1,0 +1,71 @@
+{
+  "topicId": "my-work-todo-list",
+  "sourceHash": "813f2fb1ebf3aca9c4d96567c0e9b48d59053673037165f033664115eb2404c8",
+  "promptVersion": "v1",
+  "byStage": {
+    "5": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I'll talk about how I manage my to-do list at work every day.",
+            "ja": "今日は、職場で毎日どうやってやることリストを管理しているかについて話します。"
+          },
+          {
+            "en": "I usually write my tasks down in a simple app called Notion on my laptop.",
+            "ja": "私はたいてい、ノートパソコンのNotionというシンプルなアプリにタスクを書き留めます。"
+          },
+          {
+            "en": "The best part is checking off a task when it's finally done.",
+            "ja": "一番いいのは、タスクがついに終わったときにチェックを入れる瞬間です。"
+          },
+          {
+            "en": "For unfinished tasks, I just move them to the next day and start fresh.",
+            "ja": "終わらなかったタスクは、翌日に移して、また新たに始めるだけです。"
+          }
+        ],
+        "outline": [
+          "Opening: how I manage my to-do list",
+          "Point 1: where I write tasks and how I prioritize",
+          "Point 2: the joy of checking things off",
+          "Wrap-up: moving unfinished tasks to the next day"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I keep my to-do list in a simple app on my phone. I like it because it syncs to my laptop too. Every morning, I write down all my tasks. Then I decide what comes first. I look at deadlines and think about what's urgent. Big, important jobs go at the top. Small, quick things I do between meetings.\n\nMy favorite part is checking a task off. When I tap that little box, it feels so good. It's a small win, but it makes me happy. I feel like I'm really moving forward.\n\nOf course, I don't always finish everything. That's okay. I just move the leftover tasks to tomorrow's list. I don't stress about it. The next morning, they're waiting for me, and I start fresh. That's how I stay calm and organized at work."
+      }
+    },
+    "6": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about how I manage my to-do list at work.",
+            "ja": "今日は、仕事でのタスク管理の仕方についてお話ししたいと思います。"
+          },
+          {
+            "en": "I write my tasks down in a simple app called Notion on my laptop.",
+            "ja": "私はタスクを、ノートパソコンのNotionというシンプルなアプリに書き留めています。"
+          },
+          {
+            "en": "I decide what comes first by looking at the deadline and how urgent it is.",
+            "ja": "何を先にやるかは、締め切りと緊急度を見て決めています。"
+          },
+          {
+            "en": "The most satisfying part is checking things off when a task is finally done.",
+            "ja": "一番の達成感は、タスクがやっと終わってチェックを付ける瞬間です。"
+          }
+        ],
+        "outline": [
+          "Opening: how I manage my to-do list",
+          "Point 1: where I write tasks and how I prioritize",
+          "Point 2: the joy of checking tasks off",
+          "Wrap-up: moving unfinished tasks to the next day"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I keep my to-do list in a simple app on my phone. I also have a small notebook on my desk. I like writing tasks by hand, so I use both. Every morning I look at everything and pick what comes first. I ask myself, what's urgent? What has a deadline today? Those tasks go to the top. The easy, quick ones I do fast, just to get moving.\n\nMy favorite part is checking things off. When I mark a task done, it feels so good. It's a small win, but it makes me happy. I feel like I'm really making progress.\n\nSome days I don't finish everything, and that's okay. I don't stress about it. I just move those tasks to tomorrow's list. Then I start fresh in the morning. That's how I stay calm and organized at work."
+      }
+    }
+  }
+}

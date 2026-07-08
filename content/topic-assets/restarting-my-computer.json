@@ -1,0 +1,99 @@
+{
+  "topicId": "restarting-my-computer",
+  "sourceHash": "6f12794bbd1c8413fa1bb3fac4191409c43642b187163cf115fa3e1bd550362d",
+  "promptVersion": "v1",
+  "byStage": {
+    "1": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about restarting my computer.",
+            "ja": "今日はパソコンの再起動についてお話ししたいです。"
+          },
+          {
+            "en": "When my computer gets slow, I restart it.",
+            "ja": "パソコンの動きが遅くなったとき、私は再起動します。"
+          },
+          {
+            "en": "First, I close all my open apps.",
+            "ja": "まず、開いているアプリを全部閉じます。"
+          },
+          {
+            "en": "Then I click restart and I wait a little.",
+            "ja": "それから再起動を押して、少し待ちます。"
+          },
+          {
+            "en": "I wait for it to start again.",
+            "ja": "パソコンがもう一度立ち上がるまで待ちます。"
+          },
+          {
+            "en": "After that, my computer runs much faster.",
+            "ja": "その後、パソコンはずっと速く動きます。"
+          },
+          {
+            "en": "Restarting often fixes small problems for me.",
+            "ja": "再起動は、小さな問題を直してくれることが多いです。"
+          },
+          {
+            "en": "So I always try this first when something breaks.",
+            "ja": "だから何か調子が悪いとき、私はいつもまずこれを試します。"
+          }
+        ],
+        "outline": [
+          "Opening: talk about restarting my computer",
+          "Point 1: I do it when it gets slow",
+          "Point 2: close apps, restart, and wait",
+          "Wrap-up: it fixes small problems, so I try it first"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "My computer gets slow sometimes. It doesn't work well, and that's annoying. So I decide to restart it. First, I close all my apps. I don't want to lose my work. I save my files, and then I click restart. Now I just wait. It takes a minute or two. I watch the screen and I'm patient. Soon the computer starts again. It feels fast and fresh. Wow, that's much better! This trick fixes small problems a lot. I don't need to call for help. I can do it myself. So when your computer feels slow, try it. Just restart it. It's easy, and it really works."
+      }
+    },
+    "2": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about restarting my computer.",
+            "ja": "今日はパソコンの再起動について話したいです。"
+          },
+          {
+            "en": "When my computer gets slow, I restart it.",
+            "ja": "パソコンの動きが遅くなったら、私は再起動します。"
+          },
+          {
+            "en": "First, I close all my apps before restarting.",
+            "ja": "まず、再起動する前にすべてのアプリを閉じます。"
+          },
+          {
+            "en": "Then I click the restart button and wait.",
+            "ja": "それから再起動ボタンを押して待ちます。"
+          },
+          {
+            "en": "I wait for it to start again slowly.",
+            "ja": "立ち上がるまでゆっくり待ちます。"
+          },
+          {
+            "en": "This often fixes small problems very fast.",
+            "ja": "これで小さな問題はすぐに直ることが多いです。"
+          },
+          {
+            "en": "So restarting is an easy trick I use.",
+            "ja": "だから再起動は私がよく使う簡単な方法です。"
+          }
+        ],
+        "outline": [
+          "Opening: talk about restarting my computer",
+          "Point 1: I close apps when it gets slow",
+          "Point 2: I wait for it to start again",
+          "Wrap-up: it fixes small problems easily"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "Sometimes my computer gets really slow. It stops working well, and that's annoying. So I restart it. First, I close all my apps. I save my work before I close them. That's important, so I don't lose anything. Then I click restart. Now I just wait. My computer goes dark for a moment. I wait for it to start again. It takes a minute or two. Then the screen comes back. Everything feels faster now. This often fixes small problems. It's an easy trick, and it usually works. I don't need a new computer. I just turn it off and on. That's it!"
+      }
+    }
+  }
+}

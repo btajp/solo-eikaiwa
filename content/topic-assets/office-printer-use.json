@@ -1,0 +1,83 @@
+{
+  "topicId": "office-printer-use",
+  "sourceHash": "c8fa2e4d3b05518b3738e7543f8cdc96d71ac6f1d2f6c2bb5934d3d9ee5e8b04",
+  "promptVersion": "v1",
+  "byStage": {
+    "3": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "I usually need to print meeting notes and some contracts every week.",
+            "ja": "私はたいてい毎週、会議のメモと契約書を印刷する必要があります。"
+          },
+          {
+            "en": "When the printer runs out of paper, I open the tray and add more.",
+            "ja": "プリンターの紙が切れたときは、トレイを開けて紙を足します。"
+          },
+          {
+            "en": "Sometimes I wait in line because a coworker is printing a big file.",
+            "ja": "同僚が大きなファイルを印刷しているので、順番待ちをすることもあります。"
+          },
+          {
+            "en": "Last week the printer had a paper jam, so I pulled the paper out slowly.",
+            "ja": "先週プリンターが紙詰まりを起こしたので、私はゆっくり紙を引き抜きました。"
+          },
+          {
+            "en": "After the pages come out, I grab them and check they are all there.",
+            "ja": "ページが出てきたら、それを取って全部そろっているか確認します。"
+          },
+          {
+            "en": "Then I take my pages back to my desk and start working again.",
+            "ja": "それから印刷物を持って席に戻り、また作業を始めます。"
+          }
+        ],
+        "outline": [
+          "Opening: what I print at work",
+          "Point: dealing with empty paper and jams",
+          "Point: waiting and picking up pages",
+          "Wrap-up: back to my desk"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I don't print much, but sometimes I really need to. I usually print emails, meeting notes, or a report for my boss. When I click print, I walk to the machine and wait. Sometimes the printer runs out of paper. So I open the tray and put more paper in. It's easy, and I feel happy when it works. But some days there's a long line of people. I wait for my turn, and I talk with a friend. One time the paper got stuck inside. I opened the door and pulled it out slowly. After that, my pages came out warm. I pick them up and check the order. Then I put them together and walk back to my desk. It's a small thing, but it feels good. I like a clean, tidy desk."
+      }
+    },
+    "4": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I'll talk about using the office printer, which I do almost every day.",
+            "ja": "今日はオフィスのプリンターを使うことについて話します。ほぼ毎日やっています。"
+          },
+          {
+            "en": "I usually need to print meeting notes and system design documents for my team.",
+            "ja": "私はいつもチームのために会議メモやシステム設計書を印刷する必要があります。"
+          },
+          {
+            "en": "When the printer runs out of paper, I open the tray and add a new stack.",
+            "ja": "プリンターの紙が切れたときは、トレイを開けて新しい紙の束を足します。"
+          },
+          {
+            "en": "One time I had to wait for a paper jam, so I fixed it myself.",
+            "ja": "あるとき紙詰まりで待たされたので、自分で直しました。"
+          },
+          {
+            "en": "After the pages come out, I grab them and walk back to my desk.",
+            "ja": "ページが出てきたら、それを取って自分の席に戻ります。"
+          }
+        ],
+        "outline": [
+          "Opening: I use the office printer daily",
+          "Point 1: What I print and handling out-of-paper",
+          "Point 2: Waiting and fixing a paper jam",
+          "Wrap-up: Grabbing pages and returning to my desk"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I print stuff at work almost every day. Usually it's reports, meeting notes, or a form I need to sign. Sometimes the printer runs out of paper. When that happens, I open the tray and add more paper. It's easy, so I don't panic. But sometimes other people are printing too. So I have to wait my turn near the machine. Once there was a paper jam, and that was annoying. I opened the little door and pulled the paper out slowly. Then it worked again. When my pages come out, I check they're all mine. I don't want to grab someone else's copies. I pick up my sheets, staple them if I need to, and walk back to my desk. Then I sit down and get back to work. It's a small thing, but I do it a lot."
+      }
+    }
+  }
+}

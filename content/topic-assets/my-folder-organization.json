@@ -1,0 +1,83 @@
+{
+  "topicId": "my-folder-organization",
+  "sourceHash": "42182b0eb5a00def115917933483ccc9e0bac4fbd0856fcade64f38c44deaea5",
+  "promptVersion": "v1",
+  "byStage": {
+    "3": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about how I organize my files and folders.",
+            "ja": "今日は、ファイルやフォルダをどう整理しているかについて話したいと思います。"
+          },
+          {
+            "en": "I keep all my work files in one main folder on my laptop.",
+            "ja": "私は仕事のファイルを全部、ノートパソコンの一つのメインフォルダに入れています。"
+          },
+          {
+            "en": "For folder names, I use the project name and the date, like \"webapp-2026-07\".",
+            "ja": "フォルダの名前には、プロジェクト名と日付を使います。たとえば「webapp-2026-07」のように。"
+          },
+          {
+            "en": "My folders get messy when I'm in a hurry and just save files anywhere.",
+            "ja": "急いでいて、ファイルをどこにでも保存してしまうと、フォルダが散らかってしまいます。"
+          },
+          {
+            "en": "One thing I want to fix is to clean up my desktop every Friday.",
+            "ja": "直したいことが一つあって、それは毎週金曜日にデスクトップを片付けることです。"
+          },
+          {
+            "en": "So that's how I organize my files, and I'm still trying to get better.",
+            "ja": "というわけで、これが私のファイルの整理の仕方で、まだ上手くなろうと頑張っています。"
+          }
+        ],
+        "outline": [
+          "Opening: how I organize files and folders",
+          "Where I keep work files and how I name folders",
+          "When folders get messy and what I want to fix",
+          "Wrap-up: still trying to improve"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I want to tell you how I keep my files. I put my work files on my laptop. I also save a copy on the cloud, so I don't lose them. This helps me feel safe. I make folders for each project. I name my folders with the year and the topic. That way, I can find things fast. For example, I use \"2026 work\" or \"2026 photos.\" But my folders get messy sometimes. When I'm busy, I just drop files on my desktop. I say I'll fix it later, but I don't. So the desktop gets full of random stuff. One thing I want to fix is my downloads folder. It's a big mess right now. I want to clean it every week. Maybe a little order can save me time."
+      }
+    },
+    "4": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about how I organize my files and folders at work.",
+            "ja": "今日は、仕事でファイルやフォルダをどう整理しているかについて話したいと思います。"
+          },
+          {
+            "en": "I keep most of my work files in a shared cloud drive, so my team can find them.",
+            "ja": "仕事のファイルのほとんどは共有クラウドドライブに置いていて、チームが見つけられるようにしています。"
+          },
+          {
+            "en": "I name my folders with a date and the project name, like \"2026-07 Website Update\".",
+            "ja": "フォルダには日付とプロジェクト名を付けていて、例えば「2026-07 ウェブサイト更新」のようにしています。"
+          },
+          {
+            "en": "My folders get messy when I'm busy and just drop files on the desktop.",
+            "ja": "忙しくてファイルをとりあえずデスクトップに置いてしまうと、フォルダが散らかります。"
+          },
+          {
+            "en": "One thing I want to fix is to clean up old files every Friday afternoon.",
+            "ja": "一つ直したいのは、毎週金曜の午後に古いファイルを片付けることです。"
+          }
+        ],
+        "outline": [
+          "Opening: how I organize files at work",
+          "Point 1: where I keep files and how I name folders",
+          "Point 2: when folders get messy",
+          "Wrap-up: one thing I want to fix"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I keep most of my work files on my laptop. I put them in one big folder called \"Work\". Inside, I make smaller folders for each project. I usually name them by the client and the date. For example, \"Coffee Shop 2026\". That way, I can find things fast. I try to keep the names short and clear. But sometimes my folders get really messy. This happens when I'm busy or tired. I just drop files on my desktop and forget them. Then screenshots and downloads pile up everywhere. It's hard to find one file later. So one thing I really want to fix is my naming habit. I often save files as \"final\" and \"final2\". That's so confusing! I want to use dates instead. Maybe I'll clean everything up this weekend. Wish me luck with that."
+      }
+    }
+  }
+}

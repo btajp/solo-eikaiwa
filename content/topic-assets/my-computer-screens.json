@@ -1,0 +1,99 @@
+{
+  "topicId": "my-computer-screens",
+  "sourceHash": "2d2571ca82471e9ed33b79e65dbdb8280bee656a1c52cf756c0b38c600c67df2",
+  "promptVersion": "v1",
+  "byStage": {
+    "1": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about my computer screens.",
+            "ja": "今日は自分のパソコンの画面について話したいです。"
+          },
+          {
+            "en": "At work I use two screens every day.",
+            "ja": "仕事では毎日画面を2つ使っています。"
+          },
+          {
+            "en": "One screen is for chat and messages.",
+            "ja": "片方の画面はチャットやメッセージ用です。"
+          },
+          {
+            "en": "The other screen is for my main work.",
+            "ja": "もう片方の画面はメインの作業用です。"
+          },
+          {
+            "en": "Two screens help me work much faster.",
+            "ja": "画面が2つあると、ずっと速く作業できます。"
+          },
+          {
+            "en": "I make the letters bigger when my eyes get tired.",
+            "ja": "目が疲れたら、文字を大きくします。"
+          },
+          {
+            "en": "Sometimes I clean my screen with a soft cloth.",
+            "ja": "たまに柔らかい布で画面を拭きます。"
+          },
+          {
+            "en": "So my two screens really help me every day.",
+            "ja": "だから2つの画面は毎日とても役立っています。"
+          }
+        ],
+        "outline": [
+          "Opening: talk about my computer screens",
+          "Point 1: two screens, one for chat and one for work",
+          "Point 2: bigger letters when tired, clean with a soft cloth",
+          "Wrap-up: screens help me every day"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I use two screens at work. It's really helpful for me. One screen is for chat. My friends send me messages there. The other screen is for my work. I can see both things at the same time. So I don't lose my place. Sometimes my eyes get tired. Then I make the letters bigger. It's easy to read now. My eyes feel better too. My screens get dirty sometimes. I can see little marks on them. So I clean them with a soft cloth. I don't use water. The screens look clear again. I really like my two screens. They help me every day."
+      }
+    },
+    "2": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about my computer screens.",
+            "ja": "今日は私のパソコンの画面について話したいです。"
+          },
+          {
+            "en": "At work I use two screens every day.",
+            "ja": "仕事では毎日2つの画面を使います。"
+          },
+          {
+            "en": "One screen is for chat with my team.",
+            "ja": "片方の画面はチームとのチャット用です。"
+          },
+          {
+            "en": "The other screen is for my main work.",
+            "ja": "もう片方の画面は私のメインの作業用です。"
+          },
+          {
+            "en": "When my eyes get tired, I make the letters bigger.",
+            "ja": "目が疲れたら、文字を大きくします。"
+          },
+          {
+            "en": "Sometimes I clean my screen with a soft cloth.",
+            "ja": "たまに柔らかい布で画面を拭きます。"
+          },
+          {
+            "en": "So two screens help me work more easily.",
+            "ja": "だから2つの画面は私が楽に働くのを助けてくれます。"
+          }
+        ],
+        "outline": [
+          "Opening: talk about my computer screens",
+          "Point 1: I use two screens, one for chat, one for work",
+          "Point 2: bigger letters when tired, and I clean the screen",
+          "Wrap-up: two screens make work easier"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I use two screens at work. It's really helpful for me. One screen is for chat. My friends and my boss write to me there. The other screen is for my work. I put my documents there. So I don't need to switch windows all the time. Sometimes my eyes get tired. Then I make the letters bigger. That's much easier to read. My screens get dirty too. Little marks show up on them. So I clean them with a soft cloth. I don't use water. I just wipe them slowly. After that, everything looks clear again. I like my two screens a lot. They make my day better."
+      }
+    }
+  }
+}

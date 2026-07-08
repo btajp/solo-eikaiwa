@@ -1,0 +1,71 @@
+{
+  "topicId": "waiting-for-a-build",
+  "sourceHash": "036422b7374435be2c86a1ec6a8fcb0af2c11a9ac65e253713d2d7b28c8f31ef",
+  "promptVersion": "v1",
+  "byStage": {
+    "5": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about what I do while a build runs.",
+            "ja": "今日はビルドが動いている間に何をするかについて話したいと思います。"
+          },
+          {
+            "en": "My builds and tests usually take about ten minutes to finish.",
+            "ja": "私のビルドやテストは、たいてい終わるまでに10分くらいかかります。"
+          },
+          {
+            "en": "While I wait, I get some coffee and check my Slack messages.",
+            "ja": "待っている間、私はコーヒーを取りに行き、Slackのメッセージを確認します。"
+          },
+          {
+            "en": "One thing that makes my wait shorter is running only the tests I changed.",
+            "ja": "待ち時間を短くする工夫の一つは、変更したテストだけを実行することです。"
+          }
+        ],
+        "outline": [
+          "Opening: what I do during a build",
+          "Point: builds take ~10 min, I grab coffee and check Slack",
+          "Point: how I feel when it fails at the end",
+          "Wrap-up: running only changed tests saves time"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "My builds usually take about five minutes. Sometimes the tests take longer, maybe ten. It's not too bad, but it feels slow when I'm in a hurry. So what do I do while I wait? Well, I get up and make some coffee. I check Slack and answer quick messages. Sometimes I just stretch my legs and look out the window. But here's the worst part. Sometimes the build fails right at the end. Oh, I hate that feeling! I waited all that time for nothing. I feel a bit annoyed, and I have to start again. So I've found one trick that helps me. I run the small tests first. If they pass, then I run the big build. That way I catch problems early. My wait feels shorter now, and that's really nice."
+      }
+    },
+    "6": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about what I do while a build is running.",
+            "ja": "今日は、ビルドが走っている間に私が何をしているかについて話したいです。"
+          },
+          {
+            "en": "My builds and tests usually take about ten minutes to finish.",
+            "ja": "私のビルドやテストは、終わるのにたいてい10分くらいかかります。"
+          },
+          {
+            "en": "While I wait, I grab a coffee and check my Slack messages.",
+            "ja": "待っている間、私はコーヒーを取ってきて、Slackのメッセージを確認します。"
+          },
+          {
+            "en": "One thing that makes my wait shorter is running only the tests I changed.",
+            "ja": "待ち時間を短くする工夫の一つは、変更したテストだけを走らせることです。"
+          }
+        ],
+        "outline": [
+          "Opening: what I do during a build",
+          "Point 1: how long my builds usually take",
+          "Point 2: coffee and Slack while waiting",
+          "Wrap-up: running only changed tests to save time"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "My builds don't take long. Usually it's about three or four minutes. The tests are a bit faster. But when it's a big change, I might wait ten minutes. So what do I do while I wait? Well, I make a coffee first. Then I check Slack and read new messages. Sometimes I just stretch my back for a minute. It's a small break, and I like it. But here's the hard part. When the build fails right at the end, I feel so annoyed. I waited all that time for nothing! I take a deep breath and try again. One thing helps me a lot. I run the small tests first, before the full build. That way I catch problems early. So I don't waste ten minutes on a silly mistake. It really makes my wait feel shorter."
+      }
+    }
+  }
+}

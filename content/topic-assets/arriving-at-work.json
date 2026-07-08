@@ -1,0 +1,99 @@
+{
+  "topicId": "arriving-at-work",
+  "sourceHash": "0b40d73c0ef53f5ee6462571e99fbffec7b65c3a36574afcc115222f013527d9",
+  "promptVersion": "v1",
+  "byStage": {
+    "1": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about arriving at work.",
+            "ja": "今日は職場に着くことについて話したいです。"
+          },
+          {
+            "en": "I usually get there at nine in the morning.",
+            "ja": "私はたいてい朝9時にそこに着きます。"
+          },
+          {
+            "en": "The first thing I do is turn on my computer.",
+            "ja": "私が最初にすることはパソコンをつけることです。"
+          },
+          {
+            "en": "After that I check my email and my chat.",
+            "ja": "その後、メールとチャットを確認します。"
+          },
+          {
+            "en": "I always say hello to my team members.",
+            "ja": "私はいつもチームのメンバーに挨拶します。"
+          },
+          {
+            "en": "In the morning I often feel a little sleepy.",
+            "ja": "朝、私はよく少し眠く感じます。"
+          },
+          {
+            "en": "But a cup of coffee helps me wake up.",
+            "ja": "でも一杯のコーヒーが目を覚ますのに役立ちます。"
+          },
+          {
+            "en": "So that's how I start my day at work.",
+            "ja": "それが私の職場での一日の始め方です。"
+          }
+        ],
+        "outline": [
+          "Opening: talk about arriving at work",
+          "Point 1: arrival time and first tasks",
+          "Point 2: greeting the team and morning mood",
+          "Wrap-up: how I start my day"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I get to work at about nine o'clock. Sometimes I'm a little early. First I sit down at my desk. I turn on my computer and wait. Then I put my bag down and get some water. I say hello to my friend Maria. She sits next to me. I say hi to my boss too. He's always kind in the morning. I feel a bit sleepy at first. But I drink my coffee and feel better. I like the quiet morning time. It's calm before the busy day starts. I check my email and read my messages. Then I'm ready to work. That's my morning at work."
+      }
+    },
+    "2": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "I usually get to work around nine o'clock.",
+            "ja": "私はたいてい9時ごろに職場に着きます。"
+          },
+          {
+            "en": "The first thing I do is turn on my computer.",
+            "ja": "最初にすることはパソコンの電源を入れることです。"
+          },
+          {
+            "en": "After that, I check my email and my chat messages.",
+            "ja": "そのあと、メールとチャットのメッセージを確認します。"
+          },
+          {
+            "en": "I always say hello to my team members.",
+            "ja": "私はいつもチームのメンバーに挨拶します。"
+          },
+          {
+            "en": "In the morning, I usually feel calm and ready.",
+            "ja": "朝はたいてい落ち着いていて、準備ができた気分です。"
+          },
+          {
+            "en": "Sometimes I feel a little sleepy, so I drink coffee.",
+            "ja": "時々少し眠いので、コーヒーを飲みます。"
+          },
+          {
+            "en": "That's how I start my day at work.",
+            "ja": "そんなふうに私は職場での一日を始めます。"
+          }
+        ],
+        "outline": [
+          "Opening: arrival time at work",
+          "Point 1: first tasks at my desk",
+          "Point 2: greeting the team and morning mood",
+          "Wrap-up: how I start my day"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I get to work at nine most days. I take the same bus every morning. Sometimes I'm a little late, but not often. I like to arrive early. When I get to my desk, I sit down first. Then I turn on my computer. I check my emails and my plans for the day. I say hello to my friends near me. I always smile at my boss too. In the morning I feel calm and ready. Some days I'm tired, but coffee helps a lot. I drink it slowly and I wake up. Then I start my work. It's a good way to begin my day."
+      }
+    }
+  }
+}

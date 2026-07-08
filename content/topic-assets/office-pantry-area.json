@@ -1,0 +1,71 @@
+{
+  "topicId": "office-pantry-area",
+  "sourceHash": "effc65b6fffd81c9c59ae69b7bc1880b406e0a9b7cd09d7c73bf1445592f6c31",
+  "promptVersion": "v1",
+  "byStage": {
+    "5": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about the office kitchen corner where I take my breaks.",
+            "ja": "今日は、休憩を取るオフィスの給湯コーナーについて話したいと思います。"
+          },
+          {
+            "en": "What I usually get there is a hot coffee or some green tea in the afternoon.",
+            "ja": "そこでたいてい取るのは、午後にホットコーヒーか緑茶です。"
+          },
+          {
+            "en": "The nice thing is I often bump into coworkers and chat about our projects.",
+            "ja": "いいところは、そこでよく同僚とばったり会って、プロジェクトについて軽く話せることです。"
+          },
+          {
+            "en": "So in the end, I always wash my own mug and wipe the counter to keep it tidy.",
+            "ja": "だから最後には、いつも自分のマグカップを洗って、カウンターを拭いてきれいにしています。"
+          }
+        ],
+        "outline": [
+          "Opening: introduce the office kitchen corner",
+          "Point 1: what I usually get and my own mug",
+          "Point 2: bumping into coworkers there",
+          "Wrap-up: washing up and keeping it tidy"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I usually head to the office kitchen corner a few times a day. Most days I just want a coffee. In the afternoon I switch to tea. It helps me slow down for a minute. I always use my own mug. I don't really like paper cups. My mug is blue, and it feels nicer in my hand. Plus it's better for the planet. After I finish, I wash it right away. I rinse it and dry it with a small cloth. I try to keep the counter clean too. Nobody likes a messy sink. Sometimes I bump into coworkers there. We chat a little while the kettle boils. We talk about work, or the weather, or lunch. It's just small talk, but it's nice. Those short moments make my day feel warmer. Then I go back to my desk."
+      }
+    },
+    "6": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "The place I go most often is the office kitchen corner for coffee.",
+            "ja": "私が一番よく行く場所は、コーヒーを取りにいくオフィスのキッチンコーナーです。"
+          },
+          {
+            "en": "What I usually get there is a hot cup of green tea in the afternoon.",
+            "ja": "私がそこでたいてい取るのは、午後の温かい緑茶一杯です。"
+          },
+          {
+            "en": "One thing I care about is washing my own mug and keeping the counter tidy.",
+            "ja": "私が気をつけていることの一つは、マイカップを洗ってカウンターをきれいに保つことです。"
+          },
+          {
+            "en": "The best part is bumping into coworkers there and having a short, friendly chat.",
+            "ja": "一番いいのは、そこで同僚とばったり会って、短くて気さくな会話をすることです。"
+          }
+        ],
+        "outline": [
+          "Opening: introduce the office kitchen corner",
+          "Point 1: what I get and my own mug",
+          "Point 2: washing up and staying tidy",
+          "Wrap-up: chatting with coworkers there"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I usually head to the kitchen corner for a hot drink. Most days it's tea, but sometimes I need coffee to wake up. I've got my own mug there. It's blue, and I like it a lot. I don't use paper cups much. They feel wasteful, and my mug just feels nicer. After I finish, I rinse it out and dry it with a cloth. I try to keep the counter tidy too. Nobody likes a messy sink, right? So I wipe up any spills. The best part is bumping into my coworkers there. We chat while the kettle boils. It's usually small stuff, like the weekend or a busy project. These little moments are nice. They make the day feel warmer. Then I grab my mug and head back to my desk. It's a small break, but I really enjoy it."
+      }
+    }
+  }
+}

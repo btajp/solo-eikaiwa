@@ -1,0 +1,83 @@
+{
+  "topicId": "choosing-clothes-today",
+  "sourceHash": "2e46816daf227066fdef848b439e7ae2591bbc562f2601012663c224e0582b8e",
+  "promptVersion": "v1",
+  "byStage": {
+    "3": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "When I choose what to wear, first I check the weather on my phone.",
+            "ja": "何を着るか選ぶとき、まずスマホで天気を確認します。"
+          },
+          {
+            "en": "First I check if it's hot or cold outside today.",
+            "ja": "まず、今日外が暑いか寒いかを確かめます。"
+          },
+          {
+            "en": "How I pick my clothes depends on my plans for the day.",
+            "ja": "服の選び方は、その日の予定によって変わります。"
+          },
+          {
+            "en": "On work days I wear a simple shirt, but on days off I wear jeans.",
+            "ja": "仕事の日はシンプルなシャツを着ますが、休みの日はジーンズを履きます。"
+          },
+          {
+            "en": "My favorite thing to wear is a soft hoodie because it's very comfortable.",
+            "ja": "お気に入りの服は柔らかいパーカーで、とても楽だからです。"
+          },
+          {
+            "en": "Sometimes it takes a long time because I can't decide what looks good.",
+            "ja": "時々、何が似合うか決められなくて時間がかかります。"
+          }
+        ],
+        "outline": [
+          "Opening: I start by checking the weather",
+          "Point 1: I pick clothes based on work or day off",
+          "Point 2: My favorite comfortable clothes",
+          "Wrap-up: Some days it takes a long time to decide"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "Every morning, I think about what to wear. First I check the weather. I look outside or I check my phone. Is it hot or cold today? Is it going to rain? Then I choose my clothes. If I work today, I wear something nice and clean. If it's my day off, I wear easy, comfortable clothes. I love my old blue jeans. They feel soft, and I wear them a lot. I also like my big grey shirt. It's very warm. Some days I can't decide. I try one shirt, then another shirt. Nothing feels right. I look at the clock, and I'm late! So I just pick something simple. In the end, comfortable clothes make me happy. What do you wear today? Do you think about it a lot, like me?"
+      }
+    },
+    "4": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "The first thing I do is check the weather to see if it's hot or cold.",
+            "ja": "まず最初にするのは、暑いか寒いかを確かめるために天気をチェックすることです。"
+          },
+          {
+            "en": "When I pick my clothes, I think about whether I have work or a day off.",
+            "ja": "服を選ぶときは、仕事があるのか休みなのかを考えます。"
+          },
+          {
+            "en": "My favorite thing to wear is a comfortable hoodie with jeans on relaxed days.",
+            "ja": "私のお気に入りは、のんびりした日に着る楽なパーカーとジーンズです。"
+          },
+          {
+            "en": "On some days it takes a long time because I can't decide what looks good.",
+            "ja": "何が似合うか決められなくて、時間がかかる日もあります。"
+          },
+          {
+            "en": "In the end, I usually just choose something simple so I'm not late for work.",
+            "ja": "結局はたいてい、仕事に遅れないようにシンプルなものを選びます。"
+          }
+        ],
+        "outline": [
+          "Opening: I start by checking the weather",
+          "Point 1: I pick clothes based on work or day off",
+          "Point 2: My favorite comfy clothes, and slow days when I can't decide",
+          "Wrap-up: I keep it simple to save time"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "Every morning, I start by checking the weather. I want to know if it's hot or cold. So I look out the window, and I check my phone too. Then I think about my day. If I'm working, I pick something clean and simple. But if it's my day off, I just want to feel relaxed. I have a favorite grey hoodie, and I wear it a lot. It's soft, and it's really easy to wear. Most days, choosing clothes is quick and simple for me. But sometimes I just can't decide what to wear. I try one shirt, then another, and nothing feels right. On those days, it takes me way too long. In the end, I usually go back to my comfy clothes. And honestly, that's always a good choice for me."
+      }
+    }
+  }
+}

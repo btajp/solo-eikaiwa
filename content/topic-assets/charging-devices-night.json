@@ -1,0 +1,83 @@
+{
+  "topicId": "charging-devices-night",
+  "sourceHash": "354392544e01cf86f892c5ecddf13a4e6bfa0544bde4b0aea68422df45a24238",
+  "promptVersion": "v1",
+  "byStage": {
+    "3": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Tonight I want to talk about charging my devices at night.",
+            "ja": "今夜は、夜にデバイスを充電することについて話したいです。"
+          },
+          {
+            "en": "I usually plug things in on the small desk near my bed.",
+            "ja": "私はたいてい、ベッドの近くにある小さな机で充電します。"
+          },
+          {
+            "en": "Every night I charge my phone, my earphones, and my smart watch.",
+            "ja": "毎晩、スマホとイヤホンとスマートウォッチを充電します。"
+          },
+          {
+            "en": "I start charging before I sleep, and I check the battery in the morning.",
+            "ja": "寝る前に充電を始めて、朝にバッテリーを確認します。"
+          },
+          {
+            "en": "One time I forgot to charge my phone, so it died at work.",
+            "ja": "一度充電を忘れて、仕事中にスマホの電源が切れてしまいました。"
+          },
+          {
+            "en": "So now I always check my charger before I go to bed.",
+            "ja": "だから今は、寝る前に必ず充電器を確認しています。"
+          }
+        ],
+        "outline": [
+          "Opening: talk about charging devices at night",
+          "Point 1: where I charge and which devices",
+          "Point 2: when I start and check the battery",
+          "Wrap-up: a time I forgot, so now I check"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I charge my phone every night by my bed. It's easy to reach there. I put my earphones and my watch on the desk too. I plug them all in before I sleep. My phone battery is often low at night, so I don't forget it much. I usually start charging around eleven. Then I check everything in the morning. I look at my phone first. I want to see it's full. Sometimes my watch is still low, and that's a problem. One night I forgot to plug in my phone. I was so tired that I just fell asleep. In the morning my phone was almost dead. I couldn't check my messages. I had to wait and charge it fast. Now I try to plug things in first, before I get into bed."
+      }
+    },
+    "4": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Tonight I want to talk about how I charge my devices at night.",
+            "ja": "今夜は、夜にどうやって自分のデバイスを充電するかについて話したいと思います。"
+          },
+          {
+            "en": "I usually plug everything in on the small desk next to my bed.",
+            "ja": "私はたいてい、ベッドの隣にある小さな机で全部を充電します。"
+          },
+          {
+            "en": "Every night I charge my phone, my earphones, and my smart watch.",
+            "ja": "毎晩、私はスマホとイヤホンとスマートウォッチを充電します。"
+          },
+          {
+            "en": "I usually start charging around eleven, and I check the battery when I wake up.",
+            "ja": "私はたいてい11時ごろに充電を始めて、起きたときにバッテリーを確認します。"
+          },
+          {
+            "en": "One time I forgot to charge my phone, and it died on the train.",
+            "ja": "一度スマホを充電し忘れて、電車の中で電源が切れてしまいました。"
+          }
+        ],
+        "outline": [
+          "Opening: nightly charging routine",
+          "Where and which devices I charge",
+          "When I start and check the battery",
+          "Wrap-up: a time I forgot to charge"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I charge my devices every night, and I've got a little routine now. Most of the time, I plug things in on my desk near my bed. There's a power strip right there, so it's easy. I charge my phone first, then my earbuds and my watch. Sometimes I forget the watch, but I try to do all three. I usually start around eleven, just before I sleep. When I wake up, I check my phone screen first. I like seeing that little full battery sign. It feels good, honestly. One time I forgot to plug in my phone at night. In the morning it was almost dead. I had only ten percent for the whole day. That was really stressful. So now I check twice before bed. It's a small habit, but it saves me a lot of trouble."
+      }
+    }
+  }
+}

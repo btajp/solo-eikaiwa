@@ -1,0 +1,99 @@
+{
+  "topicId": "asking-a-coworker-for-help",
+  "sourceHash": "24ed87ce73c8fc70ff60c040f34d32f499bdfbaa5e8fa25c9c245b3ccf1afe9a",
+  "promptVersion": "v1",
+  "byStage": {
+    "1": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about asking a coworker for help.",
+            "ja": "今日は同僚に助けを求めることについて話したいです。"
+          },
+          {
+            "en": "When I need help, I go and ask someone near me.",
+            "ja": "助けが必要なとき、私は近くの人のところへ聞きに行きます。"
+          },
+          {
+            "en": "I usually ask a person who knows the work well.",
+            "ja": "たいてい、仕事をよく知っている人に頼みます。"
+          },
+          {
+            "en": "I try to say what I need in a short way.",
+            "ja": "必要なことを短く伝えるようにしています。"
+          },
+          {
+            "en": "For example, I say my problem and the error clearly.",
+            "ja": "例えば、自分の問題とエラーをはっきり言います。"
+          },
+          {
+            "en": "This way, my coworker can help me very fast.",
+            "ja": "こうすると、同僚がとても早く助けてくれます。"
+          },
+          {
+            "en": "After they help me, I always say thank you.",
+            "ja": "助けてもらったら、私はいつもお礼を言います。"
+          },
+          {
+            "en": "So asking for help makes my work much easier.",
+            "ja": "だから、助けを求めることは仕事をずっと楽にしてくれます。"
+          }
+        ],
+        "outline": [
+          "Opening: talking about asking a coworker for help",
+          "Point 1: go to someone near me who knows the work",
+          "Point 2: say my need in a short, clear way",
+          "Wrap-up: always say thank you and work gets easier"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "Sometimes I need help at work. When I'm stuck, I go and ask someone near me. I don't wait too long. I usually ask a person who knows the work well. That person can help me fast. First, I think about my problem. Then I try to say what I need. I keep it short and clear. I don't talk too much. I just ask one simple question. My coworker listens and then shows me. It's easy when I ask the right way. After they help me, I always say thank you. I think that's important. A small thank you feels good. So I try to be kind too."
+      }
+    },
+    "2": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about asking a coworker for help.",
+            "ja": "今日は同僚に助けを求めることについて話したいです。"
+          },
+          {
+            "en": "When I need help, I go and ask someone near me.",
+            "ja": "困ったとき、私は近くの人に聞きに行きます。"
+          },
+          {
+            "en": "I usually ask a person who knows the work well.",
+            "ja": "たいてい、仕事をよく知っている人に頼みます。"
+          },
+          {
+            "en": "I try to say what I need in a short way.",
+            "ja": "必要なことを短く伝えるようにしています。"
+          },
+          {
+            "en": "For example, I say I have a small server problem.",
+            "ja": "例えば、小さなサーバーの問題があると言います。"
+          },
+          {
+            "en": "After they help me, I always say thank you.",
+            "ja": "助けてもらったら、私はいつもお礼を言います。"
+          },
+          {
+            "en": "So asking for help makes my work much easier.",
+            "ja": "だから助けを求めることで、私の仕事はずっと楽になります。"
+          }
+        ],
+        "outline": [
+          "Opening: asking a coworker for help",
+          "Point 1: who I ask and how I ask",
+          "Point 2: give a short, clear example and say thanks",
+          "Wrap-up: help makes work easier"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "Sometimes work is hard for me. When I need help, I don't just sit there. I get up and I go to someone near me. I usually ask a person who knows the work well. That's the fastest way for me. I try to stay calm. I say what I need in a short, clear way. I don't talk too much. I just tell them the problem. Most people are kind, and they help me. After they help me, I always say thank you. It's a small thing, but it matters a lot. Next time, maybe I can help them too. We work better together."
+      }
+    }
+  }
+}

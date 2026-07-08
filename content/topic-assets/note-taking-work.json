@@ -1,0 +1,83 @@
+{
+  "topicId": "note-taking-work",
+  "sourceHash": "1ca68a1ad34f81a3b15b092ff9beb66b36b59f7772964a37ef0e43a5a26a8e0d",
+  "promptVersion": "v1",
+  "byStage": {
+    "3": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about how I take notes at work.",
+            "ja": "今日は職場でどうやってメモを取るかについて話したいです。"
+          },
+          {
+            "en": "I usually take notes on my laptop because typing is fast for me.",
+            "ja": "私はたいていノートパソコンでメモを取ります。タイピングが速いからです。"
+          },
+          {
+            "en": "I write things down during meetings and when I'm on a phone call.",
+            "ja": "会議中や電話中に、私は物事を書き留めます。"
+          },
+          {
+            "en": "What I usually write is my tasks, deadlines, and some important numbers.",
+            "ja": "私がよく書くのは、やることや締め切り、そしていくつかの大事な数字です。"
+          },
+          {
+            "en": "To find my notes later, I use a search box and simple keywords.",
+            "ja": "あとでメモを見つけるために、私は検索ボックスと簡単なキーワードを使います。"
+          },
+          {
+            "en": "So that's how I keep my notes clear and easy to find.",
+            "ja": "というわけで、これが私のメモを分かりやすく探しやすく保つ方法です。"
+          }
+        ],
+        "outline": [
+          "Opening: how I take notes at work",
+          "Tools and moments: laptop, meetings and calls",
+          "What I write: tasks, deadlines, numbers",
+          "Wrap-up: searching keywords to find notes"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I take notes almost every day at work. I use my laptop most of the time. But I also keep a small paper notebook on my desk. Sometimes I use my phone for quick things. When I'm in a meeting, I write down the main points. When I'm on a call, I take notes too, so I don't forget. I usually write my plans and the things I need to do. I write down numbers, dates, and names as well. Later, I need to find my notes again. On my laptop, I use the search box to find them fast. In my notebook, I put the date at the top of each page. That helps me a lot. So my notes are simple, but they really work for me. That's how I stay organized at work."
+      }
+    },
+    "4": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about how I take notes at work.",
+            "ja": "今日は、仕事でどうやってメモを取るかについて話したいと思います。"
+          },
+          {
+            "en": "The tool I use most is a note app on my laptop.",
+            "ja": "私が一番よく使う道具は、パソコンのメモアプリです。"
+          },
+          {
+            "en": "I usually write things down during meetings and quick phone calls.",
+            "ja": "私はたいてい、会議中や短い電話の間にメモを取ります。"
+          },
+          {
+            "en": "What I usually write is my to-do list, deadlines, and server numbers.",
+            "ja": "私がよく書き留めるのは、やることリストや締め切り、そしてサーバーの数字です。"
+          },
+          {
+            "en": "To find my notes later, I search by keywords and use simple tags.",
+            "ja": "あとでメモを見つけるために、キーワードで検索し、シンプルなタグを使います。"
+          }
+        ],
+        "outline": [
+          "Opening: how I take notes at work",
+          "Point 1: my main tool and when I write",
+          "Point 2: what I write and how I organize it",
+          "Wrap-up: finding notes later by search"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I take notes in a few ways at work. Mostly I use my phone. It's always with me, so it's quick. But for long meetings, I use my laptop. Sometimes I still grab a paper notebook. It just feels easier for me.\n\nI write things down all the time. In meetings, I note the main points. During phone calls, I write names and dates fast. When my boss asks for something, I write that too.\n\nI usually write my plans, my to-do list, and numbers. Deadlines, prices, small tasks — I don't want to forget them.\n\nLater, I need to find my notes again. On my phone, I use folders and I search for keywords. In my notebook, I add dates on top. So I can flip back and find things. It's simple, but it works for me every day."
+      }
+    }
+  }
+}

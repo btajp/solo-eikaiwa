@@ -1,0 +1,83 @@
+{
+  "topicId": "washing-dishes-routine",
+  "sourceHash": "e8fbc0e0686b6788c661177699413990e8036a1d5b52a06b71570324dcb80237",
+  "promptVersion": "v1",
+  "byStage": {
+    "3": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about how I wash the dishes at home.",
+            "ja": "今日は家での皿洗いの仕方について話したいと思います。"
+          },
+          {
+            "en": "I usually wash the dishes right after dinner, so they don't pile up.",
+            "ja": "たいてい夕食のすぐ後に洗うので、皿がたまらないようにしています。"
+          },
+          {
+            "en": "I use a soft sponge, some soap, and warm water to clean them.",
+            "ja": "柔らかいスポンジと洗剤とお湯を使って皿をきれいにします。"
+          },
+          {
+            "en": "The dishes I hate most are the oily pans, because the fat is hard to remove.",
+            "ja": "一番洗いたくないのは油のついたフライパンです。油が落ちにくいからです。"
+          },
+          {
+            "en": "I don't have a dishwasher, so I always wash everything by hand.",
+            "ja": "食洗機を持っていないので、いつも全部手で洗っています。"
+          },
+          {
+            "en": "So washing the dishes is a small job, but it keeps my kitchen clean.",
+            "ja": "だから皿洗いは小さな仕事ですが、キッチンをきれいに保ってくれます。"
+          }
+        ],
+        "outline": [
+          "Opening: how I wash the dishes at home",
+          "Point 1: when and how I do it",
+          "Point 2: worst dishes and hand washing",
+          "Wrap-up: small job, clean kitchen"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I usually wash the dishes right after I eat. I don't like to leave them in the sink. When dirty plates sit too long, the food gets hard. So I clean them fast. My way is simple. I use a soft sponge and some soap. I turn on the hot water and start washing. Hot water helps a lot with grease. I wash the glasses first, then the plates. The dishes I hate most are the oily ones. Frying pans are the worst for me. The oil sticks and it's hard to clean. Sometimes I need to scrub a pan for a long time. I don't have a dishwasher at home. So I wash everything by hand. It takes a few minutes, but that's okay. After I finish, I feel good. A clean kitchen makes me happy."
+      }
+    },
+    "4": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Today I want to talk about how I wash the dishes at home.",
+            "ja": "今日は家での皿の洗い方についてお話ししたいです。"
+          },
+          {
+            "en": "I usually wash the dishes right after dinner, so they don't pile up in the sink.",
+            "ja": "私はたいてい夕食の後すぐに皿を洗うので、シンクに溜まりません。"
+          },
+          {
+            "en": "The way I do it is simple: I use a sponge, some soap, and hot water.",
+            "ja": "やり方はシンプルで、スポンジと洗剤とお湯を使います。"
+          },
+          {
+            "en": "The dishes I hate washing most are greasy frying pans, because the oil is really hard to remove.",
+            "ja": "一番洗いたくない食器は油っぽいフライパンで、油がなかなか落ちないからです。"
+          },
+          {
+            "en": "To wrap up, I wash by hand because I don't have a dishwasher yet.",
+            "ja": "まとめると、まだ食洗機がないので私は手洗いしています。"
+          }
+        ],
+        "outline": [
+          "Opening: how I wash the dishes at home",
+          "Point 1: when I wash and my simple method",
+          "Point 2: greasy pans are the worst",
+          "Wrap-up: I wash by hand, no dishwasher"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I don't wash the dishes right after I eat. I'm too tired then. So I leave them in the sink and do them later. Usually I wash everything at night, all at once. First, I turn on the hot water. Then I put some soap on my sponge. I scrub each plate slowly and rinse it well. Hot water makes the grease come off faster. The dishes I hate most are the oily ones. Frying pans are the worst for me. The oil sticks and it won't go away easily. Sometimes I let the pan soak first. That helps a little. I don't have a dishwasher at home. So I wash everything by hand. It takes time, but I kind of like it. It's quiet, and I can just think. That's my little routine every night."
+      }
+    }
+  }
+}

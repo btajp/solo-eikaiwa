@@ -1,0 +1,71 @@
+{
+  "topicId": "work-handover-before-time-off",
+  "sourceHash": "a4fef8ce30f49cca3438a9b620308b77141022fd9624fbfa0c858c2188362ef9",
+  "promptVersion": "v1",
+  "byStage": {
+    "5": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Before I take a day off, I usually write down what's still pending in a short list.",
+            "ja": "休みを取る前に、私はたいてい、まだ残っている仕事を短いリストに書き出します。"
+          },
+          {
+            "en": "I tell one coworker who to contact if something urgent comes up while I'm away.",
+            "ja": "私は同僚の一人に、留守中に急なことが起きたら誰に連絡すればいいか伝えておきます。"
+          },
+          {
+            "en": "I try to finish or safely pause the urgent tasks first, like a pending deploy.",
+            "ja": "私はまず、リリース作業のような急ぎのタスクを片付けるか、安全に止めておくようにしています。"
+          },
+          {
+            "en": "When I come back, I check my messages and slowly catch up before starting new work.",
+            "ja": "戻ってきたら、新しい仕事を始める前に、メッセージを確認してゆっくり追いつきます。"
+          }
+        ],
+        "outline": [
+          "Opening: prepare a pending-tasks list before time off",
+          "Point 1: tell one coworker the contact plan",
+          "Point 2: finish or pause urgent tasks first",
+          "Wrap-up: check messages and catch up on return"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "Before I take a day off, I usually make a list. I write down what's still pending. That way, I don't forget anything important. Then I tell one coworker about it. I let them know who to contact if something comes up. It's good to have one clear person for that. I also try to finish the urgent tasks first. If I can't finish, I at least pause them safely. So nobody gets stuck while I'm gone. I don't want to leave a mess for my team. When I come back, I don't rush. I sit down and check my messages first. I read the emails and see what happened. Then I slowly catch up on everything. It takes a little time, but it works. Honestly, a good handover makes my day off much more relaxing."
+      }
+    },
+    "6": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Before I take a day off, I usually write down what's still pending.",
+            "ja": "休みを取る前に、私はたいてい、まだやり残していることを書き出します。"
+          },
+          {
+            "en": "I tell one coworker who to contact if something urgent comes up.",
+            "ja": "何か急ぎのことが起きたら誰に連絡すればいいか、私は同僚の一人に伝えます。"
+          },
+          {
+            "en": "I try to finish or pause the urgent tasks first, like a critical bug fix.",
+            "ja": "私はまず、重大なバグ修正のような急ぎのタスクを終わらせるか止めておくようにしています。"
+          },
+          {
+            "en": "When I come back, I check my messages and catch up on what I missed.",
+            "ja": "戻ってきたら、私はメッセージを確認して、見逃したことに追いつきます。"
+          }
+        ],
+        "outline": [
+          "Opening: writing down pending work before time off",
+          "Point 1: tell a coworker who to contact",
+          "Point 2: finish or pause urgent tasks first",
+          "Wrap-up: check messages and catch up when back"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "Before I take a day off, I usually write things down. I make a short list of what's still pending. That way, nothing gets lost while I'm gone. Then I tell one coworker about my work. I explain who to contact if something comes up. So people aren't stuck without me. I also try to finish the urgent tasks first. If I can't finish them, I pause them safely. I leave a quick note about the next step. Small things can wait, but big things can't. When I come back, I don't rush. First, I check my messages and emails. I read them slowly and catch up. Then I ask my coworker what happened. It usually takes an hour or two. After that, I feel ready again. Planning before a break really helps me relax. And it helps my team too."
+      }
+    }
+  }
+}

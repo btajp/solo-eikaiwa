@@ -1,0 +1,83 @@
+{
+  "topicId": "short-breaks-at-work",
+  "sourceHash": "59b83de321a78c3a10b2b9848ec1502f2421bc56bf728cd224dc395690345db3",
+  "promptVersion": "v1",
+  "byStage": {
+    "3": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "I usually take a short break in the early afternoon.",
+            "ja": "私はたいてい昼過ぎに短い休憩を取ります。"
+          },
+          {
+            "en": "To relax, I stand up and do some simple stretching.",
+            "ja": "リラックスするために、立ち上がって簡単なストレッチをします。"
+          },
+          {
+            "en": "I also like to get a cup of coffee or some water.",
+            "ja": "コーヒーか水を取りに行くのも好きです。"
+          },
+          {
+            "en": "Sometimes I go to the break room to talk with my team.",
+            "ja": "ときどき休憩室に行って、チームのみんなと話します。"
+          },
+          {
+            "en": "When the weather is nice, I go outside for some fresh air.",
+            "ja": "天気がいいときは、外に出て新鮮な空気を吸います。"
+          },
+          {
+            "en": "After a short break, I feel calm and ready to code again.",
+            "ja": "短い休憩のあと、私は落ち着いてまたコードを書く準備ができます。"
+          }
+        ],
+        "outline": [
+          "Opening: when I take my break",
+          "Point: what I do to relax and get a drink",
+          "Point: where I go, break room or outside",
+          "Wrap-up: how I feel after the break"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I take short breaks a few times each day. My first break is in the morning, around ten. I feel a little tired, so I stop for a while. I stand up and stretch my arms. That feels really good after sitting for so long. Sometimes I walk to get a drink, like water or coffee. I like to go to the break room and sit down. I talk with my friends there for a few minutes. When it's sunny, I go outside for fresh air. I don't look at my phone much. I just close my eyes and breathe slowly. After a short break, I feel calm and happy again. My head feels clear, and I'm ready to work. Short breaks are simple, but they help me a lot every day."
+      }
+    },
+    "4": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "I usually take a short break in the middle of the afternoon.",
+            "ja": "私はたいてい午後の真ん中あたりに短い休憩を取ります。"
+          },
+          {
+            "en": "What I do to relax is stretch my arms and get a cup of coffee.",
+            "ja": "リラックスするためにやるのは、腕を伸ばしてコーヒーを一杯もらうことです。"
+          },
+          {
+            "en": "Where I go is the break room, or sometimes I step outside for fresh air.",
+            "ja": "行く場所は休憩室で、たまに外に出て新鮮な空気を吸うこともあります。"
+          },
+          {
+            "en": "After a short break, I feel more focused and ready to code again.",
+            "ja": "短い休憩のあとは、もっと集中できて、また開発に取りかかる準備ができます。"
+          },
+          {
+            "en": "So taking small breaks really helps me stay calm during a busy day.",
+            "ja": "だから小さな休憩を取ることは、忙しい一日でも落ち着いていられるように本当に役立ちます。"
+          }
+        ],
+        "outline": [
+          "Opening: when I take a break",
+          "Point 1: how I relax (stretch, coffee)",
+          "Point 2: where I go (break room, outside)",
+          "Wrap-up: how I feel afterward"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "I usually take my first short break in the late morning. By then, I've been at my desk for a while, and my eyes feel tired. So I stand up and stretch my arms and back. It feels really good. Then I get a drink, usually water or a warm coffee. Sometimes I walk to the break room and chat with a coworker. If the weather's nice, I go outside for a few minutes. I like the fresh air and the sound of the street. I don't check my phone much. I just try to relax and breathe slowly. After a short break, I feel calm and awake again. My head is clearer, and I can focus better. It's only five or ten minutes, but it really helps. So I try to do this a few times every day."
+      }
+    }
+  }
+}
