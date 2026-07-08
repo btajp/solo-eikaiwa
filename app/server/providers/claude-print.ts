@@ -1,6 +1,7 @@
 import type { ClaudeRunner } from "../converse";
 import { TransportError } from "./errors";
 import { CLAUDE_PRINT_DIR } from "../paths";
+import { getActiveAuthModes, claudeSpawnEnv } from "../llm-auth-store";
 
 /** `claude -p` を1回実行し、stdout の生JSON文字列を返す関数の型（テスト用 seam）。 */
 export type ClaudePrintExec = (args: {
@@ -10,8 +11,10 @@ export type ClaudePrintExec = (args: {
   effort?: string;
   resumeId?: string;
   cwd: string;
-  /** Plan B の API キー認証で使用する予定のフラグ。現時点では makeClaudePrintRunner から配線されない。 */
+  /** api-key 認証モードのときだけ true（OAuth/keychain を読まない厳格モード）。 */
   bare?: boolean;
+  /** api-key 認証モードのときだけ渡す env 上書き（claudeSpawnEnv 参照。subscription では undefined）。 */
+  env?: Record<string, string | undefined>;
 }) => Promise<string>;
 
 export type ClaudePrintConfig = {
@@ -50,6 +53,7 @@ export function makeClaudePrintRunner(cfg: ClaudePrintConfig): ClaudeRunner {
 
   return async (prompt, resumeId, opts) => {
     const systemPrompt = opts?.systemPrompt ?? cfg.defaultSystemPrompt;
+    const authMode = getActiveAuthModes().claude;
     const raw = await exec({
       prompt,
       systemPrompt,
@@ -57,6 +61,7 @@ export function makeClaudePrintRunner(cfg: ClaudePrintConfig): ClaudeRunner {
       effort: cfg.effort,
       resumeId,
       cwd,
+      ...(authMode === "api-key" ? { bare: true, env: claudeSpawnEnv(authMode) } : {}),
     });
 
     let parsed: ClaudePrintJson;
@@ -97,7 +102,7 @@ export function makeClaudePrintRunner(cfg: ClaudePrintConfig): ClaudeRunner {
  * この関数は claude CLI に依存するため単体テスト対象外。makeClaudePrintRunner は注入した exec フェイクで検証する
  * （realCodexExec の先例と同じ扱い。手動スモークは Task 5 で確認する）。
  */
-export const realClaudePrintExec: ClaudePrintExec = async ({ prompt, systemPrompt, model, effort, resumeId, cwd, bare }) => {
+export const realClaudePrintExec: ClaudePrintExec = async ({ prompt, systemPrompt, model, effort, resumeId, cwd, bare, env }) => {
   const args = [
     "-p",
     "--output-format", "json",
@@ -114,6 +119,7 @@ export const realClaudePrintExec: ClaudePrintExec = async ({ prompt, systemPromp
     stdin: new TextEncoder().encode(prompt),
     stdout: "pipe",
     stderr: "pipe",
+    ...(env ? { env } : {}),
   });
   const stdout = await new Response(proc.stdout).text();
   const stderr = await new Response(proc.stderr).text();

@@ -1,5 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, afterEach } from "bun:test";
 import { composeCodexPrompt, makeCodexRunner, type CodexConfig, type CodexExec } from "../providers/codex";
+import { setActiveAuthModes } from "../llm-auth-store";
+import { CODEX_HOME_DIR } from "../codex-auth";
 
 describe("composeCodexPrompt", () => {
   test("履歴なし: system と最終 user プロンプトを含み、会話ブロックは出さない", () => {
@@ -85,5 +87,27 @@ describe("makeCodexRunner", () => {
   test("空出力: empty で throw する", async () => {
     const runner = makeCodexRunner(baseCfg({ exec: fakeExec("   ", []) }));
     await expect(runner("hi")).rejects.toThrow(/empty/i);
+  });
+});
+
+describe("makeCodexRunner: 認証モードに応じた spawn env 注入", () => {
+  afterEach(() => {
+    // 他テストファイルへの汚染防止（グローバルなランタイムキャッシュのため）
+    setActiveAuthModes({ claude: "subscription", codex: "subscription" });
+  });
+
+  test("subscription（既定）: exec に env が渡らない（現行どおり process.env を継承）", async () => {
+    const seen: Array<{ prompt: string; model?: string; cwd: string; env?: Record<string, string | undefined> }> = [];
+    const runner = makeCodexRunner(baseCfg({ exec: fakeExec("x", seen) }));
+    await runner("hi");
+    expect(seen[0].env).toBeUndefined();
+  });
+
+  test("api-key: exec に CODEX_HOME（隔離ディレクトリ）を含む env が渡る", async () => {
+    setActiveAuthModes({ claude: "subscription", codex: "api-key" });
+    const seen: Array<{ prompt: string; model?: string; cwd: string; env?: Record<string, string | undefined> }> = [];
+    const runner = makeCodexRunner(baseCfg({ exec: fakeExec("x", seen) }));
+    await runner("hi");
+    expect(seen[0].env?.CODEX_HOME).toBe(CODEX_HOME_DIR);
   });
 });

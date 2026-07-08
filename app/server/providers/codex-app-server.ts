@@ -3,6 +3,8 @@ import type { ClaudeRunner } from "../converse";
 import { composeCodexPrompt, type CodexMsg } from "./codex";
 import { TransportError } from "./errors";
 import { appendTurn } from "./transcript";
+import { getActiveAuthModes } from "../llm-auth-store";
+import { codexSpawnEnv } from "../codex-auth";
 
 // 既存の import 元（このモジュールから TransportError を import しているテスト等）との互換のため re-export する。
 export { TransportError };
@@ -363,11 +365,13 @@ function checkCodexVersionOnce(): void {
  */
 export const realSpawnAppServer: SpawnAppServer = () => {
   checkCodexVersionOnce();
+  const env = codexSpawnEnv(getActiveAuthModes().codex);
   const proc = Bun.spawn(["codex", "app-server"], {
     stdin: "pipe",
     stdout: "pipe",
     stderr: "pipe",
     cwd: tmpdir(),
+    ...(env ? { env } : {}),
   });
 
   let onMessage: (msg: Record<string, unknown>) => void = () => {};

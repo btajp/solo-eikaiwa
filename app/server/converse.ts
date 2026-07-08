@@ -12,6 +12,7 @@ import { appendEvent, markErrorLogged } from "./session-log";
 import { sessionLogPath } from "./paths";
 import { vocabConstraint } from "./progression";
 import type { RoleTuning } from "./llm-role-tuning-store";
+import { getActiveAuthModes, claudeSpawnEnv } from "./llm-auth-store";
 
 export function partnerSystemPrompt(stage: number): string {
   return `You are an English conversation partner for a Japanese IT professional (CEFR A2-B1).
@@ -57,6 +58,11 @@ export function makeClaudeRunner(
       );
 
     let receivedFirstMessage = false;
+    // api-key 認証モードのときだけ ANTHROPIC_API_KEY を注入した env を渡す（subscription では undefined のまま
+    // options.env 自体を渡さず、現行どおり SDK が process.env を継承する＝挙動不変の核）。モードは呼び出しごとに
+    // 都度参照する（llm-auth-store.ts の getActiveAuthModes 参照）ため、claudeRunner が module-level 単一
+    // インスタンスのままでも PUT 直後の切替がサーバ再起動なしに反映される。
+    const claudeAuthEnv = claudeSpawnEnv(getActiveAuthModes().claude);
     const iterator = (() => {
       try {
         return queryFn({
@@ -74,6 +80,7 @@ export function makeClaudeRunner(
             tools: [],
             maxTurns: 1,
             ...(resumeId ? { resume: resumeId } : {}),
+            ...(claudeAuthEnv ? { env: claudeAuthEnv } : {}),
           },
         })[Symbol.asyncIterator]();
       } catch (err) {

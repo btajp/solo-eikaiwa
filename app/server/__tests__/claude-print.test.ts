@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, afterEach } from "bun:test";
 import { makeClaudePrintRunner } from "../providers/claude-print";
 import { TransportError } from "../providers/errors";
 import { CLAUDE_PRINT_DIR } from "../paths";
+import { setActiveAuthModes } from "../llm-auth-store";
 
 /** claude -p の成功時 stdout（単一JSON）を組み立てるヘルパー。 */
 const okJson = (text: string, sid = "sess-1") =>
@@ -44,7 +45,7 @@ describe("makeClaudePrintRunner", () => {
     expect(calls[0].cwd).toBe(CLAUDE_PRINT_DIR);
   });
 
-  test("bare は今は配線されない（exec に渡る args に bare が含まれない）", async () => {
+  test("subscription（既定）: bare/env とも exec に渡らない（現行どおり process.env・OAuth継承）", async () => {
     const calls: any[] = [];
     const runner = makeClaudePrintRunner({
       defaultSystemPrompt: "S",
@@ -52,6 +53,7 @@ describe("makeClaudePrintRunner", () => {
     });
     await runner("hi");
     expect(calls[0].bare).toBeUndefined();
+    expect(calls[0].env).toBeUndefined();
   });
 
   test("is_error/subtype失敗はplain Error・JSON破損とexec throwはTransportError", async () => {
@@ -106,5 +108,31 @@ describe("makeClaudePrintRunner", () => {
     });
     const r = await runner("hi");
     expect(r.text).toBe("hello world");
+  });
+});
+
+describe("makeClaudePrintRunner: 認証モードに応じた bare/env 注入", () => {
+  afterEach(() => {
+    // 他テストファイルへの汚染防止（グローバルなランタイムキャッシュのため）
+    setActiveAuthModes({ claude: "subscription", codex: "subscription" });
+  });
+
+  test("api-key: bare:true と ANTHROPIC_API_KEY を含む env が exec に渡る", async () => {
+    setActiveAuthModes({ claude: "api-key", codex: "subscription" });
+    const savedKey = Bun.env.ANTHROPIC_API_KEY;
+    Bun.env.ANTHROPIC_API_KEY = "sk-test-key";
+    try {
+      const calls: any[] = [];
+      const runner = makeClaudePrintRunner({
+        defaultSystemPrompt: "S",
+        exec: async (a) => { calls.push(a); return okJson("x"); },
+      });
+      await runner("hi");
+      expect(calls[0].bare).toBe(true);
+      expect(calls[0].env.ANTHROPIC_API_KEY).toBe("sk-test-key");
+    } finally {
+      if (savedKey === undefined) delete Bun.env.ANTHROPIC_API_KEY;
+      else Bun.env.ANTHROPIC_API_KEY = savedKey;
+    }
   });
 });

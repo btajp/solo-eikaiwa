@@ -15,6 +15,7 @@ import type { FeedbackStore } from "../../feedback-store";
 import type { LlmRole, LlmRoleSetting } from "../../llm-provider";
 import type { RoleTuning } from "../../llm-role-tuning-store";
 import type { CatalogResult, LlmCatalogProvider } from "../../providers/model-catalog";
+import type { LlmAuthModes } from "../../llm-auth-store";
 
 export const FAKE_HEALTH = { ok: true, whisper: true, ffmpeg: true, claude: true, ttsKey: true, modelFile: true };
 export const FAKE_MENU = {
@@ -214,6 +215,12 @@ export function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
     applyLlmSettings: (_s) => {},
     llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
     warmLlm: () => {},
+    getLlmAuthModes: (): LlmAuthModes => ({ claude: "subscription", codex: "subscription" }),
+    saveLlmAuthMode: (_provider, _mode) => {},
+    getAuthKeysConfigured: () => ({ anthropic: false, codex: false }),
+    applyLlmAuthModes: (_modes) => {},
+    ensureCodexApiKeyHome: async () => "/fake/codex-home",
+    killCodexAppServerRegistry: () => {},
     getModelCatalog: async (_provider: LlmCatalogProvider, _refresh: boolean): Promise<CatalogResult> => ({
       available: true, models: [], fetchedAt: "2026-07-08T00:00:00.000Z",
     }),

@@ -24,10 +24,12 @@ import { makeLlmSettingsStore } from "./llm-settings-store";
 import { makeTtsSettingsStore } from "./tts-settings-store";
 import { makeLlmRoleSettingsStore } from "./llm-role-settings-store";
 import { makeLlmRoleTuningStore } from "./llm-role-tuning-store";
+import { makeLlmAuthStore, setActiveAuthModes } from "./llm-auth-store";
+import { ensureCodexApiKeyHome } from "./codex-auth";
 import { conversationWarmup } from "./llm-warmup";
 import { LLM_ROLES } from "./llm-provider";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { getCodexAppServerClient } from "./providers/codex-app-server";
+import { getCodexAppServerClient, __resetCodexAppServerRegistry } from "./providers/codex-app-server";
 import { makeClaudeCatalogFetcher, makeCodexCatalogFetcher, makeLocalCatalogFetcher, makeModelCatalogCache } from "./providers/model-catalog";
 
 ensureDirs();
@@ -49,6 +51,7 @@ const llmSettingsStore = makeLlmSettingsStore(db);
 const ttsSettingsStore = makeTtsSettingsStore(db);
 const llmRoleSettingsStore = makeLlmRoleSettingsStore(db);
 const llmRoleTuningStore = makeLlmRoleTuningStore(db);
+const llmAuthStore = makeLlmAuthStore(db);
 // モデルカタログ（GET /api/llm-models）: 3ソースを TTL キャッシュ付きで束ねる。
 // codex はカタログ取得も runner と同じ常駐プロセスを共有する（getCodexAppServerClient・exec フォールバックなし）。
 // local の baseUrl は「保存済み openai-compat 設定 → 無ければ env」の順で解決する（グローバル設定に閉じる。
@@ -135,12 +138,27 @@ const realDeps: RouteDeps = {
     apiKeyConfigured: Boolean(Bun.env.OPENAI_COMPAT_API_KEY?.trim()),
   }),
   warmLlm: () => conversationWarmup.maybeWarm(),
+  getLlmAuthModes: () => llmAuthStore.getAll(),
+  saveLlmAuthMode: (provider, mode) => llmAuthStore.set(provider, mode),
+  // env のキー検出のみ（値は絶対に返さない）。anthropic=ANTHROPIC_API_KEY・codex=CODEX_API_KEY。
+  getAuthKeysConfigured: () => ({
+    anthropic: Boolean(Bun.env.ANTHROPIC_API_KEY?.trim()),
+    codex: Boolean(Bun.env.CODEX_API_KEY?.trim()),
+  }),
+  // 保存直後の最新モードを runner 側のランタイムキャッシュへ push する（PUT がサーバ再起動なしに反映されるため）。
+  applyLlmAuthModes: (modes) => setActiveAuthModes(modes),
+  ensureCodexApiKeyHome: () => ensureCodexApiKeyHome(),
+  killCodexAppServerRegistry: () => __resetCodexAppServerRegistry(),
   getModelCatalog: (provider, refresh) => modelCatalogCache.get(provider, refresh),
   getTtsSettings: () => ttsSettingsStore.get(),
   saveTtsSettings: (s) => ttsSettingsStore.save(s),
   // env 由来。TTS の APIキーは有無のみ開示（TTS_API_KEY 優先・無ければ OPENAI_API_KEY）。値は絶対に返さない。
   ttsEnv: () => ({ apiKeyConfigured: Boolean((Bun.env.TTS_API_KEY ?? Bun.env.OPENAI_API_KEY)?.trim()) }),
 };
+
+// 起動時: 保存済み認証モードを runner 側のランタイムキャッシュへ反映する（行不在なら既定 subscription/subscription
+// のまま＝挙動不変）。以後は routes/llm-settings.ts の PUT ハンドラが保存の都度ここを更新する。
+setActiveAuthModes(llmAuthStore.getAll());
 
 // 起動時: DB に LLM 設定（全体 or ロール別）があれば実行中プロセスへ適用する（fail-open）。
 // どちらも無ければ何もせず、converse.ts のモジュールロード時 env 既定のまま（現行と完全同一）。

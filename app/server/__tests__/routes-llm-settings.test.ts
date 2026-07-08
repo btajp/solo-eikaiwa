@@ -4,6 +4,7 @@ import { makeTestDeps } from "./helpers/route-deps";
 import { getReq, putJson } from "./helpers/http";
 import type { LlmSettings, LlmRole } from "../llm-provider";
 import type { RoleTuning } from "../llm-role-tuning-store";
+import type { AuthMode, LlmAuthModes, LlmAuthProvider } from "../llm-auth-store";
 
 describe("llm-settings API", () => {
   test("GET: 未設定なら provider:env と env 情報を返す（APIキーは boolean のみ）", async () => {
@@ -30,6 +31,8 @@ describe("llm-settings API", () => {
         generation: { claudeModel: null, effort: null, serviceTier: null },
         assessment: { claudeModel: null, effort: null, serviceTier: null },
       },
+      authModes: { claude: "subscription", codex: "subscription" },
+      authKeys: { anthropic: false, codex: false },
     });
   });
 
@@ -56,6 +59,8 @@ describe("llm-settings API", () => {
         generation: { claudeModel: null, effort: null, serviceTier: null },
         assessment: { claudeModel: null, effort: null, serviceTier: null },
       },
+      authModes: { claude: "subscription", codex: "subscription" },
+      authKeys: { anthropic: false, codex: false },
     });
   });
 
@@ -382,5 +387,212 @@ describe("llm-settings tuning API", () => {
     }));
     expect(res.status).toBe(200);
     expect(savedPatches).toEqual([{ coaching: { claudeModel: null, effort: "medium" } }]);
+  });
+});
+
+describe("llm-settings auth API", () => {
+  test("GET: 既定は subscription/subscription・authKeys は env 検出のみ", async () => {
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(getReq("/api/llm-settings"));
+    const body = (await res.json()) as { authModes: LlmAuthModes; authKeys: { anthropic: boolean; codex: boolean } };
+    expect(body.authModes).toEqual({ claude: "subscription", codex: "subscription" });
+    expect(body.authKeys).toEqual({ anthropic: false, codex: false });
+  });
+
+  test("GET: 保存済み認証モードを additive に authModes へ反映する", async () => {
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getLlmAuthModes: (): LlmAuthModes => ({ claude: "api-key", codex: "subscription" }),
+      getAuthKeysConfigured: () => ({ anthropic: true, codex: false }),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(getReq("/api/llm-settings"));
+    const body = (await res.json()) as { authModes: LlmAuthModes; authKeys: { anthropic: boolean; codex: boolean } };
+    expect(body.authModes).toEqual({ claude: "api-key", codex: "subscription" });
+    expect(body.authKeys).toEqual({ anthropic: true, codex: false });
+  });
+
+  test("PUT /roles: claude を api-key へ切替え保存され、ランタイムキャッシュへ push される（キー設定済み）", async () => {
+    const savedModes: Array<{ provider: LlmAuthProvider; mode: AuthMode }> = [];
+    const appliedModes: LlmAuthModes[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getLlmAuthModes: (): LlmAuthModes => ({ claude: "subscription", codex: "subscription" }),
+      getAuthKeysConfigured: () => ({ anthropic: true, codex: false }),
+      saveLlmAuthMode: (provider, mode) => savedModes.push({ provider, mode }),
+      applyLlmAuthModes: (modes) => appliedModes.push(modes),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      auth: { claude: "api-key" },
+    }));
+    expect(res.status).toBe(200);
+    expect(savedModes).toEqual([{ provider: "claude", mode: "api-key" }]);
+    expect(appliedModes).toEqual([{ claude: "subscription", codex: "subscription" }]);
+    const body = (await res.json()) as { authModes: LlmAuthModes };
+    expect(body.authModes).toEqual({ claude: "subscription", codex: "subscription" }); // deps.getLlmAuthModes は固定フェイクのまま（保存反映はテスト対象外）
+  });
+
+  test("PUT /roles 400: claude を api-key へ切替えようとしてもキー未設定なら 400（保存しない）", async () => {
+    const savedModes: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getAuthKeysConfigured: () => ({ anthropic: false, codex: false }),
+      saveLlmAuthMode: (provider, mode) => savedModes.push({ provider, mode }),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      auth: { claude: "api-key" },
+    }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "anthropic api key not configured in app/.env" });
+    expect(savedModes).toHaveLength(0);
+  });
+
+  test("PUT /roles 400: codex を api-key へ切替えようとしてもキー未設定なら 400（保存しない・ensureCodexApiKeyHome も呼ばない）", async () => {
+    const savedModes: unknown[] = [];
+    const ensureCalls: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getAuthKeysConfigured: () => ({ anthropic: false, codex: false }),
+      saveLlmAuthMode: (provider, mode) => savedModes.push({ provider, mode }),
+      ensureCodexApiKeyHome: async () => { ensureCalls.push(true); return "/fake"; },
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      auth: { codex: "api-key" },
+    }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "codex api key not configured in app/.env" });
+    expect(savedModes).toHaveLength(0);
+    expect(ensureCalls).toHaveLength(0);
+  });
+
+  test("PUT /roles: codex を api-key へ切替えると ensureCodexApiKeyHome を await してから保存し、registry を kill する", async () => {
+    const order: string[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getLlmAuthModes: (): LlmAuthModes => ({ claude: "subscription", codex: "subscription" }),
+      getAuthKeysConfigured: () => ({ anthropic: false, codex: true }),
+      saveLlmAuthMode: () => order.push("save"),
+      ensureCodexApiKeyHome: async () => { order.push("ensure"); return "/fake/codex-home"; },
+      killCodexAppServerRegistry: () => order.push("kill"),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      auth: { codex: "api-key" },
+    }));
+    expect(res.status).toBe(200);
+    expect(order).toEqual(["ensure", "save", "kill"]);
+  });
+
+  test("PUT /roles: codex の値が変わらない場合は registry を kill しない", async () => {
+    const killCalls: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getLlmAuthModes: (): LlmAuthModes => ({ claude: "subscription", codex: "subscription" }),
+      getAuthKeysConfigured: () => ({ anthropic: false, codex: true }),
+      killCodexAppServerRegistry: () => killCalls.push(true),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      auth: { codex: "subscription" },
+    }));
+    expect(res.status).toBe(200);
+    expect(killCalls).toHaveLength(0);
+  });
+
+  test("PUT /roles: claude だけの切替では codex の registry kill は呼ばない", async () => {
+    const killCalls: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getLlmAuthModes: (): LlmAuthModes => ({ claude: "subscription", codex: "subscription" }),
+      getAuthKeysConfigured: () => ({ anthropic: true, codex: false }),
+      killCodexAppServerRegistry: () => killCalls.push(true),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      auth: { claude: "api-key" },
+    }));
+    expect(res.status).toBe(200);
+    expect(killCalls).toHaveLength(0);
+  });
+
+  test("PUT /roles 400: auth に不正な値（未知の文字列）は 400（保存しない）", async () => {
+    const savedModes: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmAuthMode: (provider, mode) => savedModes.push({ provider, mode }),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      auth: { claude: "trial" },
+    }));
+    expect(res.status).toBe(400);
+    expect(savedModes).toHaveLength(0);
+  });
+
+  test("PUT /roles 400: global+roles+tuning+auth 一括で auth だけ不正でも何も保存しない（原子性）", async () => {
+    const savedGlobals: LlmSettings[] = [];
+    const savedRoles: string[] = [];
+    const savedTuning: unknown[] = [];
+    const savedModes: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmSettings: (s) => savedGlobals.push(s),
+      saveLlmRoleSettings: (role) => savedRoles.push(role),
+      saveLlmRoleTuning: (t) => savedTuning.push(t),
+      saveLlmAuthMode: (provider, mode) => savedModes.push({ provider, mode }),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      global: { provider: "claude" },
+      roles: { conversation: { provider: "inherit" } },
+      tuning: { assessment: { effort: "medium" } },
+      auth: { claude: "bogus-mode" },
+    }));
+    expect(res.status).toBe(400);
+    expect(savedGlobals).toHaveLength(0);
+    expect(savedRoles).toHaveLength(0);
+    expect(savedTuning).toHaveLength(0);
+    expect(savedModes).toHaveLength(0);
+  });
+
+  test("PUT /roles: レスポンスボディに APIキーの値が一切含まれない（authKeys は boolean のみ）", async () => {
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getAuthKeysConfigured: () => ({ anthropic: true, codex: true }),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: true }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      auth: { claude: "subscription" },
+    }));
+    const raw = await res.text();
+    expect(raw).not.toMatch(/sk-|api[_-]?key['"]?\s*:\s*['"](?!true|false)/i);
+    const body = JSON.parse(raw) as { authKeys: unknown };
+    expect(body.authKeys).toEqual({ anthropic: true, codex: true });
+  });
+
+  test("PUT /roles: auth 省略時は saveLlmAuthMode・ensureCodexApiKeyHome・killCodexAppServerRegistry を一切呼ばない（既存挙動不変）", async () => {
+    const savedModes: unknown[] = [];
+    const ensureCalls: unknown[] = [];
+    const killCalls: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmAuthMode: (provider, mode) => savedModes.push({ provider, mode }),
+      ensureCodexApiKeyHome: async () => { ensureCalls.push(true); return "/fake"; },
+      killCodexAppServerRegistry: () => killCalls.push(true),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      roles: { generation: { provider: "inherit" } },
+    }));
+    expect(res.status).toBe(200);
+    expect(savedModes).toHaveLength(0);
+    expect(ensureCalls).toHaveLength(0);
+    expect(killCalls).toHaveLength(0);
   });
 });
