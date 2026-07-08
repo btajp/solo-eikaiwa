@@ -1,4 +1,4 @@
-import { ensureDirs, LISTENING_DIR, RECORDINGS_DIR, sessionLogPath } from "./paths";
+import { ensureDirs, LISTENING_DIR, RECORDINGS_DIR, sessionLogPath, TOPICS_DIR, TOPIC_ASSETS_DIR } from "./paths";
 import { transcribeAudio } from "./stt";
 import { synthesize } from "./tts";
 import { converseTurn, applyLlmRoleSettings, runnerFor } from "./converse";
@@ -10,6 +10,7 @@ import { fttOutputSignals, listPracticeDays, readEvents } from "./session-log";
 import { readSettings, writeSettings } from "./settings";
 import { makeFetchHandler, type RouteDeps } from "./routes";
 import { makeLibraryStore, makeTalkExplainCache, makeTranslationCache, openDb } from "./db";
+import { makeTopicAssetCacheStore, resolveModelTalk, resolvePrepPack } from "./topic-assets";
 import { loadSentences, makeSentenceStore } from "./sentences";
 import { makeChunkStore } from "./chunks";
 import { makeProgressStore } from "./progress-store";
@@ -46,6 +47,7 @@ const placementStore = makePlacementStore(db);
 const metricsSummary = makeMetricsSummary({ db, currentLevel: () => progressStore.getLevel() });
 const assessmentStore = makeAssessmentStore(db);
 const listeningStore = makeListeningStore(db);
+const topicAssetCacheStore = makeTopicAssetCacheStore(db);
 const feedbackStore = makeFeedbackStore(db);
 const llmSettingsStore = makeLlmSettingsStore(db);
 const ttsSettingsStore = makeTtsSettingsStore(db);
@@ -81,7 +83,12 @@ const realDeps: RouteDeps = {
   modelTalk: async (topicId) => {
     const topic = findTopic(topicId);
     if (!topic) return null;
-    const talk = await generateModelTalk({ topicTitle: topic.title, hints: topic.hints, stage: stageOf(progressStore.getLevel()) }, runnerFor("generation"));
+    const stage = stageOf(progressStore.getLevel());
+    const talk = await resolveModelTalk(
+      topicId, stage,
+      { assetsDir: TOPIC_ASSETS_DIR, topicsDir: TOPICS_DIR, cache: topicAssetCacheStore },
+      () => generateModelTalk({ topicTitle: topic.title, hints: topic.hints, stage }, runnerFor("generation")),
+    );
     return { text: talk.text, topicTitle: topic.title };
   },
   libraryStore,
@@ -96,7 +103,11 @@ const realDeps: RouteDeps = {
     if (!topic) return null;
     const stage = stageOf(progressStore.getLevel());
     const p = prepParams(stage);
-    return generatePrepPack({ topicTitle: topic.title, hints: topic.hints, chunkCount: p.chunkCount, hintLang: p.hintLang, stage }, runnerFor("generation"));
+    return resolvePrepPack(
+      topicId, stage,
+      { assetsDir: TOPIC_ASSETS_DIR, topicsDir: TOPICS_DIR, cache: topicAssetCacheStore },
+      () => generatePrepPack({ topicTitle: topic.title, hints: topic.hints, chunkCount: p.chunkCount, hintLang: p.hintLang, stage }, runnerFor("generation")),
+    );
   },
   buildQuick: (kind, domain) => buildQuickMenu(kind, { level: progressStore.getLevel(), domain }),
   practiceDays: () => listPracticeDays(),

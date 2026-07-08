@@ -12,6 +12,8 @@ export const CONTENT_DIR = path.join(REPO_ROOT, "content");
 export const TOPICS_DIR = path.join(CONTENT_DIR, "topics");
 export const SCENARIOS_DIR = path.join(CONTENT_DIR, "scenarios");
 export const LISTENING_DIR = path.join(CONTENT_DIR, "listening");
+// v0.26 content-ladder wave3: topic×stage の prepPack/model talk 同梱JSON（topic-assets.ts の3層ルックアップ）
+export const TOPIC_ASSETS_DIR = path.join(CONTENT_DIR, "topic-assets");
 export const SENTENCES_FILE = path.join(CONTENT_DIR, "sentences", "sentences300.json");
 // 暗記例文300の同梱音声（リポジトリにコミット済み・読み取り専用のバンドルキャッシュ）
 export const BUNDLED_AUDIO_DIR = path.join(CONTENT_DIR, "sentences", "audio");
