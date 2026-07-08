@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "enables the default permissions. \"remote\" is deliberately omitted (defaults to unset/no remote origins granted): only local app URLs (\"local\" defaults to true) get these permissions. The attached app origin (http://127.0.0.1:3111) must stay with zero IPC capability — do not add a \"remote\" field here to grant it.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default"
+  ]
+}

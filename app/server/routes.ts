@@ -1,5 +1,8 @@
 import { appendEvent, isErrorLogged } from "./session-log";
 import { json, type RouteEntry } from "./routes/http";
+import { serveStatic, type StaticRoutesDeps } from "./routes/static";
+import { makeDevRoutes, type DevRoutesDeps } from "./routes/dev";
+import { CLIENT_DIST_DIR } from "./paths";
 import { makeSystemRoutes, type SystemRoutesDeps } from "./routes/system";
 import { makeConverseRoutes, type ConverseRoutesDeps } from "./routes/converse";
 import { makeSessionRoutes, type SessionRoutesDeps } from "./routes/session";
@@ -30,7 +33,7 @@ export type RouteDeps =
   SettingsRoutesDeps & LibraryRoutesDeps & CoachRoutesDeps & SentenceRoutesDeps &
   ChunkRoutesDeps & ProgressRoutesDeps & PlacementRoutesDeps & MetricsRoutesDeps &
   AssessmentRoutesDeps & ListeningRoutesDeps & FeedbackRoutesDeps & LlmSettingsRoutesDeps &
-  LlmModelsRoutesDeps & TtsSettingsRoutesDeps;
+  LlmModelsRoutesDeps & TtsSettingsRoutesDeps & StaticRoutesDeps & DevRoutesDeps;
 
 /** 現在の index.ts の全ルーティング・ハンドラをソケットを開かずにテストできる形に切り出したもの */
 export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Response> {
@@ -53,6 +56,7 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
     ...makeLlmSettingsRoutes(deps),
     ...makeLlmModelsRoutes(deps),
     ...makeTtsSettingsRoutes(deps),
+    ...makeDevRoutes(deps),
   ];
   return async function fetch(req: Request): Promise<Response> {
     // 受信を契機にローカルLLM（conversation が openai-compat のとき）を温める。throttle 済み・fire-and-forget。
@@ -62,6 +66,11 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
     try {
       for (const r of routes) {
         if (req.method === r.method && r.match(url.pathname)) return await r.handler(req, url);
+      }
+      // /api/* 以外は client dist を直接配信する（Caddy無しでも http://127.0.0.1:3111 で完結・SPAフォールバック込み）。
+      // /api/* は既存どおり 404 JSON のまま（挙動不変）。
+      if (!url.pathname.startsWith("/api/")) {
+        return serveStatic(req.method, url.pathname, deps.staticDir ?? CLIENT_DIST_DIR);
       }
       return json({ error: "not found" }, 404);
     } catch (err) {
