@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import type { LlmSettingsView } from "../api";
+import type { LlmRoleInput, LlmRoleView, LlmSettingsInput, LlmSettingsView, LlmRole } from "../api";
+import { LLM_ROLES } from "../api";
 import {
-  PRESETS, isLocalDefined, presetEnabled, hydrateConnection, hydrateTargets, buildRolesPayload,
+  PRESETS, isLocalDefined, presetEnabled, hydrateConnection, hydrateTargets, buildRolesPayload, matchPreset,
   type RoleTargets,
 } from "./llm-assignments";
 
@@ -17,6 +18,22 @@ function mkView(over: Partial<LlmSettingsView> = {}): LlmSettingsView {
     roles: { conversation: inherit, coaching: inherit, generation: inherit, assessment: inherit },
     ...over,
   };
+}
+
+/** buildRolesPayload の出力（PUT ペイロード）から GET 応答形の View を組み立てる（往復テスト用）。 */
+function fakeViewFromPayload(payload: { global: LlmSettingsInput; roles: Record<LlmRole, LlmRoleInput> }): LlmSettingsView {
+  const roles = {} as Record<LlmRole, LlmRoleView>;
+  for (const r of LLM_ROLES) {
+    const role = payload.roles[r];
+    roles[r] = { provider: role.provider, baseUrl: role.baseUrl ?? null, model: role.model ?? null, codexModel: role.codexModel ?? null };
+  }
+  return mkView({
+    provider: payload.global.provider,
+    baseUrl: payload.global.baseUrl ?? null,
+    model: payload.global.model ?? null,
+    codexModel: payload.global.codexModel ?? null,
+    roles,
+  });
 }
 
 describe("isLocalDefined / presetEnabled", () => {
@@ -47,12 +64,12 @@ describe("buildRolesPayload", () => {
     });
   });
 
-  test("バランス: 会話・教材生成=ローカル / コーチング・測定=Claude", () => {
+  test("バランス: 会話=ローカル / コーチング・教材生成・測定=Claude", () => {
     const payload = buildRolesPayload(PRESETS.balanced, LOCAL_CONN);
     expect(payload.roles).toEqual({
       conversation: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
       coaching: { provider: "claude" },
-      generation: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3" },
+      generation: { provider: "claude" },
       assessment: { provider: "claude" },
     });
     expect(payload.global).toEqual({ provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: null });
@@ -138,5 +155,25 @@ describe("hydrateConnection", () => {
   });
   test("何も無ければ空文字", () => {
     expect(hydrateConnection(mkView())).toEqual({ baseUrl: "", model: "", codexModel: "" });
+  });
+});
+
+describe("matchPreset", () => {
+  test("3プリセットの完全一致を判定する", () => {
+    expect(matchPreset(PRESETS["all-local"])).toBe("all-local");
+    expect(matchPreset(PRESETS.balanced)).toBe("balanced");
+    expect(matchPreset(PRESETS["high-quality"])).toBe("high-quality");
+  });
+  test("1ロールでも異なれば custom", () => {
+    expect(matchPreset({ ...PRESETS.balanced, generation: "codex" })).toBe("custom");
+  });
+  test("旧バランス（生成=ローカル）は custom になる（定義変更の明示仕様）", () => {
+    expect(matchPreset({ conversation: "local", coaching: "claude", generation: "local", assessment: "claude" })).toBe("custom");
+  });
+  test("往復整合: buildRolesPayload→hydrateTargets→matchPreset が元に戻る", () => {
+    const conn = { baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: "" };
+    const payload = buildRolesPayload(PRESETS.balanced, conn);
+    const view = fakeViewFromPayload(payload);
+    expect(matchPreset(hydrateTargets(view))).toBe("balanced");
   });
 });
