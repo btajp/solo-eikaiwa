@@ -37,8 +37,8 @@
 - Test: 生成関数のプロンプト/検証配線（フェイク runner）
 
 - [ ] TDD（コード）→ 3ゲート → コードだけ先に Commit `feat: 帯×domain指定の教材生成とexperienceAnchor必須化（--fill-coverage）`
-- [ ] 生成実行: daily [5,6] topics×4 + scenarios×3、business の quota 不足分。検証（anchor+starter 口語+coverage）PASS まで再生成（3ラウンド規律・FAIL したらプロンプト差し戻し）
-- [ ] 生成 Commit `feat: daily/business の fluency帯教材を追加（空白セル解消・無警告振替の実害除去）`
+- [ ] 生成実行（**T1 の bridge 全数判明を受けて対象拡大**）: 既存教材は全件 bridge のため quota 適合在庫はゼロ。**topics 36本（帯×domain 各4・全セル）+ scenarios 27本（各3・全セル）を全数生成**する。生成順は「bridge 含めてもカバレッジゼロのセル」= daily [5,6] を先頭に（無警告振替の実害を最初に解消）。検証（anchor+starter 口語+coverage）PASS まで再生成（セルあたり3ラウンド規律・FAIL したらプロンプト差し戻し）
+- [ ] 生成 Commit `feat: 全帯×全domainの帯適合topics/scenariosを生成（quota充足・daily fluency空白解消）`
 
 ### Task 3 (wave2): listening 3帯化 + 36本
 
