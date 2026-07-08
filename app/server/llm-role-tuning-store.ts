@@ -22,6 +22,13 @@ export type RoleTuning = { claudeModel: string | null; effort: string | null; se
 /** チューニング値のホワイトリスト（route 検証と CLI の env 解釈で共有する単一定義。クライアントの *_OPTIONS と一致させる）。 */
 export const CLAUDE_MODELS = ["haiku", "sonnet", "opus"] as const;
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+/**
+ * codex 用の effort ホワイトリスト。codex は "max" をリクエストレベルで受け付けない
+ * （モデルの supportedReasoningEfforts に無く、そのまま送ると request 時に失敗する。実機の
+ * model/list 応答で確認済み）ため EFFORTS から除外する。route（llm-settings.ts）が
+ * ロールの実効プロバイダに応じてこちらか EFFORTS を選んで検証する。
+ */
+export const CODEX_EFFORTS = EFFORTS.filter((e): e is Exclude<(typeof EFFORTS)[number], "max"> => e !== "max");
 export const SERVICE_TIERS = ["fast", "standard"] as const;
 
 export type LlmRoleTuningStore = {

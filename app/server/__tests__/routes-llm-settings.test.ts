@@ -375,6 +375,147 @@ describe("llm-settings tuning API", () => {
     expect(savedPatches).toEqual([{ assessment: { effort: "max" } }]);
   });
 
+  test("PUT /roles 400: codex 割当ロール（今回のリクエストで割当）の effort \"max\" は拒否される（codex は low/medium/high/xhigh のみ対応）", async () => {
+    const savedPatches: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      roles: { assessment: { provider: "codex" } },
+      tuning: { assessment: { effort: "max" } },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/effort must be one of low, medium, high, xhigh( or null)?$/);
+    expect(savedPatches).toHaveLength(0);
+  });
+
+  test("PUT /roles: claude 割当ロール（今回のリクエストで割当）の effort \"max\" は許可される", async () => {
+    const savedPatches: Array<Partial<Record<LlmRole, Partial<RoleTuning>>>> = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      roles: { assessment: { provider: "claude" } },
+      tuning: { assessment: { effort: "max" } },
+    }));
+    expect(res.status).toBe(200);
+    expect(savedPatches).toEqual([{ assessment: { effort: "max" } }]);
+  });
+
+  test("PUT /roles 400: 既存保存済みで codex 割当のロール（今回は roles を送らない）は effort \"max\" を拒否される", async () => {
+    const savedPatches: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getLlmRoleSettings: () => ({
+        conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        coaching: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        assessment: { provider: "codex", baseUrl: null, model: null, codexModel: "gpt-5.4" },
+      }),
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      tuning: { assessment: { effort: "max" } },
+    }));
+    expect(res.status).toBe(400);
+    expect(savedPatches).toHaveLength(0);
+  });
+
+  test("PUT /roles 400: inherit ロールは今回のリクエストの global 変更（codex）へ解決し effort \"max\" を拒否する", async () => {
+    const savedPatches: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      global: { provider: "codex" },
+      tuning: { assessment: { effort: "max" } },
+    }));
+    expect(res.status).toBe(400);
+    expect(savedPatches).toHaveLength(0);
+  });
+
+  test("PUT /roles 400: inherit ロールは保存済み global（codex）へ解決し effort \"max\" を拒否する（今回 global は送らない）", async () => {
+    const savedPatches: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => ({ provider: "codex", baseUrl: null, model: null, codexModel: "gpt-5.4" }),
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      tuning: { assessment: { effort: "max" } },
+    }));
+    expect(res.status).toBe(400);
+    expect(savedPatches).toHaveLength(0);
+  });
+
+  test("PUT /roles 400: global が env(既定) のとき、実行時 env が codex を指していれば inherit ロールの effort \"max\" を拒否する", async () => {
+    const savedPatches: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      llmEnv: () => ({ provider: "codex", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      tuning: { assessment: { effort: "max" } },
+    }));
+    expect(res.status).toBe(400);
+    expect(savedPatches).toHaveLength(0);
+  });
+
+  test("PUT /roles 400: assist=inherit は coaching の実効プロバイダへ連鎖して解決する（coaching=codex・global=claude でも assist の effort \"max\" は拒否される）", async () => {
+    // converse.ts の applyLlmRoleSettings（assist の連鎖規則・binding）と同じセマンティクス: assist が inherit の間、
+    // assist は global ではなく coaching の解決結果をそのまま使う。effort 検証もこれに合わせないと、
+    // 「保存はできるが実行時に codex へ max がそのまま渡って失敗する」設定を作れてしまう。
+    const savedPatches: unknown[] = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => ({ provider: "claude", baseUrl: null, model: null, codexModel: null }),
+      getLlmRoleSettings: () => ({
+        conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        coaching: { provider: "codex", baseUrl: null, model: null, codexModel: "gpt-5.4" },
+        generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+      }),
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      tuning: { assist: { effort: "max" } },
+    }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/effort must be one of low, medium, high, xhigh/);
+    expect(savedPatches).toHaveLength(0);
+  });
+
+  test("PUT /roles: assist=inherit で coaching=claude（global=codex でも）なら assist の effort \"max\" は許可される（連鎖の鏡像ケース）", async () => {
+    const savedPatches: Array<Partial<Record<LlmRole, Partial<RoleTuning>>>> = [];
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => ({ provider: "codex", baseUrl: null, model: null, codexModel: "gpt-5.4" }),
+      getLlmRoleSettings: () => ({
+        conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        coaching: { provider: "claude", baseUrl: null, model: null, codexModel: null },
+        generation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+        assessment: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
+      }),
+      saveLlmRoleTuning: (t) => savedPatches.push(t),
+      llmEnv: () => ({ provider: "claude", apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      tuning: { assist: { effort: "max" } },
+    }));
+    expect(res.status).toBe(200);
+    expect(savedPatches).toEqual([{ assist: { effort: "max" } }]);
+  });
+
   test("PUT /roles: null で明示クリアできる（クリアと未指定は区別される）", async () => {
     const savedPatches: Array<Partial<Record<LlmRole, Partial<RoleTuning>>>> = [];
     const { deps } = makeTestDeps({

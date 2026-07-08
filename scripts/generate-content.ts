@@ -49,7 +49,7 @@ const dry = process.argv.includes("--dry");
 
 /** env の選択値を読む。未設定/空白は null（既定に従う）、不正値は許容値を提示して即終了（LLM 呼び出し前）。 */
 function envChoice(name: string, allowed: readonly string[]): string | null {
-  const raw = process.env[name]?.trim();
+  const raw = Bun.env[name]?.trim();
   if (!raw) return null;
   if (!allowed.includes(raw)) {
     console.error(`${name}=${raw} は不正です。許容値: ${allowed.join(", ")}（未設定なら既定を使います）`);
@@ -63,7 +63,7 @@ function envChoice(name: string, allowed: readonly string[]): string | null {
  * インターフェースなのでここで明示解釈し、resolveCliRunner へ渡す（サーバ経路は env チューニングを読まない）。
  */
 function tuningFromEnv(): RoleTuning {
-  const provider = resolveProviderKey(process.env);
+  const provider = resolveProviderKey(Bun.env);
   if (provider === "" || provider === "claude") {
     return { claudeModel: envChoice("CLAUDE_MODEL", CLAUDE_MODELS), effort: envChoice("CLAUDE_EFFORT", EFFORTS), serviceTier: null };
   }

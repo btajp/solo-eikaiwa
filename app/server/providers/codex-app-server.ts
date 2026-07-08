@@ -317,14 +317,14 @@ export class CodexAppServerClient {
 }
 
 /** 動作確認済みの codex CLI バージョン。乖離時は警告のみ（動作は継続）。 */
-export const TESTED_CODEX_VERSION = "0.142.5";
+export const TESTED_CODEX_VERSION = "0.143.0";
 
 /**
  * `codex --version` の出力が動作確認済みバージョンと一致するか判定する純関数（単体テスト対象）。
- * 実際の出力は `codex-cli 0.142.5` のように name + version が空白区切りになりうるため、
- * 末尾の空白区切りトークンだけを版として見る。単純な前方一致だと "0.142.5" は "0.142.50" にも
+ * 実際の出力は `codex-cli 0.143.0` のように name + version が空白区切りになりうるため、
+ * 末尾の空白区切りトークンだけを版として見る。単純な前方一致だと "0.143.0" は "0.143.00" にも
  * マッチしてしまう（別バージョンを誤って一致扱いする）ため、前方一致した残り部分が空文字列
- * または非数字で始まることまで境界チェックする（"0.142.5" のみ一致・"0.142.50" は不一致）。
+ * または非数字で始まることまで境界チェックする（"0.143.0" のみ一致・"0.143.00" は不一致）。
  */
 export function isTestedCodexVersion(actual: string): boolean {
   const token = actual.trim().split(/\s+/).pop() ?? "";

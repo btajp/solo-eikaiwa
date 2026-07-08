@@ -1,9 +1,16 @@
 import {
-  LLM_ROLES, SERVICE_TIER_OPTIONS, CLAUDE_MODEL_OPTIONS,
+  LLM_ROLES, SERVICE_TIER_OPTIONS, CLAUDE_MODEL_OPTIONS, EFFORT_OPTIONS,
   type LlmRole, type LlmRoleInput, type LlmSettingsInput, type LlmSettingsView, type RoleTuning,
-  type ClaudeModelOption, type ServiceTierOption, type CatalogModel, type CatalogModelEffort, type CatalogResult,
+  type ClaudeModelOption, type ServiceTierOption, type EffortOption, type CatalogModel, type CatalogModelEffort, type CatalogResult,
   type AuthMode, type LlmAuthProvider,
 } from "../api";
+
+/**
+ * codex 用の effort 静的フォールバック選択肢。codex はリクエストレベルで "max" を受け付けない
+ * （サーバ側 llm-role-tuning-store.ts の CODEX_EFFORTS と同じ理由）ため EFFORT_OPTIONS から除外する。
+ * カタログ取得可能時は effortOptionsForCodexModel の実カタログ値を使うため、これはカタログ不可時のみ使う。
+ */
+export const CODEX_EFFORT_OPTIONS: readonly EffortOption[] = EFFORT_OPTIONS.filter((e) => e !== "max");
 
 /** ロール割当の3値（UI が直接選ぶ）。inherit/env は UI に出さない。 */
 export type RoleTarget = "claude" | "local" | "codex";

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { ensureLlmRoleTuningSchema, makeLlmRoleTuningStore } from "../llm-role-tuning-store";
+import { ensureLlmRoleTuningSchema, makeLlmRoleTuningStore, EFFORTS, CODEX_EFFORTS } from "../llm-role-tuning-store";
 
 function freshStore() {
   const db = new Database(":memory:");
@@ -49,5 +49,13 @@ describe("llm-role-tuning-store", () => {
     const all = store.getAll();
     expect(all.conversation).toEqual({ claudeModel: "sonnet", effort: null, serviceTier: null });
     expect(all.assessment).toEqual({ claudeModel: null, effort: "xhigh", serviceTier: null });
+  });
+});
+
+describe("CODEX_EFFORTS", () => {
+  test("EFFORTS から \"max\" を除いた集合である（codex はリクエストレベルで max を受け付けないため）", () => {
+    expect(CODEX_EFFORTS).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(CODEX_EFFORTS).not.toContain("max");
+    expect(EFFORTS).toContain("max");
   });
 });

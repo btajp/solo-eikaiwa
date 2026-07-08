@@ -591,7 +591,7 @@ describe("isTestedCodexVersion", () => {
   });
 
   test("実際の`codex --version`出力形式（`codex-cli <version>`）を許容する", () => {
-    // 実機の `codex --version` は "codex-cli 0.142.5" 形式（name + 空白 + version）で出力される。
+    // 実機の `codex --version` は "codex-cli 0.143.0" 形式（name + 空白 + version）で出力される。
     // checkCodexVersionOnce はこの生出力を trim() しただけで isTestedCodexVersion に渡すため、
     // ここでこの形式のまま一致判定できることを担保する。
     expect(isTestedCodexVersion(`codex-cli ${TESTED_CODEX_VERSION}`)).toBe(true);
@@ -599,7 +599,7 @@ describe("isTestedCodexVersion", () => {
   });
 
   test("前方一致だがパッチバージョンが異なるものはfalse（境界チェック）", () => {
-    expect(isTestedCodexVersion(`${TESTED_CODEX_VERSION}0`)).toBe(false); // "0.142.50"
+    expect(isTestedCodexVersion(`${TESTED_CODEX_VERSION}0`)).toBe(false); // "0.143.00"
     expect(isTestedCodexVersion(`codex-cli ${TESTED_CODEX_VERSION}0`)).toBe(false);
   });
 

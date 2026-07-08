@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import type { LlmRoleInput, LlmRoleView, LlmSettingsInput, LlmSettingsView, LlmRole, RoleTuning, CatalogResult } from "../api";
-import { LLM_ROLES } from "../api";
+import { LLM_ROLES, EFFORT_OPTIONS } from "../api";
 import {
   PRESETS, isLocalDefined, presetEnabled, hydrateConnection, hydrateTargets, buildRolesPayload, matchPreset,
   presetTargets, defaultTuning, hydrateTuning, RECOMMENDED_TUNING, applyRecommendedTuning,
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
   tierOptionsForCodexModel, codexDefaultEffortLabel, localModelSelectOptions, resolveEffective, clampClaudeEffort,
-  hydrateAuthModes, hydrateAuthKeys, buildAuthPatch,
+  hydrateAuthModes, hydrateAuthKeys, buildAuthPatch, CODEX_EFFORT_OPTIONS,
   type RoleTargets,
 } from "./llm-assignments";
 
@@ -501,6 +501,14 @@ describe("codexModelSelectOptions / effortOptionsForCodexModel / tierOptionsForC
     expect(codexDefaultEffortLabel(CODEX_CATALOG, "gpt-5.5")).toBe("medium");
     expect(codexDefaultEffortLabel(CODEX_CATALOG, "unknown-id")).toBe("medium");
     expect(codexDefaultEffortLabel(undefined, "gpt-5.5")).toBe("medium");
+  });
+});
+
+describe("CODEX_EFFORT_OPTIONS", () => {
+  test("EFFORT_OPTIONS から \"max\" を除いた集合である（codex はリクエストレベルで max を受け付けないため。カタログ不可時の静的フォールバック用）", () => {
+    expect(CODEX_EFFORT_OPTIONS).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(CODEX_EFFORT_OPTIONS).not.toContain("max");
+    expect(EFFORT_OPTIONS).toContain("max");
   });
 });
 
