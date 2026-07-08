@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS llm_role_tuning (
 | ロール | Claude 推奨 | GPT 推奨（モデルは全ロール共通・未指定=CLI最新既定） | 根拠（棚卸し結果） |
 |---|---|---|---|
 | 会話 | sonnet / low | low / fast | テンポ最優先・短出力・最頻 |
-| クイック支援 | **haiku / low** | low / fast | 訳=最単純タスク・即答・誤り実害小 |
+| クイック支援 | **haiku / —（effort 指定なし）** | low / fast | 訳=最単純タスク・即答・誤り実害小。haiku は effort 非対応（実測 2026-07-08: `--effort` は黙って無視される）— 無視される値を書き込む/表示するのは UI 真実性違反のため effort は null |
 | コーチング | sonnet / high | medium / fast | SRS 直結（AE/振り返り）+ 恒久キャッシュ解説は初回勝負 |
 | 教材生成 | sonnet / medium | medium / fast | 背景先読みで猶予・セッション使い捨て |
 | 測定 | **opus / xhigh** | xhigh / **standard** | 月1未満・レベル判定は判断タスクで xhigh が効く・待てるので priority 不要 |
