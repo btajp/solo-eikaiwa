@@ -41,6 +41,7 @@ function RoleTargetToggle(props: {
   labels: Record<RoleTarget, string>;
   localDisabledNote: string;
   ariaLabel: string;
+  disabled: boolean;
   onChange: (t: RoleTarget) => void;
 }) {
   const order: RoleTarget[] = ["claude", "local", "codex"];
@@ -51,7 +52,7 @@ function RoleTargetToggle(props: {
           <button
             key={t}
             className={props.value === t ? "is-active" : ""}
-            disabled={t === "local" && !props.localEnabled}
+            disabled={props.disabled || (t === "local" && !props.localEnabled)}
             onClick={() => props.onChange(t)}
           >
             {props.labels[t]}
@@ -248,6 +249,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                 labels={targetLabels}
                 localDisabledNote={s.settings.targetLocalDisabled}
                 ariaLabel={s.settings.roleName[role]}
+                disabled={saving || !view}
                 onChange={(t) => setTarget(role, t)}
               />
             </div>
