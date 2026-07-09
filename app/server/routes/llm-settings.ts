@@ -1,6 +1,6 @@
 import { json, parseJsonBody, exact, type RouteEntry } from "./http";
-import { LLM_ROLES, type LlmSettings, type LlmProvider, type LlmRole, type LlmRoleProvider, type LlmRoleSetting } from "../llm-provider";
-import { CLAUDE_MODELS, EFFORTS, CODEX_EFFORTS, SERVICE_TIERS, type RoleTuning } from "../llm-role-tuning-store";
+import { DEFAULT_LLM_SETTINGS, LLM_ROLES, type LlmSettings, type LlmProvider, type LlmRole, type LlmRoleProvider, type LlmRoleSetting } from "../llm-provider";
+import { EFFORTS, CODEX_EFFORTS, SERVICE_TIERS, type RoleTuning, type TuningScope } from "../llm-role-tuning-store";
 import { AUTH_MODES, type AuthMode, type LlmAuthModes, type LlmAuthProvider } from "../llm-auth-store";
 
 export type LlmSettingsRoutesDeps = {
@@ -9,11 +9,13 @@ export type LlmSettingsRoutesDeps = {
   getLlmRoleSettings: () => Record<LlmRole, LlmRoleSetting>;
   saveLlmRoleSettings: (role: LlmRole, s: LlmRoleSetting) => void;
   getLlmRoleTuning: () => Record<LlmRole, RoleTuning>;
-  /** 渡されたロールだけを部分更新する（route 側でホワイトリスト検証済み）。 */
-  saveLlmRoleTuning: (t: Partial<Record<LlmRole, Partial<RoleTuning>>>) => void;
+  /** グローバル既定チューニング（llm_role_tuning の "global" 行。行不在は全 null）。 */
+  getLlmGlobalTuning: () => RoleTuning;
+  /** 渡されたスコープ（ロール or "global"）だけを部分更新する（route 側で検証済み）。 */
+  saveLlmRoleTuning: (t: Partial<Record<TuningScope, Partial<RoleTuning>>>) => void;
   applyLlmSettings: (s: LlmSettings) => void;
-  /** env 由来の情報。値そのものは返さず、APIキーは presence(boolean) のみ。 */
-  llmEnv: () => { provider: string; apiKeyConfigured: boolean };
+  /** env 由来の情報。APIキーの presence(boolean) のみ（接続設定の env 読み取りは廃止済み・v0.29）。 */
+  llmEnv: () => { apiKeyConfigured: boolean };
   /** 受信入口の fire-and-forget フック（conversation が openai-compat のときローカルモデルを温める）。llm-settings ルート自体は使わない。 */
   warmLlm: () => void;
   /** 認証モード（DB 由来。行不在は "subscription"）。 */
@@ -30,7 +32,7 @@ export type LlmSettingsRoutesDeps = {
   killCodexAppServerRegistry: () => void;
 };
 
-const PROVIDERS = ["env", "claude", "openai-compat", "codex"] as const;
+const PROVIDERS = ["claude", "openai-compat", "codex"] as const;
 const ROLE_PROVIDERS = ["inherit", "claude", "openai-compat", "codex"] as const;
 
 function isHttpUrl(v: string): boolean {
@@ -80,7 +82,7 @@ function parseSettingsInput(
     if (codexModel === undefined) return { ok: false, error: "codexModel must be a string of at most 200 characters" };
     return { ok: true, value: { provider: "codex", baseUrl: null, model: null, codexModel } };
   }
-  // env / claude / inherit: 付随フィールドは持たない
+  // claude / inherit: 付随フィールドは持たない（claude のモデルはグローバルチューニング〔tuning.global〕が担う）
   return { ok: true, value: { provider: b.provider, baseUrl: null, model: null, codexModel: null } };
 }
 
@@ -88,7 +90,7 @@ function parseSettingsInput(
 function viewOf(deps: LlmSettingsRoutesDeps, applied?: boolean, error?: string | null) {
   const stored = deps.getLlmSettings();
   const env = deps.llmEnv();
-  const s: LlmSettings = stored ?? { provider: "env", baseUrl: null, model: null, codexModel: null };
+  const s: LlmSettings = stored ?? DEFAULT_LLM_SETTINGS;
   const roleSettings = deps.getLlmRoleSettings();
   const roles = {} as Record<LlmRole, { provider: LlmRoleProvider; baseUrl: string | null; model: string | null; codexModel: string | null }>;
   for (const role of LLM_ROLES) {
@@ -109,8 +111,8 @@ function viewOf(deps: LlmSettingsRoutesDeps, applied?: boolean, error?: string |
     model: s.model,
     codexModel: s.codexModel,
     apiKeyConfigured: env.apiKeyConfigured,
-    envProvider: env.provider,
     roles,
+    globalTuning: deps.getLlmGlobalTuning(),
     tuning,
     authModes: { claude: authModes.claude, codex: authModes.codex },
     authKeys: { anthropic: authKeys.anthropic, codex: authKeys.codex },
@@ -187,9 +189,19 @@ function parseRoleTuning(
   const b = v as TuningInput;
   const patch: Partial<RoleTuning> = {};
 
-  const cm = parseTuningField(b.claudeModel, CLAUDE_MODELS);
-  if (!cm.ok) return { ok: false, error: `claudeModel must be one of ${CLAUDE_MODELS.join(", ")} or null` };
-  if (cm.value !== undefined) patch.claudeModel = cm.value;
+  // claudeModel はホワイトリストではなく形式検証（codexModel と同基準・v0.29）。
+  // 選択肢の提示はカタログ API（SDK supportedModels()）が担い、任意のモデルIDも保存できる（UI 真実性）。
+  if (b.claudeModel !== undefined) {
+    if (b.claudeModel === null) {
+      patch.claudeModel = null;
+    } else {
+      const cm = asOptionalStr(b.claudeModel, 200);
+      if (cm === undefined || cm === null) {
+        return { ok: false, error: "claudeModel must be a non-empty string of at most 200 characters or null" };
+      }
+      patch.claudeModel = cm;
+    }
+  }
 
   const ef = parseTuningField(b.effort, effortWhitelist);
   if (!ef.ok) return { ok: false, error: `effort must be one of ${effortWhitelist.join(", ")} or null` };
@@ -204,10 +216,10 @@ function parseRoleTuning(
 
 /**
  * ロールの実効プロバイダ（このリクエスト内の変更 > 保存済み設定の順で解決）から effort ホワイトリストを選ぶ。
- * inherit は global の実効プロバイダへ解決する（このリクエスト内の global 変更 > 保存済み global の順）。
- * global が "env"（未設定含む）なら、実行時 env の実効プロバイダ（deps.llmEnv().provider・resolveProviderKey(Bun.env)
- * と同じロジックの結果）まで解決する。codex 以外（claude・openai-compat・未知値）は全て EFFORTS（"max" 込み）を許容する
- * — openai-compat は effort 自体を使わないため実害が無く、codex だけが実際に "max" で失敗するため。
+ * inherit は global の実効プロバイダへ解決する（このリクエスト内の global 変更 > 保存済み global >
+ * 既定 claude の順。env フォールバックは廃止済み）。codex 以外（claude・openai-compat・未知値）は
+ * 全て EFFORTS（"max" 込み）を許容する — openai-compat は effort 自体を使わないため実害が無く、
+ * codex だけが実際に "max" で失敗するため。
  *
  * assist→coaching 連鎖（binding）: converse.ts の applyLlmRoleSettings（コメント参照: converse.ts:280-286）が、
  * assist の設定行が inherit の間は assist を独自解決せず coaching の解決結果（プロバイダ・チューニングとも）を
@@ -229,14 +241,13 @@ function resolveEffortWhitelist(
   const chainRole: LlmRole = role === "assist" && providerOf("assist") === "inherit" ? "coaching" : role;
   const roleProvider = providerOf(chainRole);
   if (roleProvider !== "inherit") return roleProvider === "codex" ? CODEX_EFFORTS : EFFORTS;
-  const globalProvider = parsedGlobal?.provider ?? storedGlobal?.provider ?? "env";
-  const resolvedGlobal = globalProvider === "env" ? deps.llmEnv().provider : globalProvider;
-  return resolvedGlobal === "codex" ? CODEX_EFFORTS : EFFORTS;
+  const globalProvider = parsedGlobal?.provider ?? storedGlobal?.provider ?? DEFAULT_LLM_SETTINGS.provider;
+  return globalProvider === "codex" ? CODEX_EFFORTS : EFFORTS;
 }
 
 /** 「現在の全体設定 + 保存済みロール」で全ロール runner を再解決する。fail-open で applied/error を返す。 */
 function applyResolved(deps: LlmSettingsRoutesDeps): { applied: boolean; error: string | null } {
-  const effectiveGlobal = deps.getLlmSettings() ?? { provider: "env" as LlmProvider, baseUrl: null, model: null, codexModel: null };
+  const effectiveGlobal = deps.getLlmSettings() ?? DEFAULT_LLM_SETTINGS;
   try {
     deps.applyLlmSettings(effectiveGlobal);
     return { applied: true, error: null };
@@ -293,16 +304,35 @@ async function handlePutRoles(req: Request, deps: LlmSettingsRoutesDeps): Promis
     }
   }
 
-  const parsedTuning: Array<{ role: LlmRole; value: Partial<RoleTuning> }> = [];
+  const parsedTuning: Array<{ role: TuningScope; value: Partial<RoleTuning> }> = [];
   if (body.tuning !== undefined) {
     if (typeof body.tuning !== "object" || body.tuning === null) return json({ error: "tuning must be an object" }, 400);
     const tuningObj = body.tuning as Record<string, unknown>;
     const storedRoles = deps.getLlmRoleSettings();
     const storedGlobal = deps.getLlmSettings();
     for (const role of Object.keys(tuningObj)) {
-      if (!(LLM_ROLES as readonly string[]).includes(role)) return json({ error: `unknown role: ${role}` }, 400);
-      const r = role as LlmRole;
-      const effortWhitelist = resolveEffortWhitelist(r, parsedRoles, parsedGlobal, storedRoles, storedGlobal, deps);
+      if (role !== "global" && !(LLM_ROLES as readonly string[]).includes(role)) {
+        return json({ error: `unknown role: ${role}` }, 400);
+      }
+      const r = role as TuningScope;
+      // "global" スコープの effort 検証: global 行の effort はロール別未設定の全ロールへ
+      // プロバイダ横断でマージされる（converse.ts mergeTuning）ため、global の実効プロバイダに加えて
+      // 「codex に解決されるロールが1つでもあるか」（このリクエスト内の変更 > 保存済みの順・inherit は
+      // global へ解決）まで見て、あれば厳しい側（CODEX_EFFORTS）で検証する。
+      // これを global provider だけで判定すると「保存できるが実行時に codex で失敗する」設定を作れてしまう。
+      const effortWhitelist =
+        r === "global"
+          ? (() => {
+              const globalProvider = parsedGlobal?.provider ?? storedGlobal?.provider ?? DEFAULT_LLM_SETTINGS.provider;
+              const providerOf = (rr: LlmRole): string =>
+                parsedRoles.find((p) => p.role === rr)?.value.provider ?? storedRoles[rr].provider;
+              const anyCodex = LLM_ROLES.some((rr) => {
+                const p = providerOf(rr);
+                return (p === "inherit" ? globalProvider : p) === "codex";
+              });
+              return globalProvider === "codex" || anyCodex ? CODEX_EFFORTS : EFFORTS;
+            })()
+          : resolveEffortWhitelist(r, parsedRoles, parsedGlobal, storedRoles, storedGlobal, deps);
       const p = parseRoleTuning(tuningObj[role], effortWhitelist);
       if (!p.ok) return json({ error: `${role}: ${p.error}` }, 400);
       parsedTuning.push({ role: r, value: p.value });
@@ -343,7 +373,7 @@ async function handlePutRoles(req: Request, deps: LlmSettingsRoutesDeps): Promis
     });
   }
   if (parsedTuning.length > 0) {
-    const patch: Partial<Record<LlmRole, Partial<RoleTuning>>> = {};
+    const patch: Partial<Record<TuningScope, Partial<RoleTuning>>> = {};
     for (const { role, value } of parsedTuning) patch[role] = value;
     deps.saveLlmRoleTuning(patch);
   }

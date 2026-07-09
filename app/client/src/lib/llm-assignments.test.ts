@@ -17,8 +17,8 @@ const EMPTY_CONN = { baseUrl: "", model: "", codexModel: "" };
 function mkView(over: Partial<LlmSettingsView> = {}): LlmSettingsView {
   const inherit = { provider: "inherit" as const, baseUrl: null, model: null, codexModel: null };
   return {
-    provider: "env", baseUrl: null, model: null, codexModel: null,
-    apiKeyConfigured: false, envProvider: "claude",
+    provider: "claude", baseUrl: null, model: null, codexModel: null,
+    apiKeyConfigured: false,
     roles: { conversation: inherit, assist: inherit, coaching: inherit, generation: inherit, assessment: inherit },
     tuning: defaultTuning(),
     authModes: { claude: "subscription", codex: "subscription" },
@@ -28,7 +28,7 @@ function mkView(over: Partial<LlmSettingsView> = {}): LlmSettingsView {
 }
 
 /** buildRolesPayload の出力（PUT ペイロード）から GET 応答形の View を組み立てる（往復テスト用）。 */
-function fakeViewFromPayload(payload: { global: LlmSettingsInput; roles: Record<LlmRole, LlmRoleInput>; tuning?: Record<LlmRole, RoleTuning> }): LlmSettingsView {
+function fakeViewFromPayload(payload: { global: LlmSettingsInput; roles: Record<LlmRole, LlmRoleInput>; tuning?: Partial<Record<LlmRole | "global", Partial<RoleTuning>>> }): LlmSettingsView {
   const roles = {} as Record<LlmRole, LlmRoleView>;
   for (const r of LLM_ROLES) {
     const role = payload.roles[r];
@@ -40,7 +40,7 @@ function fakeViewFromPayload(payload: { global: LlmSettingsInput; roles: Record<
     model: payload.global.model ?? null,
     codexModel: payload.global.codexModel ?? null,
     roles,
-    tuning: payload.tuning ?? defaultTuning(),
+    tuning: (payload.tuning ?? defaultTuning()) as Record<LlmRole, RoleTuning>,
   });
 }
 
@@ -106,7 +106,7 @@ describe("buildRolesPayload", () => {
   test("buildRolesPayload: cloud省略時は従来どおりclaudeフォールバック", () => {
     const targets: RoleTargets = { conversation: "local", assist: "local", coaching: "claude", generation: "local", assessment: "claude" };
     const payload = buildRolesPayload(targets, EMPTY_CONN);
-    expect(payload.global).toEqual({ provider: "env" });
+    expect(payload.global).toEqual({ provider: "claude" });
     expect(payload.roles).toEqual({
       conversation: { provider: "claude" }, assist: { provider: "claude" }, coaching: { provider: "claude" },
       generation: { provider: "claude" }, assessment: { provider: "claude" },
@@ -154,11 +154,11 @@ describe("hydrateTargets（inherit の読み替え）", () => {
     expect(hydrateTargets(mkView())).toEqual({ conversation: "claude", assist: "claude", coaching: "claude", generation: "claude", assessment: "claude" });
   });
   test("env の envProvider が openai-compat なら inherit は local", () => {
-    expect(hydrateTargets(mkView({ provider: "env", envProvider: "openai-compat" })).conversation).toBe("local");
+    expect(hydrateTargets(mkView({ provider: "openai-compat" })).conversation).toBe("local");
   });
   test("明示ロールを3値へ写像する", () => {
     const view = mkView({
-      provider: "env",
+      provider: "claude",
       roles: {
         conversation: { provider: "openai-compat", baseUrl: "http://x/v1", model: "m", codexModel: null },
         assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
@@ -178,7 +178,7 @@ describe("hydrateConnection", () => {
   });
   test("llm_settings に無ければロール行からフォールバックする", () => {
     const view = mkView({
-      provider: "env",
+      provider: "claude",
       roles: {
         conversation: { provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: null },
         assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
@@ -449,11 +449,12 @@ const LOCAL_CATALOG: CatalogResult = {
 const UNAVAILABLE_CATALOG: CatalogResult = { available: false, reason: "boom", models: [], fetchedAt: "2026-07-08T00:00:00.000Z" };
 
 describe("claudeModelSelectOptions / effortOptionsForClaudeAlias", () => {
-  test("カタログ一致時: 常に haiku/sonnet/opus の3件・実体を併記したラベル", () => {
+  test("カタログ一致時: 全行を提示する（v0.29 カタログ駆動・default 行のみ除外・実体を併記したラベル・任意IDも選べる）", () => {
     expect(claudeModelSelectOptions(CLAUDE_CATALOG)).toEqual([
-      { value: "haiku", label: "Haiku — claude-haiku-4-5-20251001" },
+      { value: "opus[1m]", label: "Opus — claude-opus-4-6" },
       { value: "sonnet", label: "Sonnet — claude-sonnet-5" },
-      { value: "opus", label: "Opus — claude-opus-4-6" },
+      { value: "haiku", label: "Haiku — claude-haiku-4-5-20251001" },
+      { value: "claude-fable-5[1m]", label: "Claude Fable 5 — claude-fable-5" },
     ]);
   });
   test("カタログ不可時: エイリアスそのものをラベルにする（推測の具体IDを出さない）", () => {
@@ -524,7 +525,7 @@ describe("localModelSelectOptions", () => {
 
 describe("resolveEffective", () => {
   test("claude・tuning全null・カタログ未取得: エイリアスsonnet(未確認)・effortはSDK標準・tierはnull", () => {
-    const view = mkView({ provider: "env", envProvider: "claude" });
+    const view = mkView({ provider: "claude" });
     expect(resolveEffective("conversation", view)).toEqual({
       provider: "claude",
       model: { confirmed: false, text: "sonnet" },
@@ -534,14 +535,14 @@ describe("resolveEffective", () => {
   });
 
   test("claude・カタログ一致: 具体ID(claude-sonnet-5)が確認済みで返る", () => {
-    const view = mkView({ provider: "env", envProvider: "claude" });
+    const view = mkView({ provider: "claude" });
     const r = resolveEffective("conversation", view, { claude: CLAUDE_CATALOG, codex: UNAVAILABLE_CATALOG, local: UNAVAILABLE_CATALOG });
     expect(r.model).toEqual({ confirmed: true, text: "claude-sonnet-5" });
   });
 
   test("claude・haikuモデル指定+カタログ一致: 具体IDが確認済み・effortはSDK標準のまま", () => {
     const view = mkView({
-      provider: "env", envProvider: "claude",
+      provider: "claude",
       tuning: { ...defaultTuning(), conversation: { claudeModel: "haiku", effort: null, serviceTier: null } },
     });
     const r = resolveEffective("conversation", view, { claude: CLAUDE_CATALOG, codex: UNAVAILABLE_CATALOG, local: UNAVAILABLE_CATALOG });
@@ -551,7 +552,7 @@ describe("resolveEffective", () => {
 
   test("claude・haiku指定+effort明示指定(high)+カタログ一致: 実測(非対応effortは黙って無視される)によりSDK標準へ落とす", () => {
     const view = mkView({
-      provider: "env", envProvider: "claude",
+      provider: "claude",
       tuning: { ...defaultTuning(), conversation: { claudeModel: "haiku", effort: "high", serviceTier: null } },
     });
     const r = resolveEffective("conversation", view, { claude: CLAUDE_CATALOG, codex: UNAVAILABLE_CATALOG, local: UNAVAILABLE_CATALOG });
@@ -560,7 +561,7 @@ describe("resolveEffective", () => {
 
   test("claude・haiku指定+effort明示指定+カタログ不可: 判定材料が無いため保存値をそのまま表示する", () => {
     const view = mkView({
-      provider: "env", envProvider: "claude",
+      provider: "claude",
       tuning: { ...defaultTuning(), conversation: { claudeModel: "haiku", effort: "high", serviceTier: null } },
     });
     const r = resolveEffective("conversation", view);
@@ -569,7 +570,7 @@ describe("resolveEffective", () => {
 
   test("claude・effort明示指定はそのまま反映される(isDefault:false)", () => {
     const view = mkView({
-      provider: "env", envProvider: "claude",
+      provider: "claude",
       tuning: { ...defaultTuning(), assessment: { claudeModel: "opus", effort: "xhigh", serviceTier: null } },
     });
     const r = resolveEffective("assessment", view);
@@ -643,13 +644,13 @@ describe("resolveEffective", () => {
   });
 
   test("env の envProvider が openai-compat のとき inherit ロールは local として解決される", () => {
-    const view = mkView({ provider: "env", envProvider: "openai-compat", model: "qwen3" });
+    const view = mkView({ provider: "openai-compat", model: "qwen3" });
     expect(resolveEffective("conversation", view).provider).toBe("local");
   });
 
   test("assist連鎖: assistがinheritならcoachingの解決結果(プロバイダ・tuningとも)をそのまま使う", () => {
     const view = mkView({
-      provider: "env", envProvider: "claude",
+      provider: "claude",
       roles: {
         conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
@@ -673,7 +674,7 @@ describe("resolveEffective", () => {
 
   test("assistが明示プロバイダを持つ場合はcoachingへ連鎖せず自分自身のtuningを使う", () => {
     const view = mkView({
-      provider: "env", envProvider: "claude",
+      provider: "claude",
       roles: {
         conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         assist: { provider: "claude", baseUrl: null, model: null, codexModel: null },
@@ -690,7 +691,7 @@ describe("resolveEffective", () => {
   });
 
   test("tuningキー自体が無い旧応答でも壊れずコード既定で解決する", () => {
-    const view = mkView({ provider: "env", envProvider: "claude" });
+    const view = mkView({ provider: "claude" });
     delete (view as Record<string, unknown>).tuning;
     expect(() => resolveEffective("conversation", view)).not.toThrow();
     expect(resolveEffective("conversation", view).effort).toEqual({ value: "sdk-standard", isDefault: true });

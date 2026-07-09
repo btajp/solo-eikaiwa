@@ -11,6 +11,7 @@ import { ensureListeningSchema } from "./listening-store";
 import { ensureFeedbackSchema } from "./feedback-store";
 import { ensureLlmSettingsSchema } from "./llm-settings-store";
 import { ensureTtsSettingsSchema } from "./tts-settings-store";
+import { ensureTtsProviderSchema } from "./tts-provider-store";
 import { ensureLlmRoleSettingsSchema } from "./llm-role-settings-store";
 import { ensureLlmRoleTuningSchema } from "./llm-role-tuning-store";
 import { ensureLlmAuthSchema } from "./llm-auth-store";
@@ -73,6 +74,7 @@ export function openDb(dbPath: string = DEFAULT_DB_PATH): Database {
   ensureFeedbackSchema(db);
   ensureLlmSettingsSchema(db);
   ensureTtsSettingsSchema(db);
+  ensureTtsProviderSchema(db);
   ensureLlmRoleSettingsSchema(db);
   ensureLlmRoleTuningSchema(db);
   ensureLlmAuthSchema(db);

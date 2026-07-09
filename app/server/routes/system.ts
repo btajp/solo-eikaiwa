@@ -5,6 +5,7 @@ import { RECORDINGS_DIR } from "../paths";
 import { appendEvent } from "../session-log";
 import { detectAudioContainer, transcribeAudio, UnsupportedAudioContainerError, type Transcription } from "../stt";
 import { synthesize } from "../tts";
+import type { TtsProvider } from "../tts";
 import type { TtsSettings } from "../tts";
 import { checkHealth } from "../health";
 import { computeUtteranceMetrics, type UtteranceMetrics } from "../metrics";
@@ -16,6 +17,8 @@ export type SystemRoutesDeps = {
   synthesize: typeof synthesize;
   /** TTS の実効設定（DB 由来）。合成のたびに読む。省略時は現行既定（env/OpenAI/say）。 */
   getTtsSettings: () => TtsSettings | null;
+  /** TTS プロバイダの明示選択（DB 由来。行不在は "auto"）。 */
+  getTtsProvider: () => TtsProvider;
   logFile: () => string;
   /** 省略時は実データディレクトリ（RECORDINGS_DIR）を使う。テストでは temp dir を注入する。 */
   recordingsDir?: string;
@@ -62,9 +65,11 @@ async function handleTts(req: Request, deps: SystemRoutesDeps): Promise<Response
   if (!body.text?.trim()) return json({ error: "text is required" }, 400);
   const tts = deps.getTtsSettings();
   const { audio, mime, engine } = await deps.synthesize(body.text, {
+    // 優先順位（仕様・binding）: リクエスト voice > DB 設定 > 既定（同梱音声のテキスト単位一致に必要）
     voice: body.voice ?? tts?.voice ?? undefined,
     model: tts?.model ?? undefined,
     baseUrl: tts?.baseUrl ?? undefined,
+    provider: deps.getTtsProvider(),
   });
   return new Response(audio as unknown as BodyInit, { headers: { "content-type": mime, "x-tts-engine": engine } });
 }

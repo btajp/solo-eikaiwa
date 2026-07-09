@@ -3,13 +3,13 @@ import {
   fetchLlmSettings, saveLlmRoleSettings, LLM_ROLES,
   fetchTtsSettings, saveTtsSettings,
   fetchLlmModels,
-  EFFORT_OPTIONS, SERVICE_TIER_OPTIONS, AUTH_MODE_OPTIONS,
+  EFFORT_OPTIONS, SERVICE_TIER_OPTIONS, AUTH_MODE_OPTIONS, TTS_PROVIDER_OPTIONS,
   type LlmRole, type LlmSettingsView, type TtsSettingsView, type RoleTuning, type LlmModelsResponse, type CatalogModelEffort,
-  type AuthMode, type LlmAuthProvider,
+  type AuthMode, type LlmAuthProvider, type TtsProvider,
 } from "../api";
 import {
   isLocalDefined, presetEnabled, presetTargets, matchPreset, hydrateConnection, hydrateTargets, hydrateTuning,
-  hydrateAuthModes, hydrateAuthKeys, buildAuthPatch,
+  hydrateGlobalTuning, hydrateAuthModes, hydrateAuthKeys, buildAuthPatch,
   buildRolesPayload, defaultTuning, applyRecommendedTuning,
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
   tierOptionsForCodexModel, codexDefaultEffortLabel, localModelSelectOptions, resolveEffective, clampClaudeEffort,
@@ -102,6 +102,8 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   });
   // ロール別チューニングの編集状態（タブ切替で消えない・プリセット適用では変更しない）
   const [tuning, setTuning] = useState<Record<LlmRole, RoleTuning>>(() => defaultTuning());
+  // Claude の既定モデル（全用途共通・llm_role_tuning の "global" 行）。空文字＝コード既定（sonnet）。
+  const [globalClaudeModel, setGlobalClaudeModel] = useState("");
   // 認証モードの編集状態（claude/codex）。キー検出状態は view から都度導出する（読み取り専用のため state 化しない）。
   const [authClaude, setAuthClaude] = useState<AuthMode>("subscription");
   const [authCodex, setAuthCodex] = useState<AuthMode>("subscription");
@@ -112,6 +114,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   const authKeys = view ? hydrateAuthKeys(view) : { anthropic: false, codex: false };
   // 音声（TTS）の編集状態
   const [ttsView, setTtsView] = useState<TtsSettingsView | null>(null);
+  const [ttsProvider, setTtsProvider] = useState<TtsProvider>("auto");
   const [ttsBaseUrl, setTtsBaseUrl] = useState("");
   const [ttsModel, setTtsModel] = useState("");
   const [ttsVoice, setTtsVoice] = useState("");
@@ -124,6 +127,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     setConnCodex(conn.codexModel);
     setTargets(hydrateTargets(v));
     setTuning(hydrateTuning(v));
+    setGlobalClaudeModel(hydrateGlobalTuning(v).claudeModel ?? "");
     const authModes = hydrateAuthModes(v);
     setAuthClaude(authModes.claude);
     setAuthCodex(authModes.codex);
@@ -132,6 +136,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
 
   function hydrateTts(v: TtsSettingsView) {
     setTtsView(v);
+    setTtsProvider(v.provider ?? "auto");
     setTtsBaseUrl(v.baseUrl ?? "");
     setTtsModel(v.model ?? "");
     setTtsVoice(v.voice ?? "");
@@ -179,7 +184,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
       // ＝ auth を一切触っていない保存が、無関係な理由（例: 保存済みAPIキーの失効）で 400 になるのを防ぐ。
       const authPatch = buildAuthPatch(authBaseline, { claude: authClaude, codex: authCodex });
       applyResult(await saveLlmRoleSettings({
-        ...buildRolesPayload(nextTargets, nextConn, preferredCloud, tuning),
+        ...buildRolesPayload(nextTargets, nextConn, preferredCloud, tuning, { claudeModel: globalClaudeModel.trim() || null }),
         ...(authPatch ? { auth: authPatch } : {}),
       }));
       return true;
@@ -219,6 +224,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     setSaving(true); setTtsResult(null);
     try {
       hydrateTts(await saveTtsSettings({
+        provider: ttsProvider,
         baseUrl: ttsBaseUrl.trim() || null,
         model: ttsModel.trim() || null,
         voice: ttsVoice.trim() || null,
@@ -230,7 +236,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   async function onResetTts() {
     setSaving(true); setTtsResult(null);
     try {
-      hydrateTts(await saveTtsSettings({ baseUrl: null, model: null, voice: null }));
+      hydrateTts(await saveTtsSettings({ provider: "auto", baseUrl: null, model: null, voice: null }));
       setTtsResult(s.llm.applied);
     } catch { setTtsResult(s.llm.saveFailed); } finally { setSaving(false); }
   }
@@ -291,6 +297,21 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
             </label>
             <div className="text-sm text-muted">{authKeys.anthropic ? s.settings.authKeyDetected : s.settings.authKeyMissing}</div>
             <div className="text-sm text-muted">{s.settings.authApiKeyNote}</div>
+            <label className="llm-field">
+              <span className="text-sm text-muted">{s.settings.claudeGlobalModelLabel}</span>
+              {(() => {
+                const opts = claudeModelSelectOptions(catalog?.claude);
+                const known = opts.some((o) => o.value === globalClaudeModel);
+                return (
+                  <select className="llm-input" value={globalClaudeModel} disabled={saving || !view} onChange={(e) => setGlobalClaudeModel(e.target.value)}>
+                    <option value="">{s.settings.tuningDefaultWith("sonnet")}</option>
+                    {!known && globalClaudeModel && <option value={globalClaudeModel}>{globalClaudeModel}</option>}
+                    {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                );
+              })()}
+            </label>
+            <div className="text-sm text-muted">{s.settings.claudeGlobalModelNote}</div>
           </div>
           <div className="llm-fields stack">
             <div className="text-sm">{s.settings.localConnTitle}</div>
@@ -361,6 +382,17 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
           <div className="stat-title">{s.settings.ttsSection}</div>
           <div className="text-sm text-muted">{s.settings.ttsDesc}</div>
           <div className="llm-fields stack">
+            <label className="llm-field">
+              <span className="text-sm text-muted">{s.settings.ttsProviderLabel}</span>
+              <select className="llm-input" value={ttsProvider} disabled={saving || !ttsView} onChange={(e) => setTtsProvider(e.target.value as TtsProvider)}>
+                {TTS_PROVIDER_OPTIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p === "auto" ? s.settings.ttsProviderAuto : p === "say" ? s.settings.ttsProviderSay : s.settings.ttsProviderHttp}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="text-sm text-muted">{s.settings.ttsProviderNote}</div>
             <label className="llm-field">
               <span className="text-sm text-muted">{s.settings.ttsBaseUrlLabel}</span>
               <input className="llm-input" value={ttsBaseUrl} placeholder={s.settings.ttsBaseUrlPlaceholder} onChange={(e) => setTtsBaseUrl(e.target.value)} />
@@ -512,8 +544,8 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                                 setTuning((prev) => ({ ...prev, [role]: { ...prev[role], claudeModel: newAlias, effort: clampedEffort } }));
                               }}
                             >
-                              {/* 既定はコード定数（サーバは env チューニングを読まない）ため、静的表記が常に真 */}
-                              <option value="">{s.settings.tuningDefaultWith("sonnet")}</option>
+                              {/* 既定 = global 行（未設定ならコード定数 sonnet）。解決順: ロール別 > global > コード既定 */}
+                              <option value="">{s.settings.tuningDefaultWith(globalClaudeModel.trim() || "sonnet")}</option>
                               {claudeModelSelectOptions(catalogClaude).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
                           </label>

@@ -14,7 +14,7 @@ export function ensureLlmSettingsSchema(db: Database): void {
 }
 
 export type LlmSettingsStore = {
-  /** 保存済み設定。行が無ければ null（＝環境変数に従う）。 */
+  /** 保存済み設定。行が無ければ null（呼び出し側が DEFAULT_LLM_SETTINGS=claude を既定にする）。 */
   get(): LlmSettings | null;
   /** 単一行(id=1)を upsert し、保存した設定をそのまま返す。provider の妥当性は route が保証する。 */
   save(s: LlmSettings): LlmSettings;
@@ -30,7 +30,9 @@ export function makeLlmSettingsStore(db: Database): LlmSettingsStore {
         .get();
       if (!row) return null;
       return {
-        provider: row.provider as LlmSettings["provider"],
+        // 旧 "env"（環境変数に従う）センチネルの保存済み行は claude として解釈する
+        // （env フォールバック廃止・v0.29。行の削除・書き戻しはしない）。
+        provider: (row.provider === "env" ? "claude" : row.provider) as LlmSettings["provider"],
         baseUrl: row.base_url,
         model: row.model,
         codexModel: row.codex_model,

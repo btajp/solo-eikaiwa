@@ -10,6 +10,7 @@ describe("tts-settings API", () => {
     const res = await makeFetchHandler(deps)(getReq("/api/tts-settings"));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
+      provider: "auto",
       baseUrl: null, model: null, voice: null,
       apiKeyConfigured: false,
       defaults: { baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini-tts", voice: "alloy" },
@@ -60,5 +61,42 @@ describe("tts-settings API", () => {
     expect((await h(putJson("/api/tts-settings", { baseUrl: "not-a-url" }))).status).toBe(400);
     expect((await h(putJson("/api/tts-settings", { baseUrl: "ftp://x/y" }))).status).toBe(400);
     expect(saved).toHaveLength(0);
+  });
+
+  test("PUT: provider を保存できる（say/openai-compat/auto）・不正値は 400 で何も保存しない", async () => {
+    const savedProviders: string[] = [];
+    const savedSettings: TtsSettings[] = [];
+    let current = "auto" as "auto" | "say" | "openai-compat";
+    const { deps } = makeTestDeps({
+      getTtsSettings: () => null,
+      saveTtsSettings: (s) => savedSettings.push(s),
+      getTtsProvider: () => current,
+      saveTtsProvider: (p) => { savedProviders.push(p); current = p; },
+      ttsEnv: () => ({ apiKeyConfigured: false }),
+    });
+    const h = makeFetchHandler(deps);
+    const ok = await h(putJson("/api/tts-settings", { provider: "say" }));
+    expect(ok.status).toBe(200);
+    expect((await ok.json()).provider).toBe("say");
+    expect(savedProviders).toEqual(["say"]);
+
+    const bad = await h(putJson("/api/tts-settings", { provider: "sparkle" }));
+    expect(bad.status).toBe(400);
+    expect(savedProviders).toEqual(["say"]);
+    expect(savedSettings).toHaveLength(1); // 不正 provider のリクエストでは settings も保存されない
+  });
+
+  test("PUT: provider 未指定なら変更しない（settings のみ更新）", async () => {
+    const savedProviders: string[] = [];
+    const { deps } = makeTestDeps({
+      getTtsSettings: () => null,
+      getTtsProvider: () => "say",
+      saveTtsProvider: (p) => savedProviders.push(p),
+      ttsEnv: () => ({ apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/tts-settings", { voice: "af_sky" }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).provider).toBe("say");
+    expect(savedProviders).toHaveLength(0);
   });
 });

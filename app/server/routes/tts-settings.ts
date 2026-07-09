@@ -1,9 +1,13 @@
 import { json, parseJsonBody, exact, type RouteEntry } from "./http";
-import { DEFAULT_TTS_BASE_URL, DEFAULT_TTS_MODEL, DEFAULT_TTS_VOICE, type TtsSettings } from "../tts";
+import { DEFAULT_TTS_BASE_URL, DEFAULT_TTS_MODEL, DEFAULT_TTS_VOICE, type TtsProvider, type TtsSettings } from "../tts";
+import { TTS_PROVIDERS } from "../tts-provider-store";
 
 export type TtsSettingsRoutesDeps = {
   getTtsSettings: () => TtsSettings | null;
   saveTtsSettings: (s: TtsSettings) => void;
+  /** TTS プロバイダの明示選択（行不在は "auto"）。 */
+  getTtsProvider: () => TtsProvider;
+  saveTtsProvider: (p: TtsProvider) => void;
   /** env 由来。APIキー値は返さず有無のみ。 */
   ttsEnv: () => { apiKeyConfigured: boolean };
 };
@@ -29,6 +33,7 @@ function asOptionalStr(v: unknown, max: number): string | null | undefined {
 function viewOf(deps: TtsSettingsRoutesDeps) {
   const s = deps.getTtsSettings();
   return {
+    provider: deps.getTtsProvider(),
     baseUrl: s?.baseUrl ?? null,
     model: s?.model ?? null,
     voice: s?.voice ?? null,
@@ -37,7 +42,7 @@ function viewOf(deps: TtsSettingsRoutesDeps) {
   };
 }
 
-type Body = { baseUrl?: unknown; model?: unknown; voice?: unknown };
+type Body = { provider?: unknown; baseUrl?: unknown; model?: unknown; voice?: unknown };
 
 async function handlePut(req: Request, deps: TtsSettingsRoutesDeps): Promise<Response> {
   const parsed = await parseJsonBody<Body>(req);
@@ -54,7 +59,17 @@ async function handlePut(req: Request, deps: TtsSettingsRoutesDeps): Promise<Res
   const voice = asOptionalStr(b.voice, 100);
   if (voice === undefined) return json({ error: "voice must be a string of at most 100 characters" }, 400);
 
+  // provider は任意（未指定なら変更しない）。指定時はホワイトリスト検証してから保存する。
+  let provider: TtsProvider | undefined;
+  if (b.provider !== undefined) {
+    if (typeof b.provider !== "string" || !(TTS_PROVIDERS as readonly string[]).includes(b.provider)) {
+      return json({ error: `provider must be one of ${TTS_PROVIDERS.join(", ")}` }, 400);
+    }
+    provider = b.provider as TtsProvider;
+  }
+
   deps.saveTtsSettings({ baseUrl, model, voice });
+  if (provider !== undefined) deps.saveTtsProvider(provider);
   return json(viewOf(deps));
 }
 

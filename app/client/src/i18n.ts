@@ -96,7 +96,7 @@ type LlmPanelStrings = {
   llm: {
     title: string;
     providerLabel: string;
-    optEnv: string; optClaude: string; optOpenai: string; optCodex: string;
+    optClaude: string; optOpenai: string; optCodex: string;
     baseUrlLabel: string; baseUrlPlaceholder: string;
     modelLabel: string; modelPlaceholder: string;
     codexModelLabel: string; codexModelPlaceholder: string;
@@ -107,7 +107,6 @@ type LlmPanelStrings = {
     saveFailedWithReason: (reason: string) => string;
     apiKeyConfigured: string; apiKeyMissing: string;
     help: string; helpAria: string;
-    envNote: (envProvider: string) => string;
   };
 };
 type SettingsStrings = {
@@ -135,6 +134,8 @@ type SettingsStrings = {
     applyRecommendedTuningNote: string;
     connectionSection: string;
     claudeNoSetup: string;
+    claudeGlobalModelLabel: string;
+    claudeGlobalModelNote: string;
     localConnTitle: string;
     codexConnTitle: string;
     authModeLabel: string;
@@ -170,6 +171,9 @@ type SettingsStrings = {
     displaySection: string;
     ttsSection: string;
     ttsDesc: string;
+    ttsProviderLabel: string;
+    ttsProviderAuto: string; ttsProviderSay: string; ttsProviderHttp: string;
+    ttsProviderNote: string;
     ttsBaseUrlLabel: string; ttsBaseUrlPlaceholder: string;
     ttsModelLabel: string; ttsModelPlaceholder: string;
     ttsVoiceLabel: string; ttsVoicePlaceholder: string;
@@ -409,7 +413,7 @@ export const STR: Record<Lang, Strings> = {
     llm: {
       title: "LLM provider",
       providerLabel: "Provider",
-      optEnv: "Default (env)", optClaude: "Claude", optOpenai: "OpenAI-compatible", optCodex: "Codex",
+      optClaude: "Claude", optOpenai: "OpenAI-compatible", optCodex: "Codex",
       baseUrlLabel: "Base URL", baseUrlPlaceholder: "http://localhost:11434/v1",
       modelLabel: "Model", modelPlaceholder: "llama3.1",
       codexModelLabel: "Model (optional)", codexModelPlaceholder: "blank = Codex default",
@@ -421,7 +425,6 @@ export const STR: Record<Lang, Strings> = {
       apiKeyConfigured: "API key: set in app/.env", apiKeyMissing: "API key: not set (app/.env)",
       help: "The API key is read from app/.env only and is never stored here. Reply quality depends on the model you choose; Claude is the tested baseline.",
       helpAria: "About the LLM provider setting",
-      envNote: (p) => `Environment currently resolves to: ${p}`,
     },
     settings: {
       title: "Settings",
@@ -467,6 +470,8 @@ export const STR: Record<Lang, Strings> = {
       applyRecommendedTuningNote: "Sets the recommended model/effort/delivery for cloud-assigned roles. Local roles are left as-is. Save assignments to confirm.",
       connectionSection: "Model connections",
       claudeNoSetup: "Claude needs no setup — it works with your Claude subscription.",
+      claudeGlobalModelLabel: "Default model (all roles)",
+      claudeGlobalModelNote: "Applies to every role assigned to Claude unless a role overrides it in the Models-per-role tab.",
       localConnTitle: "Local LLM (OpenAI-compatible)",
       codexConnTitle: "Codex (optional)",
       authModeLabel: "Authentication",
@@ -502,6 +507,9 @@ export const STR: Record<Lang, Strings> = {
       displaySection: "Display",
       ttsSection: "Voice (TTS)",
       ttsDesc: "Point speech synthesis at an OpenAI-compatible endpoint. Leave blank to use the default (OpenAI when a key is set, otherwise macOS say). A local server such as kokoro-fastapi needs no API key.",
+      ttsProviderLabel: "Engine",
+      ttsProviderAuto: "Auto (recommended)", ttsProviderSay: "macOS say (offline)", ttsProviderHttp: "OpenAI-compatible (HTTP)",
+      ttsProviderNote: "Auto uses HTTP when a key or custom Base URL is set, otherwise macOS say. Fixing to HTTP still falls back to say if the request fails.",
       ttsBaseUrlLabel: "Base URL",
       ttsBaseUrlPlaceholder: "https://api.openai.com/v1",
       ttsModelLabel: "Model",
@@ -803,7 +811,7 @@ export const STR: Record<Lang, Strings> = {
     llm: {
       title: "LLM プロバイダ",
       providerLabel: "プロバイダ",
-      optEnv: "既定（環境変数）", optClaude: "Claude", optOpenai: "OpenAI 互換", optCodex: "Codex",
+      optClaude: "Claude", optOpenai: "OpenAI 互換", optCodex: "Codex",
       baseUrlLabel: "ベース URL", baseUrlPlaceholder: "http://localhost:11434/v1",
       modelLabel: "モデル", modelPlaceholder: "llama3.1",
       codexModelLabel: "モデル（任意）", codexModelPlaceholder: "空欄で Codex 既定",
@@ -815,7 +823,6 @@ export const STR: Record<Lang, Strings> = {
       apiKeyConfigured: "APIキー: app/.env に設定済み", apiKeyMissing: "APIキー: 未設定（app/.env）",
       help: "APIキーは app/.env からのみ読み込み、ここには保存しません。応答品質は選んだモデルに依存します。Claude は動作確認済みの基準です。",
       helpAria: "LLM プロバイダ設定の説明",
-      envNote: (p) => `環境変数の現在の解決先: ${p}`,
     },
     settings: {
       title: "設定",
@@ -861,6 +868,8 @@ export const STR: Record<Lang, Strings> = {
       applyRecommendedTuningNote: "クラウド割当の用途に推奨のモデル/effort/配信を設定します（ローカル割当は変更しません）。「割当を保存」で確定します。",
       connectionSection: "モデル接続設定",
       claudeNoSetup: "Claude は設定不要です（Claude のサブスクリプションで動作します）。",
+      claudeGlobalModelLabel: "既定モデル（全用途共通）",
+      claudeGlobalModelNote: "Claude に割り当てた全ての用途に適用されます（用途ごとのモデルタブで用途別に上書き可能）。",
       localConnTitle: "ローカル LLM（OpenAI 互換）",
       codexConnTitle: "Codex（任意）",
       authModeLabel: "認証",
@@ -896,6 +905,9 @@ export const STR: Record<Lang, Strings> = {
       displaySection: "表示",
       ttsSection: "音声（TTS）",
       ttsDesc: "音声合成の向き先を OpenAI 互換エンドポイントに変更できます。空欄なら既定（キー設定時は OpenAI・無ければ macOS say）。kokoro-fastapi 等のローカルサーバは API キー不要です。",
+      ttsProviderLabel: "エンジン",
+      ttsProviderAuto: "自動（推奨）", ttsProviderSay: "macOS say（オフライン）", ttsProviderHttp: "OpenAI 互換（HTTP）",
+      ttsProviderNote: "自動は、キーまたはカスタム Base URL があれば HTTP、無ければ macOS say を使います。HTTP 固定でも通信に失敗したときは say で再生します。",
       ttsBaseUrlLabel: "ベース URL",
       ttsBaseUrlPlaceholder: "https://api.openai.com/v1",
       ttsModelLabel: "モデル",

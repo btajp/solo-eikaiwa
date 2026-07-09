@@ -1,6 +1,6 @@
 import { query, type EffortLevel } from "@anthropic-ai/claude-agent-sdk";
 import {
-  selectRunner, settingsToEnv, roleSettingToSettings, isInheritRole, resolveProviderKey, LLM_ROLES,
+  selectRunner, settingsToEnv, roleSettingToSettings, isInheritRole, resolveProviderKey, LLM_ROLES, DEFAULT_LLM_SETTINGS,
   type LlmSettings, type LlmRole, type LlmRoleSetting,
 } from "./llm-provider";
 import { conversationWarmup } from "./llm-warmup";
@@ -203,8 +203,30 @@ function isEmptyTuning(rt: RoleTuning): boolean {
   return rt.claudeModel === null && rt.effort === null && rt.serviceTier === null;
 }
 
-/** provider="env"（DB未設定=pure env）の LlmSettings。モジュール初期化時の既定解決に使う。 */
-const ENV_SETTINGS: LlmSettings = { provider: "env", baseUrl: null, model: null, codexModel: null };
+/** 解決順（binding）: ロール別 > global（llm_role_tuning の "global" 行）> コード既定。フィールド単位で合成する。 */
+function mergeTuning(rt: RoleTuning, globalRt: RoleTuning): RoleTuning {
+  return {
+    claudeModel: rt.claudeModel ?? globalRt.claudeModel,
+    effort: rt.effort ?? globalRt.effort,
+    serviceTier: rt.serviceTier ?? globalRt.serviceTier,
+  };
+}
+
+/**
+ * CLI（ヘッドレス実行）専用: プロセス env から LlmSettings を組み立てる。
+ * サーバ/UI 経路はこの関数を使わない（設定の真実は UI/DB のみ・env フォールバック廃止 v0.29）。
+ * LLM_PROVIDER 等はスクリプトのインターフェースとして存続する（README の CLI 節参照）。
+ */
+export function cliEnvSettings(env: Record<string, string | undefined> = Bun.env): LlmSettings {
+  const raw = (env.LLM_PROVIDER ?? "claude").trim().toLowerCase();
+  const provider = (raw === "openai-compat" || raw === "codex" ? raw : "claude") as LlmSettings["provider"];
+  return {
+    provider,
+    baseUrl: env.OPENAI_COMPAT_BASE_URL?.trim() || null,
+    model: env.OPENAI_COMPAT_MODEL?.trim() || null,
+    codexModel: env.CODEX_MODEL?.trim() || null,
+  };
+}
 
 /**
  * 「有効設定 + そのロールのチューニング」から1ロール分の runner を解決する核関数。
@@ -238,7 +260,7 @@ function resolveRoleRunner(
  * エントリポイントで検証・解釈し、RoleTuning としてここへ渡す（CLI プロセスの env はそのプロセスのインターフェース）。
  */
 export function resolveCliRunner(rt: RoleTuning, env: Record<string, string | undefined> = Bun.env): ClaudeRunner {
-  return resolveRoleRunner(ENV_SETTINGS, rt, env);
+  return resolveRoleRunner(cliEnvSettings(env), rt, env);
 }
 
 /**
@@ -246,7 +268,7 @@ export function resolveCliRunner(rt: RoleTuning, env: Record<string, string | un
  * （env/claude では resolveRoleRunner が同一の claudeRunner を返すので、全ロール同一参照＝現行と完全一致）。
  */
 const currentRunners = new Map<LlmRole, ClaudeRunner>(
-  LLM_ROLES.map((r) => [r, resolveRoleRunner(ENV_SETTINGS, EMPTY_TUNING, Bun.env)]),
+  LLM_ROLES.map((r) => [r, resolveRoleRunner(DEFAULT_LLM_SETTINGS, EMPTY_TUNING, Bun.env)]),
 );
 
 /**
@@ -288,8 +310,12 @@ export function applyLlmRoleSettings(
   roles: Record<LlmRole, LlmRoleSetting>,
   env: Record<string, string | undefined> = Bun.env,
   tuning?: Record<LlmRole, RoleTuning>,
+  globalTuning?: RoleTuning,
 ): void {
-  const globalRunner = resolveRoleRunner(global, EMPTY_TUNING, env);
+  // globalRunner は globalTuning 込みで解決する。inherit + ロール別 tuning 無しのロールは
+  // これを共有参照するため、「global のモデル/effort 変更が全ロールへ効く」が1点で成立する。
+  const globalRt = globalTuning ?? EMPTY_TUNING;
+  const globalRunner = resolveRoleRunner(global, globalRt, env);
   for (const role of LLM_ROLES) {
     const rs = roles[role];
     const rt = tuning?.[role] ?? EMPTY_TUNING;
@@ -297,7 +323,7 @@ export function applyLlmRoleSettings(
       role,
       isInheritRole(rs) && isEmptyTuning(rt)
         ? globalRunner
-        : resolveRoleRunner(isInheritRole(rs) ? global : roleSettingToSettings(rs), rt, env),
+        : resolveRoleRunner(isInheritRole(rs) ? global : roleSettingToSettings(rs), mergeTuning(rt, globalRt), env),
     );
   }
   // assist の連鎖規則（binding）: assist の設定行が inherit のとき、assist は coaching の解決済み
@@ -327,9 +353,9 @@ export function applyLlmSettings(
   applyLlmRoleSettings(settings, allInherit, env);
 }
 
-// 起動時: env 由来 provider（DB 未設定で env が openai-compat を指す構成）も warm 対象にする。
-// 以後は applyLlmRoleSettings が呼ばれるたびに最新の conversation 解決先へ更新される。
-conversationWarmup.setTarget(openAICompatWarmTargetFromEnv(Bun.env));
+// 起動時: 既定（claude）では warm 対象なし。index.ts の起動時適用（DB 設定の applyLlmRoleSettings）が
+// 呼ばれるたびに最新の conversation 解決先へ更新される（env 由来の warm 対象決定は廃止 v0.29）。
+conversationWarmup.setTarget(openAICompatWarmTargetFromEnv(settingsToEnv(DEFAULT_LLM_SETTINGS, Bun.env)));
 
 export async function converseTurn(args: {
   userText: string;

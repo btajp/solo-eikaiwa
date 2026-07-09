@@ -191,12 +191,12 @@ describe("tts provider config", () => {
     });
   });
 
-  test("resolveTtsConfig: opts > env > 既定 の優先順位で解決する", () => {
+  test("resolveTtsConfig: opts > 既定 の2層で解決し、env の TTS_BASE_URL/TTS_MODEL/TTS_VOICE は読まない（envフォールバック廃止）", () => {
     const cfg = resolveTtsConfig(
       { baseUrl: "http://opts:8880/v1" },
       { TTS_BASE_URL: "http://env:8880/v1", TTS_MODEL: "kokoro", TTS_VOICE: "af_sky", TTS_API_KEY: "sk-tts" },
     );
-    expect(cfg).toEqual({ baseUrl: "http://opts:8880/v1", model: "kokoro", voice: "af_sky", apiKey: "sk-tts" });
+    expect(cfg).toEqual({ baseUrl: "http://opts:8880/v1", model: DEFAULT_TTS_MODEL, voice: DEFAULT_TTS_VOICE, apiKey: "sk-tts" });
   });
 
   test("resolveTtsConfig: TTS_API_KEY は OPENAI_API_KEY より優先する", () => {
@@ -236,12 +236,46 @@ describe("tts provider config", () => {
       return new Response(new Uint8Array([9, 9, 9]), { status: 200 });
     }) as unknown as typeof fetch;
     const r = await synthesize("Local voice", {
-      cacheDir, fetchFn: fakeFetch, env: { TTS_BASE_URL: "http://localhost:8880/v1", TTS_MODEL: "kokoro", TTS_VOICE: "af_sky" },
+      cacheDir, fetchFn: fakeFetch, baseUrl: "http://localhost:8880/v1", model: "kokoro", voice: "af_sky", env: {},
     });
     expect(r.engine).toBe("openai");
     expect(captured!.url).toBe("http://localhost:8880/v1/audio/speech");
     expect("Authorization" in captured!.headers).toBe(false);
     expect(Array.from(r.audio)).toEqual([9, 9, 9]);
+  });
+
+  test("provider=say: 鍵あり・カスタムbaseUrlでも HTTP を飛ばして常に say", async () => {
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-"));
+    let called = 0;
+    const fakeFetch = (async () => { called++; return new Response(new Uint8Array([1]), { status: 200 }); }) as unknown as typeof fetch;
+    const spawned: string[][] = [];
+    const r = await synthesize("Force say", {
+      provider: "say", apiKey: "sk-test", baseUrl: "http://localhost:8880/v1",
+      cacheDir, fetchFn: fakeFetch, spawnFn: makeFakeSpawn(spawned), env: {},
+    });
+    expect(called).toBe(0);
+    expect(r.engine).toBe("say");
+    expect(spawned.length).toBeGreaterThan(0);
+  });
+
+  test("provider=openai-compat: 鍵なし・既定baseUrlでも HTTP を試す（暗黙判定をスキップ）", async () => {
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-"));
+    let called = 0;
+    const fakeFetch = (async () => { called++; return new Response(new Uint8Array([4, 4]), { status: 200 }); }) as unknown as typeof fetch;
+    const r = await synthesize("Force http", { provider: "openai-compat", cacheDir, fetchFn: fakeFetch, env: {} });
+    expect(called).toBe(1);
+    expect(r.engine).toBe("openai");
+  });
+
+  test("provider=openai-compat: HTTP 失敗時は従来どおり say へフォールバックする（固定は試行順の固定）", async () => {
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-"));
+    const fakeFetch = (async () => new Response("boom", { status: 500 })) as unknown as typeof fetch;
+    const spawned: string[][] = [];
+    const r = await synthesize("Broken http", {
+      provider: "openai-compat", cacheDir, fetchFn: fakeFetch, spawnFn: makeFakeSpawn(spawned), env: {},
+    });
+    expect(r.engine).toBe("say");
+    expect(spawned.length).toBeGreaterThan(0);
   });
 
   test("カスタム model/voice は cacheKeyFor が変わり同梱バンドルにヒットせず HTTP を叩く", async () => {
@@ -254,7 +288,7 @@ describe("tts provider config", () => {
     const fakeFetch = (async () => { called++; return new Response(new Uint8Array([2, 2]), { status: 200 }); }) as unknown as typeof fetch;
     const r = await synthesize("Shared text", {
       bundledDir, cacheDir, fetchFn: fakeFetch,
-      env: { TTS_BASE_URL: "http://localhost:8880/v1", TTS_MODEL: "kokoro", TTS_VOICE: "af_sky" },
+      baseUrl: "http://localhost:8880/v1", model: "kokoro", voice: "af_sky", env: {},
     });
     expect(called).toBe(1); // バンドルはミス → HTTP を叩いた
     expect(Array.from(r.audio)).toEqual([2, 2]);

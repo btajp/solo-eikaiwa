@@ -16,10 +16,21 @@ export function ensureLlmRoleTuningSchema(db: Database): void {
   )`);
 }
 
-/** ロール別チューニングの値。null は「既定へ従う（未指定）」を表す。妥当性(ホワイトリスト)は route が保証する。 */
+/** ロール別チューニングの値。null は「既定へ従う（未指定）」を表す。妥当性（形式/ホワイトリスト）は route が保証する。 */
 export type RoleTuning = { claudeModel: string | null; effort: string | null; serviceTier: string | null };
 
-/** チューニング値のホワイトリスト（route 検証と CLI の env 解釈で共有する単一定義。クライアントの *_OPTIONS と一致させる）。 */
+/**
+ * チューニングの保存先スコープ。5ロール + "global"（全ロール共通の既定。解決順: ロール別 > global > コード既定）。
+ * "global" 行は既存スキーマ（role TEXT PRIMARY KEY・CHECK 制約なし）にそのまま同居する（スキーマ変更なし）。
+ */
+export type TuningScope = LlmRole | "global";
+
+/**
+ * Claude モデルエイリアスの既知リスト。**CLI（scripts/generate-*.ts）の env 検証専用**。
+ * route の保存検証は v0.29 でホワイトリストから形式チェック（自由文字列）へ移行済み —
+ * モデルの選択肢はカタログ API（SDK supportedModels()）が動的に提示し、任意のモデルID
+ * （例: claude-fable-5）も保存できる（「UI 真実性」方式・codexModel と同基準）。
+ */
 export const CLAUDE_MODELS = ["haiku", "sonnet", "opus"] as const;
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 /**
@@ -32,13 +43,15 @@ export const CODEX_EFFORTS = EFFORTS.filter((e): e is Exclude<(typeof EFFORTS)[n
 export const SERVICE_TIERS = ["fast", "standard"] as const;
 
 export type LlmRoleTuningStore = {
-  /** 全ロール分（LLM_ROLES）を必ず返す。行不在のロールは全項目 null を埋める。 */
+  /** 全ロール分（LLM_ROLES）を必ず返す。行不在のロールは全項目 null を埋める（"global" 行は含めない）。 */
   getAll(): Record<LlmRole, RoleTuning>;
+  /** グローバル既定（role="global" 行）。行不在なら全項目 null。 */
+  getGlobal(): RoleTuning;
   /**
-   * 渡されたロールだけを upsert する（DELETE は使わない）。各ロールの値は Partial のため、
+   * 渡されたスコープ（ロール or "global"）だけを upsert する（DELETE は使わない）。各値は Partial のため、
    * 指定されなかったフィールドは既存値を保持し、明示的に null が指定されたフィールドだけクリアする。
    */
-  setAll(t: Partial<Record<LlmRole, Partial<RoleTuning>>>): void;
+  setAll(t: Partial<Record<TuningScope, Partial<RoleTuning>>>): void;
 };
 
 type Row = { role: string; claude_model: string | null; effort: string | null; service_tier: string | null };
@@ -64,9 +77,15 @@ export function makeLlmRoleTuningStore(db: Database): LlmRoleTuningStore {
       }
       return out;
     },
+    getGlobal() {
+      const r = findOne.get("global");
+      return r
+        ? { claudeModel: r.claude_model, effort: r.effort, serviceTier: r.service_tier }
+        : { ...EMPTY_TUNING };
+    },
     setAll(t) {
       const now = new Date().toISOString();
-      for (const role of Object.keys(t) as LlmRole[]) {
+      for (const role of Object.keys(t) as TuningScope[]) {
         const patch = t[role];
         if (!patch) continue;
         const existingRow = findOne.get(role);

@@ -13,12 +13,21 @@ export const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
 /** 既定 voice。同梱バンドルの cacheKey もこの値で生成済み。 */
 export const DEFAULT_TTS_VOICE = "alloy";
 
-/** DB / UI が保持する上書き設定（各値 null = env / 既定に従う）。APIキーは持たない（.env のみ）。 */
+/** DB / UI が保持する上書き設定（各値 null = 既定に従う）。APIキーは持たない（.env のみ）。 */
 export type TtsSettings = {
   baseUrl: string | null;
   model: string | null;
   voice: string | null;
 };
+
+/**
+ * TTS プロバイダの明示選択（DB/UI 由来・v0.29）。
+ * - "auto": 従来の暗黙決定（鍵あり or カスタム baseUrl なら HTTP → 失敗/該当なしは say）
+ * - "say": HTTP を試さず常に macOS say
+ * - "openai-compat": 暗黙判定をスキップして常に HTTP を試す（失敗時の say フォールバックは維持 —
+ *   「固定」は試行順の固定であり、音声が出ないより劣化再生のほうが学習体験を壊さないため）
+ */
+export type TtsProvider = "auto" | "say" | "openai-compat";
 
 /** 解決済みの実効設定（synthesize が実際に使う値）。 */
 export type ResolvedTtsConfig = {
@@ -33,12 +42,14 @@ export type SynthesizeOpts = {
   model?: string;
   baseUrl?: string;
   apiKey?: string;
+  /** プロバイダの明示選択（DB/UI 由来）。省略時 "auto"（従来の暗黙決定）。 */
+  provider?: TtsProvider;
   cacheDir?: string;
   /** リポジトリ同梱の読み取り専用音声（APIキーなしでも参照される） */
   bundledDir?: string;
   fetchFn?: typeof fetch;
   spawnFn?: SpawnFn;
-  /** 設定解決に使う env（省略時 Bun.env）。テスト・バンドル生成で注入する。 */
+  /** APIキー解決に使う env（省略時 Bun.env・TTS_API_KEY/OPENAI_API_KEY のみ読む）。テストで注入する。 */
   env?: Record<string, string | undefined>;
 };
 
@@ -47,26 +58,20 @@ export function cacheKeyFor(model: string, voice: string, text: string): string 
 }
 
 /**
- * 実効 TTS 設定を解決する。優先順位: opts（リクエスト/DB 由来）> env（TTS_*）> 既定。
- * APIキーは TTS_API_KEY を優先し、無ければ OPENAI_API_KEY にフォールバック（現行の鍵解決を保持）。
- * baseUrl/model/voice が未設定（空文字含む）なら DEFAULT_* に解決し、既定挙動を bit-identical に保つ。
+ * 実効 TTS 設定を解決する。優先順位: opts（リクエスト/DB 由来）> 既定 の2層
+ * （env の TTS_BASE_URL/TTS_MODEL/TTS_VOICE フォールバックは廃止・v0.29。設定の真実は UI/DB のみ）。
+ * APIキーだけは env 由来: TTS_API_KEY を優先し、無ければ OPENAI_API_KEY にフォールバック（現行の鍵解決を保持）。
  */
 export function resolveTtsConfig(
   opts: SynthesizeOpts = {},
   env: Record<string, string | undefined> = Bun.env,
 ): ResolvedTtsConfig {
-  const pick = (o: string | undefined, e: string | undefined, d: string): string => {
-    const ov = o?.trim();
-    if (ov) return ov;
-    const ev = e?.trim();
-    if (ev) return ev;
-    return d;
-  };
+  const pick = (o: string | undefined, d: string): string => o?.trim() || d;
   const rawKey = opts.apiKey ?? env.TTS_API_KEY ?? env.OPENAI_API_KEY;
   return {
-    baseUrl: pick(opts.baseUrl, env.TTS_BASE_URL, DEFAULT_TTS_BASE_URL),
-    model: pick(opts.model, env.TTS_MODEL, DEFAULT_TTS_MODEL),
-    voice: pick(opts.voice, env.TTS_VOICE, DEFAULT_TTS_VOICE),
+    baseUrl: pick(opts.baseUrl, DEFAULT_TTS_BASE_URL),
+    model: pick(opts.model, DEFAULT_TTS_MODEL),
+    voice: pick(opts.voice, DEFAULT_TTS_VOICE),
     apiKey: rawKey?.trim() ? rawKey : undefined,
   };
 }
@@ -126,10 +131,14 @@ export async function synthesize(
     console.warn(`tts: bundled audio read failed for ${bundledPath}: ${String(err)}`);
   }
 
-  // HTTP TTS を試す条件: APIキーがある（OpenAI 想定）か、baseUrl が既定以外に向いている
-  // （ローカル/自ホストの OpenAI 互換で鍵不要のケース）。既定 baseUrl + 鍵なしのときだけ HTTP を飛ばして say。
+  // HTTP TTS を試すか（プロバイダ明示選択・v0.29）:
+  // - "say" は常にスキップ / "openai-compat" は常に試す（失敗時の say フォールバックは下で維持）
+  // - "auto"（既定）は従来の暗黙決定: APIキーがある（OpenAI 想定）か、baseUrl が既定以外に向いている
+  //   （ローカル/自ホストの OpenAI 互換で鍵不要のケース）。既定 baseUrl + 鍵なしのときだけ HTTP を飛ばして say。
+  const provider = opts.provider ?? "auto";
   const isCustomEndpoint = cfg.baseUrl !== DEFAULT_TTS_BASE_URL;
-  const shouldTryHttp = Boolean(cfg.apiKey) || isCustomEndpoint;
+  const shouldTryHttp =
+    provider === "say" ? false : provider === "openai-compat" ? true : Boolean(cfg.apiKey) || isCustomEndpoint;
 
   if (shouldTryHttp) {
     const cachePath = path.join(cacheDir, `${key}.mp3`);
@@ -152,8 +161,9 @@ export async function synthesize(
       }
       return { audio, mime: "audio/mpeg", engine: "openai" };
     } catch (err) {
-      // spec §4.5: TTS API 障害 → macOS say にフォールバックしてセッション継続
-      console.warn(`tts: HTTP synthesis failed, falling back to say: ${String(err)}`);
+      // TTS API 障害 → macOS say にフォールバックしてセッション継続。provider="openai-compat"（固定）でも
+      // フォールバックする（固定は試行順の固定）。ログに provider を含め、固定なのに say が鳴るケースを判別可能にする。
+      console.warn(`tts: HTTP synthesis failed (provider=${provider}), falling back to say: ${String(err)}`);
     }
   }
 

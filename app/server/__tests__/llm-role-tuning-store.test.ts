@@ -26,6 +26,16 @@ describe("llm-role-tuning-store", () => {
     expect(all.coaching).toEqual({ claudeModel: null, effort: null, serviceTier: null });
   });
 
+  test("global 行: getGlobal は未設定なら全 null、setAll({global}) で保存・取得できる（5ロールの getAll には混ざらない）", () => {
+    const store = freshStore();
+    expect(store.getGlobal()).toEqual({ claudeModel: null, effort: null, serviceTier: null });
+    store.setAll({ global: { claudeModel: "claude-fable-5", effort: "high", serviceTier: null } });
+    expect(store.getGlobal()).toEqual({ claudeModel: "claude-fable-5", effort: "high", serviceTier: null });
+    const all = store.getAll();
+    expect(Object.keys(all).sort()).toEqual(["assessment", "assist", "coaching", "conversation", "generation"]);
+    expect(all.conversation).toEqual({ claudeModel: null, effort: null, serviceTier: null });
+  });
+
   test("setAll: 同一ロールへの再呼び出しは upsert（全フィールド null で既定へ戻せる・DELETE を使わない）", () => {
     const store = freshStore();
     store.setAll({ generation: { claudeModel: "sonnet", effort: "medium", serviceTier: null } });
