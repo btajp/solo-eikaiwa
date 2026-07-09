@@ -2,7 +2,7 @@ import { CLIENT_DIST_DIR, ensureDirs, LISTENING_DIR, POC_STT_LOG_FILE, RECORDING
 import { resolveHostname, resolvePort, serveOrExit } from "./serve";
 import { transcribeAudio } from "./stt";
 import { synthesize } from "./tts";
-import { converseTurn, applyLlmRoleSettings, runnerFor } from "./converse";
+import { converseTurn, applyLlmRoleSettings, runnerFor, CLAUDE_EXECUTABLE_PATH } from "./converse";
 import { checkHealth } from "./health";
 import { buildQuickMenu, buildTodayMenu, invalidateTodayMenuCache } from "./menu";
 import { findScenario, findTopic } from "./content";
@@ -60,7 +60,9 @@ const llmAuthStore = makeLlmAuthStore(db);
 // local の baseUrl は「保存済み openai-compat 設定 → 無ければ env」の順で解決する（グローバル設定に閉じる。
 // ロール別 baseUrl は対象外＝カタログは接続単位ではなくプロバイダ単位の一覧のため）。
 const modelCatalogCache = makeModelCatalogCache({
-  claude: makeClaudeCatalogFetcher(query),
+  // sidecarモード（SOLO_EIKAIWA_RESOURCES_DIR設定時）ではCLAUDE_EXECUTABLE_PATHがBun.which("claude")の絶対パスに
+  // 解決される（converse.tsのclaudeRunnerと同じ解決値を共有）。非sidecarモードはundefinedのままでバイト等価。
+  claude: makeClaudeCatalogFetcher(query, { claudeExecutablePath: CLAUDE_EXECUTABLE_PATH }),
   codex: makeCodexCatalogFetcher(() => getCodexAppServerClient()),
   local: makeLocalCatalogFetcher(() => (llmSettingsStore.get()?.baseUrl ?? Bun.env.OPENAI_COMPAT_BASE_URL)?.trim() || null),
 });

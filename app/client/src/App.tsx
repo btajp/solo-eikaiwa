@@ -21,12 +21,16 @@ import { Button } from "./ui/Button";
 import { LevelChip } from "./ui/LevelChip";
 import { localYmd } from "./dates";
 import { saveSupport, useSupport, type SupportToggle } from "./support";
+import { dismissLlmNotice, isLlmNoticeDismissed } from "./lib/llm-notice";
 
 type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource } | { kind: "library" } | { kind: "sentences" } | { kind: "listening" } | { kind: "placement" } | { kind: "progress" } | { kind: "feedback" } | { kind: "settings" } | { kind: "about" };
 
 export function App() {
   const [health, setHealth] = useState<Health | null>(null);
   const [serverDown, setServerDown] = useState(false);
+  // Claude/Codex/ローカルLLM未導入時の一度きりの案内バナー（研究制約: 情報的トーンのみ・ブロックしない）。
+  // 既読状態はユーザーが実際に閉じるまで再訪のたびに出る（lib/llm-notice.ts 参照）
+  const [llmNoticeDismissed, setLlmNoticeDismissed] = useState(() => isLlmNoticeDismissed());
   const [mode, setMode] = useState<Mode>({ kind: "start" });
   const [lang, setLang] = useState<Lang>(() => loadLang());
   const t = STR[lang];
@@ -157,6 +161,25 @@ export function App() {
       )}
       {!serverDown && health && health.ok && !health.ttsKey && (
         <Banner kind="warn">OPENAI_API_KEY 未設定のため TTS は say フォールバックです</Banner>
+      )}
+      {!serverDown && health && !health.claude && !llmNoticeDismissed && (
+        <Banner
+          kind="info"
+          action={
+            <>
+              <a href="https://github.com/okash1n/solo-eikaiwa#前提条件" target="_blank" rel="noopener noreferrer">
+                {t.llmNotice.linkLabel}
+              </a>
+              <Button
+                variant="ghost"
+                ariaLabel={t.llmNotice.dismissAriaLabel}
+                onClick={() => { dismissLlmNotice(); setLlmNoticeDismissed(true); }}
+              >×</Button>
+            </>
+          }
+        >
+          {t.llmNotice.body}
+        </Banner>
       )}
       {mode.kind === "start" && <StartScreen onSelect={onSelect} lang={lang} />}
       {mode.kind === "session" && (

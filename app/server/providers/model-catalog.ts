@@ -123,7 +123,14 @@ export type CatalogQueryHandle = {
   supportedModels(): Promise<ModelInfo[]>;
   interrupt(): Promise<void>;
 };
-export type CatalogQueryFn = (args: { prompt: AsyncIterable<SDKUserMessage> }) => CatalogQueryHandle;
+/**
+ * query() の options のうち、このカタログ取得が使う最小サブセット。実 SDK の Options（多数の任意フィールドを持つ）に
+ * 構造的部分型として代入可能（全フィールドが任意のため、欠けているフィールドがあっても代入エラーにならない）。
+ */
+export type CatalogQueryOptions = { pathToClaudeCodeExecutable?: string };
+export type CatalogQueryFn = (
+  args: { prompt: AsyncIterable<SDKUserMessage>; options?: CatalogQueryOptions },
+) => CatalogQueryHandle;
 
 const CLAUDE_FETCH_TIMEOUT_MS = 10_000;
 
@@ -146,7 +153,7 @@ function toClaudeCatalogModel(m: ModelInfo): CatalogModel {
  */
 export function makeClaudeCatalogFetcher(
   queryFn: CatalogQueryFn,
-  opts?: { timeoutMs?: number },
+  opts?: { timeoutMs?: number; claudeExecutablePath?: string },
 ): CatalogFetcher {
   const timeoutMs = opts?.timeoutMs ?? CLAUDE_FETCH_TIMEOUT_MS;
 
@@ -159,7 +166,13 @@ export function makeClaudeCatalogFetcher(
     }
 
     try {
-      const q = queryFn({ prompt: silentPrompt() });
+      // sidecarモード（index.tsからclaudeExecutablePathが渡るとき）だけ options を注入する。
+      // 非sidecarモードでは options 自体を渡さず、既存呼び出し（converse.tsのmakeClaudeRunnerと同じ設計）と
+      // バイト等価にする。
+      const q = queryFn({
+        prompt: silentPrompt(),
+        ...(opts?.claudeExecutablePath ? { options: { pathToClaudeCodeExecutable: opts.claudeExecutablePath } } : {}),
+      });
       try {
         const models = await raceTimeout(q.supportedModels(), timeoutMs, "claude supportedModels timed out");
         return { available: true, models: models.map(toClaudeCatalogModel), fetchedAt };

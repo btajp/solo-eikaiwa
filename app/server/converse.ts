@@ -37,9 +37,29 @@ export type ClaudeRunner = (
   opts?: { systemPrompt?: string },
 ) => Promise<{ text: string; sessionId: string }>;
 
+/**
+ * sidecarモード（SOLO_EIKAIWA_RESOURCES_DIR設定時）でのみ claude CLI の絶対パスを解決する（純関数・テスト容易性のため
+ * env/whichFnを注入可能にする）。Tauri Phase 2 のスパイク実証（設計の正 2026-07-09）: bun compile したバイナリでは
+ * Agent SDK の query() が自身の同梱CLIを node_modules 経由の createRequire で解決しようとするが、配布アプリの
+ * バンドルには node_modules が存在せず失敗する。sidecarモードでは Bun.which("claude") で見つかった絶対パスを
+ * SDK options に明示注入することで SDK 自身の解決をバイパスする（見つからなければ undefined を返し、claude系は
+ * 既存の劣化系＝TransportError→claude-printフォールバック→未導入扱いに委ねる）。
+ * 非sidecarモード（env未設定・dev/LaunchAgent）は whichFn を呼ばずに常に undefined を返す（バイト等価を維持）。
+ */
+export function resolveClaudeExecutablePath(
+  env: Record<string, string | undefined> = Bun.env,
+  whichFn: (bin: string) => string | null = (bin) => Bun.which(bin),
+): string | undefined {
+  if (!env.SOLO_EIKAIWA_RESOURCES_DIR?.trim()) return undefined;
+  return whichFn("claude") ?? undefined;
+}
+
+/** モジュールロード時に一度だけ解決するsidecarモード用のclaude実行パス（非sidecarでは常にundefined）。 */
+export const CLAUDE_EXECUTABLE_PATH = resolveClaudeExecutablePath();
+
 export function makeClaudeRunner(
   queryFn: typeof query,
-  cfg?: { model?: string; effort?: string },
+  cfg?: { model?: string; effort?: string; claudeExecutablePath?: string },
 ): ClaudeRunner {
   return async (prompt, resumeId, opts) => {
     let sessionId = resumeId ?? "";
@@ -81,6 +101,7 @@ export function makeClaudeRunner(
             maxTurns: 1,
             ...(resumeId ? { resume: resumeId } : {}),
             ...(claudeAuthEnv ? { env: claudeAuthEnv } : {}),
+            ...(cfg?.claudeExecutablePath ? { pathToClaudeCodeExecutable: cfg.claudeExecutablePath } : {}),
           },
         })[Symbol.asyncIterator]();
       } catch (err) {
@@ -142,7 +163,9 @@ const CLAUDE_DEFAULT_TUNING: { model: string; effort?: string } = { model: "sonn
  * （resolveClaudeRunner の回帰基準）。
  */
 export const claudeRunner: ClaudeRunner = withFallback(
-  withTimeout(makeClaudeRunner(query, CLAUDE_DEFAULT_TUNING)),
+  withTimeout(makeClaudeRunner(query, { ...CLAUDE_DEFAULT_TUNING, claudeExecutablePath: CLAUDE_EXECUTABLE_PATH })),
+  // claude-print（Bun.spawn(["claude", ...])）はプロセス起動時にOS標準のPATH解決に頼るため、
+  // SDKのcreateRequire解決問題とは無関係 — claudeExecutablePathの注入は不要（既に「システムのclaude」を叩く）。
   makeClaudePrintRunner({ ...CLAUDE_DEFAULT_TUNING, defaultSystemPrompt: PARTNER_SYSTEM_PROMPT }),
 );
 
@@ -169,7 +192,7 @@ export function resolveClaudeTuning(rt: RoleTuning): { model?: string; effort?: 
 export function resolveClaudeRunner(tuning?: { model?: string; effort?: string }): ClaudeRunner {
   if (!tuning || (tuning.model === undefined && tuning.effort === undefined)) return claudeRunner;
   return withFallback(
-    withTimeout(makeClaudeRunner(query, tuning)),
+    withTimeout(makeClaudeRunner(query, { ...tuning, claudeExecutablePath: CLAUDE_EXECUTABLE_PATH })),
     makeClaudePrintRunner({ ...tuning, defaultSystemPrompt: PARTNER_SYSTEM_PROMPT }),
   );
 }

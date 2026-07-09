@@ -251,6 +251,28 @@ describe("makeClaudeCatalogFetcher", () => {
     expect(result.available).toBe(false);
     expect(result.reason).toMatch(/timed out/);
   });
+
+  test("opts.claudeExecutablePath指定時はoptions.pathToClaudeCodeExecutableとしてqueryFnに渡る（sidecarモードのSDK CLI解決注入）", async () => {
+    const calls: Array<{ options?: { pathToClaudeCodeExecutable?: string } }> = [];
+    const queryFn: CatalogQueryFn = (args) => {
+      calls.push(args);
+      return { supportedModels: async () => [], interrupt: async () => {} };
+    };
+    const fetcher = makeClaudeCatalogFetcher(queryFn, { claudeExecutablePath: "/opt/homebrew/bin/claude" });
+    await fetcher();
+    expect(calls[0]!.options).toEqual({ pathToClaudeCodeExecutable: "/opt/homebrew/bin/claude" });
+  });
+
+  test("opts.claudeExecutablePath未指定時はoptions自体を渡さない（非sidecarモードでバイト等価）", async () => {
+    const calls: Array<{ options?: unknown }> = [];
+    const queryFn: CatalogQueryFn = (args) => {
+      calls.push(args);
+      return { supportedModels: async () => [], interrupt: async () => {} };
+    };
+    const fetcher = makeClaudeCatalogFetcher(queryFn);
+    await fetcher();
+    expect(calls[0]!.options).toBeUndefined();
+  });
 });
 
 describe("makeCodexCatalogFetcher", () => {

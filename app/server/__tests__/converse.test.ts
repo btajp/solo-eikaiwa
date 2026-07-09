@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   converseTurn, makeClaudeRunner, PARTNER_SYSTEM_PROMPT, partnerSystemPrompt,
   resolveClaudeRunner, resolveClaudeTuning, resolveCliRunner, claudeRunner,
+  resolveClaudeExecutablePath,
 } from "../converse";
 import { isErrorLogged, readEvents } from "../session-log";
 import { TransportError } from "../providers/errors";
@@ -237,6 +238,50 @@ describe("makeClaudeRunner: SDK呼び出し引数のパススルー", () => {
     await runner("hi");
     expect(calls[0].options).toMatchObject({ model: "opus" });
     expect(calls[0].options).not.toHaveProperty("effort");
+  });
+
+  test("cfg.claudeExecutablePath指定時はoptions.pathToClaudeCodeExecutableとして渡る（sidecarモードのSDK CLI解決注入）", async () => {
+    const { calls, fakeQuery } = capturingQuery();
+    const runner = makeClaudeRunner(fakeQuery, { claudeExecutablePath: "/opt/homebrew/bin/claude" });
+    await runner("hi");
+    expect(calls[0].options).toMatchObject({ pathToClaudeCodeExecutable: "/opt/homebrew/bin/claude" });
+  });
+
+  test("cfg.claudeExecutablePath未指定時はoptionsにpathToClaudeCodeExecutableキー自体が付かない（非sidecarモードでバイト等価）", async () => {
+    const { calls, fakeQuery } = capturingQuery();
+    const runner = makeClaudeRunner(fakeQuery);
+    await runner("hi");
+    expect(calls[0].options).not.toHaveProperty("pathToClaudeCodeExecutable");
+  });
+});
+
+describe("resolveClaudeExecutablePath（sidecarモード判定 + Bun.which解決。TauriPhase2: compile済みバイナリではSDKの同梱CLI自己解決が壊れるため明示注入が必要）", () => {
+  test("SOLO_EIKAIWA_RESOURCES_DIR未設定（dev/LaunchAgent）はwhichFnを呼ばずundefined（非sidecarモードでバイト等価）", () => {
+    let whichCalls = 0;
+    const result = resolveClaudeExecutablePath({}, () => { whichCalls++; return "/usr/local/bin/claude"; });
+    expect(result).toBeUndefined();
+    expect(whichCalls).toBe(0);
+  });
+
+  test("SOLO_EIKAIWA_RESOURCES_DIRが空白のみもundefined（overrideDirと同じtrim規約）", () => {
+    const result = resolveClaudeExecutablePath({ SOLO_EIKAIWA_RESOURCES_DIR: "   " }, () => "/usr/local/bin/claude");
+    expect(result).toBeUndefined();
+  });
+
+  test("sidecarモードでclaudeが見つかればその絶対パスを返す", () => {
+    const result = resolveClaudeExecutablePath(
+      { SOLO_EIKAIWA_RESOURCES_DIR: "/Applications/solo-eikaiwa.app/Contents/Resources" },
+      (bin) => (bin === "claude" ? "/opt/homebrew/bin/claude" : null),
+    );
+    expect(result).toBe("/opt/homebrew/bin/claude");
+  });
+
+  test("sidecarモードでclaudeが見つからなければundefined（既存の劣化系に委ねる）", () => {
+    const result = resolveClaudeExecutablePath(
+      { SOLO_EIKAIWA_RESOURCES_DIR: "/Applications/solo-eikaiwa.app/Contents/Resources" },
+      () => null,
+    );
+    expect(result).toBeUndefined();
   });
 });
 

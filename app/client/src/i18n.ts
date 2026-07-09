@@ -40,6 +40,14 @@ type NavStrings = {
   };
 };
 type AppShellStrings = { appShell: { backToMenu: string; textSize: string; language: string } };
+/**
+ * Tauri Phase 2: Claude/Codex/ローカルLLMがいずれも未導入のときの一度きりの案内バナー文言（情報的トーン・研究制約）。
+ * health.claude===false で表示し、ユーザーが閉じるまで再訪のたびに出る（サイドバー設定等と同じ「明示的に閉じるまで
+ * 表示し続ける」既読パターン。lib/llm-notice.ts 参照）。
+ */
+type LlmNoticeStrings = {
+  llmNotice: { body: string; linkLabel: string; dismissAriaLabel: string };
+};
 /** 難易度の実態を1語で開示するチップの文言。kind ("auto"/"band"/"all") は事実マップに厳密対応（嘘のチップは信頼を壊す） */
 type LevelChipStrings = { levelChip: { auto: string; band: string; all: string } };
 type UiScaleStrings = { uiScale: { small: string; medium: string; large: string; xlarge: string } };
@@ -314,7 +322,7 @@ type Strings =
   & WarmupStrings & Ftt432Strings & ReflectionStrings & ChunkListStrings
   & ShadowingStrings & LibraryStrings & RoleplayStrings & FreeTalkScreenStrings & ListeningScreenStrings
   & LevelChipStrings & FeedbackRowStrings & FeedbackScreenStrings & LlmPanelStrings & SettingsStrings
-  & AboutStrings;
+  & AboutStrings & LlmNoticeStrings;
 
 const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -328,6 +336,11 @@ export const STR: Record<Lang, Strings> = {
       selfStudyHint: "Your main path is Today's practice. Self-study fits spare moments — a good order: listen (Listening) → memorize (Sentences) → speak (Free talk).",
     },
     appShell: { backToMenu: "← Back to menu", textSize: "Text size", language: "Language" },
+    llmNotice: {
+      body: "Claude, Codex, or a local LLM isn't set up. Conversation, corrections, and explanations won't work, but example sentences, listening, shadowing, and recording transcripts still work as-is.",
+      linkLabel: "Setup guide",
+      dismissAriaLabel: "Dismiss",
+    },
     levelChip: { auto: "Adjusts to your level", band: "Pick by level band", all: "Same for all levels" },
     uiScale: { small: "A−", medium: "A", large: "A＋", xlarge: "A＋＋" },
     support: {
@@ -695,6 +708,11 @@ export const STR: Record<Lang, Strings> = {
       selfStudyHint: "メインは「今日の練習」。自主練はすきま時間に。目安の順番: 聞く(多聴) → 覚える(暗記例文) → 話す(自由会話)。",
     },
     appShell: { backToMenu: "← メニューに戻る", textSize: "文字サイズ", language: "言語" },
+    llmNotice: {
+      body: "Claude/Codex/ローカルLLMが未導入の場合、会話・添削・解説は使えません。例文・多聴・シャドーイング・録音の文字起こしはそのまま使えます。",
+      linkLabel: "セットアップ手順",
+      dismissAriaLabel: "閉じる",
+    },
     levelChip: { auto: "Lvに自動調整", band: "Lv帯で選ぶ", all: "全レベル共通" },
     uiScale: { small: "小", medium: "中", large: "大", xlarge: "特大" },
     support: {
