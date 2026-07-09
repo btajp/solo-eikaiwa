@@ -152,9 +152,9 @@ TTS_VOICE=af_sky                        # サーバが受け付ける voice
 
 ```bash
 brew install caddy
-# 1. このリポジトリの Caddyfile 内 root のパスを自分のチェックアウト先に合わせて編集
-# 2. Homebrew の Caddyfile（/opt/homebrew/etc/Caddyfile）に import 行を追加:
-#      import /path/to/solo-eikaiwa/Caddyfile
+# Homebrew の Caddyfile（/opt/homebrew/etc/Caddyfile）に import 行を追加する。
+# 第1引数にこのリポジトリのルート絶対パスを渡す（リポジトリ側 Caddyfile の編集は不要）:
+#   import /path/to/solo-eikaiwa/Caddyfile /path/to/solo-eikaiwa
 brew services start caddy    # ログイン時自動起動の常駐サービスとして登録
 caddy trust                  # ローカルCA証明書をキーチェーンへ登録（初回のみ・要パスワード）
 echo "127.0.0.1 solo-eikaiwa" | sudo tee -a /etc/hosts   # https://solo-eikaiwa 用

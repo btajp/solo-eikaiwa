@@ -1,5 +1,7 @@
 # ローカルHTTPS: https://solo-eikaiwa → 静的配信(app/client/dist) + /api/* → APIサーバ(3111, launchd常駐)
-# 使い方: 共有Caddyデーモン(com.local.https.caddy)が sites/*.caddy 経由でこのファイルを import する
+# 使い方: import 時に第1引数としてリポジトリのルート絶対パスを渡す（このファイル自体の編集は不要）:
+#   import /path/to/solo-eikaiwa/Caddyfile /path/to/solo-eikaiwa
+# 共有Caddyデーモン(com.local.https.caddy)構成なら上記の import 行を sites/*.caddy に置く。
 # /etc/hosts に「127.0.0.1 solo-eikaiwa」が必要。solo-eikaiwa.localhost は hosts 不要（Chrome系）。
 # 開発用の http://localhost:5173（Vite）はこの設定と独立に動作する。
 
@@ -12,7 +14,7 @@ solo-eikaiwa, solo-eikaiwa.localhost {
 	}
 
 	handle {
-		root * /Users/okash1n/ghq/github.com/okash1n/solo-eikaiwa/app/client/dist
+		root * {args[0]}/app/client/dist
 		try_files {path} /index.html
 		file_server
 	}
