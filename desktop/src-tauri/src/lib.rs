@@ -20,6 +20,7 @@ pub fn run() {
       }
       app.manage(sidecar::SidecarState::default());
       attach::spawn_initial_attach(app.handle().clone());
+      updater::spawn_startup_check(app.handle().clone());
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![attach::retry_attach])

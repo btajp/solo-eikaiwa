@@ -122,6 +122,96 @@ pub(crate) fn check_menu_label(lang: Lang) -> &'static str {
     }
 }
 
+use tauri::AppHandle;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+use tauri_plugin_updater::UpdaterExt;
+
+/// 現在のシステムロケールからダイアログ言語を決める。
+pub(crate) fn current_lang() -> Lang {
+    pick_lang(sys_locale::get_locale().as_deref())
+}
+
+/// 起動時の自動チェック。非ブロッキング（起動・attach・sidecar spawnを一切待たせない）。
+/// 失敗（オフライン・GitHub不達等）はログのみで無言スキップする（起動時にダイアログを出さない）。
+pub fn spawn_startup_check(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = check_and_prompt(app, false).await {
+            log::warn!("updater: startup check failed (skipped quietly): {e}");
+        }
+    });
+}
+
+/// メニュー「アップデートを確認…」からの手動チェック。
+/// 起動時と違いユーザーが結果を待っているため、「最新」「確認失敗」も必ずダイアログで返す。
+pub fn spawn_manual_check(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = check_and_prompt(app.clone(), true).await {
+            log::warn!("updater: manual check failed: {e}");
+            let t = manual_check_failed_text(current_lang());
+            app.dialog()
+                .message(&t.body)
+                .title(&t.title)
+                .kind(MessageDialogKind::Info)
+                .show(|_| {});
+        }
+    });
+}
+
+async fn check_and_prompt(app: AppHandle, manual: bool) -> tauri_plugin_updater::Result<()> {
+    let lang = current_lang();
+    let Some(update) = app.updater()?.check().await? else {
+        if manual {
+            let current = app.package_info().version.to_string();
+            let t = manual_latest_text(lang, &current);
+            app.dialog()
+                .message(&t.body)
+                .title(&t.title)
+                .kind(MessageDialogKind::Info)
+                .show(|_| {});
+        }
+        return Ok(());
+    };
+
+    let t = update_prompt_text(lang, &update.current_version, &update.version);
+    let dialog = app
+        .dialog()
+        .message(&t.body)
+        .title(&t.title)
+        .buttons(MessageDialogButtons::OkCancelCustom(t.ok, t.cancel));
+    // blocking_showはメインスレッド禁止（docs.rs明記: 内部でメインスレッドへディスパッチするため
+    // メインスレッドで待つとデッドロック）。tokioのblockingプールに逃がして待つ。
+    let confirmed = tauri::async_runtime::spawn_blocking(move || dialog.blocking_show())
+        .await
+        .unwrap_or(false);
+    if !confirmed {
+        // 「今回はしない」: 何も記録しない・次回起動時にまた1回だけ聞く（情報的・ペナルティなし）。
+        log::info!("updater: user declined update to v{}", update.version);
+        return Ok(());
+    }
+
+    log::info!("updater: downloading and installing v{} ...", update.version);
+    match update.download_and_install(|_, _| {}, || {}).await {
+        Ok(()) => {
+            log::info!("updater: installed v{}; restarting", update.version);
+            // 非メインスレッド（asyncタスク）からのrestart()はrequest_exit経由で
+            // RunEvent::Exitをコールバックへ配送してから再起動する（tauri 2.11.2
+            // src/app.rs:594-603, 1419-1428で確認）。既存のsidecar::kill_on_exitが
+            // そこで走るため、旧sidecarの孤児化・旧サーバへの再attachは起きない。
+            app.restart();
+        }
+        Err(e) => {
+            log::error!("updater: install failed: {e}");
+            let t = install_failed_text(lang);
+            app.dialog()
+                .message(&t.body)
+                .title(&t.title)
+                .kind(MessageDialogKind::Info)
+                .show(|_| {});
+            Ok(())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
