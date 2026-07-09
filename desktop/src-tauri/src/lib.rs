@@ -1,5 +1,6 @@
 mod attach;
 mod sidecar;
+mod updater;
 
 use tauri::{Manager, RunEvent};
 
