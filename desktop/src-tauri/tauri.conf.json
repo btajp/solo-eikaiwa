@@ -36,6 +36,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "externalBin": ["binaries/solo-server"],
+    "resources": {
+      "resources/dist": "dist",
+      "resources/content": "content",
+      "resources/whisper-bin": "whisper-bin"
+    },
     "macOS": {
       "entitlements": "./Entitlements.plist",
       "signingIdentity": "-"

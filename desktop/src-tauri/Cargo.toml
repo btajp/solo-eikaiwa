@@ -24,3 +24,5 @@ log = "0.4"
 tauri = { version = "2.11.3", features = [] }
 tauri-plugin-log = "2"
 ureq = { version = "3.2.1", default-features = false }
+tauri-plugin-shell = "2"
+time = { version = "0.3.41", features = ["formatting"] }
