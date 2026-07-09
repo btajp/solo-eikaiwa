@@ -2,7 +2,11 @@ mod attach;
 mod sidecar;
 mod updater;
 
+use tauri::menu::{Menu, MenuItem};
 use tauri::{Manager, RunEvent};
+
+/// メニュー「アップデートを確認…」のイベントID（アプリ内で一意にする）。
+const MENU_ID_CHECK_UPDATES: &str = "check-for-updates";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -21,7 +25,28 @@ pub fn run() {
       app.manage(sidecar::SidecarState::default());
       attach::spawn_initial_attach(app.handle().clone());
       updater::spawn_startup_check(app.handle().clone());
+
+      // macOS: 最初のSubmenuがラベルに関係なくアプリ名メニューになる（公式仕様）。
+      // Menu::default()の先頭Submenu（About(0)/Separator(1)/Services(2)/...）のAbout直後
+      // = index 1 に「アップデートを確認…」を挿入する（Sparkle系アプリと同じ慣例配置）。
+      let menu = Menu::default(app.handle())?;
+      if let Some(app_submenu) = menu.items()?.first().and_then(|k| k.as_submenu().cloned()) {
+        let item = MenuItem::with_id(
+          app,
+          MENU_ID_CHECK_UPDATES,
+          updater::check_menu_label(updater::current_lang()),
+          true,
+          None::<&str>,
+        )?;
+        app_submenu.insert(&item, 1)?;
+      }
+      app.set_menu(menu)?;
       Ok(())
+    })
+    .on_menu_event(|app, event| {
+      if event.id() == MENU_ID_CHECK_UPDATES {
+        updater::spawn_manual_check(app.clone());
+      }
     })
     .invoke_handler(tauri::generate_handler![attach::retry_attach])
     .build(tauri::generate_context!())
