@@ -22,7 +22,13 @@ function showFailed() {
 // いない）ということは起動に失敗しているとみなし、初期表示の「起動中です」から
 // 「起動に失敗しました」へ切り替える（配布ユーザーが正常な起動待ち時間中に毎回
 // 失敗文言を見てしまう問題への対応）。
-const STARTUP_TIMEOUT_MS = 8000;
+//
+// 25秒の根拠 = サーバ側（src-tauri/src/sidecar.rs）の最悪ケース待ち時間: 正常だが遅い初回起動
+// （配布ユーザーの初回 = DB新規作成で最も遅い）でport 3111が空振り→3112へフォールバックする
+// 場合、OWN_SIDECAR_POLL_ATTEMPTS(20)×OWN_SIDECAR_POLL_INTERVAL(500ms)=10秒/ポート×2ポート
+// +ログインシェルPATH取得(LOGIN_SHELL_PATH_TIMEOUT=3秒)+attach-first側の待ち(数百ms)で
+// 最大23秒程度かかり得る。sidecar.rs側のこれらの定数を変えた場合はこの値も追従させること。
+const STARTUP_TIMEOUT_MS = 25000;
 const startupTimer = setTimeout(showFailed, STARTUP_TIMEOUT_MS);
 
 button.addEventListener("click", async () => {

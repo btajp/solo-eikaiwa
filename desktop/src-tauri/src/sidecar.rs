@@ -82,6 +82,21 @@ pub(crate) fn should_try_next_port(identified: bool, process_exited: bool) -> bo
     !identified && process_exited
 }
 
+/// `SOLO_EIKAIWA_NO_ATTACH`指定時、指定ポートへのspawnをスキップすべきか（純粋ロジック）。
+///
+/// NO_ATTACHは「既存プロセスにアタッチせず、常に自前のsidecarを使う」という契約である。
+/// この契約が破れる具体的な経路: spawnしたプロセスがEADDRINUSEで即死しても、そのポートに
+/// 既に身元確認済みの別プロセス（例: ライブデーモン）が生きていれば、spawn後のヘルスポーリング
+/// の`is_identified(port)`はそれを拾って`true`を返してしまい、「自分の子が起動成功した」と
+/// 誤認してnavigateしてしまう（実機で発見）。事前にidentity確認しておき、既に応答があるなら
+/// spawnそのものを行わず次の候補ポートへ進むことでこれを防ぐ。
+/// 通常モード（attach-first経由）ではこのガードを使わない: attach-first側で既に
+/// identity一致を確認した上でspawnにフォールバックしてきているので、spawn_and_attach内で
+/// 重ねて同じチェックをする理由が無い（`should_try_next_port`側の早期終了で十分）。
+pub(crate) fn should_skip_spawn_due_to_existing_identity(no_attach: bool, port_already_identified: bool) -> bool {
+    no_attach && port_already_identified
+}
+
 /// ログインシェルの標準出力から`$PATH`を抜き出すためのマーカー。.zshenv/.zprofile等が
 /// 起動時にMOTD・nvm/pyenvのバージョン警告等を標準出力へ書くことがあり、素の`echo -n "$PATH"`
 /// だけだとその雑音がPATH文字列の前後に混入し、`/opt/homebrew/bin`等の正しいエントリが
@@ -288,7 +303,17 @@ pub fn spawn_and_attach(app: &AppHandle) -> bool {
     let inherited_path = std::env::var("PATH").unwrap_or_default();
     let path_env = effective_path(&whisper_bin_dir.display().to_string(), login_path.as_deref(), &inherited_path);
 
+    let no_attach = attach::no_attach_forced();
+
     for &port in CANDIDATE_PORTS.iter() {
+        if should_skip_spawn_due_to_existing_identity(no_attach, attach::is_identified(port)) {
+            log::warn!(
+                "sidecar: NO_ATTACH set but port {port} already answers as solo-eikaiwa; \
+                 skipping spawn there (would immediately conflict) and trying the next port",
+            );
+            continue;
+        }
+
         log::info!("sidecar: spawning solo-server on port {port}");
         let Some((child, exited)) = spawn_solo_server(app, port, &resources_dir, &data_dir, &path_env, &log_path) else {
             // 起動自体に失敗（バイナリ欠落等）。ポートを変えても無意味なので諦める。
@@ -340,9 +365,24 @@ pub fn spawn_and_attach(app: &AppHandle) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{effective_path, extract_marked_path, format_command_event, should_try_next_port};
+    use super::{
+        effective_path, extract_marked_path, format_command_event, should_skip_spawn_due_to_existing_identity,
+        should_try_next_port,
+    };
     use std::sync::atomic::{AtomicBool, Ordering};
     use tauri_plugin_shell::process::{CommandEvent, TerminatedPayload};
+
+    #[test]
+    fn should_skip_spawn_only_when_no_attach_and_port_already_identified() {
+        // NO_ATTACH指定時、既に別プロセスが身元確認できる状態ならspawnせずスキップする。
+        assert!(should_skip_spawn_due_to_existing_identity(true, true));
+        // NO_ATTACH指定時でも、そのポートに何も無ければ通常どおりspawnする。
+        assert!(!should_skip_spawn_due_to_existing_identity(true, false));
+        // 通常モード（attach-first経由）ではこのガードを使わない設計なので、
+        // 既に応答があってもfalse（=spawnする）を返す。
+        assert!(!should_skip_spawn_due_to_existing_identity(false, true));
+        assert!(!should_skip_spawn_due_to_existing_identity(false, false));
+    }
 
     #[test]
     fn extract_marked_path_returns_value_between_markers() {

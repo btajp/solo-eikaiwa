@@ -92,7 +92,9 @@ pub(crate) fn is_identified(port: u16) -> bool {
 
 /// `SOLO_EIKAIWA_NO_ATTACH` が空でない値で設定されていればattachを試みない
 /// （配布動作の実機検証・強制的に自前sidecarで起動させたい場合に使う）。
-fn no_attach_forced() -> bool {
+/// `sidecar::spawn_and_attach`も、NO_ATTACH時に既存プロセスへ誤ってattachしてしまわないための
+/// ガード（後述）でこの値を参照するため`pub(crate)`にしている。
+pub(crate) fn no_attach_forced() -> bool {
     std::env::var("SOLO_EIKAIWA_NO_ATTACH")
         .map(|v| !v.trim().is_empty())
         .unwrap_or(false)
