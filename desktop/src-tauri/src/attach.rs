@@ -109,20 +109,25 @@ pub(crate) fn navigate_to(app: &AppHandle, port: u16) -> bool {
     window.navigate(url).is_ok()
 }
 
-/// 既存デーモン（`sidecar::DEFAULT_PORT`）への身元確認つきattachを試みる。
-/// `SOLO_EIKAIWA_NO_ATTACH`指定時は即falseを返す（sidecar起動へ委ねる）。
+/// 既存デーモン・またはForce Quit等でorphan化した過去のsidecarへの身元確認つきattachを試みる。
+/// `sidecar::CANDIDATE_PORTS`（3111→3112）の順に両方チェックする: 3111が別プロセスに
+/// 使われていて過去のsidecarが3112でorphan化しているケースでも、正規の終了を経ずに
+/// 起動し直すたびに新しい自前sidecarを積み上げてしまわないよう、既に生きている自分の
+/// sidecarを見つけ次第再利用する。`SOLO_EIKAIWA_NO_ATTACH`指定時は即falseを返す
+/// （sidecar起動へ委ねる）。
 fn try_attach_to_existing(app: &AppHandle) -> bool {
     if no_attach_forced() {
         log::info!("attach: SOLO_EIKAIWA_NO_ATTACH set, skipping attach and going straight to own sidecar");
         return false;
     }
     for attempt in 1..=ATTACH_POLL_ATTEMPTS {
-        if is_identified(sidecar::DEFAULT_PORT) {
-            return navigate_to(app, sidecar::DEFAULT_PORT);
+        for &port in sidecar::CANDIDATE_PORTS.iter() {
+            if is_identified(port) {
+                return navigate_to(app, port);
+            }
         }
         log::info!(
-            "attach: no identified solo-eikaiwa server yet on {} (attempt {attempt}/{ATTACH_POLL_ATTEMPTS})",
-            sidecar::DEFAULT_PORT,
+            "attach: no identified solo-eikaiwa server yet on any candidate port (attempt {attempt}/{ATTACH_POLL_ATTEMPTS})",
         );
         std::thread::sleep(ATTACH_POLL_INTERVAL);
     }
@@ -141,12 +146,23 @@ pub fn spawn_initial_attach(app: AppHandle) {
 }
 
 /// フォールバックページの「再試行」ボタンから呼ばれるTauriコマンド。
+///
+/// `async fn`にしているのは飾りではない: 同期コマンドはWKWebViewのIPCメッセージハンドラ
+/// （＝メインスレッド）上でインライン実行される（tauri-macros 2.6.3の`body_blocking`が
+/// `$path(...)`を直接呼ぶだけの生成コードであることをソースで確認済み）。この内部で行う
+/// ネットワーク呼び出し・`thread::sleep`によるポーリング（最悪ケースでポート2つ分＝数十秒）を
+/// メインスレッドでブロックすると、その間ウィンドウの移動やCmd+Qすら効かなくなる。
+/// `spawn_blocking`で専用スレッドプールへ逃がし、メインスレッドは即座に解放する。
 #[tauri::command]
-pub fn retry_attach(app: AppHandle) -> bool {
-    if try_attach_to_existing(&app) {
-        return true;
-    }
-    sidecar::spawn_and_attach(&app)
+pub async fn retry_attach(app: AppHandle) -> bool {
+    tauri::async_runtime::spawn_blocking(move || {
+        if try_attach_to_existing(&app) {
+            return true;
+        }
+        sidecar::spawn_and_attach(&app)
+    })
+    .await
+    .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -154,12 +170,38 @@ mod tests {
     use super::{args_have_poc_stt_flag, identity_ok, is_identified, target_url};
     use std::io::{Read, Write};
     use std::net::TcpListener;
+    use std::time::{Duration, Instant};
+
+    /// `retry_attach`が`async fn`+`spawn_blocking`で実装されている理由そのものを検証する
+    /// 回帰テスト: 同期コマンド（tauri-macrosの`body_blocking`）は`$path(...)`を
+    /// 呼び出し元のスレッド（WKWebViewのIPCメッセージハンドラ＝メインスレッド）上でインライン
+    /// 実行するため、内部の重い同期処理（ネットワーク呼び出し・複数秒のポーリング）でUI全体を
+    /// フリーズさせてしまう。`spawn_blocking`は専用スレッドプールへ即座に処理を逃がし、
+    /// 呼び出し元をブロックしないことをここで確認する（ソースで確認済みの`tauri::async_runtime`
+    /// の実装契約を、実際に動かして裏取りする）。
+    #[test]
+    fn spawn_blocking_offloads_slow_work_without_blocking_the_caller() {
+        let start = Instant::now();
+        let handle = tauri::async_runtime::spawn_blocking(|| {
+            std::thread::sleep(Duration::from_millis(300));
+            true
+        });
+        // spawn_blocking自体は即座にJoinHandleを返すはず（呼び出し元をブロックしない）。
+        assert!(start.elapsed() < Duration::from_millis(100));
+        let result = tauri::async_runtime::block_on(handle).unwrap();
+        assert!(result);
+        assert!(start.elapsed() >= Duration::from_millis(300));
+    }
 
     // 1テスト内で set/remove を完結させ、他テストとのプロセスグローバルenvの競合を避ける。
+    // target_url_uses_given_port を独立テストにすると、cargo test の並行実行で本テストの
+    // set_var/remove_var と競合しフレークする（素のcargo testで300回中37回失敗を実測）ため、
+    // SOLO_EIKAIWA_POC を触るアサーションは全てこの1テストにまとめている。
     #[test]
     fn target_url_switches_on_poc_env_var() {
         std::env::remove_var("SOLO_EIKAIWA_POC");
         assert_eq!(target_url(3111), "http://127.0.0.1:3111/");
+        assert_eq!(target_url(3112), "http://127.0.0.1:3112/");
 
         std::env::set_var("SOLO_EIKAIWA_POC", "stt");
         assert_eq!(target_url(3111), "http://127.0.0.1:3111/?poc=stt");
@@ -168,12 +210,6 @@ mod tests {
         assert_eq!(target_url(3111), "http://127.0.0.1:3111/");
 
         std::env::remove_var("SOLO_EIKAIWA_POC");
-    }
-
-    #[test]
-    fn target_url_uses_given_port() {
-        std::env::remove_var("SOLO_EIKAIWA_POC");
-        assert_eq!(target_url(3112), "http://127.0.0.1:3112/");
     }
 
     #[test]

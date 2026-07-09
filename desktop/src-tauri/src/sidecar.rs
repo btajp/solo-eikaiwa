@@ -20,7 +20,8 @@ use crate::attach;
 pub(crate) const DEFAULT_PORT: u16 = 3111;
 /// `DEFAULT_PORT`が使用中だった場合に1回だけ試すフォールバック先。
 const FALLBACK_PORT: u16 = 3112;
-const CANDIDATE_PORTS: [u16; 2] = [DEFAULT_PORT, FALLBACK_PORT];
+/// attach側でも使う（Force Quit等でport 3112にsidecarがorphan化した場合の再アタッチのため）。
+pub(crate) const CANDIDATE_PORTS: [u16; 2] = [DEFAULT_PORT, FALLBACK_PORT];
 
 /// 自前spawn後、健康になるまで待つポーリング回数・間隔（DBオープン等の初回起動コストを見込む）。
 const OWN_SIDECAR_POLL_ATTEMPTS: u32 = 20;
@@ -29,15 +30,31 @@ const OWN_SIDECAR_POLL_INTERVAL: Duration = Duration::from_millis(500);
 const LOGIN_SHELL_PATH_TIMEOUT: Duration = Duration::from_secs(3);
 
 /// 起動したsidecarの子プロセスハンドル。アプリ終了時にkillするため`app.manage()`で保持する。
+/// `starting`は`spawn_and_attach`の並行実行ガード（起動時の自動attach試行とフォールバック
+/// ページの「再試行」ボタンが同時に走った場合に、起動途中の健全な子を後発の呼び出しが
+/// killしてしまう競合を防ぐ）。
 #[derive(Default)]
-pub struct SidecarState(pub Mutex<Option<CommandChild>>);
+pub struct SidecarState {
+    child: Mutex<Option<CommandChild>>,
+    starting: AtomicBool,
+}
+
+/// `spawn_and_attach`の多重実行防止ガード。`starting`をCASで確保し、Dropで必ず解放する
+/// （途中のreturnがどこであっても解放漏れが起きないようにするため）。
+struct StartingGuard<'a>(&'a AtomicBool);
+
+impl Drop for StartingGuard<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
 
 /// アプリ終了イベント（`RunEvent::Exit`）から呼ぶ。起動中のsidecarがあれば終了させる。
 pub fn kill_on_exit(app: &AppHandle) {
     let Some(state) = app.try_state::<SidecarState>() else {
         return;
     };
-    let child = state.0.lock().unwrap().take();
+    let child = state.child.lock().unwrap().take();
     if let Some(child) = child {
         log::info!("sidecar: killing child process on app exit");
         let _ = child.kill();
@@ -65,39 +82,80 @@ pub(crate) fn should_try_next_port(identified: bool, process_exited: bool) -> bo
     !identified && process_exited
 }
 
-/// `zsh -lc 'echo -n "$PATH"'` でログインシェルの`$PATH`を取得する
-/// （`scripts/daemon-server.sh`と同じ狙い: GUIから起動したTauriアプリは
-/// `/usr/bin:/bin:/usr/sbin:/sbin`程度の最小PATHしか継承しないため、brew/npm/公式インストーラの
-/// どこに入れたか分からないclaude/codexを解決できるようにする）。タイムアウト付きで、
+/// ログインシェルの標準出力から`$PATH`を抜き出すためのマーカー。.zshenv/.zprofile等が
+/// 起動時にMOTD・nvm/pyenvのバージョン警告等を標準出力へ書くことがあり、素の`echo -n "$PATH"`
+/// だけだとその雑音がPATH文字列の前後に混入し、`/opt/homebrew/bin`等の正しいエントリが
+/// 壊れたPATHになってしまう（`Bun.which("claude")`がサイレントにnullになりLLM未導入相当へ
+/// 劣化する形で顕在化。2026-07-10 実機再現）。マーカーで挟むことで雑音を無視して確実に
+/// PATH本体だけを取り出す。
+const PATH_MARKER_START: &str = "<SOLO_EIKAIWA_PATH>";
+const PATH_MARKER_END: &str = "</SOLO_EIKAIWA_PATH>";
+
+/// ログインシェルの標準出力からマーカー間のPATH文字列を抜き出す（純粋関数）。
+/// マーカーが無い・空の場合はNone（呼び出し元が継承PATHへフォールバックする）。
+pub(crate) fn extract_marked_path(output: &str) -> Option<String> {
+    let start = output.find(PATH_MARKER_START)? + PATH_MARKER_START.len();
+    let rest = &output[start..];
+    let end = rest.find(PATH_MARKER_END)?;
+    let value = rest[..end].trim();
+    (!value.is_empty()).then(|| value.to_string())
+}
+
+/// `zsh -lc`でログインシェルの`$PATH`を取得する（`scripts/daemon-server.sh`と同じ狙い:
+/// GUIから起動したTauriアプリは`/usr/bin:/bin:/usr/sbin:/sbin`程度の最小PATHしか継承しない
+/// ため、brew/npm/公式インストーラのどこに入れたか分からないclaude/codexを解決できるようにする）。
+/// タイムアウト付きで、タイムアウト時は子プロセスを`kill()`してから諦める
+/// （殺さずに`recv_timeout`だけ諦めると、壊れた.zshrc等でハングした`zsh`プロセスが
+/// 親の終了後もlaunchd配下に孤児として残り続ける実害があるため）。
 /// 失敗/タイムアウト時はNoneを返す（呼び出し元は継承PATHにフォールバックする）。
 fn capture_login_shell_path() -> Option<String> {
-    let (tx, rx) = std::sync::mpsc::channel();
-    std::thread::spawn(move || {
-        let result = std::process::Command::new("/bin/zsh")
-            .args(["-lc", "echo -n \"$PATH\""])
-            .output();
-        let _ = tx.send(result);
-    });
+    let script = format!("echo -n \"{PATH_MARKER_START}$PATH{PATH_MARKER_END}\"");
+    let mut child = match std::process::Command::new("/bin/zsh")
+        .args(["-lc", &script])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            log::warn!("sidecar: failed to spawn login shell for PATH capture: {e}");
+            return None;
+        }
+    };
 
-    match rx.recv_timeout(LOGIN_SHELL_PATH_TIMEOUT) {
-        Ok(Ok(output)) if output.status.success() => {
-            let path = String::from_utf8(output.stdout).ok()?;
-            let path = path.trim();
-            (!path.is_empty()).then(|| path.to_string())
-        }
-        Ok(Ok(output)) => {
-            log::warn!("sidecar: login shell PATH capture exited non-zero (code {:?})", output.status.code());
-            None
-        }
-        Ok(Err(e)) => {
-            log::warn!("sidecar: login shell PATH capture failed to run: {e}");
-            None
-        }
-        Err(_) => {
-            log::warn!("sidecar: login shell PATH capture timed out; falling back to inherited PATH");
-            None
+    let deadline = std::time::Instant::now() + LOGIN_SHELL_PATH_TIMEOUT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_status)) => break,
+            Ok(None) => {
+                if std::time::Instant::now() >= deadline {
+                    log::warn!("sidecar: login shell PATH capture timed out; killing and falling back to inherited PATH");
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return None;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(e) => {
+                log::warn!("sidecar: login shell PATH capture wait failed: {e}");
+                return None;
+            }
         }
     }
+
+    let output = match child.wait_with_output() {
+        Ok(o) => o,
+        Err(e) => {
+            log::warn!("sidecar: login shell PATH capture failed to collect output: {e}");
+            return None;
+        }
+    };
+    if !output.status.success() {
+        log::warn!("sidecar: login shell PATH capture exited non-zero (code {:?})", output.status.code());
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    extract_marked_path(&stdout)
 }
 
 fn timestamp() -> String {
@@ -129,8 +187,11 @@ fn append_log_line(file: &mut Option<std::fs::File>, line: &str) {
 
 /// solo-serverをsidecarとして指定ポートで起動する。成功したら（子プロセスハンドル,
 /// プロセスが既に終了したかを示すフラグ）を返す。フラグは非同期に更新される
-/// （ログ読み取りタスクが`Terminated`イベントを見た時点でtrueにする)ため、呼び出し元は
-/// ヘルスポーリングの合間ではなく完了後に読む想定。
+/// （ログ読み取りタスクが`Terminated`イベントを見た時点でtrueにする）ため、呼び出し元
+/// （`spawn_and_attach`のヘルスポーリングループ）は毎回の試行のたびにこのフラグを読み、
+/// プロセスが早期終了していれば残り試行を待たずに諦める設計にしている
+/// （最後まで待ってから読むと、ポート競合で即終了した場合でも次善ポートへの
+/// フォールバックが最大待ち時間分だけ遅延してしまうため）。
 fn spawn_solo_server(
     app: &AppHandle,
     port: u16,
@@ -184,7 +245,23 @@ fn spawn_solo_server(
 /// attach失敗後（または`SOLO_EIKAIWA_NO_ATTACH`指定時）に呼ぶ: 自前のsidecarを起動し、
 /// ヘルスチェック（身元確認つき）が通ったらnavigateする。戻り値はnavigateまで成功したか
 /// （`retry_attach`コマンドの戻り値・フォールバックページのボタン結果に使う）。
+///
+/// 起動時の自動attach試行（`spawn_initial_attach`のバックグラウンドスレッド）と
+/// フォールバックページの「再試行」ボタン（`retry_attach`）は独立した経路から呼ばれ得るため、
+/// 同時に走ると先発の起動途中の健全な子プロセスを後発が`previous.kill()`で誤って
+/// 殺してしまう競合がある。`SidecarState.starting`をCASで確保し、既に進行中なら
+/// 即座にfalseを返して直列化する。
 pub fn spawn_and_attach(app: &AppHandle) -> bool {
+    let Some(state) = app.try_state::<SidecarState>() else {
+        log::error!("sidecar: SidecarState is not managed (internal bug); cannot spawn");
+        return false;
+    };
+    if state.starting.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+        log::warn!("sidecar: a spawn is already in progress; skipping this concurrent request");
+        return false;
+    }
+    let _starting_guard = StartingGuard(&state.starting);
+
     let resources_dir = match app.path().resource_dir() {
         Ok(d) => d,
         Err(e) => {
@@ -218,12 +295,10 @@ pub fn spawn_and_attach(app: &AppHandle) -> bool {
             break;
         };
 
-        if let Some(state) = app.try_state::<SidecarState>() {
-            let previous = state.0.lock().unwrap().replace(child);
-            if let Some(previous) = previous {
-                // 前のポートの子が万一残っていれば片付ける（通常は既に自己終了しているはず）。
-                let _ = previous.kill();
-            }
+        let previous = state.child.lock().unwrap().replace(child);
+        if let Some(previous) = previous {
+            // 前のポートの子が万一残っていれば片付ける（通常は既に自己終了しているはず）。
+            let _ = previous.kill();
         }
 
         let mut identified = false;
@@ -265,8 +340,46 @@ pub fn spawn_and_attach(app: &AppHandle) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{effective_path, format_command_event, should_try_next_port};
+    use super::{effective_path, extract_marked_path, format_command_event, should_try_next_port};
+    use std::sync::atomic::{AtomicBool, Ordering};
     use tauri_plugin_shell::process::{CommandEvent, TerminatedPayload};
+
+    #[test]
+    fn extract_marked_path_returns_value_between_markers() {
+        assert_eq!(
+            extract_marked_path("<SOLO_EIKAIWA_PATH>/usr/bin:/opt/homebrew/bin</SOLO_EIKAIWA_PATH>").unwrap(),
+            "/usr/bin:/opt/homebrew/bin",
+        );
+    }
+
+    #[test]
+    fn extract_marked_path_ignores_noise_before_and_after_markers() {
+        // .zshenv/.zprofile 等がMOTD・バージョン警告を標準出力に書く場合を想定した回帰テスト。
+        let noisy = "nvm: version outdated\nWarning: something\n\
+            <SOLO_EIKAIWA_PATH>/usr/bin:/opt/homebrew/bin</SOLO_EIKAIWA_PATH>\ntrailing noise";
+        assert_eq!(extract_marked_path(noisy).unwrap(), "/usr/bin:/opt/homebrew/bin");
+    }
+
+    #[test]
+    fn extract_marked_path_none_when_markers_missing() {
+        assert_eq!(extract_marked_path("/usr/bin:/opt/homebrew/bin"), None);
+    }
+
+    #[test]
+    fn extract_marked_path_none_when_empty_between_markers() {
+        assert_eq!(extract_marked_path("<SOLO_EIKAIWA_PATH></SOLO_EIKAIWA_PATH>"), None);
+    }
+
+    #[test]
+    fn starting_flag_compare_exchange_prevents_concurrent_claim() {
+        // spawn_and_attach の並行実行ガードが使うCAS操作そのものの意味論を固定するテスト
+        // （AtomicBool/CompareExchangeの標準挙動だが、ガード実装の前提を明示的に確認する）。
+        let flag = AtomicBool::new(false);
+        assert!(flag.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok());
+        assert!(flag.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err());
+        flag.store(false, Ordering::SeqCst);
+        assert!(flag.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok());
+    }
 
     #[test]
     fn effective_path_prefers_login_shell_path() {

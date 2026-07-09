@@ -9,10 +9,10 @@
 <body>
   <div class="card">
     <span class="badge">solo-eikaiwa</span>
-    <h1>起動に失敗しました</h1>
-    <p>ローカルサーバを起動できませんでした。しばらく待ってから再試行するか、下記のログファイルを確認してください。</p>
+    <h1 id="title">起動中です</h1>
+    <p id="message">ローカルサーバを準備しています。少々お待ちください。</p>
     <p><code>~/Library/Application Support/com.local.solo-eikaiwa.desktop/logs/sidecar.log</code></p>
-    <p class="en">Failed to start the local server. Retry in a moment, or check the log file above for details.</p>
+    <p class="en" id="message-en">Starting the local server. Please wait a moment.</p>
     <button id="retry">再試行 / Retry</button>
     <div id="status"></div>
   </div>

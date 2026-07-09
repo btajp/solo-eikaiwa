@@ -20,7 +20,14 @@ DLするだけで動く単体配布アプリを実現した。開発者のLaunch
 
 ## 開発
 
+**先に `./desktop/build-sidecar.sh` を1回実行すること。** `tauri.conf.json` の
+`externalBin`/`resources` が必須参照になっているため、これを実行するまでは
+`cargo build`・`cargo test --lib`・`cargo tauri dev` の**すべて**が
+`resource path binaries/solo-server-... doesn't exist` で失敗する（実測確認済み）。
+ソースだけを軽く触ってすぐ`cargo check`したい場合も同様に事前実行が必要。
+
 ```bash
+./desktop/build-sidecar.sh   # 初回・resources/binaries を作り直したい時は毎回
 cd desktop/src-tauri
 cargo tauri dev
 ```
