@@ -2,6 +2,7 @@ import { localYmd, addDaysYmd } from "../dates";
 import { json, parseJsonBody, exact, prefix, bestEffort, type RouteEntry } from "./http";
 import type { ListeningItem } from "../listening";
 import type { ListeningStore } from "../listening-store";
+import { isIdempotencyKey } from "../idempotency-key";
 
 export type ListeningRoutesDeps = {
   /** 素材（本文込み）の一覧。実体は loadListening、テストはフェイク。 */
@@ -34,14 +35,18 @@ function handleGet(url: URL, deps: ListeningRoutesDeps): Response {
 }
 
 async function handleLog(req: Request, deps: ListeningRoutesDeps): Promise<Response> {
-  const parsed = await parseJsonBody<{ itemId?: unknown }>(req);
+  const parsed = await parseJsonBody<{ itemId?: unknown; attemptId?: unknown }>(req);
   if (!parsed.ok) return parsed.response;
-  const { itemId } = parsed.body;
+  const { itemId, attemptId } = parsed.body;
   if (typeof itemId !== "string" || !itemId.trim()) return json({ error: "itemId must be a non-empty string" }, 400);
   if (itemId.length > 200) return json({ error: "itemId must be at most 200 characters" }, 400);
+  if (!isIdempotencyKey(attemptId)) {
+    return json({ error: "attemptId must be an idempotency key of 8..128 safe characters" }, 400);
+  }
   if (!deps.findListening(itemId)) return json({ error: `unknown listening id: ${itemId}` }, 400);
   const now = new Date();
-  deps.listeningStore.log(itemId, localYmd(now));
+  const result = deps.listeningStore.log(itemId, localYmd(now), attemptId);
+  if (result.status === "conflict") return json({ error: "attemptId was already used for different data" }, 409);
   return json({ weeklyCount: deps.listeningStore.countSince(weekStartYmd(now)) });
 }
 

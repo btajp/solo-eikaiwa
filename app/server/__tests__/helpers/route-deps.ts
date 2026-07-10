@@ -134,7 +134,10 @@ export const FAKE_LISTENING_ITEM: ListeningItem = {
 
 export function makeFakeListeningStore(overrides: Partial<ListeningStore> = {}): ListeningStore {
   return {
-    log: (itemId, ymd) => ({ id: 1, ts: "2026-07-07T00:00:00.000Z", ymd, itemId }),
+    log: (itemId, ymd) => ({
+      status: "recorded",
+      row: { id: 1, ts: "2026-07-07T00:00:00.000Z", ymd, itemId },
+    }),
     countSince: () => 0,
     ...overrides,
   } satisfies ListeningStore;

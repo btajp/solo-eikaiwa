@@ -343,6 +343,7 @@ type ListeningScreenStrings = { listeningScreen: {
   domain: { daily: string; business: string; it: string };
   open: string; back: string;
   play: string; playing: string; stop: string;
+  logSaving: string; logFailed: string; logRetry: string;
   showScript: string; scriptLoading: string;
   explainMore: string; explainLoading: string; explainError: string;
 } };
@@ -759,6 +760,9 @@ export const STR: Record<Lang, Strings> = {
       domain: { daily: "Daily", business: "Business", it: "IT" },
       open: "Listen", back: "← Back to list",
       play: "▶ Play", playing: "🔊 Playing…", stop: "⏹ Stop",
+      logSaving: "Listening complete. Saving your listen…",
+      logFailed: "Listening is complete, but we couldn't save the listen. Your practice is unaffected.",
+      logRetry: "Retry saving",
       showScript: "📄 Show script", scriptLoading: "Loading the script…",
       explainMore: "💡 Translation & notes", explainLoading: "Writing the translation and notes…",
       explainError: "Couldn't load the explanation. Please try again.",
@@ -1171,6 +1175,9 @@ export const STR: Record<Lang, Strings> = {
       domain: { daily: "日常", business: "ビジネス", it: "IT" },
       open: "聞く", back: "← 一覧に戻る",
       play: "▶ 再生", playing: "🔊 再生中…", stop: "⏹ 停止",
+      logSaving: "聴取は完了しました。記録を保存しています…",
+      logFailed: "聴取は完了しましたが、記録を保存できませんでした。練習内容には影響しません。",
+      logRetry: "保存を再試行",
       showScript: "📄 スクリプトを表示", scriptLoading: "スクリプトを読み込み中…",
       explainMore: "💡 日本語訳と解説", explainLoading: "日本語訳と解説を書いています…",
       explainError: "解説を取得できませんでした。もう一度お試しください。",

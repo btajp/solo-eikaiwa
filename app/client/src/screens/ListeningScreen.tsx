@@ -13,6 +13,7 @@ import { Card } from "../ui/Card";
 import { FeedbackRow } from "../ui/FeedbackRow";
 import { ExplainBox } from "../ui/ExplainBox";
 import { LevelChip } from "../ui/LevelChip";
+import { resolvePendingListeningLog, type PendingListeningLog } from "./listeningLogRequest";
 
 type LibraryData = { items: ListeningMeta[]; weeklyCount: number; stage: number };
 
@@ -124,8 +125,10 @@ function ListeningPlayback({ item, lang, onListened }: {
   const [showScript, setShowScript] = useState(false);
   const [listened, setListened] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [logStatus, setLogStatus] = useState<"idle" | "saving" | "failed">("idle");
   const aliveRef = useRef(true);
   const tokenRef = useRef(0);
+  const pendingLogRef = useRef<PendingListeningLog | null>(null);
   const explainer = useExplain(() => fetchTalkExplanation(item.paragraphs.join("\n\n")));
 
   useEffect(() => {
@@ -136,6 +139,21 @@ function ListeningPlayback({ item, lang, onListened }: {
       stopPlayback();
     };
   }, []);
+
+  async function saveListeningLog(pending: PendingListeningLog) {
+    setLogStatus("saving");
+    try {
+      const { weeklyCount } = await logListening(pending.itemId, pending.attemptId);
+      if (!aliveRef.current || pendingLogRef.current?.attemptId !== pending.attemptId) return;
+      pendingLogRef.current = null;
+      onListened(weeklyCount);
+      setLogStatus("idle");
+    } catch (err) {
+      if (!aliveRef.current || pendingLogRef.current?.attemptId !== pending.attemptId) return;
+      setLogStatus("failed");
+      console.warn("listening log failed:", err);
+    }
+  }
 
   async function playAll() {
     setErrorMsg("");
@@ -155,16 +173,16 @@ function ListeningPlayback({ item, lang, onListened }: {
     }
     if (tokenRef.current !== my || !aliveRef.current) return;
     setPlayingIdx(null);
-    // 通し再生の完了 → 聴取を記録（記録失敗は再生体験を妨げない）
-    try {
-      const { weeklyCount } = await logListening(item.id);
-      if (aliveRef.current && tokenRef.current === my) {
-        onListened(weeklyCount);
-        setListened(true);
-      }
-    } catch (err) {
-      console.warn("listening log failed:", err);
-    }
+    // 通し再生自体は完了扱いにし、聴取記録だけを同じattempt IDで安全に再試行できるよう分離する。
+    setListened(true);
+    const pending = resolvePendingListeningLog(pendingLogRef.current, item.id);
+    pendingLogRef.current = pending;
+    await saveListeningLog(pending);
+  }
+
+  function retryListeningLog() {
+    const pending = pendingLogRef.current;
+    if (pending) void saveListeningLog(pending);
   }
 
   function stop() {
@@ -178,6 +196,12 @@ function ListeningPlayback({ item, lang, onListened }: {
     <div className="stack">
       <p className="text-muted">{t.desc}</p>
       {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
+      {logStatus === "saving" && <Banner kind="info">{t.logSaving}</Banner>}
+      {logStatus === "failed" && (
+        <Banner kind="info" action={<Button onClick={retryListeningLog}>{t.logRetry}</Button>}>
+          {t.logFailed}
+        </Banner>
+      )}
       {!isPlaying && <Button variant="primary" onClick={playAll}>{t.play}</Button>}
       {isPlaying && <Button variant="secondary" onClick={stop}>{t.stop}</Button>}
       {isPlaying && <p className="text-sm text-muted">{t.playing}</p>}

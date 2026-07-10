@@ -19,11 +19,11 @@ export async function fetchListeningItem(id: string): Promise<ListeningDetail> {
 }
 
 /** 1回の聴取を記録し、更新後の「今週n本」を返す（情報表示のみ・ノルマなし）。 */
-export async function logListening(itemId: string): Promise<{ weeklyCount: number }> {
+export async function logListening(itemId: string, attemptId: string): Promise<{ weeklyCount: number }> {
   const res = await fetch("/api/listening/log", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ itemId }),
+    body: JSON.stringify({ itemId, attemptId }),
   });
   if (!res.ok) throw new Error(`listening log failed: ${await extractErrorMessage(res)}`);
   return (await res.json()) as { weeklyCount: number };
