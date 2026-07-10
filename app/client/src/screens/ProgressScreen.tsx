@@ -4,6 +4,7 @@ import {
   type MonthlyReport,
 } from "../api";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { canGenerateMonthlyReview, formatYmdLong, formatYmdShort } from "../dates";
 import { monthlyReviewDisplay } from "../monthly-review-display";
 import { useLoad } from "../useLoad";
@@ -36,7 +37,7 @@ export function ProgressScreen({ lang }: { lang: Lang }) {
     return (
       <div className="stack">
         {pageHero}
-        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{state.error}</Banner>
+        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{formatClientError(lang, state.error, "load")}</Banner>
       </div>
     );
   }

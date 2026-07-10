@@ -5,6 +5,7 @@ import {
 } from "../api";
 import { stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { localizedTitle } from "../localized-title";
 import { useLoad } from "../useLoad";
 import { useExplain } from "../useExplain";
@@ -47,7 +48,7 @@ export function ListeningScreen({ lang }: { lang: Lang }) {
       </div>
       {state.status === "loading" && <p className="text-muted">{t.loading}</p>}
       {state.status === "error" && (
-        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{state.error}</Banner>
+        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{formatClientError(lang, state.error, "load")}</Banner>
       )}
       {state.status === "ready" && (
         <ListeningList
@@ -101,7 +102,7 @@ function ListeningPlayer({ meta, lang, onListened, onBack }: {
       <div className="hero"><h2 className="hero-title">{localizedTitle(meta, lang)}</h2></div>
       {state.status === "loading" && <p className="text-muted">{t.scriptLoading}</p>}
       {state.status === "error" && (
-        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{state.error}</Banner>
+        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{formatClientError(lang, state.error, "load")}</Banner>
       )}
       {state.status === "ready" && <ListeningPlayback item={state.data} lang={lang} onListened={onListened} />}
     </div>
@@ -170,7 +171,7 @@ function ListeningPlayback({ item, lang, onListened }: {
         await playTtsCached(item.paragraphs[i]);
       } catch (err) {
         if (tokenRef.current !== my || !aliveRef.current) return;
-        setErrorMsg(err instanceof Error ? err.message : String(err));
+        setErrorMsg(formatClientError(lang, err, "play"));
         setPlayingIdx(null);
         return;
       }

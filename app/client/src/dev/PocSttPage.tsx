@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { serializeClientError } from "../api/http";
+import { formatClientError } from "../lib/user-error";
 
 /**
  * Tauri Phase 1 Task 3: 録音→STT 縦切りPoC専用ページ（dev限定・?poc=stt でのみ main.tsx から描画される）。
@@ -57,7 +59,7 @@ async function runPoc(): Promise<PocResult> {
   } catch (err) {
     return {
       supported, chosenMimeType, blobSize: null, stt: null,
-      getUserMediaError: err instanceof Error ? err.message : String(err),
+      getUserMediaError: serializeClientError(err),
     };
   }
 
@@ -88,7 +90,7 @@ async function runPoc(): Promise<PocResult> {
     const data = (await res.json()) as { text: string };
     stt = { ok: true, text: data.text };
   } catch (err) {
-    stt = { ok: false, error: err instanceof Error ? err.message : String(err) };
+    stt = { ok: false, error: serializeClientError(err) };
   }
 
   return { supported, chosenMimeType, blobSize: blob.size, stt, getUserMediaError: null };
@@ -123,11 +125,11 @@ export function PocSttPage() {
           </ul>
           <p>chosenMimeType: {result.chosenMimeType ?? "(none supported)"}</p>
           <p>blobSize: {result.blobSize ?? "-"}</p>
-          {result.getUserMediaError && <p>getUserMedia error: {result.getUserMediaError}</p>}
+          {result.getUserMediaError && <p>getUserMedia error: {formatClientError("ja", result.getUserMediaError, "record")}</p>}
           {result.stt && (
             result.stt.ok
               ? <p>STT text: "{result.stt.text}"</p>
-              : <p>STT error: {result.stt.error}</p>
+              : <p>STT error: {formatClientError("ja", result.stt.error, "record")}</p>
           )}
         </>
       )}

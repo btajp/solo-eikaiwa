@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cancelWhisperModelDownload, getSetupStatus, startWhisperModelDownload, type SetupStatus, type WhisperModelId } from "../api/setup";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { SetupStatusPoller } from "../lib/setup-status-poller";
 import { formatBytes, isDownloadActive, progressPercent } from "../lib/whisper-setup";
 import { Banner } from "./Banner";
@@ -108,7 +109,9 @@ export function SetupBanner({
             <p className="text-sm text-muted">
               {selected === "large-v3-turbo" ? t.modelLargeNote : t.modelSmallNote}
             </p>
-            {st === "error" && status?.error && <div className="level-edit-error">{status.error}</div>}
+            {st === "error" && status?.error && (
+              <div className="level-edit-error">{formatClientError(lang, status.error, "request")}</div>
+            )}
             <Button variant="primary" loading={busy} onClick={onStart}>
               {st === "error" && status?.resumable ? t.resumeButton : t.startButton}
             </Button>

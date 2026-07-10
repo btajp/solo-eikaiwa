@@ -3,6 +3,7 @@ import {
   fetchChunks, fetchFixExplanation, fetchSentences, setChunkVisibility, type ChunkListItem, type SentenceItem,
 } from "../api";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { useLoad } from "../useLoad";
 import { usePlayRow } from "../usePlayRow";
 import { useExplain } from "../useExplain";
@@ -54,7 +55,7 @@ export function BrowseTab({ lang }: { lang: Lang }) {
       await setChunkVisibility(id, hidden);
       setVisibilityOverrides((prev) => ({ ...prev, [id]: hidden }));
     } catch (err) {
-      setVisibilityError(err instanceof Error ? err.message : String(err));
+      setVisibilityError(formatClientError(lang, err, "save"));
     } finally {
       setChangingId(null);
     }
@@ -62,7 +63,7 @@ export function BrowseTab({ lang }: { lang: Lang }) {
 
   if (load.state.status === "loading") return <p className="text-muted">{t.loading}</p>;
   if (load.state.status === "error") {
-    return <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>{load.state.error}</Banner>;
+    return <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>{formatClientError(lang, load.state.error, "load")}</Banner>;
   }
   const shown = filter === "all" ? items : items.filter((s) => s.domain === filter);
   const categories = [...new Map(shown.map((s) => [s.category_no, s.category])).entries()]
@@ -81,7 +82,7 @@ export function BrowseTab({ lang }: { lang: Lang }) {
           </button>
         ))}
       </div>
-      {(row.error || visibilityError) && <Banner kind="error">{row.error || visibilityError}</Banner>}
+      {(row.error || visibilityError) && <Banner kind="error">{visibilityError || formatClientError(lang, row.error, "play")}</Banner>}
       {load.state.data.chunkLoadFailed && (
         <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>{t.chunkLoadError}</Banner>
       )}

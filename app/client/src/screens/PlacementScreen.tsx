@@ -5,6 +5,7 @@ import {
 } from "../api";
 import { Recorder, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { placementRecordingAction } from "../recording-controls";
 import { resolveSttOutcome } from "../stt-result";
 import { formatMmSs, useCountdown } from "../useCountdown";
@@ -89,7 +90,7 @@ export function PlacementScreen(props: { lang: Lang; onBeforeStart?: () => boole
       setStep({ kind: "intro" });
     } catch (err) {
       if (!aliveRef.current) return;
-      setStep({ kind: "load-error", message: err instanceof Error ? err.message : String(err) });
+      setStep({ kind: "load-error", message: formatClientError(props.lang, err, "load") });
     }
   }
 
@@ -118,7 +119,7 @@ export function PlacementScreen(props: { lang: Lang; onBeforeStart?: () => boole
         if (!timer.running && !timer.expired) timer.start();
       } catch (err) {
         if (!aliveRef.current) return;
-        setErrorMsg(t.micError(err instanceof Error ? err.message : String(err)));
+        setErrorMsg(formatClientError(props.lang, err, "record"));
         updateRecState("idle");
       }
       return;
@@ -150,7 +151,7 @@ export function PlacementScreen(props: { lang: Lang; onBeforeStart?: () => boole
       updateRecState("idle");
     } catch (err) {
       if (!aliveRef.current) return;
-      setErrorMsg(err instanceof Error ? err.message : String(err));
+      setErrorMsg(formatClientError(props.lang, err, "record"));
       if (fromExpiry) timer.reset(tasks[index]?.durationSec ?? 60);
       updateRecState("idle");
     } finally {
@@ -177,7 +178,7 @@ export function PlacementScreen(props: { lang: Lang; onBeforeStart?: () => boole
       setStep({ kind: "result", result });
     } catch (err) {
       if (!aliveRef.current) return;
-      setStep({ kind: "submit-error", message: err instanceof Error ? err.message : String(err) });
+      setStep({ kind: "submit-error", message: formatClientError(props.lang, err, "submit") });
     }
   }
 

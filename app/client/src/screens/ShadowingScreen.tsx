@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { fetchTalkExplanation, prefetchModelTalkAudio, type ContentItem } from "../api";
 import { playBlob, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { useExplain } from "../useExplain";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
@@ -66,7 +67,7 @@ export function ShadowingScreen(props: {
       }
     } catch (err) {
       if (!aliveRef.current) return;
-      setErrorMsg(err instanceof Error ? err.message : String(err));
+      setErrorMsg(formatClientError(props.lang, err, "load"));
       setState("error");
     }
   }

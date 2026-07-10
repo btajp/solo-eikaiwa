@@ -71,6 +71,16 @@ type BannerStrings = {
     ttsKeyMissing: string;
   };
 };
+type ErrorStrings = { errors: {
+  action: {
+    load: string; save: string; apply: string; submit: string; record: string; play: string; request: string;
+  };
+  category: {
+    VALIDATION: string; OFFLINE: string; TIMEOUT: string; AUTHORIZATION: string;
+    NOT_FOUND: string; SERVER: string; UNKNOWN: string;
+  };
+  reference: (id: string) => string;
+} };
 /**
  * Tauri Phase 2 Task 4: whisperモデル未導入時（health.modelFile===false）のセットアップバナー文言。
  * 情報的トーン（研究制約）: 「これが無いと文字起こしだけ動かない、他は使える」という事実を伝えるのみで、
@@ -125,8 +135,6 @@ type LlmPanelStrings = {
     save: string; saving: string;
     applied: string;
     notApplied: (msg: string) => string;
-    saveFailed: string;
-    saveFailedWithReason: (reason: string) => string;
     help: string; helpAria: string;
   };
 };
@@ -450,7 +458,7 @@ type Strings =
   & WarmupStrings & Ftt432Strings & ReflectionStrings & ChunkListStrings & PlaybackStrings
   & ShadowingStrings & LibraryStrings & RoleplayStrings & FreeTalkScreenStrings & ListeningScreenStrings
   & LevelChipStrings & FeedbackRowStrings & FeedbackScreenStrings & LlmPanelStrings & SettingsStrings
-  & AboutStrings & LlmNoticeStrings & SetupStrings & PracticeReadinessStrings & BannerStrings;
+  & AboutStrings & LlmNoticeStrings & SetupStrings & PracticeReadinessStrings & BannerStrings & ErrorStrings;
 
 const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -476,6 +484,27 @@ export const STR: Record<Lang, Strings> = {
       serverDownDesktop: "Can't connect to the local server. Please restart the app.",
       retry: "Try again",
       ttsKeyMissing: "OPENAI_API_KEY isn't set, so text-to-speech falls back to macOS's say command.",
+    },
+    errors: {
+      action: {
+        load: "Couldn't load this information.",
+        save: "Couldn't save your changes.",
+        apply: "Couldn't apply the changes to the running app.",
+        submit: "Couldn't send this.",
+        record: "Couldn't complete recording.",
+        play: "Couldn't play the audio.",
+        request: "Couldn't complete that request.",
+      },
+      category: {
+        VALIDATION: "Check the information and try again.",
+        OFFLINE: "Check the connection, then try again.",
+        TIMEOUT: "The request took too long. Try again.",
+        AUTHORIZATION: "Check the connection settings, then try again.",
+        NOT_FOUND: "This item is no longer available. Go back and try another item.",
+        SERVER: "The local service had a problem. Try again shortly.",
+        UNKNOWN: "Try again. If it continues, use the reference below when asking for help.",
+      },
+      reference: (id) => `Reference: ${id}`,
     },
     setup: {
       intro: "Speech-to-text needs a one-time model download. Recording transcripts won't work until it's installed — everything else (example sentences, listening, LLM features) works as-is.",
@@ -523,8 +552,6 @@ export const STR: Record<Lang, Strings> = {
       save: "Save", saving: "Saving…",
       applied: "Applied to the running app.",
       notApplied: (msg) => `Saved, but not applied: ${msg}`,
-      saveFailed: "Could not save settings.",
-      saveFailedWithReason: (reason) => `Could not save settings: ${reason}`,
       help: "Prompts and transcribed speech are sent to the provider assigned to each role (Claude is the default). API keys saved here stay in macOS Keychain; their values are never displayed or returned.",
       helpAria: "About the LLM provider setting",
     },
@@ -985,6 +1012,27 @@ export const STR: Record<Lang, Strings> = {
       retry: "再試行",
       ttsKeyMissing: "OPENAI_API_KEY 未設定のため TTS は say フォールバックです",
     },
+    errors: {
+      action: {
+        load: "情報を読み込めませんでした。",
+        save: "変更を保存できませんでした。",
+        apply: "実行中のアプリへ変更を適用できませんでした。",
+        submit: "送信を完了できませんでした。",
+        record: "録音を完了できませんでした。",
+        play: "音声を再生できませんでした。",
+        request: "処理を完了できませんでした。",
+      },
+      category: {
+        VALIDATION: "入力内容を確認して、もう一度お試しください。",
+        OFFLINE: "接続を確認して、もう一度お試しください。",
+        TIMEOUT: "処理に時間がかかりすぎました。もう一度お試しください。",
+        AUTHORIZATION: "接続設定を確認して、もう一度お試しください。",
+        NOT_FOUND: "この項目は利用できなくなりました。戻って別の項目をお試しください。",
+        SERVER: "ローカルサービスで問題が発生しました。少し待ってからお試しください。",
+        UNKNOWN: "もう一度お試しください。続く場合は、問い合わせ時に下の参照番号をお知らせください。",
+      },
+      reference: (id) => `参照番号: ${id}`,
+    },
     setup: {
       intro: "音声のテキスト化にはモデルの初回ダウンロードが必要です。録音の文字起こし以外（例文・リスニング・LLM機能など）はこのまま使えます。",
       modelChoiceLabel: "モデル",
@@ -1031,8 +1079,6 @@ export const STR: Record<Lang, Strings> = {
       save: "保存", saving: "保存中…",
       applied: "実行中のアプリに適用しました。",
       notApplied: (msg) => `保存しましたが適用できませんでした: ${msg}`,
-      saveFailed: "設定を保存できませんでした。",
-      saveFailedWithReason: (reason) => `設定を保存できませんでした: ${reason}`,
       help: "プロンプトと文字起こしは用途ごとに割り当てたproviderへ送信されます（既定はClaude）。ここで保存したAPIキーはmacOS Keychainに保管し、値は表示・再取得しません。",
       helpAria: "LLM プロバイダ設定の説明",
     },

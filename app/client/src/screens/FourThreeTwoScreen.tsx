@@ -8,6 +8,7 @@ import { formatMmSs, useCountdown } from "../useCountdown";
 import { usePlayRow } from "../usePlayRow";
 import { useExplain } from "../useExplain";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { resolveSttOutcome } from "../stt-result";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
@@ -185,7 +186,7 @@ export function FourThreeTwoScreen(props: {
       setPrepState("ready");
     } catch (err) {
       if (!aliveRef.current) return;
-      setErrorMsg(err instanceof Error ? err.message : String(err));
+      setErrorMsg(formatClientError(props.lang, err, "load"));
       setPrepState("error");
     }
   }
@@ -207,7 +208,7 @@ export function FourThreeTwoScreen(props: {
       }
     } catch (err) {
       if (!aliveRef.current || modelPlaybackGenerationRef.current !== generation) return;
-      setErrorMsg(err instanceof Error ? err.message : String(err));
+      setErrorMsg(formatClientError(props.lang, err, "play"));
       setModelState("error");
     }
   }
@@ -245,7 +246,7 @@ export function FourThreeTwoScreen(props: {
         }
       } catch (err) {
         if (!aliveRef.current) return;
-        setErrorMsg(t.micError(err instanceof Error ? err.message : String(err)));
+        setErrorMsg(formatClientError(props.lang, err, "record"));
         updateRecState("idle");
       }
       return;
@@ -284,7 +285,7 @@ export function FourThreeTwoScreen(props: {
       // STT呼び出しの失敗でtranscriptが空のままround_endが記録され得るため印を付ける
       // （技術障害を英語力の低さのシグナルとして扱わないため。サーバ側 fttOutputSignals で観測対象外にする）
       sttFailedRef.current[index] = true;
-      setErrorMsg(err instanceof Error ? err.message : String(err));
+      setErrorMsg(formatClientError(props.lang, err, "record"));
       if (fromExpiry) timer.reset(roundsSec[index]);
       return false;
     } finally {
@@ -331,7 +332,7 @@ export function FourThreeTwoScreen(props: {
             setAe(feedback);
           } catch (err) {
             if (!aliveRef.current) return;
-            setErrorMsg(err instanceof Error ? err.message : String(err));
+            setErrorMsg(formatClientError(props.lang, err, "request"));
           } finally {
             if (aliveRef.current) setAeLoading(false);
           }
@@ -438,7 +439,9 @@ export function FourThreeTwoScreen(props: {
             <p className="reading-text">{visibleModelText}</p>
           </details>
         )}
-        {prepState !== "error" && (errorMsg || playRow.error) && <Banner kind="error">{errorMsg || playRow.error}</Banner>}
+        {prepState !== "error" && (errorMsg || playRow.error) && (
+          <Banner kind="error">{errorMsg || formatClientError(props.lang, playRow.error, "play")}</Banner>
+        )}
       </div>
     );
   }

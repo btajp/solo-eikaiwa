@@ -32,6 +32,7 @@ import {
   dismissSetupBanner, isSetupBannerDismissed, resumeSetupBanner, shouldShowSetupBanner, shouldShowSetupResume,
 } from "./lib/whisper-setup";
 import { healthRetryDelay } from "./lib/health-retry";
+import { reportClientError } from "./api/http";
 
 type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource; sessionId: string } | { kind: "library" } | { kind: "sentences" } | { kind: "listening" } | { kind: "placement" } | { kind: "progress" } | { kind: "feedback" } | { kind: "settings" } | { kind: "about" };
 
@@ -104,8 +105,9 @@ export function App() {
         setHealth(h);
         setServerDown(false);
       })
-      .catch(() => {
+      .catch((error) => {
         if (!healthAliveRef.current || healthGenerationRef.current !== generation) return;
+        reportClientError(error);
         setHealth(null);
         setServerDown(true);
         const attempt = healthRetryAttemptRef.current + 1;

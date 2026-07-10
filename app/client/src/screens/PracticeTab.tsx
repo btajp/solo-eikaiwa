@@ -4,6 +4,7 @@ import {
 } from "../api";
 import { clozeText } from "../cloze";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { useLoad } from "../useLoad";
 import { useExplain } from "../useExplain";
 import { usePlayRow } from "../usePlayRow";
@@ -104,7 +105,7 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
       setPhase(initialPhase(audioFirst, clozeDefault));
     } catch (err) {
       if (!aliveRef.current) return;
-      setErrorMsg(err instanceof Error ? err.message : String(err));
+      setErrorMsg(formatClientError(lang, err, "submit"));
     } finally {
       gradingRef.current = false;
       if (aliveRef.current) setBusy(false);
@@ -113,7 +114,7 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
 
   if (load.state.status === "loading") return <p className="text-muted">{t.loading}</p>;
   if (load.state.status === "error") {
-    return <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>{load.state.error}</Banner>;
+    return <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>{formatClientError(lang, load.state.error, "load")}</Banner>;
   }
   if (atSetBoundary) {
     return (

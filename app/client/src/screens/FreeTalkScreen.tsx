@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { converse, fetchPhraseHints, fetchUtteranceTranslation, sttUpload, ttsFetch, type PhraseHint } from "../api";
 import { playBlob, Recorder, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { canDiscardConversationRecording, type ConversationRecordingStatus } from "../recording-controls";
 import { resolveSttOutcome } from "../stt-result";
 import { Banner } from "../ui/Banner";
@@ -75,7 +76,7 @@ export function FreeTalkScreen(props: {
         updateStatus("recording");
       } catch (err) {
         if (!aliveRef.current || !isCurrentStart(generation)) return;
-        setErrorMsg(t.micError(err instanceof Error ? err.message : String(err)));
+        setErrorMsg(formatClientError(props.lang, err, "record"));
         updateStatus("error");
       }
       return;
@@ -114,7 +115,7 @@ export function FreeTalkScreen(props: {
       updateStatus("idle");
     } catch (err) {
       if (!aliveRef.current) return;
-      setErrorMsg(err instanceof Error ? err.message : String(err));
+      setErrorMsg(formatClientError(props.lang, err, "request"));
       updateStatus("error");
     }
   }

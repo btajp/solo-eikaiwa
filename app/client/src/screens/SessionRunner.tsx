@@ -4,6 +4,7 @@ import {
   type Menu, type MenuBlock, type QuickDrillKind, type RoleplayDomain,
 } from "../api";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { formatMmSs, useCountdown } from "../useCountdown";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
@@ -86,7 +87,7 @@ export function SessionRunner(props: {
       })
       .catch((err) => {
         if (coordinatorRef.current.isCurrent(generation)) {
-          setErrorMsg(err instanceof Error ? err.message : String(err));
+          setErrorMsg(formatClientError(props.lang, err, "load"));
         }
       });
   }

@@ -1,6 +1,7 @@
 import { fetchModelTalkLibrary, fetchTalkExplanation, type ModelTalkEntry } from "../api";
 import { STR, type Lang } from "../i18n";
 import { localizedTitle } from "../localized-title";
+import { formatClientError } from "../lib/user-error";
 import { formatYmdShort, localYmdFromTimestamp } from "../dates";
 import { useLoad } from "../useLoad";
 import { usePlayRow } from "../usePlayRow";
@@ -22,7 +23,7 @@ export function LibraryScreen({ lang }: { lang: Lang }) {
       <div className="hero"><h2 className="hero-title">{t.title}</h2></div>
       {state.status === "loading" && <p className="text-muted">{t.loading}</p>}
       {state.status === "error" && (
-        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{state.error}</Banner>
+        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{formatClientError(lang, state.error, "load")}</Banner>
       )}
       {state.status === "ready" && state.data.length === 0 && (
         <p className="text-muted">{t.empty}</p>
@@ -31,7 +32,7 @@ export function LibraryScreen({ lang }: { lang: Lang }) {
         state.data.map((e) => (
           <LibraryEntry key={e.id} entry={e} lang={lang} row={row} />
         ))}
-      {state.status === "ready" && row.error && <Banner kind="error">{row.error}</Banner>}
+      {state.status === "ready" && row.error && <Banner kind="error">{formatClientError(lang, row.error, "play")}</Banner>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchPrepPack, type ContentItem } from "../api";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { useLoad } from "../useLoad";
 import { usePlayRow } from "../usePlayRow";
 import { Banner } from "../ui/Banner";
@@ -68,7 +69,7 @@ export function WarmupReadingScreen(props: {
       {load.state.status === "error" && (
         <div>
           <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>
-            {load.state.error}
+            {formatClientError(props.lang, load.state.error, "load")}
           </Banner>
           {props.topic.hints.length > 0 && (
             <div>
@@ -110,7 +111,7 @@ export function WarmupReadingScreen(props: {
               />
             </>
           )}
-          {playRow.error && <Banner kind="error">{playRow.error}</Banner>}
+          {playRow.error && <Banner kind="error">{formatClientError(props.lang, playRow.error, "play")}</Banner>}
           {chunks.length > 0 && !clozeStep && (
             <Button variant="secondary" onClick={() => setClozeStep(true)}>{t.clozeStepButton}</Button>
           )}

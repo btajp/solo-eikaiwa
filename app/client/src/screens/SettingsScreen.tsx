@@ -26,6 +26,7 @@ import {
 } from "../lib/settings-save-scopes";
 import { ttsAutoResolution } from "../lib/tts-resolution";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { Button } from "../ui/Button";
 import { Banner } from "../ui/Banner";
 import { useLoad } from "../useLoad";
@@ -59,6 +60,7 @@ function detectVoiceProviderKind(baseUrl: string): VoiceProviderKind {
 
 /** API キー1件の write-only 入力欄。値の表示・再取得はできない（置換 or 削除のみ・ソースを必ず明示）。 */
 function SecretKeyField(props: {
+  lang: Lang;
   name: SecretName;
   status: SecretStatus | undefined;
   disabled: boolean;
@@ -69,7 +71,6 @@ function SecretKeyField(props: {
     deleteConfirm: string; saving: string; deleting: string;
     saved: string; deleted: string;
     approvalRequired: string;
-    saveFailedWithReason: (reason: string) => string;
     notApplied: (reason: string) => string;
   };
   onSave: (name: SecretName, value: string) => Promise<SecretMutationResult>;
@@ -95,12 +96,13 @@ function SecretKeyField(props: {
       if (!generationRef.current.isCurrent(generation)) return;
       setValue("");
       // 保存自体は成功しても実行中プロセスへの適用に失敗した場合（applied:false）は、
-      // 「保存し、適用しました」と嘘をつかずに理由つきで情報表示する（UI 真実性）。
-      setResult(r.applied === false ? props.str.notApplied(r.error ?? "") : doneMsg);
+      // 「保存し、適用しました」と嘘をつかず、内部理由を出さない再適用案内を表示する（UI 真実性）。
+      setResult(r.applied === false
+        ? props.str.notApplied(formatClientError(props.lang, r.error ?? "settings apply failed", "apply"))
+        : doneMsg);
     } catch (err) {
       if (!generationRef.current.isCurrent(generation)) return;
-      const reason = err instanceof Error ? err.message : String(err);
-      setResult(props.str.saveFailedWithReason(reason));
+      setResult(formatClientError(props.lang, err, "save"));
     } finally {
       if (generationRef.current.isCurrent(generation)) setBusyAction(null);
     }
@@ -305,7 +307,9 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
   const settingsSaving = connectionSaving || rolesSaving || ttsSaving;
 
   function appliedMessage(v: LlmSettingsView): string {
-    return v.applied === false ? s.llm.notApplied(v.error ?? "") : s.llm.applied;
+    return v.applied === false
+      ? s.llm.notApplied(formatClientError(lang, v.error ?? "settings apply failed", "apply"))
+      : s.llm.applied;
   }
 
   function markConnectionEdited() {
@@ -363,8 +367,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
       onHealthChanged();
     } catch (err) {
       if (!saveGenerationRef.current.isCurrent("connection", generation)) return;
-      const reason = err instanceof Error ? err.message : String(err);
-      setConnectionSave({ phase: "error", message: reason ? s.llm.saveFailedWithReason(reason) : s.llm.saveFailed });
+      setConnectionSave({ phase: "error", message: formatClientError(lang, err, "save") });
     }
   }
 
@@ -388,8 +391,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
       onHealthChanged();
     } catch (err) {
       if (!saveGenerationRef.current.isCurrent("roles", generation)) return;
-      const reason = err instanceof Error ? err.message : String(err);
-      setRolesSave({ phase: "error", message: reason ? s.llm.saveFailedWithReason(reason) : s.llm.saveFailed });
+      setRolesSave({ phase: "error", message: formatClientError(lang, err, "save") });
     }
   }
 
@@ -450,7 +452,6 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
     saved: s.settings.secretSaved,
     deleted: s.settings.secretDeleted,
     approvalRequired: s.settings.secretApprovalRequired,
-    saveFailedWithReason: s.llm.saveFailedWithReason,
     notApplied: s.llm.notApplied,
   };
 
@@ -480,9 +481,9 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
       hydrateTts(saved);
       setTtsSave({ phase: "saved", message: s.llm.applied });
       onHealthChanged();
-    } catch {
+    } catch (err) {
       if (!saveGenerationRef.current.isCurrent("tts", generation)) return;
-      setTtsSave({ phase: "error", message: s.llm.saveFailed });
+      setTtsSave({ phase: "error", message: formatClientError(lang, err, "save") });
     }
   }
 
@@ -543,17 +544,17 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
 
       {llmSettingsLoad.state.status === "error" && (
         <Banner kind="error" action={<Button onClick={llmSettingsLoad.reload}>{s.settings.retry}</Button>}>
-          {s.settings.loadLlmFailed}
+          {s.settings.loadLlmFailed} {formatClientError(lang, llmSettingsLoad.state.error, "load")}
         </Banner>
       )}
       {ttsSettingsLoad.state.status === "error" && (
         <Banner kind="error" action={<Button onClick={ttsSettingsLoad.reload}>{s.settings.retry}</Button>}>
-          {s.settings.loadTtsFailed}
+          {s.settings.loadTtsFailed} {formatClientError(lang, ttsSettingsLoad.state.error, "load")}
         </Banner>
       )}
       {secretsLoad.state.status === "error" && (
         <Banner kind="error" action={<Button onClick={secretsLoad.reload}>{s.settings.retry}</Button>}>
-          {s.settings.loadSecretsFailed}
+          {s.settings.loadSecretsFailed} {formatClientError(lang, secretsLoad.state.error, "load")}
         </Banner>
       )}
 
@@ -578,7 +579,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
             {view?.authModes?.claude === "api-key" && !authKeys.anthropic && (
               <div className="info-pop">{s.settings.claudeAuthMissingKey}</div>
             )}
-            <SecretKeyField name="ANTHROPIC_API_KEY" status={secrets?.ANTHROPIC_API_KEY} disabled={settingsSaving || !view || secretsLoad.state.status !== "ready"}
+            <SecretKeyField lang={lang} name="ANTHROPIC_API_KEY" status={secrets?.ANTHROPIC_API_KEY} disabled={settingsSaving || !view || secretsLoad.state.status !== "ready"}
               str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
             <div className="text-sm text-muted">{s.settings.authApiKeyNote}</div>
             <label className="llm-field">
@@ -626,7 +627,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
                 );
               })()}
             </label>
-            <SecretKeyField name="OPENAI_COMPAT_API_KEY" status={secrets?.OPENAI_COMPAT_API_KEY} disabled={settingsSaving || !view || secretsLoad.state.status !== "ready"}
+            <SecretKeyField lang={lang} name="OPENAI_COMPAT_API_KEY" status={secrets?.OPENAI_COMPAT_API_KEY} disabled={settingsSaving || !view || secretsLoad.state.status !== "ready"}
               approvalRequired={Boolean(secrets?.OPENAI_COMPAT_API_KEY.configured && view?.apiKeyApproved !== true)}
               str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
           </div>
@@ -668,7 +669,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
                 ))}
               </select>
             </label>
-            <SecretKeyField name="CODEX_API_KEY" status={secrets?.CODEX_API_KEY} disabled={settingsSaving || !view || secretsLoad.state.status !== "ready"}
+            <SecretKeyField lang={lang} name="CODEX_API_KEY" status={secrets?.CODEX_API_KEY} disabled={settingsSaving || !view || secretsLoad.state.status !== "ready"}
               str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
             <div className="text-sm text-muted">{s.settings.authApiKeyNote}</div>
           </div>
@@ -728,7 +729,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
               <span className="text-sm text-muted">{s.settings.ttsVoiceLabel}</span>
               <input ref={voiceInputRef} className="llm-input" value={ttsVoice} placeholder={s.settings.ttsVoicePlaceholder} disabled={settingsSaving || !ttsView} onChange={(e) => { setTtsVoice(e.target.value); markTtsEdited(); }} />
             </label>
-            <SecretKeyField name="TTS_API_KEY" status={secrets?.TTS_API_KEY} disabled={settingsSaving || !ttsView || secretsLoad.state.status !== "ready"}
+            <SecretKeyField lang={lang} name="TTS_API_KEY" status={secrets?.TTS_API_KEY} disabled={settingsSaving || !ttsView || secretsLoad.state.status !== "ready"}
               approvalRequired={Boolean(secrets?.TTS_API_KEY.configured && ttsView?.apiKeyApproved !== true)}
               str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
             <div className="text-sm text-muted">{s.settings.ttsApiKeyOptionalNote}</div>

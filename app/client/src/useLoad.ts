@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { reportClientError, serializeClientError } from "./api/http";
 import { makeLatestGeneration } from "./lib/latest-generation";
 
 export type LoadState<T> =
@@ -30,7 +31,9 @@ export function useLoad<T>(fn: () => Promise<T>): { state: LoadState<T>; reload:
       })
       .catch((err) => {
         if (aliveRef.current && generationRef.current.isCurrent(generation)) {
-          setState({ status: "error", error: err instanceof Error ? err.message : String(err) });
+          const safeError = serializeClientError(err);
+          reportClientError(safeError);
+          setState({ status: "error", error: safeError });
         }
       });
   }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { playTtsCached } from "./api";
+import { reportClientError, serializeClientError } from "./api/http";
 import { stopPlayback } from "./audio";
 
 /**
@@ -43,7 +44,9 @@ export function usePlayRow<K>(): {
       await playTtsCached(text);
     } catch (err) {
       if (!aliveRef.current || generationRef.current !== generation) return;
-      setError(err instanceof Error ? err.message : String(err));
+      const safeError = serializeClientError(err);
+      reportClientError(safeError);
+      setError(safeError);
     } finally {
       if (aliveRef.current && generationRef.current === generation) setPlayingKey(null);
     }

@@ -3,6 +3,7 @@ import { fetchFixExplanation, fetchReflection } from "../api";
 import { useExplain } from "../useExplain";
 import { useLoad } from "../useLoad";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -50,7 +51,7 @@ export function ReflectionScreen({
   if (state.status === "error") {
     return (
       <div>
-        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{state.error}</Banner>
+        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{formatClientError(lang, state.error, "load")}</Banner>
       </div>
     );
   }

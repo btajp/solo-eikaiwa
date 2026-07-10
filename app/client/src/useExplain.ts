@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { reportClientError } from "./api/http";
 
 /**
  * 「もっと詳しく／解説」ボタンの非同期状態機械。判別可能ユニオンで idle/loading/error/done を表し、
@@ -22,7 +23,10 @@ export function useExplain(fetcher: () => Promise<string>): { state: ExplainStat
     setState({ status: "loading" });
     fetcher()
       .then((text) => { if (aliveRef.current) setState({ status: "done", text }); })
-      .catch(() => { if (aliveRef.current) setState({ status: "error" }); });
+      .catch((error) => {
+        reportClientError(error);
+        if (aliveRef.current) setState({ status: "error" });
+      });
   }
   return { state, request };
 }

@@ -6,6 +6,7 @@ import {
   type ClipboardCopyStatus,
 } from "../clipboard-copy";
 import { STR, type Lang } from "../i18n";
+import { formatClientError } from "../lib/user-error";
 import { useLoad } from "../useLoad";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
@@ -71,7 +72,7 @@ export function FeedbackScreen({ lang }: { lang: Lang }) {
       </div>
       {state.status === "loading" && <p className="text-muted">{t.loading}</p>}
       {state.status === "error" && (
-        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{state.error}</Banner>
+        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{formatClientError(lang, state.error, "load")}</Banner>
       )}
       {state.status === "ready" && (
         state.data.length === 0 ? (
