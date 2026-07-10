@@ -433,7 +433,7 @@ export const STR: Record<Lang, Strings> = {
       notApplied: (msg) => `Saved, but not applied: ${msg}`,
       saveFailed: "Could not save settings.",
       saveFailedWithReason: (reason) => `Could not save settings: ${reason}`,
-      help: "The API key is read from app/.env only and is never stored here. Reply quality depends on the model you choose; Claude is the tested baseline.",
+      help: "API keys are stored in the macOS Keychain when saved here (app/.env also works; Keychain wins). The key value is never displayed or returned. Reply quality depends on the model you choose; Claude is the tested baseline.",
       helpAria: "About the LLM provider setting",
     },
     settings: {
@@ -840,7 +840,7 @@ export const STR: Record<Lang, Strings> = {
       notApplied: (msg) => `保存しましたが適用できませんでした: ${msg}`,
       saveFailed: "設定を保存できませんでした。",
       saveFailedWithReason: (reason) => `設定を保存できませんでした: ${reason}`,
-      help: "APIキーは app/.env からのみ読み込み、ここには保存しません。応答品質は選んだモデルに依存します。Claude は動作確認済みの基準です。",
+      help: "ここで保存した API キーは macOS Keychain に保管されます（app/.env も併用可・Keychain が優先）。キーの値は表示・再取得されません。応答品質は選んだモデルに依存します。Claude は動作確認済みの基準です。",
       helpAria: "LLM プロバイダ設定の説明",
     },
     settings: {
