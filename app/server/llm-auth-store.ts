@@ -1,9 +1,10 @@
 import type { Database } from "bun:sqlite";
+import { minimalSubprocessEnv } from "./subprocess-env";
 
 /**
  * provider（claude/codex）ごとの認証モードの永続化（llm_role_tuning 等と同じ CREATE IF NOT EXISTS 規約）。
  * 行不在 = 既定 "subscription"（＝現行どおりユーザーの CLI ログインに相乗り。挙動不変の核）。
- * APIキーの値そのものはここに持たない（app/.env のみ。DBに秘密は置かない衛生を維持する）。
+ * APIキーの値そのものはここに持たない（Keychain/app/.env resolverのみ。DBに秘密は置かない）。
  */
 export function ensureLlmAuthSchema(db: Database): void {
   db.run(`CREATE TABLE IF NOT EXISTS llm_auth (
@@ -51,17 +52,21 @@ export function makeLlmAuthStore(db: Database): LlmAuthStore {
 
 /**
  * claude 経路（SDK query() の spawn env / claude-print exec env）向けの env 上書きを組み立てる純関数。
- * subscription（既定）では undefined を返す＝呼び出し側は env キー自体を渡さず、現行どおり process.env を
- * そのまま継承する（挙動不変の核）。api-key のときだけ baseEnv を土台に ANTHROPIC_API_KEY を含む env を返す
- * （SDK の env オプションは指定すると継承ではなく丸ごと置き換わるため、baseEnv を明示的にスプレッドする）。
+ * subscriptionでは固定allowlistだけを返してAPIキーを明示除去する。api-keyでは解決済み
+ * ANTHROPIC_API_KEYだけを追加する（SDKのenvオプションは親環境を丸ごと置換する）。
  * codex-auth.ts の codexSpawnEnv と対になる（provider ごとに別ファイルに置くのは、claude 側がこの
  * 小さな純関数だけで完結し codex-auth.ts の CODEX_HOME 概念に依存しないため）。
  */
 export function claudeSpawnEnv(
   mode: AuthMode,
   baseEnv: Record<string, string | undefined> = Bun.env,
-): Record<string, string | undefined> | undefined {
-  return mode === "api-key" ? { ...baseEnv, ANTHROPIC_API_KEY: baseEnv.ANTHROPIC_API_KEY } : undefined;
+  apiKey: string | undefined = getActiveAuthSecrets().anthropic,
+): Record<string, string> {
+  if (mode === "subscription") return minimalSubprocessEnv(baseEnv);
+  if (!apiKey?.trim()) {
+    throw new Error("claude auth mode is api-key but no key is configured; save a key or switch to subscription");
+  }
+  return minimalSubprocessEnv(baseEnv, { ANTHROPIC_API_KEY: apiKey });
 }
 
 /**
@@ -80,6 +85,8 @@ export function claudeSpawnEnv(
  * （「起動時スナップショットにしない」という Plan B の要件）。
  */
 let activeAuthModes: LlmAuthModes = { claude: "subscription", codex: "subscription" };
+export type ActiveAuthSecrets = { anthropic?: string; codex?: string };
+let activeAuthSecrets: ActiveAuthSecrets = {};
 
 export function setActiveAuthModes(modes: LlmAuthModes): void {
   activeAuthModes = modes;
@@ -87,4 +94,16 @@ export function setActiveAuthModes(modes: LlmAuthModes): void {
 
 export function getActiveAuthModes(): LlmAuthModes {
   return activeAuthModes;
+}
+
+/** Keychain/env resolverが解決した値だけを認証runnerへ渡す。process.envへは展開しない。 */
+export function setActiveAuthSecrets(secrets: ActiveAuthSecrets): void {
+  activeAuthSecrets = {
+    ...(secrets.anthropic?.trim() ? { anthropic: secrets.anthropic } : {}),
+    ...(secrets.codex?.trim() ? { codex: secrets.codex } : {}),
+  };
+}
+
+export function getActiveAuthSecrets(): ActiveAuthSecrets {
+  return { ...activeAuthSecrets };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test, afterEach } from "bun:test";
 import { composeCodexPrompt, makeCodexRunner, type CodexConfig, type CodexExec } from "../providers/codex";
-import { setActiveAuthModes } from "../llm-auth-store";
+import { setActiveAuthModes, setActiveAuthSecrets } from "../llm-auth-store";
 import { CODEX_HOME_DIR } from "../codex-auth";
 
 describe("composeCodexPrompt", () => {
@@ -94,17 +94,21 @@ describe("makeCodexRunner: 認証モードに応じた spawn env 注入", () => 
   afterEach(() => {
     // 他テストファイルへの汚染防止（グローバルなランタイムキャッシュのため）
     setActiveAuthModes({ claude: "subscription", codex: "subscription" });
+    setActiveAuthSecrets({});
   });
 
-  test("subscription（既定）: exec に env が渡らない（現行どおり process.env を継承）", async () => {
+  test("subscription（既定）: exec にsanitized envを渡しambient keyを継承しない", async () => {
     const seen: Array<{ prompt: string; model?: string; cwd: string; env?: Record<string, string | undefined> }> = [];
     const runner = makeCodexRunner(baseCfg({ exec: fakeExec("x", seen) }));
     await runner("hi");
-    expect(seen[0].env).toBeUndefined();
+    expect(seen[0].env).toBeDefined();
+    expect(seen[0].env?.CODEX_API_KEY).toBeUndefined();
+    expect(seen[0].env?.OPENAI_API_KEY).toBeUndefined();
   });
 
   test("api-key: exec に CODEX_HOME（隔離ディレクトリ）を含む env が渡る", async () => {
     setActiveAuthModes({ claude: "subscription", codex: "api-key" });
+    setActiveAuthSecrets({ codex: "sk-codex" });
     const seen: Array<{ prompt: string; model?: string; cwd: string; env?: Record<string, string | undefined> }> = [];
     const runner = makeCodexRunner(baseCfg({ exec: fakeExec("x", seen) }));
     await runner("hi");

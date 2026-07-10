@@ -11,6 +11,8 @@ export type TtsSettingsView = {
   model: string | null;
   voice: string | null;
   apiKeyConfigured: boolean;
+  /** 現在のTTS originに対して保存済み鍵の利用が明示承認されているか。 */
+  apiKeyApproved?: boolean;
   defaults: { baseUrl: string; model: string; voice: string };
 };
 

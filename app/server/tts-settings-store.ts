@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import type { TtsSettings } from "./tts";
 
-/** TTS プロバイダ設定の永続化（単一行 id=1）。llm_settings と同型。APIキーは持たない（.env のみ）。 */
+/** TTS プロバイダ設定の永続化（単一行 id=1）。APIキーは持たず、resolverから実行時に注入する。 */
 export function ensureTtsSettingsSchema(db: Database): void {
   db.run(`CREATE TABLE IF NOT EXISTS tts_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),

@@ -9,7 +9,7 @@ import {
 } from "../converse";
 import { isErrorLogged, readEvents } from "../session-log";
 import { TransportError } from "../providers/errors";
-import { setActiveAuthModes } from "../llm-auth-store";
+import { setActiveAuthModes, setActiveAuthSecrets } from "../llm-auth-store";
 import type { query } from "@anthropic-ai/claude-agent-sdk";
 
 // Minimal fake message shapes; only the fields defaultRunner actually reads are populated.
@@ -289,28 +289,26 @@ describe("makeClaudeRunner: 認証モードに応じた spawn env 注入", () =>
   afterEach(() => {
     // 他テストファイルへの汚染防止（グローバルなランタイムキャッシュのため）
     setActiveAuthModes({ claude: "subscription", codex: "subscription" });
+    setActiveAuthSecrets({});
   });
 
-  test("subscription（既定）: options.env キー自体が付かない（現行どおり process.env を継承）", async () => {
+  test("subscription（既定）: options.envを最小化してambient APIキーを継承しない", async () => {
     const { calls, fakeQuery } = capturingQuery();
     const runner = makeClaudeRunner(fakeQuery);
     await runner("hi");
-    expect(calls[0].options).not.toHaveProperty("env");
+    expect(calls[0].options.env).toBeDefined();
+    const env = calls[0].options.env as Record<string, string | undefined>;
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(env.OPENAI_API_KEY).toBeUndefined();
   });
 
   test("api-key: options.env に ANTHROPIC_API_KEY を含む env が渡る", async () => {
     setActiveAuthModes({ claude: "api-key", codex: "subscription" });
-    const savedKey = Bun.env.ANTHROPIC_API_KEY;
-    Bun.env.ANTHROPIC_API_KEY = "sk-sdk-test";
-    try {
-      const { calls, fakeQuery } = capturingQuery();
-      const runner = makeClaudeRunner(fakeQuery);
-      await runner("hi");
-      expect((calls[0].options.env as Record<string, string>).ANTHROPIC_API_KEY).toBe("sk-sdk-test");
-    } finally {
-      if (savedKey === undefined) delete Bun.env.ANTHROPIC_API_KEY;
-      else Bun.env.ANTHROPIC_API_KEY = savedKey;
-    }
+    setActiveAuthSecrets({ anthropic: "sk-sdk-test" });
+    const { calls, fakeQuery } = capturingQuery();
+    const runner = makeClaudeRunner(fakeQuery);
+    await runner("hi");
+    expect((calls[0].options.env as Record<string, string>).ANTHROPIC_API_KEY).toBe("sk-sdk-test");
   });
 });
 

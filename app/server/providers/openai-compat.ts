@@ -1,5 +1,6 @@
 import type { ClaudeRunner } from "../converse";
 import { appendTurn, resolveSessionId, type ChatTurn } from "./transcript";
+import { parseRemoteBaseUrl } from "../remote-endpoint";
 
 /** OpenAI 互換 chat completions で ClaudeRunner を実現する設定。 */
 export type OpenAICompatConfig = {
@@ -26,7 +27,9 @@ type ChatResponse = { choices?: Array<{ message?: { content?: string } }> };
  */
 export function makeOpenAICompatRunner(cfg: OpenAICompatConfig): ClaudeRunner {
   const fetchFn = cfg.fetchFn ?? fetch;
-  const endpoint = `${cfg.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+  const parsedBase = parseRemoteBaseUrl(cfg.baseUrl);
+  if (!parsedBase.ok) throw new Error(parsedBase.error);
+  const endpoint = `${parsedBase.baseUrl}/chat/completions`;
   const store = new Map<string, ChatMsg[]>();
 
   return async (prompt, resumeId, opts) => {
@@ -41,10 +44,11 @@ export function makeOpenAICompatRunner(cfg: OpenAICompatConfig): ClaudeRunner {
     ];
 
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (cfg.apiKey) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
+    if (cfg.apiKey && parsedBase.credentialsAllowed) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
 
     const res = await fetchFn(endpoint, {
       method: "POST",
+      redirect: "error",
       headers,
       body: JSON.stringify({ model: cfg.model, messages, stream: false }),
     });
@@ -69,11 +73,14 @@ export type OpenAICompatWarmConfig = { baseUrl: string; apiKey?: string; model: 
  * 非2xx は throw し、呼び出し側（llm-warmup）の warn に回す。
  */
 export async function warmOpenAICompat(cfg: OpenAICompatWarmConfig, fetchFn: typeof fetch = fetch): Promise<void> {
-  const endpoint = `${cfg.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+  const parsedBase = parseRemoteBaseUrl(cfg.baseUrl);
+  if (!parsedBase.ok) throw new Error(parsedBase.error);
+  const endpoint = `${parsedBase.baseUrl}/chat/completions`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (cfg.apiKey) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
+  if (cfg.apiKey && parsedBase.credentialsAllowed) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
   const res = await fetchFn(endpoint, {
     method: "POST",
+    redirect: "error",
     headers,
     body: JSON.stringify({ model: cfg.model, messages: [{ role: "user", content: "ping" }], max_tokens: 1, stream: false }),
   });
@@ -89,5 +96,11 @@ export function openAICompatWarmTargetFromEnv(env: Record<string, string | undef
   const baseUrl = env.OPENAI_COMPAT_BASE_URL?.trim();
   const model = env.OPENAI_COMPAT_MODEL?.trim();
   if (!baseUrl || !model) return null;
-  return { baseUrl, apiKey: env.OPENAI_COMPAT_API_KEY?.trim() || undefined, model };
+  const parsedBase = parseRemoteBaseUrl(baseUrl);
+  if (!parsedBase.ok) return null;
+  return {
+    baseUrl: parsedBase.baseUrl,
+    apiKey: parsedBase.credentialsAllowed ? env.OPENAI_COMPAT_API_KEY?.trim() || undefined : undefined,
+    model,
+  };
 }

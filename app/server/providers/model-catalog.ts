@@ -1,4 +1,5 @@
 import type { ModelInfo, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import { claudeSpawnEnv, getActiveAuthModes, getActiveAuthSecrets } from "../llm-auth-store";
 
 /**
  * モデルカタログ API（`GET /api/llm-models`）の中核: 3ソース（claude/codex/local）共通の型・
@@ -127,7 +128,10 @@ export type CatalogQueryHandle = {
  * query() の options のうち、このカタログ取得が使う最小サブセット。実 SDK の Options（多数の任意フィールドを持つ）に
  * 構造的部分型として代入可能（全フィールドが任意のため、欠けているフィールドがあっても代入エラーにならない）。
  */
-export type CatalogQueryOptions = { pathToClaudeCodeExecutable?: string };
+export type CatalogQueryOptions = {
+  pathToClaudeCodeExecutable?: string;
+  env?: Record<string, string | undefined>;
+};
 export type CatalogQueryFn = (
   args: { prompt: AsyncIterable<SDKUserMessage>; options?: CatalogQueryOptions },
 ) => CatalogQueryHandle;
@@ -171,7 +175,10 @@ export function makeClaudeCatalogFetcher(
       // バイト等価にする。
       const q = queryFn({
         prompt: silentPrompt(),
-        ...(opts?.claudeExecutablePath ? { options: { pathToClaudeCodeExecutable: opts.claudeExecutablePath } } : {}),
+        options: {
+          env: claudeSpawnEnv(getActiveAuthModes().claude, Bun.env, getActiveAuthSecrets().anthropic),
+          ...(opts?.claudeExecutablePath ? { pathToClaudeCodeExecutable: opts.claudeExecutablePath } : {}),
+        },
       });
       try {
         const models = await raceTimeout(q.supportedModels(), timeoutMs, "claude supportedModels timed out");

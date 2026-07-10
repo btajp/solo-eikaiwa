@@ -2,7 +2,7 @@ import { describe, expect, test, afterEach } from "bun:test";
 import { makeClaudePrintRunner } from "../providers/claude-print";
 import { TransportError } from "../providers/errors";
 import { CLAUDE_PRINT_DIR } from "../paths";
-import { setActiveAuthModes } from "../llm-auth-store";
+import { setActiveAuthModes, setActiveAuthSecrets } from "../llm-auth-store";
 
 /** claude -p の成功時 stdout（単一JSON）を組み立てるヘルパー。 */
 const okJson = (text: string, sid = "sess-1") =>
@@ -45,7 +45,7 @@ describe("makeClaudePrintRunner", () => {
     expect(calls[0].cwd).toBe(CLAUDE_PRINT_DIR);
   });
 
-  test("subscription（既定）: bare/env とも exec に渡らない（現行どおり process.env・OAuth継承）", async () => {
+  test("subscription（既定）: bareは付けず、sanitized envでOAuth資格情報を参照する", async () => {
     const calls: any[] = [];
     const runner = makeClaudePrintRunner({
       defaultSystemPrompt: "S",
@@ -53,7 +53,8 @@ describe("makeClaudePrintRunner", () => {
     });
     await runner("hi");
     expect(calls[0].bare).toBeUndefined();
-    expect(calls[0].env).toBeUndefined();
+    expect(calls[0].env).toBeDefined();
+    expect(calls[0].env.ANTHROPIC_API_KEY).toBeUndefined();
   });
 
   test("is_error/subtype失敗はplain Error・JSON破損とexec throwはTransportError", async () => {
@@ -115,24 +116,31 @@ describe("makeClaudePrintRunner: 認証モードに応じた bare/env 注入", (
   afterEach(() => {
     // 他テストファイルへの汚染防止（グローバルなランタイムキャッシュのため）
     setActiveAuthModes({ claude: "subscription", codex: "subscription" });
+    setActiveAuthSecrets({});
   });
 
   test("api-key: bare:true と ANTHROPIC_API_KEY を含む env が exec に渡る", async () => {
     setActiveAuthModes({ claude: "api-key", codex: "subscription" });
-    const savedKey = Bun.env.ANTHROPIC_API_KEY;
-    Bun.env.ANTHROPIC_API_KEY = "sk-test-key";
-    try {
-      const calls: any[] = [];
-      const runner = makeClaudePrintRunner({
-        defaultSystemPrompt: "S",
-        exec: async (a) => { calls.push(a); return okJson("x"); },
-      });
-      await runner("hi");
-      expect(calls[0].bare).toBe(true);
-      expect(calls[0].env.ANTHROPIC_API_KEY).toBe("sk-test-key");
-    } finally {
-      if (savedKey === undefined) delete Bun.env.ANTHROPIC_API_KEY;
-      else Bun.env.ANTHROPIC_API_KEY = savedKey;
-    }
+    setActiveAuthSecrets({ anthropic: "sk-test-key" });
+    const calls: any[] = [];
+    const runner = makeClaudePrintRunner({
+      defaultSystemPrompt: "S",
+      exec: async (a) => { calls.push(a); return okJson("x"); },
+    });
+    await runner("hi");
+    expect(calls[0].bare).toBe(true);
+    expect(calls[0].env.ANTHROPIC_API_KEY).toBe("sk-test-key");
+  });
+
+  test("subscription: envを必ず上書きし、ambient APIキーを渡さない", async () => {
+    const calls: any[] = [];
+    const runner = makeClaudePrintRunner({
+      defaultSystemPrompt: "S",
+      exec: async (a) => { calls.push(a); return okJson("x"); },
+    });
+    await runner("hi");
+    expect(calls[0].env).toBeDefined();
+    expect(calls[0].env.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(calls[0].env.OPENAI_API_KEY).toBeUndefined();
   });
 });

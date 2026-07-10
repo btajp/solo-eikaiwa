@@ -21,7 +21,7 @@ export const EFFORT_OPTIONS: readonly EffortOption[] = ["low", "medium", "high",
 export type ServiceTierOption = "fast" | "standard";
 export const SERVICE_TIER_OPTIONS: readonly ServiceTierOption[] = ["fast", "standard"];
 
-/** 認証モード（サーバの llm_auth テーブルと一致）。api-key は対応する env キーが未設定だと 400 になる。 */
+/** 認証モード（サーバの llm_auth テーブルと一致）。api-key は対応する鍵が未設定だと 400 になる。 */
 export type AuthMode = "subscription" | "api-key";
 export const AUTH_MODE_OPTIONS: readonly AuthMode[] = ["subscription", "api-key"];
 /** 認証モードの対象プロバイダ（claude/codex の2つ。ローカルLLMは認証概念自体が無い）。 */
@@ -37,6 +37,8 @@ export type LlmSettingsView = {
   model: string | null;
   codexModel: string | null;
   apiKeyConfigured: boolean;
+  /** 現在のOpenAI互換originに対して保存済み鍵の利用が明示承認されているか。 */
+  apiKeyApproved?: boolean;
   /** PUT 応答のみ: 実行中プロセスへ適用できたか */
   applied?: boolean;
   /** PUT 応答のみ: 適用失敗時のメッセージ */
@@ -49,7 +51,7 @@ export type LlmSettingsView = {
   tuning: Record<LlmRole, RoleTuning>;
   /** 認証モード（行不在は "subscription"）。旧サーバ応答にはキー自体が無い場合がある（additive API）。 */
   authModes: Record<LlmAuthProvider, AuthMode>;
-  /** env のキー検出のみ（値は返さない）。anthropic=ANTHROPIC_API_KEY・codex=CODEX_API_KEY。旧サーバ応答にはキー自体が無い場合がある（additive API）。 */
+  /** Keychain/envのキー検出のみ（値は返さない）。旧サーバ応答にはキー自体が無い場合がある。 */
   authKeys: { anthropic: boolean; codex: boolean };
 };
 

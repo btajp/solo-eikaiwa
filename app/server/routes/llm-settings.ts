@@ -2,6 +2,7 @@ import { json, parseJsonBody, exact, type RouteEntry } from "./http";
 import { DEFAULT_LLM_SETTINGS, LLM_ROLES, type LlmSettings, type LlmProvider, type LlmRole, type LlmRoleProvider, type LlmRoleSetting } from "../llm-provider";
 import { EFFORTS, CODEX_EFFORTS, SERVICE_TIERS, type RoleTuning, type TuningScope } from "../llm-role-tuning-store";
 import { AUTH_MODES, type AuthMode, type LlmAuthModes, type LlmAuthProvider } from "../llm-auth-store";
+import { parseRemoteBaseUrl } from "../remote-endpoint";
 
 export type LlmSettingsRoutesDeps = {
   getLlmSettings: () => LlmSettings | null;
@@ -14,15 +15,15 @@ export type LlmSettingsRoutesDeps = {
   /** 渡されたスコープ（ロール or "global"）だけを部分更新する（route 側で検証済み）。 */
   saveLlmRoleTuning: (t: Partial<Record<TuningScope, Partial<RoleTuning>>>) => void;
   applyLlmSettings: (s: LlmSettings) => void;
-  /** env 由来の情報。APIキーの presence(boolean) のみ（接続設定の env 読み取りは廃止済み・v0.29）。 */
-  llmEnv: () => { apiKeyConfigured: boolean };
+  /** Keychain/env resolver由来のAPIキー状態のみ。値は返さない。 */
+  llmEnv: () => { apiKeyConfigured: boolean; apiKeyApproved?: boolean };
   /** 受信入口の fire-and-forget フック（conversation が openai-compat のときローカルモデルを温める）。llm-settings ルート自体は使わない。 */
   warmLlm: () => void;
   /** 認証モード（DB 由来。行不在は "subscription"）。 */
   getLlmAuthModes: () => LlmAuthModes;
   /** 単一 provider の認証モードを upsert する（route 側でホワイトリスト・キー存在を検証済み）。 */
   saveLlmAuthMode: (provider: LlmAuthProvider, mode: AuthMode) => void;
-  /** env のキー検出のみ（値は返さない）。anthropic=ANTHROPIC_API_KEY・codex=CODEX_API_KEY。 */
+  /** Keychain/env resolverのキー検出のみ（値は返さない）。 */
   getAuthKeysConfigured: () => { anthropic: boolean; codex: boolean };
   /** 保存直後の最新モードを runner 側のランタイムキャッシュへ反映する（サーバ再起動なしに反映するため）。 */
   applyLlmAuthModes: (modes: LlmAuthModes) => void;
@@ -34,15 +35,6 @@ export type LlmSettingsRoutesDeps = {
 
 const PROVIDERS = ["claude", "openai-compat", "codex"] as const;
 const ROLE_PROVIDERS = ["inherit", "claude", "openai-compat", "codex"] as const;
-
-function isHttpUrl(v: string): boolean {
-  try {
-    const u = new URL(v);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
 
 /** undefined/null/空文字 → null（未指定）、trim後1文字以上でmax以下の文字列 → trim値、それ以外 → undefined（不正） */
 function asOptionalStr(v: unknown, max: number): string | null | undefined {
@@ -68,14 +60,16 @@ function parseSettingsInput(
   }
   if (b.provider === "openai-compat") {
     const baseUrl = asOptionalStr(b.baseUrl, 500);
-    if (!baseUrl || !isHttpUrl(baseUrl)) return { ok: false, error: "baseUrl must be a valid http(s) URL for openai-compat" };
+    if (!baseUrl) return { ok: false, error: "baseUrl must be a valid http(s) URL for openai-compat" };
+    const parsedBase = parseRemoteBaseUrl(baseUrl);
+    if (!parsedBase.ok) return { ok: false, error: parsedBase.error };
     const model = asOptionalStr(b.model, 200);
     if (!model) return { ok: false, error: "model is required for openai-compat" };
     // 接続ストア(llm_settings 単一行)にローカル(baseUrl/model)と Codex(codexModel)を同居させるため、
     // openai-compat でも codexModel を保持する（未指定は null）。openai-compat 解決時は CODEX_MODEL は不使用で無害。
     const codexModel = asOptionalStr(b.codexModel, 200);
     if (codexModel === undefined) return { ok: false, error: "codexModel must be a string of at most 200 characters" };
-    return { ok: true, value: { provider: "openai-compat", baseUrl, model, codexModel } };
+    return { ok: true, value: { provider: "openai-compat", baseUrl: parsedBase.baseUrl, model, codexModel } };
   }
   if (b.provider === "codex") {
     const codexModel = asOptionalStr(b.codexModel, 200);
@@ -111,6 +105,7 @@ function viewOf(deps: LlmSettingsRoutesDeps, applied?: boolean, error?: string |
     model: s.model,
     codexModel: s.codexModel,
     apiKeyConfigured: env.apiKeyConfigured,
+    apiKeyApproved: env.apiKeyApproved ?? false,
     roles,
     globalTuning: deps.getLlmGlobalTuning(),
     tuning,
@@ -146,7 +141,7 @@ function parseAuthInput(
   if (!claude.ok) return { ok: false, error: `auth.claude must be one of ${AUTH_MODES.join(", ")}` };
   if (claude.value !== undefined) {
     if (claude.value === "api-key" && !keysConfigured.anthropic) {
-      return { ok: false, error: "anthropic api key not configured in app/.env" };
+      return { ok: false, error: "anthropic api key is not configured; save it in settings before selecting api-key mode" };
     }
     out.claude = claude.value;
   }
@@ -155,7 +150,7 @@ function parseAuthInput(
   if (!codex.ok) return { ok: false, error: `auth.codex must be one of ${AUTH_MODES.join(", ")}` };
   if (codex.value !== undefined) {
     if (codex.value === "api-key" && !keysConfigured.codex) {
-      return { ok: false, error: "codex api key not configured in app/.env" };
+      return { ok: false, error: "codex api key is not configured; save it in settings before selecting api-key mode" };
     }
     out.codex = codex.value;
   }

@@ -145,6 +145,8 @@ type SettingsStrings = {
     secretStatusKeychain: string;
     secretStatusEnv: string;
     secretStatusMissing: string;
+    secretApprovalRequired: string;
+    claudeAuthMissingKey: string;
     secretPlaceholderSet: string;
     secretPlaceholderNew: string;
     secretSave: string;
@@ -491,6 +493,8 @@ export const STR: Record<Lang, Strings> = {
       secretStatusKeychain: "Set (stored in Keychain)",
       secretStatusEnv: "Set (detected from app/.env)",
       secretStatusMissing: "Not set",
+      secretApprovalRequired: "Stored, but not used for this connection. Save the key again to approve the current HTTPS or loopback address.",
+      claudeAuthMissingKey: "API-key authentication is selected, but no Anthropic key is available. Save a key or switch to Subscription; requests will not fall back silently.",
       secretPlaceholderSet: "Enter a new key to replace the current one",
       secretPlaceholderNew: "Paste your API key",
       secretSave: "Save key",
@@ -898,6 +902,8 @@ export const STR: Record<Lang, Strings> = {
       secretStatusKeychain: "設定済み（Keychain に保存）",
       secretStatusEnv: "設定済み（app/.env から検出）",
       secretStatusMissing: "未設定",
+      secretApprovalRequired: "キーは保存済みですが、この接続先には使用しません。現在の HTTPS または loopback 接続先を承認するには、キーを再保存してください。",
+      claudeAuthMissingKey: "APIキー認証が選択されていますが、Anthropic のキーがありません。キーを保存するかサブスクリプションへ切り替えてください。会話時に無言で認証方式を切り替えることはありません。",
       secretPlaceholderSet: "置き換える場合は新しいキーを入力",
       secretPlaceholderNew: "API キーを貼り付け",
       secretSave: "キーを保存",

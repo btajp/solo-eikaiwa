@@ -23,7 +23,7 @@ export const LLM_ROLES: readonly LlmRole[] = ["conversation", "assist", "coachin
 /** ロール別プロバイダ。"inherit" は「全体設定に従う」センチネル。それ以外は LlmProvider の部分集合（"env" はロールでは扱わない）。 */
 export type LlmRoleProvider = "inherit" | "claude" | "openai-compat" | "codex";
 
-/** ロール別の永続化設定。APIキーは含めない（.env のみ）。inherit のときフィールドは null。 */
+/** ロール別の永続化設定。APIキーは含めず、resolverから実行時に注入する。inherit のときフィールドは null。 */
 export type LlmRoleSetting = {
   provider: LlmRoleProvider;
   baseUrl: string | null;
@@ -41,7 +41,7 @@ export function roleSettingToSettings(s: LlmRoleSetting): LlmSettings {
   return { provider: s.provider as LlmProvider, baseUrl: s.baseUrl, model: s.model, codexModel: s.codexModel };
 }
 
-/** DB(llm_settings 単一行)に永続化する LLM 設定。APIキーは含めない（.env のみ）。 */
+/** DB(llm_settings 単一行)に永続化する LLM 設定。APIキーは含めず、resolverから実行時に注入する。 */
 export type LlmSettings = {
   provider: LlmProvider;
   baseUrl: string | null;
@@ -146,24 +146,15 @@ export function selectRunner(args: SelectRunnerArgs): ClaudeRunner {
   }
 }
 
-/** 実 env から合成 env へ引き継ぐのは API キーのみ（キーは DB に持たせない衛生を1箇所で担保する）。 */
-const API_KEY_ENV_VARS = [
-  "ANTHROPIC_API_KEY",
-  "CODEX_API_KEY",
-  "OPENAI_API_KEY",
-  "OPENAI_COMPAT_API_KEY",
-  "TTS_API_KEY",
-] as const;
-
 /**
  * DB 由来の LlmSettings を selectRunner が読む env 形状へ写像する純関数。
- * 合成 env は「API キー5種（実 env 由来）+ 接続設定4種（DB 由来）」だけで構成し、実 env の
- * LLM_PROVIDER / OPENAI_COMPAT_BASE_URL / OPENAI_COMPAT_MODEL / CODEX_MODEL その他は一切引き継がない
- * （env フォールバック廃止・v0.29。設定の真実は UI/DB のみ）。
+ * 合成envはDB由来の接続設定と、選択providerが必要とする承認済みキーだけで構成する。
+ * 実envの接続設定・無関係なAPIキー・その他の値は引き継がない。
  */
 export function settingsToEnv(
   s: LlmSettings,
   env: Record<string, string | undefined> = Bun.env,
+  apiKeyForBaseUrl?: (baseUrl: string) => string | undefined,
 ): Record<string, string | undefined> {
   const out: Record<string, string | undefined> = {
     LLM_PROVIDER: s.provider,
@@ -171,7 +162,13 @@ export function settingsToEnv(
     OPENAI_COMPAT_MODEL: s.model ?? undefined,
     CODEX_MODEL: s.codexModel ?? undefined,
   };
-  for (const k of API_KEY_ENV_VARS) out[k] = env[k];
+  // LLM runnerへ渡すsecretは選択providerが実際に使う1種類だけ。サーバ経路ではorigin承認resolverを
+  // 必須配線し、CLI経路だけ従来の明示env入力へフォールバックする。
+  if (s.provider === "openai-compat" && s.baseUrl) {
+    out.OPENAI_COMPAT_API_KEY = apiKeyForBaseUrl
+      ? apiKeyForBaseUrl(s.baseUrl)
+      : env.OPENAI_COMPAT_API_KEY?.trim() || undefined;
+  }
   return out;
 }
 

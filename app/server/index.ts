@@ -1,7 +1,7 @@
 import { CLIENT_DIST_DIR, ensureDirs, LISTENING_DIR, POC_STT_LOG_FILE, RECORDINGS_DIR, sessionLogPath, TOPICS_DIR, TOPIC_ASSETS_DIR } from "./paths";
 import { resolveHostname, resolvePort, serveOrExit } from "./serve";
 import { transcribeAudio } from "./stt";
-import { synthesize } from "./tts";
+import { synthesize, DEFAULT_TTS_BASE_URL } from "./tts";
 import { converseTurn, applyLlmRoleSettings, runnerFor, CLAUDE_EXECUTABLE_PATH } from "./converse";
 import { checkHealth } from "./health";
 import { buildQuickMenu, buildTodayMenu, invalidateTodayMenuCache } from "./menu";
@@ -27,8 +27,8 @@ import { makeTtsSettingsStore } from "./tts-settings-store";
 import { makeTtsProviderStore } from "./tts-provider-store";
 import { makeLlmRoleSettingsStore } from "./llm-role-settings-store";
 import { makeLlmRoleTuningStore } from "./llm-role-tuning-store";
-import { makeLlmAuthStore, setActiveAuthModes } from "./llm-auth-store";
-import { ensureCodexApiKeyHome, resetCodexApiKeyHome } from "./codex-auth";
+import { makeLlmAuthStore, setActiveAuthModes, setActiveAuthSecrets } from "./llm-auth-store";
+import { CODEX_HOME_DIR, ensureCodexApiKeyHome, realCodexLoginSpawn, resetCodexApiKeyHome } from "./codex-auth";
 import { conversationWarmup } from "./llm-warmup";
 import { DEFAULT_LLM_SETTINGS, LLM_ROLES } from "./llm-provider";
 import { query } from "@anthropic-ai/claude-agent-sdk";
@@ -36,18 +36,59 @@ import { getCodexAppServerClient, __resetCodexAppServerRegistry } from "./provid
 import { makeClaudeCatalogFetcher, makeCodexCatalogFetcher, makeLocalCatalogFetcher, makeModelCatalogCache } from "./providers/model-catalog";
 import { modelDownloadManager } from "./model-download";
 import { makeSecretsManager } from "./secrets";
+import {
+  makeApiKeyOriginStore,
+  resolveOriginBoundSecret,
+  resolveOriginBoundSecretWithFixedFallback,
+  type OriginBoundSecretName,
+} from "./api-key-origin-store";
 
 ensureDirs();
 const PORT = resolvePort(Bun.env);
 const HOSTNAME = resolveHostname(Bun.env);
 
-// 起動時: Keychain に保存済みの API キーをプロセス env へ注入する（Keychain > env・spec 2026-07-10）。
-// 以降の鍵消費点（settingsToEnv・codex-auth・tts・health・presence 判定）はすべてプロセス env を
-// 見るため、この1回の注入で全経路に効く。失敗しても env のみで継続する（fail-open・load 内で warn）。
+// 起動時: Keychain値をmanager内へ読み込む（Keychain > env）。process.envへは展開せず、
+// providerごとのresolverだけが必要な鍵を取得する。読込失敗時はenvのみで継続する。
 const secretsManager = makeSecretsManager();
 await secretsManager.load();
 
+function syncActiveAuthSecrets(): void {
+  setActiveAuthSecrets({
+    anthropic: secretsManager.get("ANTHROPIC_API_KEY"),
+    codex: secretsManager.get("CODEX_API_KEY"),
+  });
+}
+syncActiveAuthSecrets();
+
 const db = openDb();
+const apiKeyOriginStore = makeApiKeyOriginStore(db);
+
+function originBoundKey(name: OriginBoundSecretName, baseUrl: string): string | undefined {
+  return resolveOriginBoundSecret(apiKeyOriginStore, name, baseUrl, (secretName) => secretsManager.get(secretName));
+}
+
+function ttsApiKeyForBaseUrl(baseUrl: string): string | undefined {
+  // TTS_API_KEYが存在する場合はその承認結果を優先し、未承認時に別の課金鍵へ黙って切り替えない。
+  // OPENAI_API_KEYはTTS_API_KEY自体が無い場合だけ、OpenAI公式origin向けに限定して使う。
+  return resolveOriginBoundSecretWithFixedFallback(
+    apiKeyOriginStore,
+    "TTS_API_KEY",
+    baseUrl,
+    (name) => secretsManager.get(name),
+    DEFAULT_TTS_BASE_URL,
+    () => Bun.env.OPENAI_API_KEY?.trim() || undefined,
+  );
+}
+
+function runtimeSecretEnv(): Record<string, string | undefined> {
+  return {
+    ANTHROPIC_API_KEY: secretsManager.get("ANTHROPIC_API_KEY"),
+    CODEX_API_KEY: secretsManager.get("CODEX_API_KEY"),
+    OPENAI_COMPAT_API_KEY: secretsManager.get("OPENAI_COMPAT_API_KEY"),
+    TTS_API_KEY: secretsManager.get("TTS_API_KEY"),
+    OPENAI_API_KEY: Bun.env.OPENAI_API_KEY,
+  };
+}
 const libraryStore = makeLibraryStore(db);
 const sentences = loadSentences();
 const sentenceStore = makeSentenceStore(db, sentences);
@@ -87,11 +128,14 @@ const assembleMonthData = makeAssembleMonthData({
 
 const realDeps: RouteDeps = {
   transcribe: transcribeAudio,
-  synthesize,
+  synthesize: (text, opts = {}) => {
+    const baseUrl = opts.baseUrl?.trim() || DEFAULT_TTS_BASE_URL;
+    return synthesize(text, { ...opts, apiKey: ttsApiKeyForBaseUrl(baseUrl), env: {} });
+  },
   converse: (args) => converseTurn({ ...args, runner: runnerFor("conversation") }),
   // llmSettings: health.llmReady（claude/codex/openai-compatのいずれかが実際に使えるかの集約判定）が
   // openai-compat経路の判定に使う。DB未設定時はcheckHealth側でenv直接運用として扱う。
-  health: () => checkHealth({ llmSettings: llmSettingsStore.get() }),
+  health: () => checkHealth({ llmSettings: llmSettingsStore.get(), env: runtimeSecretEnv() }),
   logFile: () => sessionLogPath(new Date()),
   recordingsDir: RECORDINGS_DIR,
   staticDir: CLIENT_DIST_DIR,
@@ -162,55 +206,84 @@ const realDeps: RouteDeps = {
   // 「現在の全体設定 + 保存済みロール + 保存済みチューニング（global 込み）」で一括再解決する
   // （PUT /api/llm-settings, /api/llm-settings/roles の共通経路）。
   applyLlmSettings: (s) =>
-    applyLlmRoleSettings(s, llmRoleSettingsStore.getAll(), Bun.env, llmRoleTuningStore.getAll(), llmRoleTuningStore.getGlobal()),
-  // env 由来情報。APIキーは有無のみ（値は絶対に返さない）。接続設定の env 読み取りは廃止済み（v0.29）。
-  llmEnv: () => ({
-    apiKeyConfigured: Boolean(Bun.env.OPENAI_COMPAT_API_KEY?.trim()),
-  }),
+    applyLlmRoleSettings(
+      s,
+      llmRoleSettingsStore.getAll(),
+      runtimeSecretEnv(),
+      llmRoleTuningStore.getAll(),
+      llmRoleTuningStore.getGlobal(),
+      (baseUrl) => originBoundKey("OPENAI_COMPAT_API_KEY", baseUrl),
+    ),
+  llmEnv: () => {
+    const baseUrl = llmSettingsStore.get()?.baseUrl;
+    return {
+      apiKeyConfigured: Boolean(secretsManager.get("OPENAI_COMPAT_API_KEY")),
+      apiKeyApproved: Boolean(baseUrl && originBoundKey("OPENAI_COMPAT_API_KEY", baseUrl)),
+    };
+  },
   warmLlm: () => conversationWarmup.maybeWarm(),
   getLlmAuthModes: () => llmAuthStore.getAll(),
   saveLlmAuthMode: (provider, mode) => llmAuthStore.set(provider, mode),
-  // env のキー検出のみ（値は絶対に返さない）。anthropic=ANTHROPIC_API_KEY・codex=CODEX_API_KEY。
+  // Keychain/env resolverのキー検出のみ（値は絶対に返さない）。
   getAuthKeysConfigured: () => ({
-    anthropic: Boolean(Bun.env.ANTHROPIC_API_KEY?.trim()),
-    codex: Boolean(Bun.env.CODEX_API_KEY?.trim()),
+    anthropic: Boolean(secretsManager.get("ANTHROPIC_API_KEY")),
+    codex: Boolean(secretsManager.get("CODEX_API_KEY")),
   }),
   // 保存直後の最新モードを runner 側のランタイムキャッシュへ push する（PUT がサーバ再起動なしに反映されるため）。
   applyLlmAuthModes: (modes) => setActiveAuthModes(modes),
-  ensureCodexApiKeyHome: () => ensureCodexApiKeyHome(),
+  ensureCodexApiKeyHome: () => ensureCodexApiKeyHome(
+    realCodexLoginSpawn,
+    CODEX_HOME_DIR,
+    secretsManager.get("CODEX_API_KEY"),
+  ),
   killCodexAppServerRegistry: () => __resetCodexAppServerRegistry(),
   getModelCatalog: (provider, refresh) => modelCatalogCache.get(provider, refresh),
   getTtsSettings: () => ttsSettingsStore.get(),
   saveTtsSettings: (s) => ttsSettingsStore.save(s),
   getTtsProvider: () => ttsProviderStore.get(),
   saveTtsProvider: (p) => ttsProviderStore.save(p),
-  // env 由来。TTS の APIキーは有無のみ開示（TTS_API_KEY 優先・無ければ OPENAI_API_KEY）。値は絶対に返さない。
-  ttsEnv: () => ({ apiKeyConfigured: Boolean((Bun.env.TTS_API_KEY ?? Bun.env.OPENAI_API_KEY)?.trim()) }),
+  ttsEnv: () => {
+    const baseUrl = ttsSettingsStore.get()?.baseUrl ?? DEFAULT_TTS_BASE_URL;
+    return {
+      apiKeyConfigured: Boolean(secretsManager.get("TTS_API_KEY") ?? Bun.env.OPENAI_API_KEY?.trim()),
+      apiKeyApproved: Boolean(ttsApiKeyForBaseUrl(baseUrl)),
+    };
+  },
   // API キーの Keychain 設定（routes/secrets.ts）。値はいかなる応答にも含めない。
   // CODEX_API_KEY の変更は隔離 CODEX_HOME の auth.json を破棄し、api-key モード運用中なら
-  // 新しいキー（削除時は env 復元値）で再ログインする。キーが無くなった場合は情報的エラーを
+  // 新しい実効キー（Keychain > env）で再ログインする。キーが無くなった場合は情報的エラーを
   // throw し、route が applied:false + error として返す（モード自体は変更しない）。
   refreshCodexAuth: async () => {
     resetCodexApiKeyHome();
     if (llmAuthStore.getAll().codex !== "api-key") return;
-    if (!Bun.env.CODEX_API_KEY?.trim()) {
+    const apiKey = secretsManager.get("CODEX_API_KEY");
+    if (!apiKey) {
       throw new Error("codex auth mode is api-key but no key is configured now; save a key or switch to subscription");
     }
-    await ensureCodexApiKeyHome();
+    await ensureCodexApiKeyHome(realCodexLoginSpawn, CODEX_HOME_DIR, apiKey);
+  },
+  refreshClaudeAuth: async () => {
+    if (llmAuthStore.getAll().claude === "api-key" && !secretsManager.get("ANTHROPIC_API_KEY")) {
+      throw new Error("claude auth mode is api-key but no key is configured; save a key or switch to subscription");
+    }
   },
   getSecretsStatus: () => secretsManager.status(),
   saveSecret: (name, value) => secretsManager.save(name, value),
   removeSecret: (name) => secretsManager.remove(name),
+  bindSecretOrigin: (name, origin) => apiKeyOriginStore.set(name, origin),
+  removeSecretOrigin: (name) => apiKeyOriginStore.remove(name),
   // 鍵変更後の再解決: llm-settings の applyResolved と同じ「現在の全体設定 + 保存済みロール/チューニング」で
   // 5ロール runner を組み直す（openai-compat の apiKey は合成 env 経由なので新しい鍵が効く）。fail-open。
   applySecretsChange: () => {
     try {
+      syncActiveAuthSecrets();
       applyLlmRoleSettings(
         llmSettingsStore.get() ?? DEFAULT_LLM_SETTINGS,
         llmRoleSettingsStore.getAll(),
-        Bun.env,
+        runtimeSecretEnv(),
         llmRoleTuningStore.getAll(),
         llmRoleTuningStore.getGlobal(),
+        (baseUrl) => originBoundKey("OPENAI_COMPAT_API_KEY", baseUrl),
       );
       return { applied: true, error: null };
     } catch (err) {
@@ -241,9 +314,10 @@ if (savedLlm || hasRoleOverride || hasTuningOverride) {
     applyLlmRoleSettings(
       savedLlm ?? DEFAULT_LLM_SETTINGS,
       savedRoles,
-      Bun.env,
+      runtimeSecretEnv(),
       savedTuning,
       savedGlobalTuning,
+      (baseUrl) => originBoundKey("OPENAI_COMPAT_API_KEY", baseUrl),
     );
   } catch (err) {
     console.warn(`[llm] failed to apply saved settings, falling back to environment/claude: ${String(err)}`);

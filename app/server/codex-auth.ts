@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { DATA_DIR } from "./paths";
-import type { AuthMode } from "./llm-auth-store";
+import { getActiveAuthSecrets, type AuthMode } from "./llm-auth-store";
+import { minimalSubprocessEnv } from "./subprocess-env";
 
 /**
  * codex api-key モード専用の隔離 CODEX_HOME（gitignore済み data/ 配下）。
@@ -33,24 +34,25 @@ function hasValidAuthJson(authPath: string): boolean {
 /**
  * codex api-key モード用の隔離 CODEX_HOME に auth.json を用意する（冪等）。
  * 既に有効な auth.json があれば何もせず dir をそのまま返す。無い、または壊れていれば
- * CODEX_API_KEY（app/.env 由来）を stdin で渡して `CODEX_HOME=<dir> codex login --with-api-key` を
+ * resolverが解決したCODEX_API_KEYを stdin で渡して `CODEX_HOME=<dir> codex login --with-api-key` を
  * 実行し、作成した dir を返す。dir 引数はテスト用（既定 CODEX_HOME_DIR）— 実運用の呼び出し
  * （route 経由）は常に引数省略で呼ぶ。
  */
 export async function ensureCodexApiKeyHome(
   spawnFn: CodexLoginSpawn = realCodexLoginSpawn,
   dir: string = CODEX_HOME_DIR,
+  apiKey: string | undefined = getActiveAuthSecrets().codex,
+  baseEnv: Record<string, string | undefined> = Bun.env,
 ): Promise<string> {
   const authPath = path.join(dir, "auth.json");
   if (hasValidAuthJson(authPath)) return dir;
 
-  const apiKey = Bun.env.CODEX_API_KEY;
   if (!apiKey || !apiKey.trim()) {
-    throw new Error("codex api key not configured in app/.env");
+    throw new Error("codex auth mode is api-key but no key is configured; save a key or switch to subscription");
   }
 
   mkdirSync(dir, { recursive: true });
-  await spawnFn({ env: { ...Bun.env, CODEX_HOME: dir }, stdin: apiKey });
+  await spawnFn({ env: minimalSubprocessEnv(baseEnv, { CODEX_HOME: dir }), stdin: apiKey });
   return dir;
 }
 
@@ -84,14 +86,19 @@ export const realCodexLoginSpawn: CodexLoginSpawn = async ({ env, stdin }) => {
 
 /**
  * codex spawn（exec / app-server 共通）向けの env 上書きを組み立てる純関数。
- * subscription（既定）では undefined を返す＝現行どおり process.env をそのまま継承する（挙動不変の核）。
- * api-key のときだけ baseEnv を土台に CODEX_HOME（隔離ディレクトリ）を注入した env を返す
+ * subscriptionでは固定allowlistだけを返す。api-keyでは鍵の存在を検証し、最小envへ
+ * CODEX_HOME（隔離ディレクトリ）だけを追加する
  * （standalone の codex app-server は env 単体では認証されず、CODEX_HOME 配下の auth.json を要求するため。
  * exec 側もここで揃え、両経路とも同一の隔離ホームを常に指す設計にする）。
  */
 export function codexSpawnEnv(
   mode: AuthMode,
   baseEnv: Record<string, string | undefined> = Bun.env,
-): Record<string, string | undefined> | undefined {
-  return mode === "api-key" ? { ...baseEnv, CODEX_HOME: CODEX_HOME_DIR } : undefined;
+  apiKey: string | undefined = getActiveAuthSecrets().codex,
+): Record<string, string> {
+  if (mode === "subscription") return minimalSubprocessEnv(baseEnv);
+  if (!apiKey?.trim()) {
+    throw new Error("codex auth mode is api-key but no key is configured; save a key or switch to subscription");
+  }
+  return minimalSubprocessEnv(baseEnv, { CODEX_HOME: CODEX_HOME_DIR });
 }

@@ -4,7 +4,7 @@ import { LLM_ROLES, type LlmRole, type LlmRoleProvider, type LlmRoleSetting } fr
 /**
  * ロール別 LLM 設定の永続化（role 主キーの複数行）。全体設定の llm_settings（単一行）とは別テーブル。
  * 既存 DB への影響なし（CREATE IF NOT EXISTS のみ・ALTER しない）。row 不在のロールは inherit とみなす。
- * APIキーは持たない（.env のみ）。
+ * APIキーは持たず、Keychain/env resolverから実行時に注入する。
  */
 export function ensureLlmRoleSettingsSchema(db: Database): void {
   db.run(`CREATE TABLE IF NOT EXISTS llm_role_settings (

@@ -85,11 +85,11 @@ describe("settingsToEnv", () => {
     expect(out.OPENAI_COMPAT_BASE_URL).toBeUndefined();
     expect(out.OPENAI_COMPAT_MODEL).toBeUndefined();
     expect(out.CODEX_MODEL).toBeUndefined();
-    // 接続設定以外の任意 env も引き継がない（合成 env は API キー + DB 由来のみで構成する）
+    // 接続設定以外の任意 env も引き継がない
     expect(out.FOO).toBeUndefined();
   });
 
-  test("API キー5種だけは実 env から合成 env へ引き継ぐ", () => {
+  test("選択providerと無関係なAPIキーは合成envへ一切引き継がない", () => {
     const env = {
       ANTHROPIC_API_KEY: "sk-a",
       CODEX_API_KEY: "sk-c",
@@ -98,11 +98,11 @@ describe("settingsToEnv", () => {
       TTS_API_KEY: "sk-t",
     };
     const out = settingsToEnv({ provider: "claude", baseUrl: null, model: null, codexModel: null }, env);
-    expect(out.ANTHROPIC_API_KEY).toBe("sk-a");
-    expect(out.CODEX_API_KEY).toBe("sk-c");
-    expect(out.OPENAI_API_KEY).toBe("sk-o");
-    expect(out.OPENAI_COMPAT_API_KEY).toBe("sk-oc");
-    expect(out.TTS_API_KEY).toBe("sk-t");
+    expect(out.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(out.CODEX_API_KEY).toBeUndefined();
+    expect(out.OPENAI_API_KEY).toBeUndefined();
+    expect(out.OPENAI_COMPAT_API_KEY).toBeUndefined();
+    expect(out.TTS_API_KEY).toBeUndefined();
   });
 
   test("provider=openai-compat: BASE_URL/MODEL を DB 由来で設定し、APIキーは env 由来のみ保持する", () => {
@@ -113,6 +113,16 @@ describe("settingsToEnv", () => {
     expect(out.OPENAI_COMPAT_MODEL).toBe("llama3");
     // APIキーは settings に存在しない。必ず env（.env）から来る
     expect(out.OPENAI_COMPAT_API_KEY).toBe("sk-from-env");
+  });
+
+  test("server用resolverを渡した場合はその接続先に承認されたキーだけを採用する", () => {
+    const calls: string[] = [];
+    const out = settingsToEnv(openaiSettings, { OPENAI_COMPAT_API_KEY: "ambient" }, (baseUrl) => {
+      calls.push(baseUrl);
+      return "approved";
+    });
+    expect(calls).toEqual(["http://localhost:11434/v1"]);
+    expect(out.OPENAI_COMPAT_API_KEY).toBe("approved");
   });
 
   test("provider=claude: LLM_PROVIDER=claude を立てる", () => {

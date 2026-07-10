@@ -17,6 +17,7 @@ describe("llm-settings API", () => {
     expect(await res.json()).toEqual({
       provider: "claude", baseUrl: null, model: null, codexModel: null,
       apiKeyConfigured: false,
+      apiKeyApproved: false,
       roles: {
         conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
@@ -46,6 +47,7 @@ describe("llm-settings API", () => {
     expect(await res.json()).toEqual({
       provider: "openai-compat", baseUrl: "http://localhost:11434/v1", model: "llama3", codexModel: null,
       apiKeyConfigured: true,
+      apiKeyApproved: false,
       roles: {
         conversation: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
         assist: { provider: "inherit", baseUrl: null, model: null, codexModel: null },
@@ -134,6 +136,20 @@ describe("llm-settings API", () => {
     expect((await h(putJson("/api/llm-settings", { provider: "openai-compat", baseUrl: "not a url", model: "m" }))).status).toBe(400);
     expect((await h(putJson("/api/llm-settings", { provider: "openai-compat", baseUrl: "http://localhost/v1" }))).status).toBe(400);
     expect(saved).toHaveLength(0);
+  });
+
+  test("openai-compat baseUrlを正規化し、userinfo・query・fragmentを拒否する", async () => {
+    const saved: LlmSettings[] = [];
+    const { deps } = makeTestDeps({ saveLlmSettings: (s) => { saved.push(s); } });
+    const h = makeFetchHandler(deps);
+    const ok = await h(putJson("/api/llm-settings", {
+      provider: "openai-compat", baseUrl: "HTTPS://Models.Example:443/v1/", model: "m",
+    }));
+    expect(ok.status).toBe(200);
+    expect(saved[0]?.baseUrl).toBe("https://models.example/v1");
+    for (const baseUrl of ["https://u:p@example.com/v1", "https://example.com/v1?q=1", "https://example.com/v1#x"]) {
+      expect((await h(putJson("/api/llm-settings", { provider: "openai-compat", baseUrl, model: "m" }))).status, baseUrl).toBe(400);
+    }
   });
 
   test("PUT: apply が throw しても保存は成功扱いで applied:false + error を返す（crash化させない）", async () => {
@@ -658,7 +674,9 @@ describe("llm-settings auth API", () => {
       auth: { claude: "api-key" },
     }));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "anthropic api key not configured in app/.env" });
+    expect(await res.json()).toEqual({
+      error: "anthropic api key is not configured; save it in settings before selecting api-key mode",
+    });
     expect(savedModes).toHaveLength(0);
   });
 
@@ -676,7 +694,9 @@ describe("llm-settings auth API", () => {
       auth: { codex: "api-key" },
     }));
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "codex api key not configured in app/.env" });
+    expect(await res.json()).toEqual({
+      error: "codex api key is not configured; save it in settings before selecting api-key mode",
+    });
     expect(savedModes).toHaveLength(0);
     expect(ensureCalls).toHaveLength(0);
   });

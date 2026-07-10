@@ -345,7 +345,9 @@ function checkCodexVersionOnce(): void {
   if (versionChecked) return;
   versionChecked = true;
   try {
-    const result = Bun.spawnSync(["codex", "--version"]);
+    const result = Bun.spawnSync(["codex", "--version"], {
+      env: codexSpawnEnv(getActiveAuthModes().codex),
+    });
     const actual = new TextDecoder().decode(result.stdout).trim();
     if (!isTestedCodexVersion(actual)) {
       console.warn(

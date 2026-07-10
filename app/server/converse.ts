@@ -12,7 +12,7 @@ import { appendEvent, markErrorLogged } from "./session-log";
 import { sessionLogPath } from "./paths";
 import { vocabConstraint } from "./progression";
 import type { RoleTuning } from "./llm-role-tuning-store";
-import { getActiveAuthModes, claudeSpawnEnv } from "./llm-auth-store";
+import { getActiveAuthModes, getActiveAuthSecrets, claudeSpawnEnv } from "./llm-auth-store";
 
 export function partnerSystemPrompt(stage: number): string {
   return `You are an English conversation partner for a Japanese IT professional (CEFR A2-B1).
@@ -78,11 +78,13 @@ export function makeClaudeRunner(
       );
 
     let receivedFirstMessage = false;
-    // api-key 認証モードのときだけ ANTHROPIC_API_KEY を注入した env を渡す（subscription では undefined のまま
-    // options.env 自体を渡さず、現行どおり SDK が process.env を継承する＝挙動不変の核）。モードは呼び出しごとに
-    // 都度参照する（llm-auth-store.ts の getActiveAuthModes 参照）ため、claudeRunner が module-level 単一
-    // インスタンスのままでも PUT 直後の切替がサーバ再起動なしに反映される。
-    const claudeAuthEnv = claudeSpawnEnv(getActiveAuthModes().claude);
+    // subscriptionは最小allowlist env（APIキー除去）、api-keyはそこへ解決済みANTHROPIC_API_KEYだけを追加する。
+    // モードと鍵は呼び出しごとに参照するため、module-level runnerのまま保存/削除を即時反映できる。
+    const claudeAuthEnv = claudeSpawnEnv(
+      getActiveAuthModes().claude,
+      Bun.env,
+      getActiveAuthSecrets().anthropic,
+    );
     const iterator = (() => {
       try {
         return queryFn({
@@ -100,7 +102,7 @@ export function makeClaudeRunner(
             tools: [],
             maxTurns: 1,
             ...(resumeId ? { resume: resumeId } : {}),
-            ...(claudeAuthEnv ? { env: claudeAuthEnv } : {}),
+            env: claudeAuthEnv,
             ...(cfg?.claudeExecutablePath ? { pathToClaudeCodeExecutable: cfg.claudeExecutablePath } : {}),
           },
         })[Symbol.asyncIterator]();
@@ -239,8 +241,9 @@ function resolveRoleRunner(
   settings: LlmSettings,
   rt: RoleTuning,
   env: Record<string, string | undefined>,
+  apiKeyForBaseUrl?: (baseUrl: string) => string | undefined,
 ): ClaudeRunner {
-  const roleEnv = settingsToEnv(settings, env);
+  const roleEnv = settingsToEnv(settings, env, apiKeyForBaseUrl);
   const provider = resolveProviderKey(roleEnv);
   if (provider === "" || provider === "claude") {
     return resolveClaudeRunner(resolveClaudeTuning(rt));
@@ -302,7 +305,7 @@ export function getCurrentRunner(role: LlmRole = "conversation"): ClaudeRunner {
  * inherit ロールでチューニングも空（3項目とも null）のものは global の runner を共有参照する
  * （= 全 inherit かつ tuning 全 null なら全ロール同一参照＝既定挙動不変）。inherit でもそのロール自身の
  * チューニングが入っていれば独立に解決する（例: 全ロール claude 継承のまま assessment だけ opus/xhigh）。
- * APIキーは env（.env）由来のみ（settingsToEnv が担保）。不正 provider 等では selectRunner が throw しうるため、
+ * OpenAI互換APIキーは接続先origin用resolverから受ける。不正 provider 等では selectRunner が throw しうるため、
  * 起動時適用側（index.ts）とルート層で fail-open ガードする。
  */
 export function applyLlmRoleSettings(
@@ -311,11 +314,12 @@ export function applyLlmRoleSettings(
   env: Record<string, string | undefined> = Bun.env,
   tuning?: Record<LlmRole, RoleTuning>,
   globalTuning?: RoleTuning,
+  apiKeyForBaseUrl?: (baseUrl: string) => string | undefined,
 ): void {
   // globalRunner は globalTuning 込みで解決する。inherit + ロール別 tuning 無しのロールは
   // これを共有参照するため、「global のモデル/effort 変更が全ロールへ効く」が1点で成立する。
   const globalRt = globalTuning ?? EMPTY_TUNING;
-  const globalRunner = resolveRoleRunner(global, globalRt, env);
+  const globalRunner = resolveRoleRunner(global, globalRt, env, apiKeyForBaseUrl);
   for (const role of LLM_ROLES) {
     const rs = roles[role];
     const rt = tuning?.[role] ?? EMPTY_TUNING;
@@ -323,7 +327,12 @@ export function applyLlmRoleSettings(
       role,
       isInheritRole(rs) && isEmptyTuning(rt)
         ? globalRunner
-        : resolveRoleRunner(isInheritRole(rs) ? global : roleSettingToSettings(rs), mergeTuning(rt, globalRt), env),
+        : resolveRoleRunner(
+            isInheritRole(rs) ? global : roleSettingToSettings(rs),
+            mergeTuning(rt, globalRt),
+            env,
+            apiKeyForBaseUrl,
+          ),
     );
   }
   // assist の連鎖規則（binding）: assist の設定行が inherit のとき、assist は coaching の解決済み
@@ -335,7 +344,7 @@ export function applyLlmRoleSettings(
   }
   // conversation の解決先が openai-compat のときだけ warm 対象を更新する（inherit なら global を辿る）。
   const convSetting = isInheritRole(roles.conversation) ? global : roleSettingToSettings(roles.conversation);
-  conversationWarmup.setTarget(openAICompatWarmTargetFromEnv(settingsToEnv(convSetting, env)));
+  conversationWarmup.setTarget(openAICompatWarmTargetFromEnv(settingsToEnv(convSetting, env, apiKeyForBaseUrl)));
 }
 
 /**

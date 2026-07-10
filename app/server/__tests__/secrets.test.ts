@@ -43,11 +43,12 @@ describe("makeSecretsManager", () => {
     const mgr = makeSecretsManager({ spawn, env });
     await mgr.save("ANTHROPIC_API_KEY", "sk-super-secret");
     expect(calls).toHaveLength(1);
-    expect(calls[0].cmd).toEqual(["security", "-i"]);
+    expect(calls[0].cmd).toEqual(["/usr/bin/security", "-i"]);
     expect(calls[0].cmd.join(" ")).not.toContain("sk-super-secret");
     expect(calls[0].stdin).toContain('add-generic-password -U -a ANTHROPIC_API_KEY -s solo-eikaiwa -w "sk-super-secret"');
-    // 保存後は即プロセス env（注入先）に反映され、source は keychain になる
-    expect(env.ANTHROPIC_API_KEY).toBe("sk-super-secret");
+    // 保存値はmanager内にだけ保持し、ambient envへ展開しない
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(mgr.get("ANTHROPIC_API_KEY")).toBe("sk-super-secret");
     expect(mgr.status().ANTHROPIC_API_KEY).toEqual({ configured: true, source: "keychain" });
   });
 
@@ -59,8 +60,8 @@ describe("makeSecretsManager", () => {
     expect(calls).toHaveLength(0);
   });
 
-  test("save: security 失敗時は stderr を含めて throw するが、値はメッセージに含めない", async () => {
-    const { spawn } = makeFakeSpawn(() => ({ exitCode: 1, stderr: "keychain locked" }));
+  test("save: security 失敗時は stderr を含めて throw するが、echoされた値は除去する", async () => {
+    const { spawn } = makeFakeSpawn(() => ({ exitCode: 1, stderr: "keychain locked: sk-tts-secret" }));
     const mgr = makeSecretsManager({ spawn, env: {} });
     try {
       await mgr.save("TTS_API_KEY", "sk-tts-secret");
@@ -68,19 +69,22 @@ describe("makeSecretsManager", () => {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       expect(msg).toContain("keychain locked");
+      expect(msg).toContain("[redacted]");
       expect(msg).not.toContain("sk-tts-secret");
     }
   });
 
-  test("load: Keychain にある鍵だけ env を上書きし（元値はスナップショット）、無い鍵は env のまま（source=env）", async () => {
+  test("load: Keychain値をmanager内で優先し、ambient env自体は変更しない", async () => {
     const { spawn } = makeFakeSpawn((cmd) =>
       cmd.includes("ANTHROPIC_API_KEY") ? { exitCode: 0, stdout: "sk-from-keychain\n" } : NOT_FOUND(),
     );
     const env: Record<string, string | undefined> = { ANTHROPIC_API_KEY: "sk-from-env", CODEX_API_KEY: "sk-codex-env" };
     const mgr = makeSecretsManager({ spawn, env });
     await mgr.load();
-    expect(env.ANTHROPIC_API_KEY).toBe("sk-from-keychain");
+    expect(env.ANTHROPIC_API_KEY).toBe("sk-from-env");
     expect(env.CODEX_API_KEY).toBe("sk-codex-env");
+    expect(mgr.get("ANTHROPIC_API_KEY")).toBe("sk-from-keychain");
+    expect(mgr.get("CODEX_API_KEY")).toBe("sk-codex-env");
     expect(mgr.status().ANTHROPIC_API_KEY).toEqual({ configured: true, source: "keychain" });
     expect(mgr.status().CODEX_API_KEY).toEqual({ configured: true, source: "env" });
     expect(mgr.status().TTS_API_KEY).toEqual({ configured: false, source: null });
@@ -97,18 +101,20 @@ describe("makeSecretsManager", () => {
     expect(mgr.status().TTS_API_KEY).toEqual({ configured: true, source: "env" });
   });
 
-  test("remove: Keychain から削除し、env は元値（.env 由来）へ復元される", async () => {
+  test("remove: Keychain値だけを削除し、env由来値へresolverが戻る", async () => {
     const { spawn } = makeFakeSpawn(OK);
     const env: Record<string, string | undefined> = { OPENAI_COMPAT_API_KEY: "sk-env-original" };
     const mgr = makeSecretsManager({ spawn, env });
     await mgr.save("OPENAI_COMPAT_API_KEY", "sk-keychain-new");
-    expect(env.OPENAI_COMPAT_API_KEY).toBe("sk-keychain-new");
+    expect(env.OPENAI_COMPAT_API_KEY).toBe("sk-env-original");
+    expect(mgr.get("OPENAI_COMPAT_API_KEY")).toBe("sk-keychain-new");
     await mgr.remove("OPENAI_COMPAT_API_KEY");
     expect(env.OPENAI_COMPAT_API_KEY).toBe("sk-env-original");
+    expect(mgr.get("OPENAI_COMPAT_API_KEY")).toBe("sk-env-original");
     expect(mgr.status().OPENAI_COMPAT_API_KEY).toEqual({ configured: true, source: "env" });
   });
 
-  test("remove: 元値が無い鍵は env からも消え、source は null に戻る", async () => {
+  test("remove: env元値が無い鍵はresolverから消え、sourceはnullに戻る", async () => {
     const { spawn } = makeFakeSpawn(OK);
     const env: Record<string, string | undefined> = {};
     const mgr = makeSecretsManager({ spawn, env });
@@ -116,6 +122,18 @@ describe("makeSecretsManager", () => {
     await mgr.remove("TTS_API_KEY");
     expect(env.TTS_API_KEY).toBeUndefined();
     expect(mgr.status().TTS_API_KEY).toEqual({ configured: false, source: null });
+  });
+
+  test("remove: Keychain未登録でenv由来のみの鍵はenv値とsourceを保持する", async () => {
+    const { spawn } = makeFakeSpawn(NOT_FOUND);
+    const env: Record<string, string | undefined> = { TTS_API_KEY: "sk-from-dotenv" };
+    const mgr = makeSecretsManager({ spawn, env });
+
+    await mgr.remove("TTS_API_KEY");
+
+    expect(env.TTS_API_KEY).toBe("sk-from-dotenv");
+    expect(mgr.get("TTS_API_KEY")).toBe("sk-from-dotenv");
+    expect(mgr.status().TTS_API_KEY).toEqual({ configured: true, source: "env" });
   });
 
   test("remove: Keychain に項目が無い（exit 44）は成功扱い（冪等）", async () => {

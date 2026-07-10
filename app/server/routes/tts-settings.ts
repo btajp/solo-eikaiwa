@@ -1,6 +1,7 @@
 import { json, parseJsonBody, exact, type RouteEntry } from "./http";
 import { DEFAULT_TTS_BASE_URL, DEFAULT_TTS_MODEL, DEFAULT_TTS_VOICE, type TtsProvider, type TtsSettings } from "../tts";
 import { TTS_PROVIDERS } from "../tts-provider-store";
+import { parseRemoteBaseUrl } from "../remote-endpoint";
 
 export type TtsSettingsRoutesDeps = {
   getTtsSettings: () => TtsSettings | null;
@@ -8,18 +9,9 @@ export type TtsSettingsRoutesDeps = {
   /** TTS プロバイダの明示選択（行不在は "auto"）。 */
   getTtsProvider: () => TtsProvider;
   saveTtsProvider: (p: TtsProvider) => void;
-  /** env 由来。APIキー値は返さず有無のみ。 */
-  ttsEnv: () => { apiKeyConfigured: boolean };
+  /** Keychain/env resolver由来のAPIキー状態のみ。値は返さない。 */
+  ttsEnv: () => { apiKeyConfigured: boolean; apiKeyApproved?: boolean };
 };
-
-function isHttpUrl(v: string): boolean {
-  try {
-    const u = new URL(v);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
 
 /** undefined/null/空文字 → null（未指定=既定へ）、trim後1文字以上でmax以下の文字列 → trim値、それ以外 → undefined（不正） */
 function asOptionalStr(v: unknown, max: number): string | null | undefined {
@@ -32,12 +24,14 @@ function asOptionalStr(v: unknown, max: number): string | null | undefined {
 /** GET/PUT 共通ビュー。APIキー値は決して含めない（有無の boolean のみ）。 */
 function viewOf(deps: TtsSettingsRoutesDeps) {
   const s = deps.getTtsSettings();
+  const keyState = deps.ttsEnv();
   return {
     provider: deps.getTtsProvider(),
     baseUrl: s?.baseUrl ?? null,
     model: s?.model ?? null,
     voice: s?.voice ?? null,
-    apiKeyConfigured: deps.ttsEnv().apiKeyConfigured,
+    apiKeyConfigured: keyState.apiKeyConfigured,
+    apiKeyApproved: keyState.apiKeyApproved ?? false,
     defaults: { baseUrl: DEFAULT_TTS_BASE_URL, model: DEFAULT_TTS_MODEL, voice: DEFAULT_TTS_VOICE },
   };
 }
@@ -51,7 +45,12 @@ async function handlePut(req: Request, deps: TtsSettingsRoutesDeps): Promise<Res
 
   const baseUrl = asOptionalStr(b.baseUrl, 500);
   if (baseUrl === undefined) return json({ error: "baseUrl must be a string of at most 500 characters" }, 400);
-  if (baseUrl !== null && !isHttpUrl(baseUrl)) return json({ error: "baseUrl must be a valid http(s) URL" }, 400);
+  let normalizedBaseUrl = baseUrl;
+  if (baseUrl !== null) {
+    const parsedBase = parseRemoteBaseUrl(baseUrl);
+    if (!parsedBase.ok) return json({ error: parsedBase.error }, 400);
+    normalizedBaseUrl = parsedBase.baseUrl;
+  }
 
   const model = asOptionalStr(b.model, 200);
   if (model === undefined) return json({ error: "model must be a string of at most 200 characters" }, 400);
@@ -68,7 +67,7 @@ async function handlePut(req: Request, deps: TtsSettingsRoutesDeps): Promise<Res
     provider = b.provider as TtsProvider;
   }
 
-  deps.saveTtsSettings({ baseUrl, model, voice });
+  deps.saveTtsSettings({ baseUrl: normalizedBaseUrl, model, voice });
   if (provider !== undefined) deps.saveTtsProvider(provider);
   return json(viewOf(deps));
 }

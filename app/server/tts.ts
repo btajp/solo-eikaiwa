@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { mkdtempSync, rmSync } from "node:fs";
 import { BUNDLED_AUDIO_DIR, TTS_CACHE_DIR } from "./paths";
 import { realSpawn, type SpawnFn } from "./spawn";
+import { parseRemoteBaseUrl } from "./remote-endpoint";
 
 /** 既定の OpenAI 互換エンドポイント。未設定時はここに向く（＝現行と完全同一）。 */
 export const DEFAULT_TTS_BASE_URL = "https://api.openai.com/v1";
@@ -13,7 +14,7 @@ export const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
 /** 既定 voice。同梱バンドルの cacheKey もこの値で生成済み。 */
 export const DEFAULT_TTS_VOICE = "alloy";
 
-/** DB / UI が保持する上書き設定（各値 null = 既定に従う）。APIキーは持たない（.env のみ）。 */
+/** DB / UI が保持する上書き設定（各値 null = 既定に従う）。APIキーは持たない。 */
 export type TtsSettings = {
   baseUrl: string | null;
   model: string | null;
@@ -60,7 +61,7 @@ export function cacheKeyFor(model: string, voice: string, text: string): string 
 /**
  * 実効 TTS 設定を解決する。優先順位: opts（リクエスト/DB 由来）> 既定 の2層
  * （env の TTS_BASE_URL/TTS_MODEL/TTS_VOICE フォールバックは廃止・v0.29。設定の真実は UI/DB のみ）。
- * APIキーだけは env 由来: TTS_API_KEY を優先し、無ければ OPENAI_API_KEY にフォールバック（現行の鍵解決を保持）。
+ * APIキーはoptsで明示注入できる。直接呼び出し時だけenvのTTS_API_KEY、OPENAI_API_KEYへフォールバックする。
  */
 export function resolveTtsConfig(
   opts: SynthesizeOpts = {},
@@ -79,12 +80,15 @@ export function resolveTtsConfig(
 async function synthesizeHttp(
   text: string, cfg: ResolvedTtsConfig, fetchFn: typeof fetch,
 ): Promise<Uint8Array> {
-  const url = `${cfg.baseUrl.replace(/\/+$/, "")}/audio/speech`;
+  const parsedBase = parseRemoteBaseUrl(cfg.baseUrl);
+  if (!parsedBase.ok) throw new Error(parsedBase.error);
+  const url = `${parsedBase.baseUrl}/audio/speech`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   // APIキーがあるときだけ Authorization を載せる（kokoro-fastapi 等のローカルは鍵不要）。
-  if (cfg.apiKey) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
+  if (cfg.apiKey && parsedBase.credentialsAllowed) headers["Authorization"] = `Bearer ${cfg.apiKey}`;
   const res = await fetchFn(url, {
     method: "POST",
+    redirect: "error",
     headers,
     body: JSON.stringify({ model: cfg.model, voice: cfg.voice, input: text, response_format: "mp3" }),
   });

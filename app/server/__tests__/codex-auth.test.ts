@@ -12,16 +12,6 @@ function freshDir(): string {
   return mkdtempSync(path.join(tmpdir(), "codex-home-"));
 }
 
-function withEnvKey<T>(value: string | undefined, fn: () => Promise<T>): Promise<T> {
-  const saved = Bun.env.CODEX_API_KEY;
-  if (value === undefined) delete Bun.env.CODEX_API_KEY;
-  else Bun.env.CODEX_API_KEY = value;
-  return fn().finally(() => {
-    if (saved === undefined) delete Bun.env.CODEX_API_KEY;
-    else Bun.env.CODEX_API_KEY = saved;
-  });
-}
-
 describe("ensureCodexApiKeyHome", () => {
   test("auth.json が既に存在すればspawnFnを呼ばずdirをそのまま返す（冪等）", async () => {
     const dir = freshDir();
@@ -30,11 +20,9 @@ describe("ensureCodexApiKeyHome", () => {
       const calls: unknown[] = [];
       const spawnFn: CodexLoginSpawn = async (args) => { calls.push(args); };
 
-      await withEnvKey("sk-unused", async () => {
-        const result = await ensureCodexApiKeyHome(spawnFn, dir);
-        expect(result).toBe(dir);
-        expect(calls).toHaveLength(0);
-      });
+      const result = await ensureCodexApiKeyHome(spawnFn, dir);
+      expect(result).toBe(dir);
+      expect(calls).toHaveLength(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -47,13 +35,13 @@ describe("ensureCodexApiKeyHome", () => {
       const calls: Array<{ env: Record<string, string | undefined>; stdin: string }> = [];
       const spawnFn: CodexLoginSpawn = async (args) => { calls.push(args); };
 
-      await withEnvKey("sk-secret-123", async () => {
-        const result = await ensureCodexApiKeyHome(spawnFn, dir);
-        expect(result).toBe(dir);
-        expect(calls).toHaveLength(1);
-        expect(calls[0].env.CODEX_HOME).toBe(dir);
-        expect(calls[0].stdin).toBe("sk-secret-123");
+      const result = await ensureCodexApiKeyHome(spawnFn, dir, "sk-secret-123", {
+        HOME: "/Users/test", PATH: "/usr/bin", TTS_API_KEY: "must-not-leak",
       });
+      expect(result).toBe(dir);
+      expect(calls).toHaveLength(1);
+      expect(calls[0].env).toEqual({ HOME: "/Users/test", PATH: "/usr/bin", CODEX_HOME: dir });
+      expect(calls[0].stdin).toBe("sk-secret-123");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -66,10 +54,8 @@ describe("ensureCodexApiKeyHome", () => {
       const calls: unknown[] = [];
       const spawnFn: CodexLoginSpawn = async (args) => { calls.push(args); };
 
-      await withEnvKey(undefined, async () => {
-        await expect(ensureCodexApiKeyHome(spawnFn, dir)).rejects.toThrow(/codex api key/i);
-        expect(calls).toHaveLength(0);
-      });
+      await expect(ensureCodexApiKeyHome(spawnFn, dir, " ")).rejects.toThrow(/api-key.*no key/i);
+      expect(calls).toHaveLength(0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -83,9 +69,7 @@ describe("ensureCodexApiKeyHome", () => {
         throw new Error("codex login --with-api-key failed (exit 1): boom");
       };
 
-      await withEnvKey("sk-x", async () => {
-        await expect(ensureCodexApiKeyHome(spawnFn, dir)).rejects.toThrow(/failed/);
-      });
+      await expect(ensureCodexApiKeyHome(spawnFn, dir, "sk-x")).rejects.toThrow(/failed/);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -98,11 +82,9 @@ describe("ensureCodexApiKeyHome", () => {
       const calls: unknown[] = [];
       const spawnFn: CodexLoginSpawn = async (args) => { calls.push(args); };
 
-      await withEnvKey("sk-y", async () => {
-        const result = await ensureCodexApiKeyHome(spawnFn, dir);
-        expect(result).toBe(dir);
-        expect(calls).toHaveLength(1);
-      });
+      const result = await ensureCodexApiKeyHome(spawnFn, dir, "sk-y");
+      expect(result).toBe(dir);
+      expect(calls).toHaveLength(1);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -115,12 +97,10 @@ describe("ensureCodexApiKeyHome", () => {
       const calls: Array<{ env: Record<string, string | undefined>; stdin: string }> = [];
       const spawnFn: CodexLoginSpawn = async (args) => { calls.push(args); };
 
-      await withEnvKey("sk-recover", async () => {
-        const result = await ensureCodexApiKeyHome(spawnFn, dir);
-        expect(result).toBe(dir);
-        expect(calls).toHaveLength(1);
-        expect(calls[0].stdin).toBe("sk-recover");
-      });
+      const result = await ensureCodexApiKeyHome(spawnFn, dir, "sk-recover");
+      expect(result).toBe(dir);
+      expect(calls).toHaveLength(1);
+      expect(calls[0].stdin).toBe("sk-recover");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -128,14 +108,20 @@ describe("ensureCodexApiKeyHome", () => {
 });
 
 describe("codexSpawnEnv", () => {
-  test("subscription: undefined を返す（env上書きなし＝現行どおりprocess.env継承）", () => {
-    expect(codexSpawnEnv("subscription", { PATH: "/usr/bin" })).toBeUndefined();
+  test("subscription: 最小envを返し、親のAPIキーを継承しない", () => {
+    expect(codexSpawnEnv("subscription", { PATH: "/usr/bin", CODEX_API_KEY: "ambient" })).toEqual({ PATH: "/usr/bin" });
   });
 
-  test("api-key: baseEnv を土台に CODEX_HOME を注入した env を返す", () => {
-    const out = codexSpawnEnv("api-key", { PATH: "/usr/bin" });
-    expect(out?.PATH).toBe("/usr/bin");
-    expect(out?.CODEX_HOME).toMatch(/codex-home$/);
+  test("api-key: 最小envへCODEX_HOMEだけを追加する", () => {
+    const out = codexSpawnEnv("api-key", { PATH: "/usr/bin", TTS_API_KEY: "other" }, "sk-codex");
+    expect(out.PATH).toBe("/usr/bin");
+    expect(out.CODEX_HOME).toMatch(/codex-home$/);
+    expect(out.TTS_API_KEY).toBeUndefined();
+    expect(out.CODEX_API_KEY).toBeUndefined();
+  });
+
+  test("api-key: 鍵なしなら既存auth.jsonやsubscriptionへフォールバックせず明示エラー", () => {
+    expect(() => codexSpawnEnv("api-key", { PATH: "/usr/bin" }, " ")).toThrow(/api-key.*no key/i);
   });
 });
 

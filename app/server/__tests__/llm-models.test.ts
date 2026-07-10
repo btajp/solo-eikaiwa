@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { makeTestDeps } from "./helpers/route-deps";
 import { getReq } from "./helpers/http";
@@ -11,6 +11,12 @@ import {
   type CatalogQueryFn,
 } from "../providers/model-catalog";
 import type { ModelInfo } from "@anthropic-ai/claude-agent-sdk";
+import { setActiveAuthModes, setActiveAuthSecrets } from "../llm-auth-store";
+
+beforeEach(() => {
+  setActiveAuthModes({ claude: "subscription", codex: "subscription" });
+  setActiveAuthSecrets({});
+});
 
 describe("GET /api/llm-models", () => {
   test("claude/codex/localの3ソースをdeps.getModelCatalog経由で合成して返す", async () => {
@@ -253,25 +259,28 @@ describe("makeClaudeCatalogFetcher", () => {
   });
 
   test("opts.claudeExecutablePath指定時はoptions.pathToClaudeCodeExecutableとしてqueryFnに渡る（sidecarモードのSDK CLI解決注入）", async () => {
-    const calls: Array<{ options?: { pathToClaudeCodeExecutable?: string } }> = [];
+    const calls: Array<{ options?: { pathToClaudeCodeExecutable?: string; env?: Record<string, string | undefined> } }> = [];
     const queryFn: CatalogQueryFn = (args) => {
       calls.push(args);
       return { supportedModels: async () => [], interrupt: async () => {} };
     };
     const fetcher = makeClaudeCatalogFetcher(queryFn, { claudeExecutablePath: "/opt/homebrew/bin/claude" });
     await fetcher();
-    expect(calls[0]!.options).toEqual({ pathToClaudeCodeExecutable: "/opt/homebrew/bin/claude" });
+    expect(calls[0]!.options).toMatchObject({ pathToClaudeCodeExecutable: "/opt/homebrew/bin/claude" });
+    expect(calls[0]!.options?.env?.ANTHROPIC_API_KEY).toBeUndefined();
   });
 
-  test("opts.claudeExecutablePath未指定時はoptions自体を渡さない（非sidecarモードでバイト等価）", async () => {
-    const calls: Array<{ options?: unknown }> = [];
+  test("opts.claudeExecutablePath未指定時もsanitized envをoptionsへ渡す", async () => {
+    const calls: Array<{ options?: { env?: Record<string, string | undefined> } }> = [];
     const queryFn: CatalogQueryFn = (args) => {
       calls.push(args);
       return { supportedModels: async () => [], interrupt: async () => {} };
     };
     const fetcher = makeClaudeCatalogFetcher(queryFn);
     await fetcher();
-    expect(calls[0]!.options).toBeUndefined();
+    expect(calls[0]!.options?.env).toBeDefined();
+    expect(calls[0]!.options?.env?.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(calls[0]!.options?.env?.OPENAI_API_KEY).toBeUndefined();
   });
 });
 

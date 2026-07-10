@@ -1,7 +1,8 @@
 import type { ClaudeRunner } from "../converse";
 import { TransportError } from "./errors";
 import { CLAUDE_PRINT_DIR } from "../paths";
-import { getActiveAuthModes, claudeSpawnEnv } from "../llm-auth-store";
+import { getActiveAuthModes, getActiveAuthSecrets, claudeSpawnEnv } from "../llm-auth-store";
+import { minimalSubprocessEnv } from "../subprocess-env";
 
 /** `claude -p` を1回実行し、stdout の生JSON文字列を返す関数の型（テスト用 seam）。 */
 export type ClaudePrintExec = (args: {
@@ -13,7 +14,7 @@ export type ClaudePrintExec = (args: {
   cwd: string;
   /** api-key 認証モードのときだけ true（OAuth/keychain を読まない厳格モード）。 */
   bare?: boolean;
-  /** api-key 認証モードのときだけ渡す env 上書き（claudeSpawnEnv 参照。subscription では undefined）。 */
+  /** 認証モードごとの最小env上書き（claudeSpawnEnv参照）。 */
   env?: Record<string, string | undefined>;
 }) => Promise<string>;
 
@@ -61,7 +62,8 @@ export function makeClaudePrintRunner(cfg: ClaudePrintConfig): ClaudeRunner {
       effort: cfg.effort,
       resumeId,
       cwd,
-      ...(authMode === "api-key" ? { bare: true, env: claudeSpawnEnv(authMode) } : {}),
+      ...(authMode === "api-key" ? { bare: true } : {}),
+      env: claudeSpawnEnv(authMode, Bun.env, getActiveAuthSecrets().anthropic),
     });
 
     let parsed: ClaudePrintJson;
@@ -119,7 +121,7 @@ export const realClaudePrintExec: ClaudePrintExec = async ({ prompt, systemPromp
     stdin: new TextEncoder().encode(prompt),
     stdout: "pipe",
     stderr: "pipe",
-    ...(env ? { env } : {}),
+    env: env ?? minimalSubprocessEnv(),
   });
   const stdout = await new Response(proc.stdout).text();
   const stderr = await new Response(proc.stderr).text();

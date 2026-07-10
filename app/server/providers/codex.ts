@@ -37,7 +37,7 @@ export function composeCodexPrompt(system: string, history: CodexMsg[], userProm
 export type CodexExec = (
   args: {
     prompt: string; model?: string; cwd: string; reasoningEffort?: string; serviceTier?: string;
-    /** api-key 認証モードのときだけ渡す env 上書き（codexSpawnEnv 参照。subscription では undefined）。 */
+    /** 認証モードごとの最小env上書き（codexSpawnEnv参照）。 */
     env?: Record<string, string | undefined>;
   },
 ) => Promise<string>;
@@ -119,7 +119,7 @@ export const realCodexExec: CodexExec = async ({ prompt, model, cwd, reasoningEf
       stdin: new TextEncoder().encode(prompt),
       stdout: "ignore",
       stderr: "pipe",
-      ...(env ? { env } : {}),
+      env: env ?? codexSpawnEnv(getActiveAuthModes().codex),
     });
     const stderr = await new Response(proc.stderr).text();
     const exitCode = await proc.exited;

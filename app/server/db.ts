@@ -16,6 +16,7 @@ import { ensureLlmRoleSettingsSchema } from "./llm-role-settings-store";
 import { ensureLlmRoleTuningSchema } from "./llm-role-tuning-store";
 import { ensureLlmAuthSchema } from "./llm-auth-store";
 import { ensureTopicAssetCacheSchema } from "./topic-assets";
+import { ensureApiKeyOriginSchema } from "./api-key-origin-store";
 import { assertSchemaCompatible, readSchemaContract, type SchemaContract } from "./schema-contract";
 import { assertDatabaseNotRestoring } from "./database-lock";
 
@@ -77,6 +78,7 @@ function ensureAllSchemas(db: Database): void {
   ensureLlmRoleTuningSchema(db);
   ensureLlmAuthSchema(db);
   ensureTopicAssetCacheSchema(db);
+  ensureApiKeyOriginSchema(db);
 }
 
 let expectedSchemaContract: SchemaContract | undefined;

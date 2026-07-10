@@ -50,10 +50,12 @@ function SecretKeyField(props: {
   name: SecretName;
   status: SecretStatus | undefined;
   disabled: boolean;
+  approvalRequired?: boolean;
   str: {
     label: string; statusKeychain: string; statusEnv: string; statusMissing: string;
     placeholderSet: string; placeholderNew: string; save: string; del: string;
     saved: string; deleted: string;
+    approvalRequired: string;
     saveFailedWithReason: (reason: string) => string;
     notApplied: (reason: string) => string;
   };
@@ -106,6 +108,7 @@ function SecretKeyField(props: {
         )}
       </div>
       {result && <div className="text-sm text-muted" role="status">{result}</div>}
+      {props.approvalRequired && <div className="info-pop">{props.str.approvalRequired}</div>}
     </div>
   );
 }
@@ -287,7 +290,12 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
    * 破棄してしまうため（レビュー指摘 2026-07-10）。
    */
   async function onSaveSecret(name: SecretName, value: string): Promise<SecretMutationResult> {
-    const r = await saveSecret(name, value);
+    const baseUrl = name === "OPENAI_COMPAT_API_KEY"
+      ? connBaseUrl.trim()
+      : name === "TTS_API_KEY"
+      ? ttsBaseUrl.trim() || ttsView?.defaults.baseUrl
+      : undefined;
+    const r = await saveSecret(name, value, baseUrl);
     setSecrets(r.secrets);
     fetchLlmSettings().then(setView).catch(() => {});
     fetchTtsSettings().then(setTtsView).catch(() => {});
@@ -311,6 +319,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     del: s.settings.secretDelete,
     saved: s.settings.secretSaved,
     deleted: s.settings.secretDeleted,
+    approvalRequired: s.settings.secretApprovalRequired,
     saveFailedWithReason: s.llm.saveFailedWithReason,
     notApplied: s.llm.notApplied,
   };
@@ -399,6 +408,9 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                 ))}
               </select>
             </label>
+            {view?.authModes?.claude === "api-key" && !authKeys.anthropic && (
+              <div className="info-pop">{s.settings.claudeAuthMissingKey}</div>
+            )}
             <SecretKeyField name="ANTHROPIC_API_KEY" status={secrets?.ANTHROPIC_API_KEY} disabled={saving || !view}
               str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
             <div className="text-sm text-muted">{s.settings.authApiKeyNote}</div>
@@ -443,6 +455,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
               })()}
             </label>
             <SecretKeyField name="OPENAI_COMPAT_API_KEY" status={secrets?.OPENAI_COMPAT_API_KEY} disabled={saving || !view}
+              approvalRequired={Boolean(secrets?.OPENAI_COMPAT_API_KEY.configured && view?.apiKeyApproved !== true)}
               str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
           </div>
           <hr className="settings-divider" />
@@ -500,7 +513,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
               {(() => {
                 // 「自動」が今どちらに解決されるかをラベルに併記する（編集中の Base URL でライブに変わる）
                 const resolved = ttsAutoResolution(
-                  ttsView?.apiKeyConfigured ?? false,
+                  ttsView?.apiKeyApproved ?? false,
                   ttsBaseUrl,
                   ttsView?.defaults.baseUrl ?? "",
                 );
@@ -539,6 +552,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
               <input className="llm-input" value={ttsVoice} placeholder={s.settings.ttsVoicePlaceholder} onChange={(e) => setTtsVoice(e.target.value)} />
             </label>
             <SecretKeyField name="TTS_API_KEY" status={secrets?.TTS_API_KEY} disabled={saving || !ttsView}
+              approvalRequired={Boolean(secrets?.TTS_API_KEY.configured && ttsView?.apiKeyApproved !== true)}
               str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
             <div className="text-sm text-muted">{s.settings.ttsApiKeyOptionalNote}</div>
           </div>

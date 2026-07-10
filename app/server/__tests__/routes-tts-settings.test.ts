@@ -13,6 +13,7 @@ describe("tts-settings API", () => {
       provider: "auto",
       baseUrl: null, model: null, voice: null,
       apiKeyConfigured: false,
+      apiKeyApproved: false,
       defaults: { baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini-tts", voice: "alloy" },
     });
   });
@@ -61,6 +62,18 @@ describe("tts-settings API", () => {
     expect((await h(putJson("/api/tts-settings", { baseUrl: "not-a-url" }))).status).toBe(400);
     expect((await h(putJson("/api/tts-settings", { baseUrl: "ftp://x/y" }))).status).toBe(400);
     expect(saved).toHaveLength(0);
+  });
+
+  test("baseUrlを正規化し、userinfo・query・fragmentを拒否する", async () => {
+    const saved: TtsSettings[] = [];
+    const { deps } = makeTestDeps({ saveTtsSettings: (s) => { saved.push(s); } });
+    const h = makeFetchHandler(deps);
+    const ok = await h(putJson("/api/tts-settings", { baseUrl: "HTTPS://Voice.Example:443/v1/" }));
+    expect(ok.status).toBe(200);
+    expect(saved[0]?.baseUrl).toBe("https://voice.example/v1");
+    for (const baseUrl of ["https://u:p@example.com/v1", "https://example.com/v1?q=1", "https://example.com/v1#x"]) {
+      expect((await h(putJson("/api/tts-settings", { baseUrl }))).status, baseUrl).toBe(400);
+    }
   });
 
   test("PUT: provider を保存できる（say/openai-compat/auto）・不正値は 400 で何も保存しない", async () => {

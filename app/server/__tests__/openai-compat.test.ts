@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { makeOpenAICompatRunner, warmOpenAICompat, openAICompatWarmTargetFromEnv, type OpenAICompatConfig } from "../providers/openai-compat";
 
-type CapturedReq = { url: string; body: any; headers: Record<string, string> };
+type CapturedReq = { url: string; body: any; headers: Record<string, string>; redirect?: RequestRedirect };
 
 /** choices[0].message.content = reply を返すフェイク fetch。呼び出し内容を captured に記録する。 */
 function fakeChatFetch(reply: string, captured: CapturedReq[]): typeof fetch {
   return (async (url: string, init: RequestInit) => {
     const headers: Record<string, string> = {};
     for (const [k, v] of Object.entries(init.headers ?? {})) headers[k.toLowerCase()] = String(v);
-    captured.push({ url, body: JSON.parse(String(init.body)), headers });
+    captured.push({ url, body: JSON.parse(String(init.body)), headers, redirect: init.redirect });
     return new Response(JSON.stringify({ choices: [{ message: { role: "assistant", content: reply } }] }), {
       status: 200, headers: { "Content-Type": "application/json" },
     });
@@ -84,6 +84,17 @@ describe("makeOpenAICompatRunner", () => {
     expect(noKey[0].headers["authorization"]).toBeUndefined();
   });
 
+  test("非loopback HTTPにはapiKeyを渡さず、redirectを追従しない", async () => {
+    const captured: CapturedReq[] = [];
+    await makeOpenAICompatRunner(baseCfg({
+      baseUrl: "http://192.168.1.10:11434/v1",
+      apiKey: "must-not-leak",
+      fetchFn: fakeChatFetch("z", captured),
+    }))("hi");
+    expect(captured[0].headers.authorization).toBeUndefined();
+    expect(captured[0].redirect).toBe("error");
+  });
+
   test("baseUrl 末尾スラッシュを正規化する", async () => {
     const captured: CapturedReq[] = [];
     const runner = makeOpenAICompatRunner(baseCfg({ baseUrl: "http://localhost:1234/v1/", fetchFn: fakeChatFetch("z", captured) }));
@@ -113,6 +124,7 @@ describe("warmOpenAICompat", () => {
     expect(calls[0].body.model).toBe("m");
     expect(calls[0].body.max_tokens).toBe(1);
     expect(calls[0].headers["authorization"]).toBe("Bearer sk-x");
+    expect(calls[0].redirect).toBe("error");
   });
 
   test("apiKey なし: Authorization を付けない", async () => {

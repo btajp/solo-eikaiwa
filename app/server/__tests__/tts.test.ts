@@ -244,6 +244,26 @@ describe("tts provider config", () => {
     expect(Array.from(r.audio)).toEqual([9, 9, 9]);
   });
 
+  test("非loopback HTTPには明示apiKeyも送らず、redirectを追従しない", async () => {
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-"));
+    let captured: RequestInit | null = null;
+    const fakeFetch = (async (_url: string, init: RequestInit) => {
+      captured = init;
+      return new Response(new Uint8Array([8]), { status: 200 });
+    }) as unknown as typeof fetch;
+    const r = await synthesize("Unsafe target", {
+      provider: "openai-compat",
+      apiKey: "must-not-leak",
+      baseUrl: "http://192.168.1.10:8880/v1",
+      cacheDir,
+      fetchFn: fakeFetch,
+      env: {},
+    });
+    expect(r.engine).toBe("openai");
+    expect((captured!.headers as Record<string, string>).Authorization).toBeUndefined();
+    expect(captured!.redirect).toBe("error");
+  });
+
   test("provider=say: 鍵あり・カスタムbaseUrlでも HTTP を飛ばして常に say", async () => {
     const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-"));
     let called = 0;

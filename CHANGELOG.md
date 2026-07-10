@@ -19,12 +19,16 @@
 
 - 既存の学習DBに必須列・型・indexの不整合がある場合、機能利用中のSQLエラーになる前に起動時点で検出するようにした。不完全なDBには書き込まず、対象DB・期待値と実値・非破壊のバックアップ手順を表示する
 - Whisperモデルのダウンロード応答が登録サイズを超えた場合、Content-Lengthの有無や正確さに依存せず受信を中止し、破損した一時ファイルを破棄するようにした
+- Keychainに項目がないenv由来APIキーへ削除APIを呼んでも、稼働中のenv値と検出状態を失わないようにした
+- ClaudeのAPIキーモード中に鍵が無くなった場合、サブスクリプション認証へ無言で切り替えず、設定画面とAPI応答で不整合を通知するようにした
 
 ### Security
 
 - Bun/Viteが自動読込する`.env.local`や環境別`.env`を全階層でGit管理対象外にし、秘密情報の誤コミットを防止した
 - ローカルAPIで許可するHost・Originをloopback、Caddy、Viteの正規経路に限定し、cross-siteリクエストと認証なしの非loopback待受を処理前に拒否するようにした
 - JSONを`application/json`系かつ64 KiB以下のobjectに限定し、構造量と各フィールドを実行時検証するようにした。STT音声は対応形式かつ24 MiB以下、TTSテキストは8,000文字以下に制限した
+- Keychain値をプロセス環境へ展開せず、すべてのサーバ子プロセスを固定allowlist環境で起動するようにした。Claude/Codexのサブスクリプション認証では親環境のAPIキーを除去し、APIキーモードでは対象providerの鍵だけを渡す
+- OpenAI互換LLM・TTSの鍵を正規化済みoriginへ束縛し、別origin・非loopback HTTPへ送らないようにした。認証付き通信はredirectを追従せず、userinfo・非HTTP(S) scheme・曖昧なquery/fragmentを接続設定で拒否する
 
 ## [0.29.0] - 2026-07-10
 
