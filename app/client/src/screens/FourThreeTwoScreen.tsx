@@ -534,7 +534,7 @@ export function FourThreeTwoScreen(props: {
       {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
       {transcripts[roundIndex] && (
         <Card className="reading-text">
-          <strong>You:</strong> {transcripts[roundIndex]}
+          <strong>{t.transcriptYou}</strong> {transcripts[roundIndex]}
         </Card>
       )}
     </div>

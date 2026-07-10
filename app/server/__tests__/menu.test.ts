@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, exist
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
-  buildQuickMenu, buildTodayMenu, invalidateTodayMenuCache, QUICK_KINDS, type MenuDeps, type QuickKind,
+  BLOCK_KINDS, buildQuickMenu, buildTodayMenu, invalidateTodayMenuCache, QUICK_KINDS, type MenuDeps, type QuickKind,
 } from "../menu";
 import { loadContent, parseContentFile, type ContentItem, type Domain } from "../content";
 import {
@@ -206,6 +206,21 @@ describe("buildTodayMenu", () => {
     writeFileSync(cacheFile, JSON.stringify({ minutes: 60, date: "2026-07-05", blocks: [] }));
     const menu = buildTodayMenu(60, { ...dirs, today: JULY5 });
     expect(menu.blocks.length).toBe(5);
+  });
+
+  test("廃止済みブロックを含むキャッシュは再構築する", () => {
+    const dirs = makeContentDirs();
+    const cacheFile = path.join(dirs.menuCacheDir, "menu-2026-07-05-60.json");
+    writeFileSync(cacheFile, JSON.stringify({
+      minutes: 60, date: "2026-07-05", level: DEFAULT_LEVEL,
+      blocks: [{ id: "legacy", kind: "chunk-placeholder", title: "legacy", minutes: 1, params: {} }],
+    }));
+
+    const menu = buildTodayMenu(60, { ...dirs, today: JULY5 });
+
+    expect(BLOCK_KINDS).toEqual(["warmup-reading", "four-three-two", "roleplay", "shadowing", "reflection"]);
+    expect(menu.blocks.every((block) => BLOCK_KINDS.includes(block.kind))).toBe(true);
+    expect(JSON.parse(readFileSync(cacheFile, "utf8"))).toEqual(menu);
   });
 
   test("level フィールドの無い旧形式キャッシュ（Phase B 以前）は無効として再構築する", () => {

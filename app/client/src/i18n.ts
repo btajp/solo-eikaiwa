@@ -125,9 +125,6 @@ type SupportStrings = {
 };
 type LlmPanelStrings = {
   llm: {
-    title: string;
-    providerLabel: string;
-    optClaude: string; optOpenai: string; optCodex: string;
     baseUrlLabel: string; baseUrlPlaceholder: string;
     modelLabel: string; modelPlaceholder: string;
     codexModelLabel: string; codexModelPlaceholder: string;
@@ -135,13 +132,12 @@ type LlmPanelStrings = {
     save: string; saving: string;
     applied: string;
     notApplied: (msg: string) => string;
-    help: string; helpAria: string;
+    help: string;
   };
 };
 type SettingsStrings = {
   settings: {
     title: string;
-    llmSection: string;
     loadLlmFailed: string;
     loadTtsFailed: string;
     loadSecretsFailed: string;
@@ -153,8 +149,6 @@ type SettingsStrings = {
     presetSection: string;
     presetAllLocal: string;
     presetAllLocalDesc: string;
-    presetBalanced: string;
-    presetBalancedBadge: string;
     presetBalancedDesc: (cloud: CloudTarget) => string;
     presetHighQuality: string;
     presetHighQualityDesc: (cloud: CloudTarget) => string;
@@ -210,7 +204,6 @@ type SettingsStrings = {
     tuningModel: string;
     tuningEffort: string;
     tuningTier: string;
-    tuningDefault: string;
     tuningDefaultWith: (v: string) => string;
     tuningSdkStandard: string;
     tuningTierFast: string;
@@ -389,6 +382,7 @@ type Ftt432Strings = { ftt432: {
   doneBody: (count: number) => string;
   roundHeading: (n: number, time: string, topic: string) => string;
   roundTimerAria: (n: number, time: string) => string;
+  transcriptYou: string;
   timeUp: string; recStop: string; recStarting: string; recTranscribing: string; recStart: string; roundFinish: string;
   micError: (detail: string) => string; notHeard: string;
   explainMore: string; explainLoading: string; explainError: string;
@@ -542,9 +536,6 @@ export const STR: Record<Lang, Strings> = {
       helpAriaSuffix: (label) => `About ${label}`,
     },
     llm: {
-      title: "LLM provider",
-      providerLabel: "Provider",
-      optClaude: "Claude", optOpenai: "OpenAI-compatible", optCodex: "Codex",
       baseUrlLabel: "Base URL", baseUrlPlaceholder: "http://localhost:11434/v1",
       modelLabel: "Model", modelPlaceholder: "llama3.1",
       codexModelLabel: "Model (optional)", codexModelPlaceholder: "blank = Codex default",
@@ -553,11 +544,9 @@ export const STR: Record<Lang, Strings> = {
       applied: "Applied to the running app.",
       notApplied: (msg) => `Saved, but not applied: ${msg}`,
       help: "Prompts and transcribed speech are sent to the provider assigned to each role (Claude is the default). API keys saved here stay in macOS Keychain; their values are never displayed or returned.",
-      helpAria: "About the LLM provider setting",
     },
     settings: {
       title: "Settings",
-      llmSection: "Language model",
       loadLlmFailed: "Couldn't load the model connection settings. Nothing has been changed.",
       loadTtsFailed: "Couldn't load the voice settings. Nothing has been changed.",
       loadSecretsFailed: "Couldn't load API-key status. Key changes are unavailable until it is loaded.",
@@ -587,8 +576,6 @@ export const STR: Record<Lang, Strings> = {
       presetSection: "Presets",
       presetAllLocal: "All via OpenAI-compatible endpoint",
       presetAllLocalDesc: "Every role uses the configured OpenAI-compatible endpoint. Check its location and origin before applying; a remote endpoint sends text off this Mac.",
-      presetBalanced: "Balanced",
-      presetBalancedBadge: "Recommended",
       presetBalancedDesc: (cloud) => cloud === "claude"
         ? "Conversation and content generation use the configured OpenAI-compatible endpoint; coaching and assessment use Claude, where the quality gap is largest and the usage least frequent."
         : "Conversation and content generation use the configured OpenAI-compatible endpoint; coaching and assessment use Codex, where the quality gap is largest and the usage least frequent.",
@@ -646,7 +633,6 @@ export const STR: Record<Lang, Strings> = {
       tuningModel: "Model",
       tuningEffort: "Effort (thinking depth)",
       tuningTier: "Delivery",
-      tuningDefault: "Default",
       tuningDefaultWith: (v) => `Default (${v})`,
       tuningSdkStandard: "SDK standard",
       tuningTierFast: "Fast (priority delivery)",
@@ -905,6 +891,7 @@ export const STR: Record<Lang, Strings> = {
       doneBody: (count) => `4/3/2 done! You told the same story ${count} times, a little faster each round.`,
       roundHeading: (n, time, topic) => `Round ${n} (${time}) — ${topic}`,
       roundTimerAria: (n, time) => `Round ${n} speaking time remaining: ${time}.`,
+      transcriptYou: "You:",
       timeUp: "— Time reached", recStop: "⏹ Stop recording", recStarting: "Requesting microphone…", recTranscribing: "📝 Transcribing…",
       recStart: "🎙 Start speaking", roundFinish: "End this round →",
       micError: (detail) => `Can't access the microphone: ${detail}`,
@@ -1069,9 +1056,6 @@ export const STR: Record<Lang, Strings> = {
       helpAriaSuffix: (label) => `${label}の説明`,
     },
     llm: {
-      title: "LLM プロバイダ",
-      providerLabel: "プロバイダ",
-      optClaude: "Claude", optOpenai: "OpenAI 互換", optCodex: "Codex",
       baseUrlLabel: "ベース URL", baseUrlPlaceholder: "http://localhost:11434/v1",
       modelLabel: "モデル", modelPlaceholder: "llama3.1",
       codexModelLabel: "モデル（任意）", codexModelPlaceholder: "空欄で Codex 既定",
@@ -1080,11 +1064,9 @@ export const STR: Record<Lang, Strings> = {
       applied: "実行中のアプリに適用しました。",
       notApplied: (msg) => `保存しましたが適用できませんでした: ${msg}`,
       help: "プロンプトと文字起こしは用途ごとに割り当てたproviderへ送信されます（既定はClaude）。ここで保存したAPIキーはmacOS Keychainに保管し、値は表示・再取得しません。",
-      helpAria: "LLM プロバイダ設定の説明",
     },
     settings: {
       title: "設定",
-      llmSection: "言語モデル",
       loadLlmFailed: "モデル接続設定を取得できませんでした。設定は変更していません。",
       loadTtsFailed: "音声設定を取得できませんでした。設定は変更していません。",
       loadSecretsFailed: "APIキーの設定状態を取得できませんでした。取得できるまでキーの変更はできません。",
@@ -1114,8 +1096,6 @@ export const STR: Record<Lang, Strings> = {
       presetSection: "プリセット",
       presetAllLocal: "すべてOpenAI互換接続先",
       presetAllLocalDesc: "すべての用途を設定済みのOpenAI互換接続先で動かします。適用前に場所とoriginを確認してください。remote接続先ではテキストがMacの外へ送信されます。",
-      presetBalanced: "バランス",
-      presetBalancedBadge: "推奨",
       presetBalancedDesc: (cloud) => cloud === "claude"
         ? "会話・教材生成は設定済みのOpenAI互換接続先、コーチング・測定は品質差が最も大きく実行頻度も低いため Claude を使います。"
         : "会話・教材生成は設定済みのOpenAI互換接続先、コーチング・測定は品質差が最も大きく実行頻度も低いため Codex を使います。",
@@ -1173,7 +1153,6 @@ export const STR: Record<Lang, Strings> = {
       tuningModel: "モデル",
       tuningEffort: "Effort（思考の深さ）",
       tuningTier: "配信",
-      tuningDefault: "既定",
       tuningDefaultWith: (v) => `既定（${v}）`,
       tuningSdkStandard: "SDK標準",
       tuningTierFast: "Fast（優先配信）",
@@ -1432,6 +1411,7 @@ export const STR: Record<Lang, Strings> = {
       doneBody: (count) => `4/3/2 完了！同じ話を${count}回、少しずつ速く話せました。`,
       roundHeading: (n, time, topic) => `Round ${n}（${time}） — ${topic}`,
       roundTimerAria: (n, time) => `Round ${n} の発話残り時間: ${time}。`,
+      transcriptYou: "あなた:",
       timeUp: "— 目安の時間になりました", recStop: "⏹ 録音を止める", recStarting: "マイクを準備中…", recTranscribing: "📝 文字起こし中…",
       recStart: "🎙 話し始める", roundFinish: "このラウンドを終える →",
       micError: (detail) => `マイクにアクセスできません: ${detail}`,

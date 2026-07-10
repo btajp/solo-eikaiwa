@@ -9,11 +9,15 @@ import {
   readJsonSafe, saveRotation, type RotationFallback,
 } from "./rotation";
 
-export type BlockKind = "chunk-placeholder" | "warmup-reading" | "four-three-two" | "roleplay" | "shadowing" | "reflection";
 /** BlockKind の全メンバー列挙（単一ソース）。routes のバリデーションなど値配列が必要な箇所から import する */
 export const BLOCK_KINDS = [
-  "chunk-placeholder", "warmup-reading", "four-three-two", "roleplay", "shadowing", "reflection",
-] as const satisfies readonly BlockKind[];
+  "warmup-reading", "four-three-two", "roleplay", "shadowing", "reflection",
+] as const;
+export type BlockKind = typeof BLOCK_KINDS[number];
+
+function isBlockKind(value: unknown): value is BlockKind {
+  return typeof value === "string" && (BLOCK_KINDS as readonly string[]).includes(value);
+}
 
 export type MenuTitleKey =
   | "warmup" | "ftt" | "ftt-mini"
@@ -52,9 +56,10 @@ export function roleplayTitleKey(scenario: ContentItem): MenuTitleKey {
  * 自動的に無効化・再構築する。hintMode が無い直近の旧形式は当日の教材を保つため、
  * 有効形状として読んだ後に補完する。
  */
-function hasTopicParams(block: unknown): boolean {
+function hasCurrentBlockShape(block: unknown): boolean {
   if (!block || typeof block !== "object") return false;
   const { kind, params } = block as { kind?: unknown; params?: unknown };
+  if (!isBlockKind(kind)) return false;
   if (kind !== "warmup-reading" && kind !== "four-three-two") return true;
   return Boolean(params) && typeof params === "object";
 }
@@ -74,7 +79,7 @@ function hydrateTopicHintModes(menu: Menu): boolean {
 
 function isValidMenuShape(value: unknown): value is Menu {
   const v = value as Partial<Menu> | undefined;
-  return Array.isArray(v?.blocks) && v.blocks.length > 0 && typeof v?.level === "number" && v.blocks.every(hasTopicParams);
+  return Array.isArray(v?.blocks) && v.blocks.length > 0 && typeof v?.level === "number" && v.blocks.every(hasCurrentBlockShape);
 }
 
 export type MenuDeps = {

@@ -11,7 +11,6 @@ import { Button } from "../ui/Button";
 import { FlowExitButton } from "../ui/FlowExitButton";
 import { ProgressDots, Screen } from "../ui/Screen";
 import { TimerChip } from "../ui/TimerChip";
-import { ChunkPlaceholderScreen } from "./ChunkPlaceholderScreen";
 import { FourThreeTwoScreen } from "./FourThreeTwoScreen";
 import { ReflectionScreen } from "./ReflectionScreen";
 import { RoleplayScreen } from "./RoleplayScreen";
@@ -284,8 +283,6 @@ function BlockBody({
   onInternalFlowComplete: () => void;
 }) {
   switch (block.kind) {
-    case "chunk-placeholder":
-      return <ChunkPlaceholderScreen />;
     case "warmup-reading":
       return block.params.topic ? <WarmupReadingScreen topic={block.params.topic} sessionId={sessionId} hintMode={block.params.hintMode} lang={lang} onReady={onReady} onValidAttempt={onValidAttempt} /> : <p>{STR[lang].session.noTopic}</p>;
     case "four-three-two":

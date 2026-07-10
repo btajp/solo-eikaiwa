@@ -133,7 +133,7 @@
   </h1>
   <p class="lead">毎日5分から。録音・文字起こし・練習履歴はMacに保存し、AI処理のテキストだけを選択したproviderへ送信します。既定はClaude、完全ローカル構成も選べます。</p>
   <div class="cta-row">
-    <a class="btn btn-primary" href="https://github.com/btajp/solo-eikaiwa">GitHub で始める</a>
+    <a class="btn btn-primary" href="https://github.com/btajp/solo-eikaiwa/releases">デスクトップ版を入手</a>
     <a class="btn btn-ghost" href="#はじめる">セットアップ手順</a>
   </div>
   <div class="grass" aria-hidden="true">
@@ -160,7 +160,7 @@
   <div class="grid">
     <div class="card"><span class="emoji" aria-hidden="true">🔊</span><h3>クイックドリル（5〜10分）</h3><p>音読ウォームアップ・くり返しトーク（4/3/2）・ロールプレイ・シャドーイングから1日1本。「頻度と完了」が上達に効くという研究知見どおり、短くても毎日回せる設計。</p></div>
     <div class="card"><span class="emoji" aria-hidden="true">🗣️</span><h3>AI ロールプレイ & 自由会話</h3><p>レストラン・会議・障害対応など、場面別シナリオで AI と役割練習。詰まったら日本語で「言い方ヒント」。相手は AI だから、間違えても恥ずかしくない。</p></div>
-    <div class="card"><span class="emoji" aria-hidden="true">📖</span><h3>暗記例文300 + 間隔反復</h3><p>会話でそのまま使える300文を「日本語を見て声に出す→答え合わせ→自己評価」の産出リトリーバルで。評価に応じた間隔反復（SRS）が次の出題日を決める。</p></div>
+    <div class="card"><span class="emoji" aria-hidden="true">📖</span><h3>暗記例文390 + 間隔反復</h3><p>会話でそのまま使える390文を「日本語を見て声に出す→答え合わせ→自己評価」の産出リトリーバルで。評価に応じた間隔反復（SRS）が次の出題日を決める。</p></div>
     <div class="card"><span class="emoji" aria-hidden="true">🎧</span><h3>多聴ライブラリ</h3><p>レベルに合った2〜4分の英語をスクリプトを隠したまま通しで聴く。日本語訳と表現解説つき。ノルマなし。</p></div>
     <div class="card"><span class="emoji" aria-hidden="true">📐</span><h3>レベル連動の難易度</h3><p>4/3/2 の持ち時間、モデルトークの語彙と構文、お題の帯域までレベルに自動追従。レベルは XP で自動で上がり、ステージ境界の昇格・降格だけは実績根拠つきの「提案 + あなたの承認」。XP は減らない。</p></div>
     <div class="card"><span class="emoji" aria-hidden="true">📈</span><h3>進捗と月次レビュー</h3><p>調音速度・練習カレンダー（練習量で濃くなる草）・レベル履歴。30日ごとに練習データから日本語の振り返りレポートを生成。ノルマや判定はなし — 情報として見せるだけ。</p></div>
@@ -203,13 +203,20 @@
 <section id="はじめる">
   <p class="eyebrow">Get started</p>
   <h2>はじめる</h2>
-  <ul class="plain">
-    <li>macOS（Apple Silicon 推奨）+ <code class="inline">Bun</code> + Homebrew</li>
-    <li><code class="inline">./scripts/setup.sh</code> で依存導入 → <code class="inline">./scripts/install-daemon.sh</code> で常駐化</li>
-    <li>既定の AI は Claude（Claude Pro/Max サブスクで動作）。Ollama / Codex / OpenAI 互換への切替は設定画面から</li>
-  </ul>
+  <div class="grid">
+    <div class="card">
+      <h3>デスクトップアプリ（推奨）</h3>
+      <p>Apple Silicon Macなら、GitHub Releases の dmg をダウンロードし、アプリケーションフォルダへコピーして起動するだけです。Bun や Homebrew は不要です。v0.29.0以降は、起動時の案内から更新を適用できます。</p>
+    </div>
+    <div class="card">
+      <h3>ソースから常駐</h3>
+      <p>macOS + <code class="inline">Bun</code> + Homebrew を用意し、初回だけ <code class="inline">./scripts/setup.sh</code>、続けて <code class="inline">./scripts/install-daemon.sh</code> を実行します。以後の更新は再登録せず、READMEのビルド・再起動手順に従います。</p>
+    </div>
+  </div>
+  <p class="note">既定の AI は Claude（Claude Pro/Max サブスクで動作）。Ollama / Codex / OpenAI 互換への切替は設定画面から行えます。</p>
   <div class="cta-left">
-    <a class="btn btn-primary" href="https://github.com/btajp/solo-eikaiwa#はじめる">README の手順へ</a>
+    <a class="btn btn-primary" href="https://github.com/btajp/solo-eikaiwa/releases">デスクトップ版を入手</a>
+    <a class="btn btn-ghost" href="https://github.com/btajp/solo-eikaiwa#はじめる">ソース版の手順へ</a>
   </div>
 </section>
 

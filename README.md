@@ -162,7 +162,7 @@ TTS を OpenAI 以外（ローカル等）に向けるときは「⚙️ 設定 
 # TTS_API_KEY=...                       # 鍵が要るエンドポイントのみ（未指定なら OPENAI_API_KEY にフォールバック）
 ```
 
-### 起動: 常駐（推奨）
+### 起動: ソースから常駐
 
 2つの常駐プロセスで動きます。**API サーバ**（launchd の LaunchAgent・ポート3111）と、任意で **Caddy**（https 化・`https://solo-eikaiwa` ドメインでのアクセス用）です。**API サーバはクライアントの dist を直接配信するため、Caddy が無くても `http://127.0.0.1:3111` をブラウザで開くだけで使えます**（v0.27.0〜。従来の Caddy/https 運用は変更なくそのまま併存できます）。どちらの構成でもログイン時の自動起動・クラッシュ時の自動再起動が効きます。
 
@@ -171,6 +171,8 @@ TTS を OpenAI 以外（ローカル等）に向けるときは「⚙️ 設定 
 ```bash
 ./scripts/install-daemon.sh   # クライアントビルド → LaunchAgent 登録 → ヘルスチェック
 ```
+
+`install-daemon.sh` は**初回の常駐登録**またはLaunchAgent設定を作り直すときだけ使います。稼働中のサーバがポート3111を使っている場合は意図的に中断するため、日常のコード更新では再実行しません。
 
 LaunchAgentの起動ラッパーはログインシェルからPATHだけを最大3秒で取得し、応答しない場合は子プロセスを終了して既知のPATHへフォールバックします。サーバ本体はログインシェルの配下で実行しないため、シェル初期化が壊れていても無応答のまま残りません。APIキーはmacOS Keychainまたは`app/.env`に設定してください。
 
@@ -189,9 +191,21 @@ echo "127.0.0.1 solo-eikaiwa" | sudo tee -a /etc/hosts   # https://solo-eikaiwa 
 ブラウザで https://solo-eikaiwa を開く（hosts を編集しない場合は https://solo-eikaiwa.localhost — Chrome 系なら hosts 不要）。Caddy を用意しない場合は、ブラウザで `http://127.0.0.1:3111` を直接開いてください。
 
 - 状態確認: `./scripts/status-daemon.sh` / 停止・解除: `./scripts/uninstall-daemon.sh`
-- コードを更新したら `./scripts/install-daemon.sh` を再実行（再ビルド＋デーモン再起動が一括で済む）
 - Caddyfile を変更したら Caddy に再読み込みさせる: brew services 構成なら `brew services restart caddy`、共有 Caddy デーモン構成なら `sudo launchctl kickstart -k system/com.local.https.caddy`
 - Firefox で証明書警告が出る場合: `about:config` で `security.enterprise_roots.enabled` を `true` に（Firefox は macOS キーチェーンを標準では参照しないため）
+
+#### 日常の更新（常駐化済みの場合）
+
+通常の更新では、依存をlockfileどおりに揃え、クライアントをビルドします。クライアントだけの変更はビルド完了時点で配信に反映されます。サーバ本体・サーバ依存・起動ラッパーを更新したときだけ、既存のLaunchAgentを再起動してください。
+
+```bash
+git pull --ff-only
+./scripts/install-bun-deps.sh all
+cd app/client && bun run build
+
+# app/server・サーバ依存・scripts/daemon-server.sh を更新した場合のみ
+launchctl kickstart -k gui/$(id -u)/com.local.solo-eikaiwa.server
+```
 
 #### 診断ログと保持方針
 
@@ -313,7 +327,7 @@ haiku は effort を指定しても実行時に黙って無視される（実測
 | 区分 | 項目 | 備考 |
 | --- | --- | --- |
 | **UI で設定**（サーバの唯一の真実 = DB） | LLM プロバイダ・接続（Base URL/モデル名/Codex モデル名）・ロール割当・ロール別チューニング（モデル/effort/配信）・認証モード（サブスク/APIキー） | ⚙️ 設定画面から変更。保存すると再起動なしで即時反映。優先順位は「ロール別チューニング > コード既定」のみで env による中間層はない |
-| **env のみ**（secrets・CLI 専用） | secrets: `OPENAI_COMPAT_API_KEY` / `ANTHROPIC_API_KEY` / `CODEX_API_KEY` / `TTS_API_KEY`（+ STT/TTS 用 `OPENAI_API_KEY`）。CLI 専用（サーバは読まない）: `LLM_PROVIDER` / `OPENAI_COMPAT_BASE_URL` / `OPENAI_COMPAT_MODEL` / `CODEX_MODEL` / `CLAUDE_MODEL` / `CLAUDE_EFFORT` / `CODEX_REASONING_EFFORT` / `CODEX_SERVICE_TIER` | secretsは`app/.env`だけに置く。`.env.local`等の派生ファイルもgitignore対象だが、運用には使わない。secretsはUI・DB・ログに一切出さない |
+| **Keychain または `app/.env`**（キー・CLI 用） | keys: `OPENAI_COMPAT_API_KEY` / `ANTHROPIC_API_KEY` / `CODEX_API_KEY` / `TTS_API_KEY`（+ STT/TTS 用 `OPENAI_API_KEY`）。CLI 専用（サーバは読まない）: `LLM_PROVIDER` / `OPENAI_COMPAT_BASE_URL` / `OPENAI_COMPAT_MODEL` / `CODEX_MODEL` / `CLAUDE_MODEL` / `CLAUDE_EFFORT` / `CODEX_REASONING_EFFORT` / `CODEX_SERVICE_TIER` | アプリで使うキーは macOS Keychain を推奨し、両方にある場合は **Keychain が優先**。`app/.env` は許可されたフォールバックおよびCLI用の配置で、`.env.local`等の派生ファイルはgitignore対象でも運用には使わない。キー値はUI・DB・ログに一切出さない |
 
 **破壊的変更（v0.24.0）**: これまでサーバが読んでいた `CLAUDE_MODEL` / `CLAUDE_EFFORT` / `CODEX_REASONING_EFFORT` / `CODEX_SERVICE_TIER` は、v0.24.0 以降サーバ本体では一切読まれません（UI に見えない裏設定を無くすため）。同名の env を `app/.env` に置いてもアプリ本体の挙動には影響しません（エラーにもならず、単に無視されます）。これらのチューニングは **⚙️ 設定 → 用途ごとのモデル** の詳細設定、または `scripts/generate-content.ts` 実行時の env（CLI 専用・下記「自分用にカスタマイズする」参照）でのみ有効です。
 
@@ -334,7 +348,7 @@ haiku は effort を指定しても実行時に黙って無視される（実測
 - **ハング検知タイムアウトの統一**: Claude Agent SDK・`codex app-server`・OpenAI互換接続はいずれも180秒応答が無ければタイムアウトする（フォールバックがあるClaude/Codexは代替経路へ、OpenAI互換はエラーになる）
 - **Codex の安全設定**: 既定経路の `codex app-server` は、スレッド作成・復元（`thread/start` / `thread/resume`）のたびにプロトコルレベルで `sandbox: "read-only"` + `approvalPolicy: "never"` を指定する（ユーザーの `~/.codex/config.toml` に依存しない）。承認・確認（elicitation）要求は自動で decline し、ファイル書き込みは機構的に禁止される。app-server が使えず `codex exec` へフォールバックしたときは、従来どおり CLI フラグ（`-s read-only` / `-c approval_policy="never"`）でユーザー config（`danger-full-access` 等）を上書きする。reasoning effort は既定で `medium`、service tier は既定で `fast`（priority 配信）をどちらの経路にも適用する（config が `xhigh` 等でも会話の応答待ちが伸びないように。**⚙️ 設定 → 用途ごとのモデル**の詳細設定で用途ごとに変更可 — アプリ本体は env のチューニング変数を読まない。tier はアカウント/モデルが非対応なら黙って標準配信になる）。動作確認済みの codex バージョンは `0.143.0`（`codex app-server` の初回起動時に1回だけ `codex --version` を確認し、それ以外は warn ログを出すのみで動作は継続する。プロトコル互換の検証方法は後述「自分用にカスタマイズする」参照）。
 - **crash-loop のリスクは v0.29 で解消**: サーバは接続設定の env（`LLM_PROVIDER` 等）を読まなくなったため、env の不正値でサーバが起動時に落ちる経路自体が無くなった。UI（**⚙️ 設定 → モデル接続設定 / 用途ごとのモデル**）からの変更は保存前に検証され不正な入力はエラー表示で弾かれ、起動時の DB 設定適用も fail-open（不正値は warn してフォールバックし常駐プロセスは落ちない）。
-- **CLI（generate-content 等）から使う場合**: Bunはcwdの`.env`に加えて`.env.local`や`.env.${NODE_ENV}`も自動ロードする。ただしsecretsの正規配置は`app/.env`だけとする。リポジトリルートからの`bun scripts/generate-content.ts …`では`app/.env`は読まれないため、環境変数を直接付けるか、`cd app && bun ../scripts/generate-content.ts …`で実行する。
+- **CLI（generate-content 等）から使う場合**: Bunはcwdの`.env`に加えて`.env.local`や`.env.${NODE_ENV}`も自動ロードする。運用上のCLIキーは `app/.env` に置き、派生ファイルは使わない。アプリ本体のキーは Keychain が優先するため、UIから登録したキーと同じ値をCLI用に置く必要はない。リポジトリルートからの`bun scripts/generate-content.ts …`では`app/.env`は読まれないため、環境変数を直接付けるか、`cd app && bun ../scripts/generate-content.ts …`で実行する。
 
 ### ローカル LLM のおすすめ構成（Apple Silicon Mac の例）
 

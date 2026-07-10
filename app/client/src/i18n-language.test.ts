@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { resolveLang } from "./i18n";
+import { resolveLang, STR } from "./i18n";
 
 describe("初回表示言語", () => {
   test("保存済みの言語はOS言語より優先する", () => {
@@ -12,5 +12,10 @@ describe("初回表示言語", () => {
     expect(resolveLang(null, "JA")).toBe("ja");
     expect(resolveLang(null, "en-US")).toBe("en");
     expect(resolveLang(null, "fr-FR")).toBe("en");
+  });
+
+  test("4/3/2の文字起こし話者ラベルも表示言語に従う", () => {
+    expect(STR.en.ftt432.transcriptYou).toBe("You:");
+    expect(STR.ja.ftt432.transcriptYou).toBe("あなた:");
   });
 });
