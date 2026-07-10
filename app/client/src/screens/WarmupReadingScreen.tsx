@@ -64,7 +64,7 @@ export function WarmupReadingScreen(props: {
       <p className="text-muted">
         {t.intro}
       </p>
-      {load.state.status === "loading" && <p>{t.loading}</p>}
+      {load.state.status === "loading" && <p className="text-muted">{t.loading}</p>}
       {load.state.status === "error" && (
         <div>
           <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>

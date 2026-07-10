@@ -35,6 +35,17 @@ describe("フィードバックと設定の意味", () => {
     expect(STR.ja.settings.tuningTierStandard).toContain("安価");
     expect(STR.ja.settings.roleReason.assessment).toContain("Standard 配信");
   });
+
+  test("練習の感想とコーチからのヒントを別の名称で案内する", () => {
+    expect(STR.en.nav.feedback).toBe(STR.en.feedbackScreen.title);
+    expect(STR.en.ftt432.aeTitle).toContain("Coach notes");
+    expect(STR.en.ftt432.prepMicNote).toContain("coach notes");
+    expect(STR.en.feedbackRow.target["free-talk"]).toContain("free-talk");
+    expect(STR.ja.nav.feedback).toBe(STR.ja.feedbackScreen.title);
+    expect(STR.ja.ftt432.aeTitle).toContain("コーチからのヒント");
+    expect(STR.ja.ftt432.prepMicNote).toContain("コーチからのヒント");
+    expect(STR.ja.feedbackRow.target["free-talk"]).toContain("自由会話");
+  });
 });
 
 describe("画面導線と学習素材の呼称", () => {

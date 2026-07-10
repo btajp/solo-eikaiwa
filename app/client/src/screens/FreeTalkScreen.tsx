@@ -9,6 +9,7 @@ import { Button } from "../ui/Button";
 import { FeedbackRow } from "../ui/FeedbackRow";
 import { LevelChip } from "../ui/LevelChip";
 import { RecordButton } from "../ui/RecordButton";
+import { canShowFreeTalkReaction } from "../practice-reaction";
 
 type Turn = { role: "you" | "ai"; text: string };
 type Status = ConversationRecordingStatus;
@@ -31,6 +32,7 @@ export function FreeTalkScreen(props: {
   const [status, setStatus] = useState<Status>("idle");
   const statusRef = useRef<Status>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [practiceFinished, setPracticeFinished] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const sessionIdRef = useRef<string | undefined>(undefined);
   const recorderRef = useRef(new Recorder());
@@ -162,19 +164,23 @@ export function FreeTalkScreen(props: {
         </div>
       )}
       <div>
-        <div className="start-row">
-          <RecordButton
-            recording={status === "recording"}
-            onClick={onMainButton}
-            disabled={status === "starting" || status === "transcribing" || status === "thinking" || status === "speaking"}
-          >
-            {LABELS[status]}
-          </RecordButton>
-          {canDiscardConversationRecording(status) && (
-            <Button variant="secondary" onClick={discardRecording}>{t.discardRecording}</Button>
-          )}
-        </div>
-        {status === "recording" && <p className="text-sm text-muted">{t.stopAndSendHint}</p>}
+        {!practiceFinished && (
+          <>
+            <div className="start-row">
+              <RecordButton
+                recording={status === "recording"}
+                onClick={onMainButton}
+                disabled={status === "starting" || status === "transcribing" || status === "thinking" || status === "speaking"}
+              >
+                {LABELS[status]}
+              </RecordButton>
+              {canDiscardConversationRecording(status) && (
+                <Button variant="secondary" onClick={discardRecording}>{t.discardRecording}</Button>
+              )}
+            </div>
+            {status === "recording" && <p className="text-sm text-muted">{t.stopAndSendHint}</p>}
+          </>
+        )}
         {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
         <div className="phrase-hint stack">
           <label className="text-sm text-muted" htmlFor="phrase-hint-input">
@@ -232,8 +238,14 @@ export function FreeTalkScreen(props: {
             </div>
           ))}
         </section>
-        {props.scenarioId === undefined && turns.length >= 2 && (
-          <FeedbackRow context={{ blockKind: "free-talk", refId: null }} lang={props.lang} />
+        {props.scenarioId === undefined && turns.length >= 2 && !practiceFinished && status === "idle" && (
+          <Button variant="secondary" onClick={() => setPracticeFinished(true)}>{t.finishPractice}</Button>
+        )}
+        {props.scenarioId === undefined && canShowFreeTalkReaction(turns.length, practiceFinished) && (
+          <div className="stack">
+            <FeedbackRow context={{ blockKind: "free-talk", refId: null }} lang={props.lang} />
+            <Button variant="ghost" onClick={() => setPracticeFinished(false)}>{t.continuePractice}</Button>
+          </div>
         )}
       </div>
     </div>

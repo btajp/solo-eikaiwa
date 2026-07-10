@@ -399,6 +399,7 @@ type RoleplayStrings = { roleplay: { starters: string } };
 type FreeTalkScreenStrings = { freeTalkScreen: {
   idle: string; starting: string; recording: string; transcribing: string; thinking: string; speaking: string; errorLabel: string;
   discardRecording: string; stopAndSendHint: string;
+  finishPractice: string; continuePractice: string;
   micError: (detail: string) => string; notHeard: string;
   hintLabel: string; hintPlaceholder: string; hintButton: string; hintThinking: string; hintError: string; retry: string;
   you: string; ai: string; translate: string; translating: string; translateError: string;
@@ -416,14 +417,15 @@ type ListeningScreenStrings = { listeningScreen: {
   explainMore: string; explainLoading: string; explainError: string;
 } };
 type FeedbackRowStrings = { feedbackRow: {
-  prompt: string; notePlaceholder: string;
+  prompt: string; purpose: string; notePlaceholder: string;
+  target: { session: string; "free-talk": string; listening: string; default: string };
   hard: string; justRight: string; easy: string;
   thanks: string; retryHint: string;
 } };
 type FeedbackScreenStrings = { feedbackScreen: {
   title: string; desc: string;
   loading: string; retry: string; empty: string;
-  copy: string; copied: string;
+  copy: string; copying: string; copied: string; copyFailed: string;
   rating: { hard: string; "just-right": string; easy: string };
   block: { session: string; "free-talk": string; listening: string };
   at: (ymd: string) => string;
@@ -449,7 +451,7 @@ const WEEKDAYS_JA = ["日", "月", "火", "水", "木", "金", "土"];
 export const STR: Record<Lang, Strings> = {
   en: {
     nav: {
-      home: "Home", placement: "Level Check", free: "Free Talk", library: "Model Talks", sentences: "390 Sentences", listening: "Listening", progress: "Progress", feedback: "Feedback", settings: "Settings",
+      home: "Home", placement: "Level Check", free: "Free Talk", library: "Model Talks", sentences: "390 Sentences", listening: "Listening", progress: "Progress", feedback: "Practice reactions", settings: "Settings",
       sectionToday: "Today's practice", sectionSelf: "Self-study", sectionRecords: "Records, level & settings",
       selfStudyHint: "Your main path is Today's practice. Self-study fits spare moments — a good order: listen (Listening) → memorize (Sentences) → speak (Free talk).",
     },
@@ -841,7 +843,7 @@ export const STR: Record<Lang, Strings> = {
     ftt432: {
       prepTitle: (topic) => `Prep — ${topic}`,
       prepIntro: (rounds, count, prep) => `You'll tell the same story ${count} times: ${rounds}. First, look over some phrases and an outline (about ${prep}).`,
-      prepMicNote: "Press 🎙 to start speaking — the timer starts then. Your Round 1 recording gets coach feedback before Round 2.",
+      prepMicNote: "Press 🎙 to start speaking — the timer starts then. Your Round 1 recording gets coach notes before Round 2.",
       roundTimeboxNote: "Speaking time limit — it starts when you begin recording. If you finish sooner, that's great.",
       roundChunksToggle: "Prep phrases",
       prepTimerLabel: "Preparation time (starts when phrases are ready)",
@@ -852,8 +854,8 @@ export const STR: Record<Lang, Strings> = {
       modelIdle: "🎧 Hear a model talk (optional)", modelScript: "✍ Preparing the model talk script…",
       modelAudio: "🎙 Generating audio…", modelRetry: "🎧 Model talk (retry)",
       startRound1: (time) => `Start Round 1 (${time}) →`, modelTranscript: "Model talk script",
-      aeTitle: "Feedback (read it, then Round 2)", aeLoading: "Your coach is writing feedback…",
-      aeNoRecording: "No recording, so there's no feedback", startRound2: (time) => `Start Round 2 (${time})`,
+      aeTitle: "Coach notes (read them, then Round 2)", aeLoading: "Your coach is writing notes…",
+      aeNoRecording: "No recording, so there are no coach notes", startRound2: (time) => `Start Round 2 (${time})`,
       doneBody: (count) => `4/3/2 done! You told the same story ${count} times, a little faster each round.`,
       roundHeading: (n, time, topic) => `Round ${n} (${time}) — ${topic}`,
       roundTimerAria: (n, time) => `Round ${n} speaking time remaining: ${time}.`,
@@ -891,6 +893,7 @@ export const STR: Record<Lang, Strings> = {
       idle: "🎙 Start recording", starting: "Requesting microphone…", recording: "⏹ Stop and send",
       transcribing: "📝 Transcribing…", thinking: "🤔 Thinking…", speaking: "🔊 Playing…", errorLabel: "🎙 Speak again",
       discardRecording: "Discard this recording", stopAndSendHint: "Stopping sends this recording to the conversation.",
+      finishPractice: "Finish this practice", continuePractice: "Continue talking",
       micError: (detail) => `Can't access the microphone: ${detail}`, notHeard: "Couldn't catch that. Please try again.",
       hintLabel: "Stuck? Type what you want to say in Japanese and I'll suggest ways to say it in English",
       hintPlaceholder: "e.g. その機能はまだ試していません", hintButton: "💡 Phrasing hint",
@@ -915,18 +918,20 @@ export const STR: Record<Lang, Strings> = {
       explainError: "Couldn't load the explanation. Please try again.",
     },
     feedbackRow: {
-      prompt: "How was that? (optional)",
+      prompt: "How did it feel? (optional)",
+      purpose: "Optional. It is saved in Practice reactions so you can look back on what to try next.",
       notePlaceholder: "One-line note (optional)",
+      target: { session: "This practice session", "free-talk": "This free-talk practice", listening: "This listening practice", default: "This practice" },
       hard: "Too hard", justRight: "Just right", easy: "Too easy",
       thanks: "Thanks — noted.",
       retryHint: "Couldn't save. Tap again to retry.",
     },
     feedbackScreen: {
-      title: "Feedback",
-      desc: "Your quick reactions after practice. Copy them as Markdown to feed into the next round of development.",
+      title: "Practice reactions",
+      desc: "Optional reactions shared after a completed practice. Use them to look back on what you want to try next.",
       loading: "Loading…", retry: "Retry",
-      empty: "No feedback yet. It shows up here after you react at the end of a practice.",
-      copy: "📋 Copy as Markdown", copied: "Copied!",
+      empty: "No practice reactions yet. They appear here after you finish a practice and choose to save one.",
+      copy: "Copy as Markdown", copying: "Copying…", copied: "Copied.", copyFailed: "Couldn't copy. Check clipboard permission and try again.",
       rating: { hard: "Too hard", "just-right": "Just right", easy: "Too easy" },
       block: { session: "Session", "free-talk": "Free talk", listening: "Listening" },
       at: (ymd) => ymd,
@@ -943,7 +948,7 @@ export const STR: Record<Lang, Strings> = {
   },
   ja: {
     nav: {
-      home: "ホーム", placement: "レベル測定", free: "自由会話", library: "モデルトーク", sentences: "暗記例文390", listening: "リスニング（多聴）", progress: "進捗", feedback: "フィードバック", settings: "設定",
+      home: "ホーム", placement: "レベル測定", free: "自由会話", library: "モデルトーク", sentences: "暗記例文390", listening: "リスニング（多聴）", progress: "進捗", feedback: "練習の感想", settings: "設定",
       sectionToday: "今日の練習", sectionSelf: "自主練", sectionRecords: "記録・測定・設定",
       selfStudyHint: "メインは「今日の練習」。自主練はすきま時間に。目安の順番: リスニング → 暗記例文 → 自由会話。",
     },
@@ -1335,7 +1340,7 @@ export const STR: Record<Lang, Strings> = {
     ftt432: {
       prepTitle: (topic) => `準備 — ${topic}`,
       prepIntro: (rounds, count, prep) => `これから同じ話を ${rounds} で${count}回話します。まず準備フレーズと話の骨組みを確認してください（目安 ${prep}）。`,
-      prepMicNote: "🎙を押して話し始めるとタイマーが動きます。Round 1 の録音には Round 2 の前にコーチのフィードバックが付きます。",
+      prepMicNote: "🎙を押して話し始めるとタイマーが動きます。Round 1 の録音には Round 2 の前にコーチからのヒントが付きます。",
       roundTimeboxNote: "発話時間の上限です。録音を始めると動き、早く話し終えてもOKです。",
       roundChunksToggle: "準備フレーズ",
       prepTimerLabel: "準備時間（教材の準備後に開始）",
@@ -1346,8 +1351,8 @@ export const STR: Record<Lang, Strings> = {
       modelIdle: "🎧 モデルトークを聞く（任意）", modelScript: "✍ モデルトークのスクリプトを作成中…",
       modelAudio: "🎙 音声を生成中…", modelRetry: "🎧 モデルトーク（再試行）",
       startRound1: (time) => `Round 1 を始める（${time}）→`, modelTranscript: "モデルトークのスクリプト",
-      aeTitle: "フィードバック（読んだら Round 2 へ）", aeLoading: "コーチがフィードバックを書いています…",
-      aeNoRecording: "録音がなかったのでフィードバックはありません", startRound2: (time) => `Round 2 を始める（${time}）`,
+      aeTitle: "コーチからのヒント（読んでから Round 2 へ）", aeLoading: "コーチがヒントを書いています…",
+      aeNoRecording: "録音がなかったのでコーチからのヒントはありません", startRound2: (time) => `Round 2 を始める（${time}）`,
       doneBody: (count) => `4/3/2 完了！同じ話を${count}回、少しずつ速く話せました。`,
       roundHeading: (n, time, topic) => `Round ${n}（${time}） — ${topic}`,
       roundTimerAria: (n, time) => `Round ${n} の発話残り時間: ${time}。`,
@@ -1385,6 +1390,7 @@ export const STR: Record<Lang, Strings> = {
       idle: "🎙 録音を始める", starting: "マイクを準備中…", recording: "⏹ 止めて送信",
       transcribing: "📝 文字起こし中…", thinking: "🤔 考え中…", speaking: "🔊 再生中…", errorLabel: "🎙 もう一度話す",
       discardRecording: "この録音を破棄", stopAndSendHint: "「止めて送信」を押すと、この録音を会話に送信します。",
+      finishPractice: "この練習を終える", continuePractice: "会話を続ける",
       micError: (detail) => `マイクにアクセスできません: ${detail}`, notHeard: "音声を聞き取れませんでした。もう一度話してください。",
       hintLabel: "うまく言えないときは、言いたいことを日本語で入力すると英語の言い方を提案します",
       hintPlaceholder: "例: その機能はまだ試していません", hintButton: "💡 言い方のヒント",
@@ -1409,18 +1415,20 @@ export const STR: Record<Lang, Strings> = {
       explainError: "解説を取得できませんでした。もう一度お試しください。",
     },
     feedbackRow: {
-      prompt: "今のはどうでしたか？（任意）",
+      prompt: "この練習はどうでしたか？（任意）",
+      purpose: "任意の感想は「練習の感想」に保存され、次に試したいことを振り返れます。",
       notePlaceholder: "ひとことメモ（任意）",
+      target: { session: "このセッション", "free-talk": "この自由会話", listening: "このリスニング", default: "この練習" },
       hard: "難しすぎた", justRight: "ちょうどよかった", easy: "簡単すぎた",
       thanks: "ありがとう、記録しました。",
       retryHint: "保存できませんでした。もう一度タップしてください。",
     },
     feedbackScreen: {
-      title: "フィードバック",
-      desc: "練習のあとに送った短い反応の記録です。Markdown でコピーして次の開発サイクルの入力にできます。",
+      title: "練習の感想",
+      desc: "練習を終えたあとに任意で残した感想です。次に試したいことを振り返るために使えます。",
       loading: "読み込み中…", retry: "再試行",
-      empty: "まだフィードバックはありません。練習の最後に反応するとここに表示されます。",
-      copy: "📋 Markdownでコピー", copied: "コピーしました",
+      empty: "まだ練習の感想はありません。練習を終え、任意で感想を残すとここに表示されます。",
+      copy: "Markdownでコピー", copying: "コピー中…", copied: "コピーしました。", copyFailed: "コピーできませんでした。クリップボードの許可を確認して、もう一度お試しください。",
       rating: { hard: "難しすぎた", "just-right": "ちょうどよかった", easy: "簡単すぎた" },
       block: { session: "セッション", "free-talk": "自由会話", listening: "リスニング" },
       at: (ymd) => ymd,

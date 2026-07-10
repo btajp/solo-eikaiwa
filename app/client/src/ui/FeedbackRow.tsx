@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchProgressSummary, postFeedback, type FeedbackContext, type FeedbackRating } from "../api";
 import { STR, type Lang } from "../i18n";
+import { Button } from "./Button";
 
 /**
  * 練習完了時の控えめな1タップ評価行。メモ（任意）を先に入力してから3択（難しすぎた/ちょうどよかった/簡単すぎた）を
@@ -14,6 +15,7 @@ export function FeedbackRow({ context, lang }: { context: FeedbackContext; lang:
   const [note, setNote] = useState("");
   const [retryHint, setRetryHint] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingRating, setPendingRating] = useState<FeedbackRating | null>(null);
   const enrichRef = useRef<{ level: number | null; stage: number | null }>({ level: null, stage: null });
   const aliveRef = useRef(true);
 
@@ -28,6 +30,7 @@ export function FeedbackRow({ context, lang }: { context: FeedbackContext; lang:
   async function submit(rating: FeedbackRating) {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setPendingRating(rating);
     setRetryHint(false);
     try {
       await postFeedback({
@@ -44,6 +47,7 @@ export function FeedbackRow({ context, lang }: { context: FeedbackContext; lang:
       if (aliveRef.current) {
         setRetryHint(true);
         setIsSubmitting(false);
+        setPendingRating(null);
       }
     }
   }
@@ -54,6 +58,10 @@ export function FeedbackRow({ context, lang }: { context: FeedbackContext; lang:
 
   return (
     <div className="feedback-row stack">
+      <div>
+        <p className="text-sm">{t.target[context.blockKind as keyof typeof t.target] ?? t.target.default}</p>
+        <p className="text-sm text-muted">{t.purpose}</p>
+      </div>
       <span className="text-sm text-muted">{t.prompt}</span>
       <input
         className="feedback-note"
@@ -64,10 +72,10 @@ export function FeedbackRow({ context, lang }: { context: FeedbackContext; lang:
         maxLength={300}
         aria-label={t.notePlaceholder}
       />
-      <div className="lang-toggle" role="group" aria-label={t.prompt}>
-        <button onClick={() => submit("hard")} disabled={isSubmitting}>{t.hard}</button>
-        <button onClick={() => submit("just-right")} disabled={isSubmitting}>{t.justRight}</button>
-        <button onClick={() => submit("easy")} disabled={isSubmitting}>{t.easy}</button>
+      <div className="feedback-actions" role="group" aria-label={t.prompt}>
+        <Button onClick={() => submit("hard")} loading={pendingRating === "hard"} disabled={isSubmitting}>{t.hard}</Button>
+        <Button onClick={() => submit("just-right")} loading={pendingRating === "just-right"} disabled={isSubmitting}>{t.justRight}</Button>
+        <Button onClick={() => submit("easy")} loading={pendingRating === "easy"} disabled={isSubmitting}>{t.easy}</Button>
       </div>
       {retryHint && <span className="text-sm text-muted">{t.retryHint}</span>}
     </div>

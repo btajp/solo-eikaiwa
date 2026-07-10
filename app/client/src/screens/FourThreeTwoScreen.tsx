@@ -383,7 +383,7 @@ export function FourThreeTwoScreen(props: {
         {topicHints.length > 0 && (
           <div className="text-muted"><ChunkList chunks={topicHints} playingIdx={null} showJa={showJa} /></div>
         )}
-        {prepState === "loading" && <p>{t.loading}</p>}
+        {prepState === "loading" && <p className="text-muted">{t.loading}</p>}
         {prepState === "error" && (
           <Banner kind="error" action={<Button onClick={loadPrep}>{t.retry}</Button>}>
             {errorMsg}
@@ -446,7 +446,7 @@ export function FourThreeTwoScreen(props: {
   if (phase.kind === "ae") {
     return (
       <Card header={t.aeTitle}>
-        {aeLoading && <p>{t.aeLoading}</p>}
+        {aeLoading && <p className="text-muted">{t.aeLoading}</p>}
         {aeSkippedNoRecording && <p>{t.aeNoRecording}</p>}
         {ae && (
           <div>
