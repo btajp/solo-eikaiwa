@@ -1,4 +1,5 @@
 {
   "bun": "1.3.14",
-  "tauriCli": "2.11.4"
+  "tauriCli": "2.11.4",
+  "cargoAudit": "0.22.2"
 }

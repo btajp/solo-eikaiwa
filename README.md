@@ -394,11 +394,13 @@ Codex（`codex app-server`）は実験的プロトコルに依存するため、
 ## テスト
 
 ```bash
-cd app && bun test           # サーバユニット/契約テスト
-cd app && bun run typecheck
-cd app/client && bun run build
+./scripts/verify.sh pr       # build・型・shellcheck・全test・教材検証
+./scripts/verify.sh desktop  # desktop変更時: cargo test + clippy（locked）
+./scripts/verify.sh audit    # Bun/Cargo依存監査（定期実行と同じ）
 ./scripts/smoke-stt.sh       # STT 実機スモーク
 ```
+
+PRでは`core`と`desktop`をread-only GitHub Actionsで確認する。依存監査は外部監査DB障害でPRを不安定にしないよう週次と手動実行に分離し、release時には必須で実行する。
 
 ## ドキュメント
 

@@ -5,7 +5,7 @@
 #
 # やること（順に・失敗したら即中断）:
 #   1. バージョン・toolchain・frozen lockfile整合チェック
-#   2. 検証ゲート3種（bun test / typecheck / client build）
+#   2. 共通release検証（Bun/Rust/content/shellcheck/依存監査）
 #   3. build-sidecar.sh（サーバcompile・resources収集）
 #   4. whisper-bin の Mach-O プレ署名
 #      - tauri-bundler は Resources 配下を署名対象にしない（bundler 2.9.4 app.rs 実測）ため、
@@ -105,12 +105,9 @@ if git -C "$REPO_DIR" rev-parse "v$VERSION" >/dev/null 2>&1; then
   echo "ERROR: タグ v$VERSION は既に存在します" >&2; exit 1
 fi
 
-# 2. toolchain検査・frozen依存準備・検証ゲート3種
-"$REPO_DIR/scripts/check-toolchain.sh" all
-"$REPO_DIR/scripts/install-bun-deps.sh" all
-echo "-- 検証ゲート"
-(cd "$REPO_DIR/app" && bun test && bun run typecheck)
-(cd "$REPO_DIR/app/client" && bun run build)
+# 2. PRと同じ正本 + release固有のRust/依存監査
+"$REPO_DIR/scripts/verify.sh" release
+assert_clean_worktree
 
 # 3. sidecar・resources 構築
 "$REPO_DIR/desktop/build-sidecar.sh"

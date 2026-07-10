@@ -12,6 +12,7 @@ DLするだけで動く単体配布アプリを実現した。開発者のLaunch
 - macOS（Apple Silicon確認済み。他プラットフォームは未検証）
 - Rust（`cargo` 1.77.2 以上。動作確認は 1.96）
 - Tauri CLI 2.11.4: `cargo install tauri-cli --version 2.11.4 --locked`
+- cargo-audit 0.22.2: `cargo install cargo-audit --version 0.22.2 --locked`（release依存監査用）
 - Bun 1.3.14（サーバのcompileに使用。期待版は`../toolchain.json`が正本）
 - Homebrew + `brew install whisper-cpp`（whisper-cli本体・ggml・libompの収集元。配布物には
   同梱するので配布先ユーザーはHomebrew不要）
