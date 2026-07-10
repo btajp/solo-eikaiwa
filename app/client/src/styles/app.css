@@ -297,7 +297,7 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 /* 4/3/2 ラウンド */
 .round-stage { text-align: center; padding: var(--sp-5) 0; }
 .round-timer { font-size: 48px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; margin: var(--sp-3) 0; }
-.round-timer.is-expired { color: var(--danger); }
+.round-timer.is-expired { color: var(--text-muted); }
 .round-actions { display: flex; justify-content: center; gap: var(--sp-3); margin-top: var(--sp-3); }
 .record-btn.is-recording { animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse {

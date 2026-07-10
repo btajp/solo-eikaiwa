@@ -4,7 +4,7 @@ import {
   type Menu, type MenuBlock, type QuickDrillKind, type RoleplayDomain,
 } from "../api";
 import { STR, type Lang } from "../i18n";
-import { useCountdown } from "../useCountdown";
+import { formatMmSs, useCountdown } from "../useCountdown";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { ProgressDots, Screen } from "../ui/Screen";
@@ -29,6 +29,7 @@ import {
   initialBlockProgress,
   markBlockReady,
   markValidAttempt,
+  requiresInternalCompletion,
 } from "./sessionBlockProgress";
 
 export type MenuSource =
@@ -55,6 +56,7 @@ export function SessionRunner(props: {
   const [failedCompletions, setFailedCompletions] = useState<PendingCompletion[]>([]);
   const [retryingCompletion, setRetryingCompletion] = useState<string | null>(null);
   const [blockProgress, setBlockProgress] = useState(initialBlockProgress);
+  const [internalFlowComplete, setInternalFlowComplete] = useState(false);
   const retryingRef = useRef(false);
   const coordinatorRef = useRef(makeSessionCoordinator());
   const blockProgressRef = useRef(initialBlockProgress());
@@ -176,11 +178,14 @@ export function SessionRunner(props: {
   const block = menu.blocks[index];
   const isLast = index === menu.blocks.length - 1;
   const completionGate = blockCompletionGate(blockProgress);
+  const hasInternalFlow = requiresInternalCompletion(block.kind);
+  const showOuterCompletion = !hasInternalFlow || internalFlowComplete;
 
   function resetBlockProgress() {
     const initial = initialBlockProgress();
     blockProgressRef.current = initial;
     setBlockProgress(initial);
+    setInternalFlowComplete(false);
   }
 
   function reportBlockReady(blockId: string) {
@@ -201,8 +206,13 @@ export function SessionRunner(props: {
     setBlockProgress(next);
   }
 
+  function reportInternalFlowComplete(blockId: string) {
+    if (blockId !== block.id) return;
+    setInternalFlowComplete(true);
+  }
+
   function nextBlock() {
-    if (completionGate !== "ready") return;
+    if (!showOuterCompletion || completionGate !== "ready") return;
     const open = coordinatorRef.current.take(block.id);
     if (!open) return;
     setAdvancing(true);
@@ -224,39 +234,44 @@ export function SessionRunner(props: {
       meta={
         <>
           <ProgressDots current={index} total={menu.blocks.length} label={t.blockAria(index, menu.blocks.length)} />
-          {blockProgress.ready && <TimerChip remaining={timer.remaining} expired={timer.expired} note={t.timerNote} />}
+          {blockProgress.ready && !hasInternalFlow && <TimerChip remaining={timer.remaining} expired={timer.expired} note={t.timerNote} />}
         </>
       }
     >
       {completionNotice}
       {/* v0.26 wave5: rotation の情報的注記。ラウンドロビン振替・帯域緩和で選ばれたときだけ出す中立な一文（警告調ではない） */}
       {block.fallback && <Banner kind="info">{t.fallbackNote}</Banner>}
+      {hasInternalFlow && <p className="text-sm text-muted">{t.blockEstimate(formatMmSs(block.minutes * 60))}</p>}
       <div key={block.id} className="fade-in">
         <BlockBody
           block={block} sessionId={props.sessionId} lang={props.lang}
           onBeforeRecording={props.onBeforeRecording}
           onReady={() => reportBlockReady(block.id)}
           onValidAttempt={() => reportValidAttempt(block.id)}
+          onInternalFlowComplete={() => reportInternalFlowComplete(block.id)}
         />
       </div>
-      {completionGate !== "ready" && <Banner kind="info">{
-        completionGate === "preparing" ? t.preparingBlock : t.completeAfterAttempt
-      }</Banner>}
-      <div className="text-sm text-muted">{t.leaveBeforeComplete}</div>
-      <div className="round-actions">
-        <Button variant="primary" size="lg" onClick={nextBlock} disabled={advancing || completionGate !== "ready"}>
-          {isLast ? t.finish : t.next}
-        </Button>
-      </div>
+      {showOuterCompletion && <>
+        {completionGate !== "ready" && <Banner kind="info">{
+          completionGate === "preparing" ? t.preparingBlock : t.completeAfterAttempt
+        }</Banner>}
+        <div className="text-sm text-muted">{t.leaveBeforeComplete}</div>
+        <div className="round-actions">
+          <Button variant="primary" size="lg" onClick={nextBlock} disabled={advancing || completionGate !== "ready"}>
+            {isLast ? t.finish : t.next}
+          </Button>
+        </div>
+      </>}
     </Screen>
   );
 }
 
 function BlockBody({
-  block, sessionId, lang, onBeforeRecording, onReady, onValidAttempt,
+  block, sessionId, lang, onBeforeRecording, onReady, onValidAttempt, onInternalFlowComplete,
 }: {
   block: MenuBlock; sessionId: string; lang: Lang; onBeforeRecording?: () => boolean;
   onReady: () => void; onValidAttempt: () => void;
+  onInternalFlowComplete: () => void;
 }) {
   switch (block.kind) {
     case "chunk-placeholder":
@@ -269,6 +284,7 @@ function BlockBody({
           topic={block.params.topic} sessionId={sessionId} blockId={block.id}
           roundsSec={block.params.roundsSec} hintMode={block.params.hintMode} modelTalkMode={block.params.modelTalkMode}
           onBeforeRecord={onBeforeRecording} lang={lang} onReady={onReady} onValidAttempt={onValidAttempt}
+          onFlowComplete={onInternalFlowComplete}
         />
       ) : (
         <p>{STR[lang].session.noTopic}</p>

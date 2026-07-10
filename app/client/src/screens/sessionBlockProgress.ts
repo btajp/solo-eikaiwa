@@ -11,6 +11,11 @@ export const SESSION_BLOCK_KINDS = [
 
 export type BlockCompletionGate = "preparing" | "needs-attempt" | "ready";
 
+/** 4/3/2はラウンド・フィードバックを完走して初めて親の「次へ」を見せる。 */
+export function requiresInternalCompletion(kind: string): boolean {
+  return kind === "four-three-two";
+}
+
 export function initialBlockProgress(): SessionBlockProgress {
   return { ready: false, validAttempt: false };
 }

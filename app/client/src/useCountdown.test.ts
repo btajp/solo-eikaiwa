@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CountdownClock } from "./useCountdown";
+import { CountdownClock, formatMmSs } from "./useCountdown";
 
 describe("CountdownClock", () => {
   test("interval抑制相当の時刻jump後に0へ進み、expireを一度だけ発火する", () => {
@@ -61,5 +61,14 @@ describe("CountdownClock", () => {
     now = 10_000;
     tick();
     expect(expired).toBe(1);
+  });
+});
+
+describe("4/3/2の時間表記", () => {
+  test("説明とカウントダウンで同じmm:ss表記を使える", () => {
+    expect(formatMmSs(180)).toBe("3:00");
+    expect(formatMmSs(120)).toBe("2:00");
+    expect(formatMmSs(90)).toBe("1:30");
+    expect(formatMmSs(75)).toBe("1:15");
   });
 });

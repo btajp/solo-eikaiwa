@@ -27,6 +27,7 @@ type SessionStrings = {
     building: string; retry: string; timerNote: string;
     finish: string; next: string; doneExit: string;
     preparingBlock: string; completeAfterAttempt: string; leaveBeforeComplete: string; doneSummary: string;
+    blockEstimate: (time: string) => string;
     xpSaveFailed: string; xpRetry: string; xpRetrying: string;
     noTopic: string; noScenario: string; unknownBlock: (kind: string) => string;
     blockAria: (index: number, total: number) => string;
@@ -343,17 +344,18 @@ type WarmupStrings = { warmup: {
   showJaHints: string; hideJaHints: string;
 } };
 type Ftt432Strings = { ftt432: {
-  min: (v: string) => string;
   prepTitle: (topic: string) => string;
   prepIntro: (rounds: string, count: number, prep: string) => string;
   prepMicNote: string; roundTimeboxNote: string; roundChunksToggle: string;
+  prepTimerLabel: string; prepTimerAria: (time: string) => string;
   prepTimerNote: string; loading: string; retry: string; outlineTitle: string;
   showJaHints: string; hideJaHints: string;
   modelIdle: string; modelScript: string; modelAudio: string; modelPlaying: string; modelRetry: string;
-  startRound1: (min: string) => string; modelTranscript: string;
-  aeTitle: string; aeLoading: string; aeNoRecording: string; startRound2: (min: string) => string;
+  startRound1: (time: string) => string; modelTranscript: string;
+  aeTitle: string; aeLoading: string; aeNoRecording: string; startRound2: (time: string) => string;
   doneBody: (count: number) => string;
-  roundHeading: (n: number, min: string, topic: string) => string;
+  roundHeading: (n: number, time: string, topic: string) => string;
+  roundTimerAria: (n: number, time: string) => string;
   timeUp: string; recStop: string; recStarting: string; recTranscribing: string; recStart: string; roundFinish: string;
   micError: (detail: string) => string; notHeard: string;
   explainMore: string; explainLoading: string; explainError: string;
@@ -773,6 +775,7 @@ export const STR: Record<Lang, Strings> = {
       completeAfterAttempt: "Finish this block after a completed practice attempt.",
       leaveBeforeComplete: "Leaving before completing this block marks it as interrupted and adds no XP.",
       doneSummary: "Completed blocks are recorded. Interrupted blocks do not add XP.",
+      blockEstimate: (time) => `Block estimate: ${time}. It starts when the practice material is ready.`,
       xpSaveFailed: "This block's XP hasn't been recorded yet. You can retry while continuing.",
       xpRetry: "Retry XP", xpRetrying: "Retrying…",
       noTopic: "No topic available", noScenario: "No scenario available",
@@ -793,22 +796,24 @@ export const STR: Record<Lang, Strings> = {
       hideJaHints: "Hide Japanese hints",
     },
     ftt432: {
-      min: (v) => `${v} min`,
       prepTitle: (topic) => `Prep — ${topic}`,
       prepIntro: (rounds, count, prep) => `You'll tell the same story ${count} times: ${rounds}. First, look over some phrases and an outline (about ${prep}).`,
       prepMicNote: "Press 🎙 to start speaking — the timer starts then. Your Round 1 recording gets coach feedback before Round 2.",
-      roundTimeboxNote: "This time is a cap — if you finish sooner, that's great.",
+      roundTimeboxNote: "Speaking time limit — it starts when you begin recording. If you finish sooner, that's great.",
       roundChunksToggle: "Prep phrases",
+      prepTimerLabel: "Preparation time (starts when phrases are ready)",
+      prepTimerAria: (time) => `Preparation time: ${time}. It starts when the practice material is ready.`,
       prepTimerNote: "Time to get started", loading: "Your coach is preparing phrases…", retry: "Retry",
       outlineTitle: "Story outline",
       showJaHints: "Show Japanese hints", hideJaHints: "Hide Japanese hints",
       modelIdle: "🎧 Hear a model talk (optional)", modelScript: "✍ Preparing the model talk script…",
       modelAudio: "🎙 Generating audio…", modelPlaying: "🔊 Playing…", modelRetry: "🎧 Model talk (retry)",
-      startRound1: (min) => `Start Round 1 (${min}) →`, modelTranscript: "Model talk script",
+      startRound1: (time) => `Start Round 1 (${time}) →`, modelTranscript: "Model talk script",
       aeTitle: "Feedback (read it, then Round 2)", aeLoading: "Your coach is writing feedback…",
-      aeNoRecording: "No recording, so there's no feedback", startRound2: (min) => `Start Round 2 (${min})`,
+      aeNoRecording: "No recording, so there's no feedback", startRound2: (time) => `Start Round 2 (${time})`,
       doneBody: (count) => `4/3/2 done! You told the same story ${count} times, a little faster each round.`,
-      roundHeading: (n, min, topic) => `Round ${n} (${min}) — ${topic}`,
+      roundHeading: (n, time, topic) => `Round ${n} (${time}) — ${topic}`,
+      roundTimerAria: (n, time) => `Round ${n} speaking time remaining: ${time}.`,
       timeUp: "— Time reached", recStop: "⏹ Stop recording", recStarting: "Requesting microphone…", recTranscribing: "📝 Transcribing…",
       recStart: "🎙 Start speaking", roundFinish: "End this round →",
       micError: (detail) => `Can't access the microphone: ${detail}`,
@@ -1237,6 +1242,7 @@ export const STR: Record<Lang, Strings> = {
       completeAfterAttempt: "練習を一度実施すると、このブロックを完了できます。",
       leaveBeforeComplete: "完了前に離れると、このブロックは中断として扱われ、XPは増えません。",
       doneSummary: "完了したブロックだけが記録されます。中断したブロックのXPは増えません。",
+      blockEstimate: (time) => `ブロックの目安時間: ${time}。教材の準備ができると始まります。`,
       xpSaveFailed: "このブロックのXPはまだ記録されていません。練習を続けたまま再試行できます。",
       xpRetry: "XPを再試行", xpRetrying: "再試行中…",
       noTopic: "トピックがありません", noScenario: "シナリオがありません",
@@ -1257,22 +1263,24 @@ export const STR: Record<Lang, Strings> = {
       hideJaHints: "日本語ヒントを隠す",
     },
     ftt432: {
-      min: (v) => `${v}分`,
       prepTitle: (topic) => `準備 — ${topic}`,
       prepIntro: (rounds, count, prep) => `これから同じ話を ${rounds} で${count}回話します。まず使えそうな表現と骨組みを確認してください（目安 ${prep}）。`,
       prepMicNote: "🎙を押して話し始めるとタイマーが動きます。Round 1 の録音には Round 2 の前にコーチのフィードバックが付きます。",
-      roundTimeboxNote: "時間は上限です。言えたところまでで早く終えてもOKです。",
+      roundTimeboxNote: "発話時間の上限です。録音を始めると動き、早く話し終えてもOKです。",
       roundChunksToggle: "準備の表現チャンク",
+      prepTimerLabel: "準備時間（教材の準備後に開始）",
+      prepTimerAria: (time) => `準備時間: ${time}。教材の準備ができると始まります。`,
       prepTimerNote: "そろそろ始めましょう", loading: "コーチが表現チャンクを用意しています…", retry: "再試行",
       outlineTitle: "話の骨組み",
       showJaHints: "日本語ヒントを表示", hideJaHints: "日本語ヒントを隠す",
       modelIdle: "🎧 モデルトークを聞く（任意）", modelScript: "✍ モデルトークのスクリプトを作成中…",
       modelAudio: "🎙 音声を生成中…", modelPlaying: "🔊 再生中…", modelRetry: "🎧 モデルトーク（再試行）",
-      startRound1: (min) => `Round 1 を始める（${min}）→`, modelTranscript: "モデルトークのスクリプト",
+      startRound1: (time) => `Round 1 を始める（${time}）→`, modelTranscript: "モデルトークのスクリプト",
       aeTitle: "フィードバック（読んだら Round 2 へ）", aeLoading: "コーチがフィードバックを書いています…",
-      aeNoRecording: "録音がなかったのでフィードバックはありません", startRound2: (min) => `Round 2 を始める（${min}）`,
+      aeNoRecording: "録音がなかったのでフィードバックはありません", startRound2: (time) => `Round 2 を始める（${time}）`,
       doneBody: (count) => `4/3/2 完了！同じ話を${count}回、少しずつ速く話せました。`,
-      roundHeading: (n, min, topic) => `Round ${n}（${min}） — ${topic}`,
+      roundHeading: (n, time, topic) => `Round ${n}（${time}） — ${topic}`,
+      roundTimerAria: (n, time) => `Round ${n} の発話残り時間: ${time}。`,
       timeUp: "— 目安の時間になりました", recStop: "⏹ 録音を止める", recStarting: "マイクを準備中…", recTranscribing: "📝 文字起こし中…",
       recStart: "🎙 話し始める", roundFinish: "このラウンドを終える →",
       micError: (detail) => `マイクにアクセスできません: ${detail}`,

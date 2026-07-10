@@ -29,12 +29,6 @@ const LISTENERS = [
   "New listener: someone at a conference. Same story, shorter.",
 ] as const;
 
-/** 90 → "1.5"、120 → "2" のような数値文字列（単位は呼び出し側の辞書で付与） */
-function minNum(seconds: number): string {
-  const m = seconds / 60;
-  return `${Number.isInteger(m) ? m : m.toFixed(1)}`;
-}
-
 type Phase = { kind: "prep" } | { kind: "round"; index: number } | { kind: "ae" } | { kind: "done" };
 type RecState = "idle" | "starting" | "recording" | "transcribing";
 type PrepState = "loading" | "ready" | "error";
@@ -49,6 +43,8 @@ export function FourThreeTwoScreen(props: {
   hintMode?: "ja" | "en"; modelTalkMode?: "auto" | "button";
   onBeforeRecord?: () => boolean;
   onReady?: () => void; onValidAttempt?: () => void;
+  /** 全ラウンドとフィードバックを終え、親の次ブロック導線を出してよいときに通知する。 */
+  onFlowComplete?: () => void;
   lang: Lang;
 }) {
   const t = STR[props.lang].ftt432;
@@ -94,6 +90,7 @@ export function FourThreeTwoScreen(props: {
   const playRow = usePlayRow<number>();
   const prepFetchedRef = useRef(false); // StrictMode の二重マウントで prep を二重フェッチしない
   const readyNotifiedRef = useRef(false);
+  const flowCompleteNotifiedRef = useRef(false);
   const prepTimer = useCountdown(PREP_SECONDS);
   const recorderRef = useRef(new Recorder());
   const roundStartedRef = useRef(false);
@@ -110,6 +107,12 @@ export function FourThreeTwoScreen(props: {
 
   const roundIndex = phase.kind === "round" ? phase.index : 0;
   useEffect(() => { roundIndexRef.current = roundIndex; }, [roundIndex]);
+
+  useEffect(() => {
+    if (phase.kind !== "done" || flowCompleteNotifiedRef.current) return;
+    flowCompleteNotifiedRef.current = true;
+    props.onFlowComplete?.();
+  }, [phase.kind, props.onFlowComplete]);
 
   function updateRecState(next: RecState) {
     recStateRef.current = next;
@@ -351,10 +354,14 @@ export function FourThreeTwoScreen(props: {
           <LevelChip kind="auto" lang={props.lang} />
           {props.lang === "ja" && props.topic.titleJa && <p className="text-muted">{props.topic.titleJa}</p>}
           <p className="text-muted">
-            {t.prepIntro(roundsSec.map((s) => t.min(minNum(s))).join("→"), roundsSec.length, t.min(minNum(PREP_SECONDS)))}
+            {t.prepIntro(roundsSec.map(formatMmSs).join(" → "), roundsSec.length, formatMmSs(PREP_SECONDS))}
           </p>
           <p className="text-sm text-muted">{t.prepMicNote}</p>
-          <TimerChip remaining={prepTimer.remaining} expired={prepTimer.expired} note={t.prepTimerNote} />
+          <p className="section-label">{t.prepTimerLabel}</p>
+          <TimerChip
+            remaining={prepTimer.remaining} expired={prepTimer.expired} note={t.prepTimerNote}
+            ariaLabel={t.prepTimerAria(formatMmSs(prepTimer.remaining))}
+          />
         </Card>
         {canRevealJa && (hasTopicJapaneseHints || hasPrepJapaneseHints) && (
           <Button variant="secondary" onClick={toggleJaHints}>
@@ -404,7 +411,7 @@ export function FourThreeTwoScreen(props: {
             {modelState === "error" && t.modelRetry}
           </Button>
           <Button variant="primary" onClick={() => startRound(0)} disabled={prepState !== "ready"}>
-            {t.startRound1(t.min(minNum(roundsSec[0])))}
+            {t.startRound1(formatMmSs(roundsSec[0]))}
           </Button>
         </div>
         {visibleModelText && (
@@ -435,7 +442,7 @@ export function FourThreeTwoScreen(props: {
         )}
         {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
         <Button variant="primary" onClick={() => startRound(1)} disabled={aeLoading}>
-          {t.startRound2(t.min(minNum(roundsSec[1])))}
+          {t.startRound2(formatMmSs(roundsSec[1]))}
         </Button>
       </Card>
     );
@@ -452,7 +459,7 @@ export function FourThreeTwoScreen(props: {
   return (
     <div className="round-stage">
       <h3>
-        {t.roundHeading(roundIndex + 1, t.min(minNum(roundsSec[roundIndex])), props.topic.title)}
+        {t.roundHeading(roundIndex + 1, formatMmSs(roundsSec[roundIndex]), props.topic.title)}
       </h3>
       <p className="text-muted">{LISTENERS[roundIndex % LISTENERS.length]}</p>
       {canRevealJa && (hasTopicJapaneseHints || hasPrepJapaneseHints) && (
@@ -476,7 +483,11 @@ export function FourThreeTwoScreen(props: {
           </details>
         );
       })()}
-      <div className={`round-timer${timer.expired ? " is-expired" : ""}`}>
+      <div
+        className={`round-timer${timer.expired ? " is-expired" : ""}`}
+        role="timer"
+        aria-label={t.roundTimerAria(roundIndex + 1, formatMmSs(timer.remaining))}
+      >
         {formatMmSs(timer.remaining)} {timer.expired && <span className="text-sm">{t.timeUp}</span>}
       </div>
       <p className="text-sm text-muted">{t.roundTimeboxNote}</p>
