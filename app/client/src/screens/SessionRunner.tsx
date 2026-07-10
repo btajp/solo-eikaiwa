@@ -46,6 +46,7 @@ function sourceSignature(src: MenuSource): string {
 /** メニューを取得し、ブロックを順番に進行させる。ブロックタイマーと進行イベント記録を持つ */
 export function SessionRunner(props: {
   source: MenuSource; sessionId: string; lang: Lang; onExit: () => void; onBeforeRecording?: () => boolean;
+  onOpenCollectedPhrases?: () => void;
 }) {
   const t = STR[props.lang].session;
   const [menu, setMenu] = useState<Menu | null>(null);
@@ -257,6 +258,7 @@ export function SessionRunner(props: {
             onReady={() => reportBlockReady(block.id)}
             onValidAttempt={() => reportValidAttempt(block.id)}
             onInternalFlowComplete={() => reportInternalFlowComplete(block.id)}
+            onOpenCollectedPhrases={props.onOpenCollectedPhrases}
           />
         </div>
         {showOuterCompletion && <>
@@ -276,11 +278,12 @@ export function SessionRunner(props: {
 }
 
 function BlockBody({
-  block, sessionId, lang, onBeforeRecording, onReady, onValidAttempt, onInternalFlowComplete,
+  block, sessionId, lang, onBeforeRecording, onReady, onValidAttempt, onInternalFlowComplete, onOpenCollectedPhrases,
 }: {
   block: MenuBlock; sessionId: string; lang: Lang; onBeforeRecording?: () => boolean;
   onReady: () => void; onValidAttempt: () => void;
   onInternalFlowComplete: () => void;
+  onOpenCollectedPhrases?: () => void;
 }) {
   switch (block.kind) {
     case "warmup-reading":
@@ -291,7 +294,7 @@ function BlockBody({
           topic={block.params.topic} sessionId={sessionId} blockId={block.id}
           roundsSec={block.params.roundsSec} hintMode={block.params.hintMode} modelTalkMode={block.params.modelTalkMode}
           onBeforeRecord={onBeforeRecording} lang={lang} onReady={onReady} onValidAttempt={onValidAttempt}
-          onFlowComplete={onInternalFlowComplete}
+          onFlowComplete={onInternalFlowComplete} onOpenCollectedPhrases={onOpenCollectedPhrases}
         />
       ) : (
         <p>{STR[lang].session.noTopic}</p>
@@ -306,7 +309,7 @@ function BlockBody({
     case "shadowing":
       return block.params.topic ? <ShadowingScreen topic={block.params.topic} lang={lang} onReady={onReady} onValidAttempt={onValidAttempt} /> : <p>{STR[lang].session.noTopic}</p>;
     case "reflection":
-      return <ReflectionScreen sessionId={sessionId} lang={lang} onReady={onReady} onValidAttempt={onValidAttempt} />;
+      return <ReflectionScreen sessionId={sessionId} lang={lang} onReady={onReady} onValidAttempt={onValidAttempt} onOpenCollectedPhrases={onOpenCollectedPhrases} />;
     default:
       return <p>{STR[lang].session.unknownBlock(block.kind)}</p>;
   }

@@ -9,7 +9,12 @@ describe("routes: coach", () => {
     const handler = makeFetchHandler(deps);
     const ok = await handler(postJson("/api/feedback/ae", { transcript: "I go yesterday", topicTitle: "My week" }));
     expect(ok.status).toBe(200);
-    expect(await ok.json()).toEqual({ ...FAKE_AE, collectedChunks: 0 });
+    expect(await ok.json()).toEqual({
+      ...FAKE_AE,
+      collectedChunks: 0,
+      collectedChunkItems: [],
+      collectedChunkStatus: "none",
+    });
     const bad = await handler(postJson("/api/feedback/ae", { topicTitle: "x" }));
     expect(bad.status).toBe(400);
   });
@@ -37,7 +42,12 @@ describe("routes: coach", () => {
     const handler = makeFetchHandler(deps);
     const res = await handler(postJson("/api/coach/reflection", { sessionId: "practice-session-1" }));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ...FAKE_REFLECTION, collectedChunks: 0 });
+    expect(await res.json()).toEqual({
+      ...FAKE_REFLECTION,
+      collectedChunks: 0,
+      collectedChunkItems: [],
+      collectedChunkStatus: "none",
+    });
     expect(seenSessionId).toBe("practice-session-1");
     expect((await handler(postJson("/api/coach/reflection", {}))).status).toBe(400);
   });

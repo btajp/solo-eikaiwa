@@ -1,4 +1,4 @@
-import type { ChunkStore, CollectCandidate } from "../chunks";
+import type { Chunk, ChunkStore, CollectCandidate } from "../chunks";
 import { GRADES, type Grade } from "../sentences";
 import type { ProgressStore } from "../progress-store";
 import type { SrsReviewStore } from "../srs-review-store";
@@ -12,13 +12,19 @@ export type ChunkRoutesDeps = {
   srsReviewStore: SrsReviewStore;
 };
 
+export type CollectedChunksOutcome = {
+  status: "saved" | "none" | "failed";
+  chunks: Chunk[];
+};
+
 /** 収集はベストエフォート — 失敗しても親のコーチング応答を失敗させない。 */
-export function collectBestEffort(chunkStore: ChunkStore, cands: CollectCandidate[]): number {
+export function collectBestEffort(chunkStore: ChunkStore, cands: CollectCandidate[]): CollectedChunksOutcome {
   try {
-    return chunkStore.collect(cands);
+    const chunks = chunkStore.collect(cands);
+    return { status: chunks.length > 0 ? "saved" : "none", chunks };
   } catch (err) {
     console.warn("[chunks] collect failed, continuing:", String(err));
-    return 0;
+    return { status: "failed", chunks: [] };
   }
 }
 

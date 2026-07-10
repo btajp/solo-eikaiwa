@@ -6,6 +6,11 @@ import { getReq, postJson, putJson } from "./helpers/http";
 describe("chunks: 収集フックと API", () => {
   test("AEフィードバック成功時に quote/better 非空の item だけが collect に渡り、件数がレスポンスに載る", async () => {
     const got: unknown[] = [];
+    const saved = {
+      id: 7, created: "2026-07-10", source: "ae" as const,
+      promptText: "I go office", en: "I went to the office", note: "過去形にします",
+      srs: { stage: 0, due: "2026-07-11", reviews: 0 },
+    };
     const { deps } = makeTestDeps({
       aeFeedback: async () => ({
         items: [
@@ -15,19 +20,25 @@ describe("chunks: 収集フックと API", () => {
         praise: "Nice!",
       }),
       chunkStore: makeFakeChunkStore({
-        collect: (c) => { got.push(...c); return 1; },
+        collect: (c) => { got.push(...c); return [saved]; },
       }),
     });
     const res = await makeFetchHandler(deps)(postJson("/api/feedback/ae", { transcript: "I go office", topicTitle: "t" }));
     expect(res.status).toBe(200);
-    const body = await res.json() as { collectedChunks: number };
+    const body = await res.json() as {
+      collectedChunks: number;
+      collectedChunkItems: Array<typeof saved>;
+      collectedChunkStatus: string;
+    };
     expect(body.collectedChunks).toBe(1);
+    expect(body.collectedChunkItems).toEqual([saved]);
+    expect(body.collectedChunkStatus).toBe("saved");
     expect(got).toEqual([
       { source: "ae", promptText: "I go office", en: "I went to the office", note: "過去形にします" },
     ]);
   });
 
-  test("collect が throw しても AE フィードバックは 200 で返り collectedChunks は 0", async () => {
+  test("collect が throw しても AE フィードバックは 200で返り、保存失敗を区別できる", async () => {
     const { deps } = makeTestDeps({
       chunkStore: makeFakeChunkStore({
         collect: () => { throw new Error("db boom"); },
@@ -35,7 +46,9 @@ describe("chunks: 収集フックと API", () => {
     });
     const res = await makeFetchHandler(deps)(postJson("/api/feedback/ae", { transcript: "hello" }));
     expect(res.status).toBe(200);
-    expect(((await res.json()) as { collectedChunks: number }).collectedChunks).toBe(0);
+    expect(await res.json()).toMatchObject({
+      collectedChunks: 0, collectedChunkItems: [], collectedChunkStatus: "failed",
+    });
   });
 
   test("振り返りの fixes からも収集され collectedChunks が載る", async () => {
@@ -47,12 +60,14 @@ describe("chunks: 収集フックと API", () => {
         noteForTomorrow_ja: "メモ",
       }),
       chunkStore: makeFakeChunkStore({
-        collect: (c) => { got.push(...c); return 1; },
+        collect: (c) => { got.push(...c); return []; },
       }),
     });
     const res = await makeFetchHandler(deps)(postJson("/api/coach/reflection", { sessionId: "practice-1" }));
     expect(res.status).toBe(200);
-    expect(((await res.json()) as { collectedChunks: number }).collectedChunks).toBe(1);
+    expect(await res.json()).toMatchObject({
+      collectedChunks: 0, collectedChunkItems: [], collectedChunkStatus: "none",
+    });
     expect(got).toEqual([{ source: "reflection", promptText: "he go", en: "he goes", note: "" }]);
   });
 

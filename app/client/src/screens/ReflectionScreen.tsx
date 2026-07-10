@@ -7,6 +7,7 @@ import { formatClientError } from "../lib/user-error";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { CollectedPhrasesNotice } from "../ui/CollectedPhrasesNotice";
 import { ExplainBox } from "../ui/ExplainBox";
 
 /** 直したい表現1件。「もっと詳しく」で fetchFixExplanation を呼び、解説を自分の state に保持する */
@@ -25,9 +26,10 @@ function FixItem({ fix, lang }: { fix: { original: string; better: string }; lan
 }
 
 export function ReflectionScreen({
-  sessionId, lang, onReady, onValidAttempt,
+  sessionId, lang, onReady, onValidAttempt, onOpenCollectedPhrases,
 }: {
   sessionId: string; lang: Lang; onReady?: () => void; onValidAttempt?: () => void;
+  onOpenCollectedPhrases?: () => void;
 }) {
   const t = STR[lang].reflection;
   const { state, reload } = useLoad(() => fetchReflection(sessionId));
@@ -77,6 +79,7 @@ export function ReflectionScreen({
       <Card header={t.tomorrow}>
         <p>{reflection.noteForTomorrow_ja}</p>
       </Card>
+      <CollectedPhrasesNotice summary={reflection} lang={lang} onOpen={onOpenCollectedPhrases} />
       <Button variant="secondary" onClick={confirmReview} disabled={reviewed}>
         {reviewed ? t.reviewed : t.confirmReview}
       </Button>

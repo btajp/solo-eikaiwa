@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  fetchChunks, fetchFixExplanation, fetchSentences, setChunkVisibility, type ChunkListItem, type SentenceItem,
+  fetchChunks, fetchFixExplanation, fetchSentences, setChunkVisibility,
+  type ChunkListItem, type SentenceItem, type SentenceSrs,
 } from "../api";
+import { formatYmdShort } from "../dates";
 import { STR, type Lang } from "../i18n";
+import { filterBrowseSentences, matchesBrowseQuery, paginateBrowseItems, type BrowseFilters } from "../lib/browse-filter";
 import { formatClientError } from "../lib/user-error";
+import { useExplain } from "../useExplain";
 import { useLoad } from "../useLoad";
 import { usePlayRow } from "../usePlayRow";
-import { useExplain } from "../useExplain";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -16,7 +19,9 @@ import { PlaybackButton } from "../ui/PlaybackButton";
 /** 行キー: 例文は no、チャンクは id。種別を混ぜないよう kind でタグ付けする */
 type RowKey = { kind: "sentence"; no: number } | { kind: "chunk"; id: number };
 
-/** 一覧タブ: domainフィルタ + カテゴリ見出しでのブラウズ。SRS状態は情報表示のみ */
+const INITIAL_FILTERS: BrowseFilters = { query: "", domain: "all", category: "all", study: "all" };
+
+/** 一覧タブ: 検索・カテゴリ・学習状態を組み合わせ、例文は1ページずつ描画する。 */
 export function BrowseTab({ lang }: { lang: Lang }) {
   const t = STR[lang].sentences;
   const playback = STR[lang].playback;
@@ -31,7 +36,8 @@ export function BrowseTab({ lang }: { lang: Lang }) {
       chunkLoadFailed: visible.status === "rejected" || hidden.status === "rejected",
     };
   });
-  const [filter, setFilter] = useState<"all" | SentenceItem["domain"]>("all");
+  const [filters, setFilters] = useState<BrowseFilters>(INITIAL_FILTERS);
+  const [page, setPage] = useState(1);
   const [showHidden, setShowHidden] = useState(false);
   const [changingId, setChangingId] = useState<number | null>(null);
   const [visibilityError, setVisibilityError] = useState("");
@@ -42,11 +48,32 @@ export function BrowseTab({ lang }: { lang: Lang }) {
   const items = load.state.status === "ready" ? load.state.data.items : [];
   const loadedVisible = load.state.status === "ready" ? load.state.data.chunks : [];
   const loadedHidden = load.state.status === "ready" ? load.state.data.hiddenChunks : [];
+  const allChunks = useMemo(
+    () => [...new Map([...loadedVisible, ...loadedHidden].map((chunk) => [chunk.id, chunk])).values()],
+    [loadedVisible, loadedHidden],
+  );
   const originallyHidden = new Set(loadedHidden.map((chunk) => chunk.id));
-  const allChunks = [...new Map([...loadedVisible, ...loadedHidden].map((chunk) => [chunk.id, chunk])).values()];
   const isHidden = (id: number) => visibilityOverrides[id] ?? originallyHidden.has(id);
-  const chunks = allChunks.filter((chunk) => !isHidden(chunk.id));
+  const visibleChunks = allChunks.filter((chunk) => !isHidden(chunk.id));
   const hiddenChunks = allChunks.filter((chunk) => isHidden(chunk.id));
+  const matchesChunk = (chunk: ChunkListItem) => filters.study !== "new" && matchesBrowseQuery(chunk, filters.query);
+  const matchedVisibleChunks = visibleChunks.filter(matchesChunk);
+  const matchedHiddenChunks = hiddenChunks.filter(matchesChunk);
+  const filteredSentences = filterBrowseSentences(items, filters);
+  const pagedSentences = paginateBrowseItems(filteredSentences, page);
+  const categories = groupSentencesByCategory(pagedSentences.items);
+  const categoryOptions = [...new Map(items.map((item) => [item.category_no, item.category])).entries()]
+    .sort(([a], [b]) => a - b);
+  const hasFilters = Boolean(filters.query.trim()) || filters.domain !== "all" || filters.category !== "all" || filters.study !== "all";
+  const noResults = hasFilters
+    && filteredSentences.length === 0
+    && matchedVisibleChunks.length === 0
+    && (!showHidden || matchedHiddenChunks.length === 0);
+
+  function updateFilters(next: Partial<BrowseFilters>) {
+    setFilters((current) => ({ ...current, ...next }));
+    setPage(1);
+  }
 
   async function onSetChunkHidden(id: number, hidden: boolean) {
     setChangingId(id);
@@ -65,57 +92,67 @@ export function BrowseTab({ lang }: { lang: Lang }) {
   if (load.state.status === "error") {
     return <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>{formatClientError(lang, load.state.error, "load")}</Banner>;
   }
-  const shown = filter === "all" ? items : items.filter((s) => s.domain === filter);
-  const categories = [...new Map(shown.map((s) => [s.category_no, s.category])).entries()]
-    .sort((a, b) => a[0] - b[0]);
+
   return (
     <div className="stack">
       <div className="filter-row">
-        {(["all", "daily", "business", "it"] as const).map((f) => (
+        {(["all", "daily", "business", "it"] as const).map((domain) => (
           <button
-            key={f}
-            className={`filter-chip${filter === f ? " is-active" : ""}`}
-            aria-pressed={filter === f}
-            onClick={() => setFilter(f)}
+            key={domain}
+            className={`filter-chip${filters.domain === domain ? " is-active" : ""}`}
+            aria-pressed={filters.domain === domain}
+            onClick={() => updateFilters({ domain })}
           >
-            {f === "all" ? t.filterAll : t.domain[f]}
+            {domain === "all" ? t.filterAll : t.domain[domain]}
           </button>
         ))}
+      </div>
+      <div className="browse-controls">
+        <label className="browse-control">
+          <span className="text-sm text-muted">{t.searchLabel}</span>
+          <input
+            type="search"
+            value={filters.query}
+            placeholder={t.searchPlaceholder}
+            onChange={(event) => updateFilters({ query: event.target.value })}
+          />
+        </label>
+        <label className="browse-control">
+          <span className="text-sm text-muted">{t.categoryLabel}</span>
+          <select
+            value={filters.category}
+            onChange={(event) => updateFilters({ category: event.target.value === "all" ? "all" : Number(event.target.value) })}
+          >
+            <option value="all">{t.categoryAll}</option>
+            {categoryOptions.map(([number, name]) => <option key={number} value={number}>{`${number}. ${name}`}</option>)}
+          </select>
+        </label>
+        <label className="browse-control">
+          <span className="text-sm text-muted">{t.studyLabel}</span>
+          <select
+            value={filters.study}
+            onChange={(event) => updateFilters({ study: event.target.value as BrowseFilters["study"] })}
+          >
+            <option value="all">{t.studyAll}</option>
+            <option value="new">{t.studyNew}</option>
+            <option value="scheduled">{t.studyScheduled}</option>
+          </select>
+        </label>
       </div>
       {(row.error || visibilityError) && <Banner kind="error">{visibilityError || formatClientError(lang, row.error, "play")}</Banner>}
       {load.state.data.chunkLoadFailed && (
         <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>{t.chunkLoadError}</Banner>
       )}
-      {chunks.length > 0 && (
+      {allChunks.length === 0 && !load.state.data.chunkLoadFailed && (
+        <Card header={t.myChunks}><p className="text-muted">{t.noChunks}</p></Card>
+      )}
+      {matchedVisibleChunks.length > 0 && (
         <Card header={t.myChunks}>
-          {chunks.map((c) => (
-            <div key={c.id} className="sentence-row">
-              <PlaybackButton
-                playing={row.playingKey?.kind === "chunk" && row.playingKey.id === c.id}
-                onPlay={() => row.play({ kind: "chunk", id: c.id }, c.en)}
-                onStop={row.stop}
-                disabled={anyPlaying}
-                playLabel="▶"
-                stopLabel={playback.stop}
-                playAriaLabel={t.playChunkAria(c.id)}
-              />
-              <div className="sentence-body">
-                <span className="sentence-en">{c.en}</span>
-                <span className="sentence-ja-sub">{c.promptText}</span>
-                {c.note && <span className="text-sm text-muted">{c.note}</span>}
-                <ChunkExplain chunk={c} lang={lang} />
-              </div>
-              <div className="sentence-row-actions">
-                <span className="sentence-srs text-sm text-muted">{`st${c.srs.stage} ・ ${c.srs.due.slice(5)}`}</span>
-                <Button
-                  variant="ghost" loading={changingId === c.id} disabled={changingId !== null}
-                  onClick={() => onSetChunkHidden(c.id, true)} ariaLabel={t.hideChunkAria(c.id)}
-                >
-                  {t.hideChunk}
-                </Button>
-              </div>
-            </div>
-          ))}
+          <PhraseRows
+            chunks={matchedVisibleChunks} lang={lang} playingKey={row.playingKey} anyPlaying={anyPlaying}
+            onPlay={(chunk) => row.play({ kind: "chunk", id: chunk.id }, chunk.en)} onStop={row.stop}
+            changingId={changingId} onSetHidden={onSetChunkHidden}
+          />
         </Card>
       )}
       {hiddenChunks.length > 0 && (
@@ -125,59 +162,46 @@ export function BrowseTab({ lang }: { lang: Lang }) {
           </Button>
         </div>
       )}
-      {showHidden && hiddenChunks.length > 0 && (
+      {showHidden && matchedHiddenChunks.length > 0 && (
         <Card header={t.hiddenChunks}>
-          {hiddenChunks.map((c) => (
-            <div key={c.id} className="sentence-row">
-              <PlaybackButton
-                playing={row.playingKey?.kind === "chunk" && row.playingKey.id === c.id}
-                onPlay={() => row.play({ kind: "chunk", id: c.id }, c.en)}
-                onStop={row.stop}
-                disabled={anyPlaying}
-                playLabel="▶"
-                stopLabel={playback.stop}
-                playAriaLabel={t.playChunkAria(c.id)}
-              />
-              <div className="sentence-body">
-                <span className="sentence-en">{c.en}</span>
-                <span className="sentence-ja-sub">{c.promptText}</span>
-                {c.note && <span className="text-sm text-muted">{c.note}</span>}
-                <ChunkExplain chunk={c} lang={lang} />
-              </div>
-              <div className="sentence-row-actions">
-                <span className="sentence-srs text-sm text-muted">{`st${c.srs.stage} ・ ${c.srs.due.slice(5)}`}</span>
-                <Button
-                  variant="ghost" loading={changingId === c.id} disabled={changingId !== null}
-                  onClick={() => onSetChunkHidden(c.id, false)} ariaLabel={t.restoreChunkAria(c.id)}
-                >
-                  {t.restoreChunk}
-                </Button>
-              </div>
-            </div>
-          ))}
+          <PhraseRows
+            chunks={matchedHiddenChunks} lang={lang} playingKey={row.playingKey} anyPlaying={anyPlaying}
+            onPlay={(chunk) => row.play({ kind: "chunk", id: chunk.id }, chunk.en)} onStop={row.stop}
+            changingId={changingId} onSetHidden={onSetChunkHidden} hidden
+          />
         </Card>
       )}
-      {categories.map(([catNo, catName]) => (
-        <Card key={catNo} header={`${catNo}. ${catName}`}>
-          {shown.filter((s) => s.category_no === catNo).map((s) => (
-            <div key={s.no} className="sentence-row">
+      {noResults && <p className="text-muted">{t.noResults}</p>}
+      {filteredSentences.length > 0 && (
+        <nav className="browse-pagination" aria-label={t.tabBrowse}>
+          <Button variant="secondary" onClick={() => setPage(pagedSentences.page - 1)} disabled={pagedSentences.page === 1}>
+            {t.previousPage}
+          </Button>
+          <span className="text-sm text-muted">{t.pageOf(pagedSentences.page, pagedSentences.pageCount, filteredSentences.length)}</span>
+          <Button variant="secondary" onClick={() => setPage(pagedSentences.page + 1)} disabled={pagedSentences.page === pagedSentences.pageCount}>
+            {t.nextPage}
+          </Button>
+        </nav>
+      )}
+      {categories.map(([number, category]) => (
+        <Card key={number} header={`${number}. ${category.name}`}>
+          {category.items.map((sentence) => (
+            <div key={sentence.no} className="sentence-row">
               <PlaybackButton
-                playing={row.playingKey?.kind === "sentence" && row.playingKey.no === s.no}
-                onPlay={() => row.play({ kind: "sentence", no: s.no }, s.en)}
+                playing={row.playingKey?.kind === "sentence" && row.playingKey.no === sentence.no}
+                onPlay={() => row.play({ kind: "sentence", no: sentence.no }, sentence.en)}
                 onStop={row.stop}
                 disabled={anyPlaying}
                 playLabel="▶"
                 stopLabel={playback.stop}
-                playAriaLabel={t.playAria(s.no)}
+                playAriaLabel={t.playAria(sentence.no)}
               />
               <div className="sentence-body">
-                <span className="sentence-en">{s.en}</span>
-                <span className="sentence-ja-sub">{s.ja}</span>
-                <span className="text-sm text-muted">{s.note}</span>
+                <span className="sentence-en">{sentence.en}</span>
+                <span className="sentence-ja-sub">{sentence.ja}</span>
+                <span className="text-sm text-muted">{sentence.note}</span>
               </div>
-              <span className="sentence-srs text-sm text-muted">
-                {s.srs ? `st${s.srs.stage} ・ ${s.srs.due.slice(5)}` : t.srsNew}
-              </span>
+              <SrsStatus srs={sentence.srs} lang={lang} />
             </div>
           ))}
         </Card>
@@ -186,7 +210,65 @@ export function BrowseTab({ lang }: { lang: Lang }) {
   );
 }
 
-/** マイチャンク1件の「もっと詳しく」。チャンクは (元の言い方→自然な言い方, 理由) なので fix-explain を流用する。 */
+function groupSentencesByCategory(items: SentenceItem[]): Array<[number, { name: string; items: SentenceItem[] }]> {
+  const categories = new Map<number, { name: string; items: SentenceItem[] }>();
+  for (const item of items) {
+    const category = categories.get(item.category_no) ?? { name: item.category, items: [] };
+    category.items.push(item);
+    categories.set(item.category_no, category);
+  }
+  return [...categories.entries()].sort(([a], [b]) => a - b);
+}
+
+function PhraseRows({
+  chunks, lang, playingKey, anyPlaying, onPlay, onStop, changingId, onSetHidden, hidden = false,
+}: {
+  chunks: ChunkListItem[];
+  lang: Lang;
+  playingKey: RowKey | null;
+  anyPlaying: boolean;
+  onPlay: (chunk: ChunkListItem) => void;
+  onStop: () => void;
+  changingId: number | null;
+  onSetHidden: (id: number, hidden: boolean) => void;
+  hidden?: boolean;
+}) {
+  const t = STR[lang].sentences;
+  const playback = STR[lang].playback;
+  return chunks.map((chunk) => (
+    <div key={chunk.id} className="sentence-row">
+      <PlaybackButton
+        playing={playingKey?.kind === "chunk" && playingKey.id === chunk.id}
+        onPlay={() => onPlay(chunk)} onStop={onStop} disabled={anyPlaying}
+        playLabel="▶" stopLabel={playback.stop} playAriaLabel={t.playChunkAria(chunk.id)}
+      />
+      <div className="sentence-body">
+        <span className="sentence-en">{chunk.en}</span>
+        <span className="sentence-ja-sub">{chunk.promptText}</span>
+        {chunk.note && <span className="text-sm text-muted">{chunk.note}</span>}
+        <ChunkExplain chunk={chunk} lang={lang} />
+      </div>
+      <div className="sentence-row-actions">
+        <SrsStatus srs={chunk.srs} lang={lang} />
+        <Button
+          variant="ghost" loading={changingId === chunk.id} disabled={changingId !== null}
+          onClick={() => onSetHidden(chunk.id, !hidden)} ariaLabel={hidden ? t.restoreChunkAria(chunk.id) : t.hideChunkAria(chunk.id)}
+        >
+          {hidden ? t.restoreChunk : t.hideChunk}
+        </Button>
+      </div>
+    </div>
+  ));
+}
+
+function SrsStatus({ srs, lang }: { srs: SentenceSrs | null; lang: Lang }) {
+  const t = STR[lang].sentences;
+  return <span className="sentence-srs text-sm text-muted">{
+    srs ? t.srsScheduled(srs.stage, formatYmdShort(srs.due, lang)) : t.srsNew
+  }</span>;
+}
+
+/** マイフレーズ1件の「もっと詳しく」。チャンクは (元の言い方→自然な言い方, 理由) なので fix-explain を流用する。 */
 function ChunkExplain({ chunk, lang }: { chunk: ChunkListItem; lang: Lang }) {
   const t = STR[lang].sentences;
   const { state, request } = useExplain(() => fetchFixExplanation(chunk.promptText, chunk.en, chunk.note));

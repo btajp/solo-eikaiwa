@@ -43,7 +43,13 @@ async function handleAeFeedback(req: Request, deps: CoachRoutesDeps): Promise<Re
   const cands: CollectCandidate[] = fb.items
     .filter((i) => i.quote?.trim() && i.better?.trim())
     .map((i) => ({ source: "ae" as const, promptText: i.quote, en: i.better, note: i.why_ja?.trim() || i.issue || "" }));
-  return json({ ...fb, collectedChunks: collectBestEffort(deps.chunkStore, cands) });
+  const collected = collectBestEffort(deps.chunkStore, cands);
+  return json({
+    ...fb,
+    collectedChunks: collected.chunks.length,
+    collectedChunkItems: collected.chunks,
+    collectedChunkStatus: collected.status,
+  });
 }
 
 async function handleReflection(req: Request, deps: CoachRoutesDeps): Promise<Response> {
@@ -57,7 +63,13 @@ async function handleReflection(req: Request, deps: CoachRoutesDeps): Promise<Re
   const cands: CollectCandidate[] = refl.fixes
     .filter((f) => f.original?.trim() && f.better?.trim())
     .map((f) => ({ source: "reflection" as const, promptText: f.original, en: f.better, note: "" }));
-  return json({ ...refl, collectedChunks: collectBestEffort(deps.chunkStore, cands) });
+  const collected = collectBestEffort(deps.chunkStore, cands);
+  return json({
+    ...refl,
+    collectedChunks: collected.chunks.length,
+    collectedChunkItems: collected.chunks,
+    collectedChunkStatus: collected.status,
+  });
 }
 
 async function handleModelTalk(req: Request, deps: CoachRoutesDeps): Promise<Response> {

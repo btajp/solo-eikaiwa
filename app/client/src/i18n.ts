@@ -346,7 +346,13 @@ type SentencesStrings = {
     setNote: string;
     filterAll: string;
     domain: { daily: string; business: string; it: string };
+    searchLabel: string; searchPlaceholder: string;
+    categoryLabel: string; categoryAll: string;
+    studyLabel: string; studyAll: string; studyNew: string; studyScheduled: string;
+    previousPage: string; nextPage: string; pageOf: (page: number, total: number, count: number) => string;
+    noResults: string; noChunks: string;
     srsNew: string;
+    srsScheduled: (stage: number, due: string) => string;
     playAria: (no: number) => string;
     chunkLabel: string;
     chunkSayIt: string;
@@ -362,6 +368,13 @@ type SentencesStrings = {
     playChunkAria: (id: number) => string;
   };
 };
+type CollectedPhrasesStrings = { collectedPhrases: {
+  savedTitle: (count: number) => string;
+  savedBody: string;
+  open: string;
+  none: string;
+  failed: string;
+} };
 
 type WarmupStrings = { warmup: {
   intro: string; loading: string; retry: string; fallbackTitle: string;
@@ -447,7 +460,7 @@ type AboutStrings = { about: { title: string; desc: string; lpButton: string; gi
 type Strings =
   & NavStrings & UiScaleStrings & AppShellStrings & SupportStrings & StatStrings & HeroStrings
   & QuickStrings & IntensiveStrings & DrillsStrings & SessionCardStrings
-  & CalendarStrings & FreeTalkHeaderStrings & ProgressStrings & PlacementStrings & SentencesStrings
+  & CalendarStrings & FreeTalkHeaderStrings & ProgressStrings & PlacementStrings & SentencesStrings & CollectedPhrasesStrings
   & MenuTitleStrings & SessionStrings
   & WarmupStrings & Ftt432Strings & ReflectionStrings & ChunkListStrings & PlaybackStrings
   & ShadowingStrings & LibraryStrings & RoleplayStrings & FreeTalkScreenStrings & ListeningScreenStrings
@@ -820,7 +833,15 @@ export const STR: Record<Lang, Strings> = {
       setNote: "Do the rest now or later — either is fine.",
       filterAll: "All",
       domain: { daily: "Daily", business: "Business", it: "IT" },
+      searchLabel: "Find a phrase",
+      searchPlaceholder: "English, Japanese, number, or category",
+      categoryLabel: "Category", categoryAll: "All categories",
+      studyLabel: "Learning status", studyAll: "All statuses", studyNew: "Not studied yet", studyScheduled: "Has review history",
+      previousPage: "Previous", nextPage: "Next", pageOf: (page, total, count) => `${count} results · page ${page} of ${total}`,
+      noResults: "No phrases match these filters.",
+      noChunks: "Phrases corrected in 4/3/2 and its reflection will appear here automatically.",
       srsNew: "New",
+      srsScheduled: (stage, due) => `Review step ${stage} · next review ${due}`,
       playAria: (no) => `Play No.${no}`,
       chunkLabel: "Your phrase",
       chunkSayIt: "↑ Say a more natural version out loud",
@@ -834,6 +855,13 @@ export const STR: Record<Lang, Strings> = {
       restoreChunkAria: (id) => `Restore phrase ${id}`,
       chunkLoadError: "Some phrases couldn't be loaded.",
       playChunkAria: (id) => `Play phrase ${id}`,
+    },
+    collectedPhrases: {
+      savedTitle: (count) => count === 1 ? "Saved 1 new phrase" : `Saved ${count} new phrases`,
+      savedBody: "These phrases are ready in My phrases for you to revisit whenever you want.",
+      open: "Open My phrases",
+      none: "No new phrases were added this time.",
+      failed: "The feedback is ready, but its phrases couldn't be saved. You can continue practicing.",
     },
     menuTitle: {
       warmup: () => "Read-Aloud Warm-up",
@@ -1340,7 +1368,15 @@ export const STR: Record<Lang, Strings> = {
       setNote: "続きは今でも後でもOKです。",
       filterAll: "すべて",
       domain: { daily: "日常", business: "ビジネス", it: "IT" },
+      searchLabel: "表現を探す",
+      searchPlaceholder: "英文・日本語・番号・カテゴリで検索",
+      categoryLabel: "カテゴリ", categoryAll: "すべてのカテゴリ",
+      studyLabel: "学習状態", studyAll: "すべての状態", studyNew: "未学習", studyScheduled: "復習履歴あり",
+      previousPage: "前へ", nextPage: "次へ", pageOf: (page, total, count) => `${count}件中 ${page} / ${total} ページ`,
+      noResults: "この条件に合う表現はありません。",
+      noChunks: "4/3/2 と振り返りで直した表現が、ここへ自動で追加されます。",
       srsNew: "未学習",
+      srsScheduled: (stage, due) => `復習の段階${stage} ・ 次回 ${due}`,
       playAria: (no) => `No.${no} を再生`,
       chunkLabel: "あなたのフレーズ",
       chunkSayIt: "↑ より自然な言い方を声に出してみましょう",
@@ -1354,6 +1390,13 @@ export const STR: Record<Lang, Strings> = {
       restoreChunkAria: (id) => `フレーズ${id}を復元する`,
       chunkLoadError: "一部のマイフレーズを読み込めませんでした。",
       playChunkAria: (id) => `フレーズ${id}を再生`,
+    },
+    collectedPhrases: {
+      savedTitle: (count) => `新しいマイフレーズを${count}件保存しました`,
+      savedBody: "あとで見返せるよう、「マイフレーズ」に追加しました。",
+      open: "マイフレーズを見る",
+      none: "今回は新しいマイフレーズを追加しませんでした。",
+      failed: "フィードバックは表示できますが、マイフレーズを保存できませんでした。練習はそのまま続けられます。",
     },
     menuTitle: {
       warmup: () => "音読ウォームアップ",

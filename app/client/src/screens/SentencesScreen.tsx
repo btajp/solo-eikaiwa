@@ -38,9 +38,9 @@ function saveNewPerDay(v: number): void {
   localStorage.setItem(NEW_PER_DAY_KEY, String(v));
 }
 
-export function SentencesScreen({ lang }: { lang: Lang }) {
+export function SentencesScreen({ lang, initialTab = "practice" }: { lang: Lang; initialTab?: Tab }) {
   const t = STR[lang].sentences;
-  const [tab, setTab] = useState<Tab>("practice");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [hideNote, setHideNote] = useState(() => loadHideNote());
   const [audioFirst, setAudioFirst] = useState(() => loadAudioFirst());
   const [newPerDay, setNewPerDay] = useState(() => loadNewPerDay());

@@ -61,7 +61,7 @@ export function makeFakeSentenceStore(overrides: Partial<SentenceStore> = {}): S
 
 export function makeFakeChunkStore(overrides: Partial<ChunkStore> = {}): ChunkStore {
   return {
-    collect: (_c) => 0,
+    collect: (_c) => [],
     list: () => [],
     listHidden: () => [],
     dueChunks: () => [],

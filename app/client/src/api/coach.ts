@@ -1,8 +1,19 @@
 import { extractErrorMessage } from "./http";
 
 export type AeItem = { quote: string; issue: string; better: string; why_ja: string };
-export type AeFeedback = { items: AeItem[]; praise: string };
-export type Reflection = { goodPhrases: string[]; fixes: Array<{ original: string; better: string }>; noteForTomorrow_ja: string };
+export type CollectedChunkStatus = "saved" | "none" | "failed";
+export type CollectedChunkItem = { id: number; promptText: string; en: string };
+export type CollectedChunks = {
+  collectedChunks: number;
+  collectedChunkItems: CollectedChunkItem[];
+  collectedChunkStatus: CollectedChunkStatus;
+};
+export type AeFeedback = { items: AeItem[]; praise: string } & CollectedChunks;
+export type Reflection = {
+  goodPhrases: string[];
+  fixes: Array<{ original: string; better: string }>;
+  noteForTomorrow_ja: string;
+} & CollectedChunks;
 export type PrepPack = { chunks: Array<{ en: string; ja: string }>; outline: string[]; hintDefault: "ja" | "en" };
 
 export async function fetchAeFeedback(transcript: string, topicTitle: string): Promise<AeFeedback> {

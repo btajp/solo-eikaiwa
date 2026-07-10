@@ -34,7 +34,7 @@ import {
 import { healthRetryDelay } from "./lib/health-retry";
 import { reportClientError } from "./api/http";
 
-type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource; sessionId: string } | { kind: "library" } | { kind: "sentences" } | { kind: "listening" } | { kind: "placement" } | { kind: "progress" } | { kind: "feedback" } | { kind: "settings" } | { kind: "about" };
+type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource; sessionId: string } | { kind: "library" } | { kind: "sentences"; tab?: "practice" | "browse" } | { kind: "listening" } | { kind: "placement" } | { kind: "progress" } | { kind: "feedback" } | { kind: "settings" } | { kind: "about" };
 
 /** 依存不足バナー（dev文脈）での表示名。health のフィールド名と実際のバイナリ名が異なるもののみ変換する */
 const DEP_DISPLAY_NAME: Record<string, string> = { whisper: "whisper-cli" };
@@ -303,11 +303,12 @@ export function App() {
         <SessionRunner
           source={mode.source} sessionId={mode.sessionId} lang={lang}
           onBeforeRecording={requestRecordingStart} onExit={() => moveTo({ kind: "start" })}
+          onOpenCollectedPhrases={() => moveTo({ kind: "sentences", tab: "browse" })}
         />
       )}
       {mode.kind === "free" && <FreeTalkScreen activitySessionId={sessionId} lang={lang} onBeforeRecord={requestRecordingStart} />}
       {mode.kind === "library" && <LibraryScreen lang={lang} />}
-      {mode.kind === "sentences" && <SentencesScreen lang={lang} />}
+      {mode.kind === "sentences" && <SentencesScreen lang={lang} initialTab={mode.tab} />}
       {mode.kind === "listening" && <ListeningScreen lang={lang} />}
       {mode.kind === "placement" && (
         <PlacementScreen lang={lang} onBeforeStart={requestRecordingStart} onExit={() => moveTo({ kind: "start" })} />

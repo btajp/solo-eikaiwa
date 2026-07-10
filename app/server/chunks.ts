@@ -25,8 +25,8 @@ export type Chunk = {
 };
 
 export type ChunkStore = {
-  /** 候補を dedup・日次上限つきで保存し、実際に入った件数を返す */
-  collect(cands: CollectCandidate[], today?: string): number;
+  /** 候補を dedup・日次上限つきで保存し、実際に新規保存したチャンクだけを返す */
+  collect(cands: CollectCandidate[], today?: string): Chunk[];
   /** 利用者が表示対象にしているチャンクだけを返す */
   list(): Chunk[];
   /** 利用者が非表示にしたチャンクだけを返す。元データは collected_chunks に保持される */
@@ -88,7 +88,7 @@ export function makeChunkStore(db: Database, sentenceEns: string[]): ChunkStore 
         "SELECT COUNT(*) AS n FROM collected_chunks WHERE created = ?",
       ).get(today)?.n ?? 0;
       let budget = MAX_COLLECT_PER_DAY - already;
-      let inserted = 0;
+      const collected: Chunk[] = [];
       for (const c of cands) {
         if (budget <= 0) break;
         const promptText = c.promptText?.trim() ?? "";
@@ -101,16 +101,20 @@ export function makeChunkStore(db: Database, sentenceEns: string[]): ChunkStore 
         ).get(norm);
         if (dup) continue;
         // 収集直後は答えを見た直後なので当日出題しない（due=翌日）
-        db.run(
+        const result = db.run(
           `INSERT OR IGNORE INTO collected_chunks
              (created, source, prompt_text, en, norm_en, note, stage, due, reviews)
            VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0)`,
           [today, c.source, promptText, en, norm, c.note?.trim() ?? "", addDaysYmd(today, 1)],
         );
-        inserted++;
+        if (result.changes !== 1) continue;
+        const inserted = db.query<ChunkRow, [string]>(
+          "SELECT * FROM collected_chunks WHERE norm_en = ?",
+        ).get(norm);
+        if (inserted) collected.push(toChunk(inserted));
         budget--;
       }
-      return inserted;
+      return collected;
     },
 
     list() {

@@ -357,6 +357,10 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 .sentence-row-actions { display: flex; align-items: center; gap: var(--sp-2); }
 .sentence-ja-sub { color: var(--text-muted); font-size: var(--fs-sm); }
 .sentence-srs { white-space: nowrap; }
+.browse-controls { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: end; }
+.browse-control { display: flex; flex: 1 1 12rem; flex-direction: column; gap: 2px; min-width: min(100%, 12rem); }
+.browse-control input, .browse-control select { min-height: 2.25rem; }
+.browse-pagination { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
 .sentence-cloze { font-size: var(--fs-lg); line-height: var(--lh-reading); font-weight: 600; letter-spacing: 0.02em; }
 .sentence-explain {
   white-space: pre-wrap; line-height: 1.7;

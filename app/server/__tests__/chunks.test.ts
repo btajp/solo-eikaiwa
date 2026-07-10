@@ -26,9 +26,22 @@ describe("chunks: normalizeEn", () => {
 });
 
 describe("chunks: collect", () => {
-  test("保存: stage0・due=翌日・入った件数を返す", () => {
+  test("実際に新規保存したチャンクだけを返す", () => {
+    const s = store(["Already in the bundled sentences."]);
+    const saved = s.collect([
+      cand({ en: "Already in the bundled sentences." }),
+      cand({ en: "A newly collected phrase." }),
+      cand({ en: "A newly collected phrase!" }),
+    ], TODAY);
+
+    expect(saved.map((chunk) => ({ id: chunk.id, en: chunk.en, promptText: chunk.promptText }))).toEqual([
+      { id: 1, en: "A newly collected phrase.", promptText: "I go office yesterday" },
+    ]);
+  });
+
+  test("保存: stage0・due=翌日・入ったチャンクを返す", () => {
     const s = store();
-    expect(s.collect([cand()], TODAY)).toBe(1);
+    expect(s.collect([cand()], TODAY)).toHaveLength(1);
     const all = s.list();
     expect(all).toHaveLength(1);
     expect(all[0].en).toBe("I went to the office yesterday");
@@ -40,35 +53,35 @@ describe("chunks: collect", () => {
 
   test("promptText か en が空の候補はスキップ", () => {
     const s = store();
-    expect(s.collect([cand({ promptText: "  " }), cand({ en: "" })], TODAY)).toBe(0);
+    expect(s.collect([cand({ promptText: "  " }), cand({ en: "" })], TODAY)).toHaveLength(0);
     expect(s.list()).toHaveLength(0);
   });
 
   test("既存チャンクと正規化enが同じならスキップ（大文字小文字・記号差は同一視）", () => {
     const s = store();
-    expect(s.collect([cand()], TODAY)).toBe(1);
-    expect(s.collect([cand({ en: "I went to the office, YESTERDAY!" })], TODAY)).toBe(0);
+    expect(s.collect([cand()], TODAY)).toHaveLength(1);
+    expect(s.collect([cand({ en: "I went to the office, YESTERDAY!" })], TODAY)).toHaveLength(0);
     expect(s.list()).toHaveLength(1);
   });
 
   test("sentences300 の en と一致するものはスキップ", () => {
     const s = store(["I went to the office yesterday."]);
-    expect(s.collect([cand()], TODAY)).toBe(0);
+    expect(s.collect([cand()], TODAY)).toHaveLength(0);
   });
 
   test("1日の上限は5件（超過分はスキップ・同日2回目も残枠のみ）", () => {
     const s = store();
     const seven = Array.from({ length: 7 }, (_, i) => cand({ en: `Unique sentence number ${i} here` }));
-    expect(s.collect(seven, TODAY)).toBe(MAX_COLLECT_PER_DAY);
-    expect(s.collect([cand({ en: "One more different sentence" })], TODAY)).toBe(0);
+    expect(s.collect(seven, TODAY)).toHaveLength(MAX_COLLECT_PER_DAY);
+    expect(s.collect([cand({ en: "One more different sentence" })], TODAY)).toHaveLength(0);
     // 翌日は枠が回復する
-    expect(s.collect([cand({ en: "One more different sentence" })], "2026-07-07")).toBe(1);
+    expect(s.collect([cand({ en: "One more different sentence" })], "2026-07-07")).toHaveLength(1);
     expect(s.list()).toHaveLength(6);
   });
 
   test("200文字を超える en はスキップ", () => {
     const s = store();
-    expect(s.collect([cand({ en: "a".repeat(201) })], TODAY)).toBe(0);
+    expect(s.collect([cand({ en: "a".repeat(201) })], TODAY)).toHaveLength(0);
   });
 });
 

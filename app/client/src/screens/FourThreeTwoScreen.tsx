@@ -14,6 +14,7 @@ import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { ChunkList } from "../ui/ChunkList";
+import { CollectedPhrasesNotice } from "../ui/CollectedPhrasesNotice";
 import { ExplainBox } from "../ui/ExplainBox";
 import { LevelChip } from "../ui/LevelChip";
 import { PlaybackButton } from "../ui/PlaybackButton";
@@ -46,6 +47,7 @@ export function FourThreeTwoScreen(props: {
   hintMode?: "ja" | "en"; modelTalkMode?: "auto" | "button";
   onBeforeRecord?: () => boolean;
   onReady?: () => void; onValidAttempt?: () => void;
+  onOpenCollectedPhrases?: () => void;
   /** 全ラウンドとフィードバックを終え、親の次ブロック導線を出してよいときに通知する。 */
   onFlowComplete?: () => void;
   lang: Lang;
@@ -459,6 +461,7 @@ export function FourThreeTwoScreen(props: {
                 <AeItemView key={i} item={item} lang={props.lang} />
               ))}
             </ul>
+            <CollectedPhrasesNotice summary={ae} lang={props.lang} onOpen={props.onOpenCollectedPhrases} />
           </div>
         )}
         {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
