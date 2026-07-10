@@ -16,6 +16,7 @@ import { ensureLlmRoleSettingsSchema } from "./llm-role-settings-store";
 import { ensureLlmRoleTuningSchema } from "./llm-role-tuning-store";
 import { ensureLlmAuthSchema } from "./llm-auth-store";
 import { ensureTopicAssetCacheSchema } from "./topic-assets";
+import { assertSchemaCompatible, readSchemaContract, type SchemaContract } from "./schema-contract";
 
 /** 構造化された状態・履歴の置き場（ログはJSONLのまま）。data/ はローカル専用（gitignore済み）。 */
 // DB ファイル名はリネーム（solo-eikaiwa）後も旧名を維持する: 既存ユーザーの学習データ継続のため（表示名とは独立）
@@ -58,11 +59,7 @@ export function ensureHashCacheSchemas(db: Database): void {
   )`);
 }
 
-/** DBを開き、各ストアの ensureSchema を合成して呼ぶ（CREATE IF NOT EXISTS のみ。マイグレーション機構はYAGNI） */
-export function openDb(dbPath: string = DEFAULT_DB_PATH): Database {
-  if (dbPath !== ":memory:") mkdirSync(path.dirname(dbPath), { recursive: true });
-  const db = new Database(dbPath, { create: true });
-  db.run("PRAGMA journal_mode = WAL");
+function ensureAllSchemas(db: Database): void {
   ensureLibrarySchema(db);
   ensureHashCacheSchemas(db);
   ensureProgressSchema(db);
@@ -79,7 +76,39 @@ export function openDb(dbPath: string = DEFAULT_DB_PATH): Database {
   ensureLlmRoleTuningSchema(db);
   ensureLlmAuthSchema(db);
   ensureTopicAssetCacheSchema(db);
-  return db;
+}
+
+let expectedSchemaContract: SchemaContract | undefined;
+
+function getExpectedSchemaContract(): SchemaContract {
+  if (expectedSchemaContract) return expectedSchemaContract;
+  const reference = new Database(":memory:");
+  try {
+    ensureAllSchemas(reference);
+    expectedSchemaContract = readSchemaContract(reference);
+    return expectedSchemaContract;
+  } finally {
+    reference.close();
+  }
+}
+
+/** 既存テーブルの必須契約を読み取り専用で検査してから、不足している新規テーブルを作成する。 */
+export function openDb(dbPath: string = DEFAULT_DB_PATH): Database {
+  const expected = getExpectedSchemaContract();
+  const displayPath = dbPath === ":memory:" ? dbPath : path.resolve(dbPath);
+  if (dbPath !== ":memory:") mkdirSync(path.dirname(dbPath), { recursive: true });
+  const db = new Database(dbPath, { create: true });
+  try {
+    db.run("PRAGMA query_only = ON");
+    assertSchemaCompatible(db, displayPath, expected);
+    db.run("PRAGMA query_only = OFF");
+    db.run("PRAGMA journal_mode = WAL");
+    db.transaction(() => ensureAllSchemas(db))();
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 }
 
 /** モデルトーク解説のキャッシュ（本文の sha256 をキーにする） */
