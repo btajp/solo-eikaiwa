@@ -298,8 +298,14 @@ type SentencesStrings = {
     chunkLabel: string;
     chunkSayIt: string;
     myChunks: string;
-    deleteConfirm: string;
-    deleteAria: (id: number) => string;
+    hiddenChunks: string;
+    showHiddenChunks: (n: number) => string;
+    hideHiddenChunks: string;
+    hideChunk: string;
+    hideChunkAria: (id: number) => string;
+    restoreChunk: string;
+    restoreChunkAria: (id: number) => string;
+    chunkLoadError: string;
     playChunkAria: (id: number) => string;
   };
 };
@@ -686,8 +692,14 @@ export const STR: Record<Lang, Strings> = {
       chunkLabel: "Your phrase",
       chunkSayIt: "↑ Say a more natural version out loud",
       myChunks: "My chunks — collected from your sessions",
-      deleteConfirm: "Delete?",
-      deleteAria: (id) => `Delete chunk ${id}`,
+      hiddenChunks: "Hidden chunks",
+      showHiddenChunks: (n) => `Show hidden (${n})`,
+      hideHiddenChunks: "Hide hidden chunks",
+      hideChunk: "Hide",
+      hideChunkAria: (id) => `Hide chunk ${id}`,
+      restoreChunk: "Restore",
+      restoreChunkAria: (id) => `Restore chunk ${id}`,
+      chunkLoadError: "Some chunks couldn't be loaded.",
       playChunkAria: (id) => `Play chunk ${id}`,
     },
     menuTitle: {
@@ -1111,8 +1123,14 @@ export const STR: Record<Lang, Strings> = {
       chunkLabel: "あなたの表現",
       chunkSayIt: "↑ より自然な言い方を声に出してみましょう",
       myChunks: "マイチャンク — セッションから自動収集",
-      deleteConfirm: "削除する?",
-      deleteAria: (id) => `チャンク${id}を削除`,
+      hiddenChunks: "非表示のチャンク",
+      showHiddenChunks: (n) => `非表示を表示（${n}件）`,
+      hideHiddenChunks: "非表示のチャンクを閉じる",
+      hideChunk: "非表示",
+      hideChunkAria: (id) => `チャンク${id}を非表示にする`,
+      restoreChunk: "復元",
+      restoreChunkAria: (id) => `チャンク${id}を復元する`,
+      chunkLoadError: "一部のチャンクを読み込めませんでした。",
       playChunkAria: (id) => `チャンク${id}を再生`,
     },
     menuTitle: {

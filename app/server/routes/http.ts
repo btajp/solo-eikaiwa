@@ -129,7 +129,7 @@ export function exact(method: string, pathname: string, handler: RouteEntry["han
   return { method, match: (p) => p === pathname, handler };
 }
 
-/** 前方一致ルート（パスパラメータ付き。例: DELETE /api/chunks/:id） */
+/** 前方一致ルート（パスパラメータ付き。例: PUT /api/chunks/:id/visibility） */
 export function prefix(method: string, pathnamePrefix: string, handler: RouteEntry["handler"]): RouteEntry {
   return { method, match: (p) => p.startsWith(pathnamePrefix), handler };
 }

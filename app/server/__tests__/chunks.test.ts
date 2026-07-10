@@ -5,8 +5,13 @@ import { MAX_COLLECT_PER_DAY, makeChunkStore, normalizeEn, type CollectCandidate
 
 const TODAY = "2026-07-06";
 
+function storeWithDb(sentenceEns: string[] = []) {
+  const db = openDb(":memory:");
+  return { db, store: makeChunkStore(db, sentenceEns) };
+}
+
 function store(sentenceEns: string[] = []) {
-  return makeChunkStore(openDb(":memory:"), sentenceEns);
+  return storeWithDb(sentenceEns).store;
 }
 
 function cand(over: Partial<CollectCandidate> = {}): CollectCandidate {
@@ -90,7 +95,7 @@ describe("chunks: grade（sentences と同じ LADDER 遷移）", () => {
   });
 });
 
-describe("chunks: dueChunks / remove", () => {
+describe("chunks: dueChunks / visibility", () => {
   test("dueChunks は due<=today のみ・due昇順", () => {
     const s = store();
     s.collect([cand({ en: "First unique sentence" }), cand({ en: "Second unique sentence" })], TODAY);
@@ -105,12 +110,33 @@ describe("chunks: dueChunks / remove", () => {
     expect(due[0].id).not.toBe(a.id);
   });
 
-  test("remove は存在すれば true・行が消える、無ければ false", () => {
+  test("非表示にしても元データを保持し、非表示一覧から復元できる", () => {
+    const { db, store: s } = storeWithDb();
+    s.collect([cand()], TODAY);
+    const id = s.list()[0].id;
+    expect(s.setHidden(id, true)).toBe(true);
+    expect(s.list()).toHaveLength(0);
+    expect(s.listHidden().map((chunk) => chunk.id)).toEqual([id]);
+    expect(db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM collected_chunks").get()?.n).toBe(1);
+
+    expect(s.setHidden(id, false)).toBe(true);
+    expect(s.list().map((chunk) => chunk.id)).toEqual([id]);
+    expect(s.listHidden()).toHaveLength(0);
+  });
+
+  test("非表示チャンクは復習対象外で、復元すると再び対象になる", () => {
     const s = store();
     s.collect([cand()], TODAY);
     const id = s.list()[0].id;
-    expect(s.remove(id)).toBe(true);
-    expect(s.list()).toHaveLength(0);
-    expect(s.remove(id)).toBe(false);
+    expect(s.setHidden(id, true)).toBe(true);
+    expect(s.dueChunks("2026-07-07")).toHaveLength(0);
+    expect(s.setHidden(id, false)).toBe(true);
+    expect(s.dueChunks("2026-07-07").map((chunk) => chunk.id)).toEqual([id]);
+  });
+
+  test("未知の id は変更せず false を返す", () => {
+    const s = store();
+    expect(s.setHidden(999, true)).toBe(false);
+    expect(s.setHidden(999, false)).toBe(false);
   });
 });

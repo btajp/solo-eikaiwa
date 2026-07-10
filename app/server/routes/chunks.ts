@@ -48,17 +48,30 @@ async function handleChunkGrade(req: Request, deps: ChunkRoutesDeps): Promise<Re
   return json({ id, stage: outcome.stage, due: outcome.due });
 }
 
-function handleChunkDelete(url: URL, deps: ChunkRoutesDeps): Response {
+function handleChunkList(url: URL, deps: ChunkRoutesDeps): Response {
+  const visibility = url.searchParams.get("visibility") ?? "visible";
+  if (visibility === "visible") return json({ chunks: deps.chunkStore.list() });
+  if (visibility === "hidden") return json({ chunks: deps.chunkStore.listHidden() });
+  return json({ error: "visibility must be one of: visible, hidden" }, 400);
+}
+
+async function handleChunkVisibility(req: Request, url: URL, deps: ChunkRoutesDeps): Promise<Response> {
   const seg = url.pathname.slice("/api/chunks/".length);
-  const id = Number(seg);
-  if (!/^\d+$/.test(seg) || !Number.isInteger(id)) return json({ error: "id must be a positive integer" }, 400);
-  return deps.chunkStore.remove(id) ? json({ ok: true }) : json({ error: `unknown chunk id: ${id}` }, 404);
+  const match = /^([1-9]\d*)\/visibility$/.exec(seg);
+  const id = match ? Number(match[1]) : Number.NaN;
+  if (!Number.isSafeInteger(id)) return json({ error: "id must be a positive safe integer" }, 400);
+  const parsed = await parseJsonBody<{ hidden?: unknown }>(req);
+  if (!parsed.ok) return parsed.response;
+  if (typeof parsed.body.hidden !== "boolean") return json({ error: "hidden must be a boolean" }, 400);
+  return deps.chunkStore.setHidden(id, parsed.body.hidden)
+    ? json({ ok: true, hidden: parsed.body.hidden })
+    : json({ error: `unknown chunk id: ${id}` }, 404);
 }
 
 export function makeChunkRoutes(deps: ChunkRoutesDeps): RouteEntry[] {
   return [
-    exact("GET", "/api/chunks", () => json({ chunks: deps.chunkStore.list() })),
+    exact("GET", "/api/chunks", (_req, url) => handleChunkList(url, deps)),
     exact("POST", "/api/chunks/grade", (req) => handleChunkGrade(req, deps)),
-    prefix("DELETE", "/api/chunks/", (_req, url) => handleChunkDelete(url, deps)),
+    prefix("PUT", "/api/chunks/", (req, url) => handleChunkVisibility(req, url, deps)),
   ];
 }

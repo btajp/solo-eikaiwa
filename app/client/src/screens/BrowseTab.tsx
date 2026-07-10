@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  deleteChunk, fetchChunks, fetchFixExplanation, fetchSentences, type ChunkListItem, type SentenceItem,
+  fetchChunks, fetchFixExplanation, fetchSentences, setChunkVisibility, type ChunkListItem, type SentenceItem,
 } from "../api";
 import { STR, type Lang } from "../i18n";
 import { useLoad } from "../useLoad";
@@ -19,34 +19,42 @@ export function BrowseTab({ lang }: { lang: Lang }) {
   const t = STR[lang].sentences;
   const load = useLoad(async () => {
     const all = await fetchSentences();
-    // チャンクは補助セクション — 取得失敗でも例文一覧は表示する
-    let cs: ChunkListItem[] = [];
-    try { cs = await fetchChunks(); } catch { /* ignore */ }
-    return { items: all, chunks: cs };
+    // チャンクは補助セクション — 一方の取得失敗でも例文一覧と取得できた側は表示する
+    const [visible, hidden] = await Promise.allSettled([fetchChunks(), fetchChunks("hidden")]);
+    return {
+      items: all,
+      chunks: visible.status === "fulfilled" ? visible.value : [],
+      hiddenChunks: hidden.status === "fulfilled" ? hidden.value : [],
+      chunkLoadFailed: visible.status === "rejected" || hidden.status === "rejected",
+    };
   });
   const [filter, setFilter] = useState<"all" | SentenceItem["domain"]>("all");
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [deleteError, setDeleteError] = useState("");
-  const [removedIds, setRemovedIds] = useState<number[]>([]);
+  const [showHidden, setShowHidden] = useState(false);
+  const [changingId, setChangingId] = useState<number | null>(null);
+  const [visibilityError, setVisibilityError] = useState("");
+  const [visibilityOverrides, setVisibilityOverrides] = useState<Record<number, boolean>>({});
   const row = usePlayRow<RowKey>();
   const anyPlaying = row.playingKey !== null;
 
   const items = load.state.status === "ready" ? load.state.data.items : [];
-  const chunks = (load.state.status === "ready" ? load.state.data.chunks : []).filter((c) => !removedIds.includes(c.id));
+  const loadedVisible = load.state.status === "ready" ? load.state.data.chunks : [];
+  const loadedHidden = load.state.status === "ready" ? load.state.data.hiddenChunks : [];
+  const originallyHidden = new Set(loadedHidden.map((chunk) => chunk.id));
+  const allChunks = [...new Map([...loadedVisible, ...loadedHidden].map((chunk) => [chunk.id, chunk])).values()];
+  const isHidden = (id: number) => visibilityOverrides[id] ?? originallyHidden.has(id);
+  const chunks = allChunks.filter((chunk) => !isHidden(chunk.id));
+  const hiddenChunks = allChunks.filter((chunk) => isHidden(chunk.id));
 
-  /** 削除は2タップ式: 1タップ目でボタンが「削除する?」に変わり、2タップ目で確定 */
-  async function onDeleteChunk(id: number) {
-    if (deletingId !== id) {
-      setDeletingId(id);
-      return;
-    }
+  async function onSetChunkHidden(id: number, hidden: boolean) {
+    setChangingId(id);
+    setVisibilityError("");
     try {
-      await deleteChunk(id);
-      setRemovedIds((prev) => [...prev, id]);
+      await setChunkVisibility(id, hidden);
+      setVisibilityOverrides((prev) => ({ ...prev, [id]: hidden }));
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : String(err));
+      setVisibilityError(err instanceof Error ? err.message : String(err));
     } finally {
-      setDeletingId(null);
+      setChangingId(null);
     }
   }
 
@@ -70,7 +78,10 @@ export function BrowseTab({ lang }: { lang: Lang }) {
           </button>
         ))}
       </div>
-      {(row.error || deleteError) && <Banner kind="error">{row.error || deleteError}</Banner>}
+      {(row.error || visibilityError) && <Banner kind="error">{row.error || visibilityError}</Banner>}
+      {load.state.data.chunkLoadFailed && (
+        <Banner kind="error" action={<Button onClick={load.reload}>{t.retry}</Button>}>{t.chunkLoadError}</Banner>
+      )}
       {chunks.length > 0 && (
         <Card header={t.myChunks}>
           {chunks.map((c) => (
@@ -89,10 +100,53 @@ export function BrowseTab({ lang }: { lang: Lang }) {
                 {c.note && <span className="text-sm text-muted">{c.note}</span>}
                 <ChunkExplain chunk={c} lang={lang} />
               </div>
-              <span className="sentence-srs text-sm text-muted">{`st${c.srs.stage} ・ ${c.srs.due.slice(5)}`}</span>
-              <Button variant={deletingId === c.id ? "danger" : "ghost"} onClick={() => onDeleteChunk(c.id)} ariaLabel={t.deleteAria(c.id)}>
-                {deletingId === c.id ? t.deleteConfirm : "🗑"}
+              <div className="sentence-row-actions">
+                <span className="sentence-srs text-sm text-muted">{`st${c.srs.stage} ・ ${c.srs.due.slice(5)}`}</span>
+                <Button
+                  variant="ghost" loading={changingId === c.id} disabled={changingId !== null}
+                  onClick={() => onSetChunkHidden(c.id, true)} ariaLabel={t.hideChunkAria(c.id)}
+                >
+                  {t.hideChunk}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </Card>
+      )}
+      {hiddenChunks.length > 0 && (
+        <div>
+          <Button variant="ghost" onClick={() => setShowHidden((current) => !current)}>
+            {showHidden ? t.hideHiddenChunks : t.showHiddenChunks(hiddenChunks.length)}
+          </Button>
+        </div>
+      )}
+      {showHidden && hiddenChunks.length > 0 && (
+        <Card header={t.hiddenChunks}>
+          {hiddenChunks.map((c) => (
+            <div key={c.id} className="sentence-row">
+              <Button
+                variant="ghost"
+                onClick={() => row.play({ kind: "chunk", id: c.id }, c.en)}
+                disabled={anyPlaying}
+                ariaLabel={t.playChunkAria(c.id)}
+              >
+                {row.playingKey?.kind === "chunk" && row.playingKey.id === c.id ? "🔊" : "▶"}
               </Button>
+              <div className="sentence-body">
+                <span className="sentence-en">{c.en}</span>
+                <span className="sentence-ja-sub">{c.promptText}</span>
+                {c.note && <span className="text-sm text-muted">{c.note}</span>}
+                <ChunkExplain chunk={c} lang={lang} />
+              </div>
+              <div className="sentence-row-actions">
+                <span className="sentence-srs text-sm text-muted">{`st${c.srs.stage} ・ ${c.srs.due.slice(5)}`}</span>
+                <Button
+                  variant="ghost" loading={changingId === c.id} disabled={changingId !== null}
+                  onClick={() => onSetChunkHidden(c.id, false)} ariaLabel={t.restoreChunkAria(c.id)}
+                >
+                  {t.restoreChunk}
+                </Button>
+              </div>
             </div>
           ))}
         </Card>

@@ -63,9 +63,10 @@ export function makeFakeChunkStore(overrides: Partial<ChunkStore> = {}): ChunkSt
   return {
     collect: (_c) => 0,
     list: () => [],
+    listHidden: () => [],
     dueChunks: () => [],
     grade: (id, _g) => (id === 1 ? { id: 1, stage: 1, due: "2026-07-09" } : null),
-    remove: (id) => id === 1,
+    setHidden: (id, _hidden) => id === 1,
     ...overrides,
   } satisfies ChunkStore;
 }

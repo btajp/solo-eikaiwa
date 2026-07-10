@@ -27,10 +27,14 @@ export type Chunk = {
 export type ChunkStore = {
   /** 候補を dedup・日次上限つきで保存し、実際に入った件数を返す */
   collect(cands: CollectCandidate[], today?: string): number;
+  /** 利用者が表示対象にしているチャンクだけを返す */
   list(): Chunk[];
+  /** 利用者が非表示にしたチャンクだけを返す。元データは collected_chunks に保持される */
+  listHidden(): Chunk[];
   dueChunks(today?: string): Chunk[];
   grade(id: number, grade: Grade, today?: string): { id: number; stage: number; due: string } | null;
-  remove(id: number): boolean;
+  /** 物理削除せず表示状態だけを切り替える。未知の id は false */
+  setHidden(id: number, hidden: boolean): boolean;
 };
 
 /** 1日に自動収集する新規チャンクの上限。詰まりが多い日でも復習負債を暴発させない */
@@ -69,6 +73,10 @@ export function ensureChunkSchema(db: Database): void {
     last_grade TEXT,
     reviews INTEGER NOT NULL DEFAULT 0
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS hidden_chunks (
+    chunk_id INTEGER PRIMARY KEY,
+    hidden_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
 }
 
 export function makeChunkStore(db: Database, sentenceEns: string[]): ChunkStore {
@@ -106,12 +114,29 @@ export function makeChunkStore(db: Database, sentenceEns: string[]): ChunkStore 
     },
 
     list() {
-      return db.query<ChunkRow, []>("SELECT * FROM collected_chunks ORDER BY id DESC").all().map(toChunk);
+      return db.query<ChunkRow, []>(`
+        SELECT c.* FROM collected_chunks c
+        WHERE NOT EXISTS (SELECT 1 FROM hidden_chunks h WHERE h.chunk_id = c.id)
+        ORDER BY c.id DESC
+      `).all().map(toChunk);
+    },
+
+    listHidden() {
+      return db.query<ChunkRow, []>(`
+        SELECT c.* FROM collected_chunks c
+        INNER JOIN hidden_chunks h ON h.chunk_id = c.id
+        ORDER BY h.hidden_at DESC, c.id DESC
+      `).all().map(toChunk);
     },
 
     dueChunks(today = localYmd()) {
       return db
-        .query<ChunkRow, [string]>("SELECT * FROM collected_chunks WHERE due <= ? ORDER BY due ASC, id ASC")
+        .query<ChunkRow, [string]>(`
+          SELECT c.* FROM collected_chunks c
+          WHERE c.due <= ?
+            AND NOT EXISTS (SELECT 1 FROM hidden_chunks h WHERE h.chunk_id = c.id)
+          ORDER BY c.due ASC, c.id ASC
+        `)
         .all(today)
         .map(toChunk);
     },
@@ -127,10 +152,14 @@ export function makeChunkStore(db: Database, sentenceEns: string[]): ChunkStore 
       return { id, stage: t.stage, due: t.due };
     },
 
-    remove(id) {
+    setHidden(id, hidden) {
       const exists = db.query<{ id: number }, [number]>("SELECT id FROM collected_chunks WHERE id = ?").get(id);
       if (!exists) return false;
-      db.run("DELETE FROM collected_chunks WHERE id = ?", [id]);
+      if (hidden) {
+        db.run("INSERT OR IGNORE INTO hidden_chunks (chunk_id) VALUES (?)", [id]);
+      } else {
+        db.run("DELETE FROM hidden_chunks WHERE chunk_id = ?", [id]);
+      }
       return true;
     },
   };

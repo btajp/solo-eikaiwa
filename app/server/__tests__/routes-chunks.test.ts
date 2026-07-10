@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { makeFetchHandler } from "../routes";
 import { FAKE_SENTENCE, makeFakeChunkStore, makeTestDeps } from "./helpers/route-deps";
-import { getReq, postJson } from "./helpers/http";
+import { getReq, postJson, putJson } from "./helpers/http";
 
 describe("chunks: 収集フックと API", () => {
   test("AEフィードバック成功時に quote/better 非空の item だけが collect に渡り、件数がレスポンスに載る", async () => {
@@ -93,6 +93,20 @@ describe("chunks: 収集フックと API", () => {
     expect(await res.json()).toEqual({ chunks: [] });
   });
 
+  test("GET /api/chunks?visibility=hidden は非表示一覧を返す", async () => {
+    const hidden = [{
+      id: 3, created: "2026-07-05", source: "ae" as const,
+      promptText: "I go office", en: "I went to the office", note: "過去形",
+      srs: { stage: 0, due: "2026-07-06", reviews: 0 },
+    }];
+    const { deps } = makeTestDeps({ chunkStore: makeFakeChunkStore({ listHidden: () => hidden }) });
+    const h = makeFetchHandler(deps);
+    const res = await h(getReq("/api/chunks?visibility=hidden"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ chunks: hidden });
+    expect((await h(getReq("/api/chunks?visibility=all"))).status).toBe(400);
+  });
+
   test("POST /api/chunks/grade: 正常時は遷移を返し srs-grade XP が付与される", async () => {
     const xp: Array<{ kind: string; amount: number }> = [];
     const { deps } = makeTestDeps();
@@ -120,11 +134,29 @@ describe("chunks: 収集フックと API", () => {
     expect(r2.status).toBe(400);
   });
 
-  test("DELETE /api/chunks/:id: 成功は ok、未知は404、非整数は400", async () => {
-    const { deps } = makeTestDeps();
+  test("PUT /api/chunks/:id/visibility: 非表示・復元を切り替える", async () => {
+    const calls: Array<{ id: number; hidden: boolean }> = [];
+    const { deps } = makeTestDeps({
+      chunkStore: makeFakeChunkStore({
+        setHidden: (id, hidden) => { calls.push({ id, hidden }); return id === 1; },
+      }),
+    });
     const h = makeFetchHandler(deps);
-    expect((await h(new Request("http://localhost/api/chunks/1", { method: "DELETE" }))).status).toBe(200);
-    expect((await h(new Request("http://localhost/api/chunks/999", { method: "DELETE" }))).status).toBe(404);
-    expect((await h(new Request("http://localhost/api/chunks/abc", { method: "DELETE" }))).status).toBe(400);
+    expect((await h(putJson("/api/chunks/1/visibility", { hidden: true }))).status).toBe(200);
+    expect((await h(putJson("/api/chunks/1/visibility", { hidden: false }))).status).toBe(200);
+    expect(calls).toEqual([{ id: 1, hidden: true }, { id: 1, hidden: false }]);
+    expect((await h(putJson("/api/chunks/999/visibility", { hidden: true }))).status).toBe(404);
+    expect((await h(putJson("/api/chunks/abc/visibility", { hidden: true }))).status).toBe(400);
+    expect((await h(putJson("/api/chunks/1/visibility", { hidden: "yes" }))).status).toBe(400);
+  });
+
+  test("DELETE /api/chunks/:id は物理削除せず 404", async () => {
+    let changed = false;
+    const { deps } = makeTestDeps({
+      chunkStore: makeFakeChunkStore({ setHidden: () => { changed = true; return true; } }),
+    });
+    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/chunks/1", { method: "DELETE" }));
+    expect(res.status).toBe(404);
+    expect(changed).toBe(false);
   });
 });

@@ -25,8 +25,9 @@ export type ChunkListItem = {
   promptText: string; en: string; note: string; srs: ChunkSrs;
 };
 
-export async function fetchChunks(): Promise<ChunkListItem[]> {
-  const res = await fetch("/api/chunks");
+export async function fetchChunks(visibility: "visible" | "hidden" = "visible"): Promise<ChunkListItem[]> {
+  const url = visibility === "hidden" ? "/api/chunks?visibility=hidden" : "/api/chunks";
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`chunks failed: ${await extractErrorMessage(res)}`);
   return ((await res.json()) as { chunks: ChunkListItem[] }).chunks;
 }
@@ -43,9 +44,13 @@ export async function gradeChunk(
   return res.json();
 }
 
-export async function deleteChunk(id: number): Promise<void> {
-  const res = await fetch(`/api/chunks/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error(`delete failed: ${await extractErrorMessage(res)}`);
+export async function setChunkVisibility(id: number, hidden: boolean): Promise<void> {
+  const res = await fetch(`/api/chunks/${id}/visibility`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ hidden }),
+  });
+  if (!res.ok) throw new Error(`visibility change failed: ${await extractErrorMessage(res)}`);
 }
 
 export async function fetchSentences(): Promise<SentenceItem[]> {
