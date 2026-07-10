@@ -14,8 +14,9 @@ import {
   buildRolesPayload, defaultTuning, applyRecommendedTuning,
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
   tierOptionsForCodexModel, codexDefaultEffortLabel, codexDefaultModelLabel, localModelSelectOptions, resolveEffective, clampClaudeEffort,
-  CODEX_EFFORT_OPTIONS,
+  classifyOpenAiEndpoint, CODEX_EFFORT_OPTIONS,
   type RoleTarget, type RoleTargets, type Connection, type PresetId, type CloudTarget, type EffectiveResolution,
+  type EndpointClassification,
 } from "../lib/llm-assignments";
 import { loadPreferredCloud, savePreferredCloud } from "../lib/preferred-cloud";
 import { ttsAutoResolution } from "../lib/tts-resolution";
@@ -242,6 +243,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
 
   const conn: Connection = { baseUrl: connBaseUrl, model: connModel, codexModel: connCodex };
   const localDefined = isLocalDefined(conn);
+  const endpoint = classifyOpenAiEndpoint(connBaseUrl);
 
   function applyResult(v: LlmSettingsView) {
     hydrate(v);
@@ -362,13 +364,24 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     fast: s.settings.tuningTierFast, standard: s.settings.tuningTierStandard,
   };
 
+  function endpointLine(value: EndpointClassification): string {
+    const label = {
+      loopback: s.settings.endpointLoopback,
+      lan: s.settings.endpointLan,
+      remote: s.settings.endpointRemote,
+      invalid: s.settings.endpointInvalid,
+    }[value.location];
+    return value.origin ? `${label} · ${value.origin}` : label;
+  }
+
   /** 用途タブの「実効」サマリ1行を組み立てる（表示専用。判定ロジックは resolveEffective が純関数で担う）。 */
   function effectiveLine(eff: EffectiveResolution): string {
     const providerLabel = targetLabels[eff.provider];
     const modelText = eff.model.confirmed
       ? eff.model.text
       : s.settings.effectiveUnconfirmedWith(eff.model.cliDefault ? s.settings.cliDefaultLabel : eff.model.text);
-    const parts = [`${providerLabel} ${modelText}`];
+    const destination = eff.endpoint ? endpointLine(eff.endpoint) : s.settings.endpointCloudManaged;
+    const parts = [`${providerLabel} · ${destination} · ${modelText}`];
     if (eff.effort) {
       parts.push(`${s.settings.tuningEffort} ${eff.effort.value === "sdk-standard" ? s.settings.tuningSdkStandard : eff.effort.value}`);
     }
@@ -437,6 +450,11 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
               <span className="text-sm text-muted">{s.llm.baseUrlLabel}</span>
               <input className="llm-input" value={connBaseUrl} placeholder={s.llm.baseUrlPlaceholder} onChange={(e) => setConnBaseUrl(e.target.value)} />
             </label>
+            <div className="text-sm text-muted">{s.settings.endpointLabel}: {endpointLine(endpoint)}</div>
+            {endpoint.location === "remote" && <div className="info-pop">{s.settings.endpointRemoteDisclosure}</div>}
+            {endpoint.location === "lan" && <div className="text-sm text-muted">{s.settings.endpointLanDisclosure}</div>}
+            {endpoint.location === "loopback" && <div className="text-sm text-muted">{s.settings.endpointLoopbackDisclosure}</div>}
+            {endpoint.location === "invalid" && <div className="text-sm text-muted">{s.settings.endpointInvalidDisclosure}</div>}
             <label className="llm-field">
               <span className="text-sm text-muted">{s.llm.modelLabel}</span>
               {(() => {

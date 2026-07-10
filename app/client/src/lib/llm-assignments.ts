@@ -22,6 +22,60 @@ export type CloudTarget = "claude" | "codex";
 /** 接続入力（接続セクションの3フィールド。空文字＝未指定）。 */
 export type Connection = { baseUrl: string; model: string; codexModel: string };
 
+export type EndpointLocation = "loopback" | "lan" | "remote" | "invalid";
+export type EndpointClassification = { location: EndpointLocation; origin: string | null };
+
+function normalizeEndpointHostname(hostname: string): string {
+  let lower = hostname.trim().toLowerCase();
+  if (lower.startsWith("[") && lower.endsWith("]")) lower = lower.slice(1, -1);
+  if (lower.endsWith(".")) lower = lower.slice(0, -1);
+  return lower;
+}
+
+function ipv4Parts(hostname: string): number[] | null {
+  const raw = hostname.split(".");
+  if (raw.length !== 4 || raw.some((part) => !/^\d{1,3}$/.test(part))) return null;
+  const parts = raw.map(Number);
+  return parts.every((part) => part >= 0 && part <= 255) ? parts : null;
+}
+
+function isLanHostname(hostname: string): boolean {
+  const ip = ipv4Parts(hostname);
+  if (ip) {
+    return ip[0] === 10
+      || (ip[0] === 172 && ip[1] >= 16 && ip[1] <= 31)
+      || (ip[0] === 192 && ip[1] === 168)
+      || (ip[0] === 169 && ip[1] === 254)
+      || (ip[0] === 100 && ip[1] >= 64 && ip[1] <= 127)
+      || ip.every((part) => part === 0);
+  }
+  return hostname.endsWith(".local")
+    || hostname === "host.docker.internal"
+    || /^(?:fc|fd)[0-9a-f:]*$/.test(hostname)
+    || /^fe[89ab][0-9a-f:]*$/.test(hostname);
+}
+
+/** OpenAI互換Base URLを、利用者へ開示する処理場所と正規化originへ分類する。 */
+export function classifyOpenAiEndpoint(raw: string): EndpointClassification {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return { location: "invalid", origin: null };
+  }
+  if ((url.protocol !== "http:" && url.protocol !== "https:")
+    || Boolean(url.username || url.password || url.search || url.hash)) {
+    return { location: "invalid", origin: null };
+  }
+  const hostname = normalizeEndpointHostname(url.hostname);
+  const ip = ipv4Parts(hostname);
+  if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname === "::1" || ip?.[0] === 127) {
+    return { location: "loopback", origin: url.origin };
+  }
+  if (isLanHostname(hostname)) return { location: "lan", origin: url.origin };
+  return { location: "remote", origin: url.origin };
+}
+
 /** プリセット識別子。 */
 export type PresetId = "all-local" | "balanced" | "high-quality";
 
@@ -351,6 +405,7 @@ export type EffectiveResolution = {
   model: EffectiveModelInfo;
   effort: EffectiveTuningValue;
   tier: EffectiveTuningValue;
+  endpoint?: EndpointClassification;
 };
 
 const EMPTY_ROLE_TUNING: RoleTuning = { claudeModel: null, effort: null, serviceTier: null };
@@ -391,7 +446,14 @@ export function resolveEffective(
 
   if (provider === "local") {
     const modelValue = roleSetting?.model ?? view.model ?? "";
-    return { provider, model: { confirmed: true, text: modelValue }, effort: null, tier: null };
+    const baseUrl = roleSetting?.baseUrl ?? view.baseUrl ?? "";
+    return {
+      provider,
+      model: { confirmed: true, text: modelValue },
+      effort: null,
+      tier: null,
+      endpoint: classifyOpenAiEndpoint(baseUrl),
+    };
   }
 
   if (provider === "codex") {

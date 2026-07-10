@@ -7,11 +7,39 @@ import {
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
   tierOptionsForCodexModel, codexDefaultEffortLabel, codexDefaultModelLabel, localModelSelectOptions, resolveEffective, clampClaudeEffort,
   hydrateAuthModes, hydrateAuthKeys, buildAuthPatch, CODEX_EFFORT_OPTIONS,
+  classifyOpenAiEndpoint,
   type RoleTargets,
 } from "./llm-assignments";
 
 const LOCAL_CONN = { baseUrl: "http://localhost:11434/v1", model: "qwen3", codexModel: "" };
 const EMPTY_CONN = { baseUrl: "", model: "", codexModel: "" };
+
+describe("classifyOpenAiEndpoint", () => {
+  test("localhost・127.0.0.1・IPv6 loopbackをこのMacとして分類しoriginを正規化する", () => {
+    expect(classifyOpenAiEndpoint("http://localhost:11434/v1")).toEqual({
+      location: "loopback", origin: "http://localhost:11434",
+    });
+    expect(classifyOpenAiEndpoint("http://127.0.0.1:1234/v1").location).toBe("loopback");
+    expect(classifyOpenAiEndpoint("http://[::1]:11434/v1").location).toBe("loopback");
+    expect(classifyOpenAiEndpoint("http://localhost.:11434/v1").location).toBe("loopback");
+  });
+
+  test("private IPv4と.local名をLAN、public HTTPSをremoteとして分類する", () => {
+    for (const url of ["http://10.0.0.2:11434/v1", "http://172.20.0.2/v1", "http://192.168.1.3/v1", "http://ollama.local/v1"]) {
+      expect(classifyOpenAiEndpoint(url).location).toBe("lan");
+    }
+    expect(classifyOpenAiEndpoint("https://api.openai.com/v1")).toEqual({
+      location: "remote", origin: "https://api.openai.com",
+    });
+    expect(classifyOpenAiEndpoint("https://models.github.ai/inference").location).toBe("remote");
+  });
+
+  test("空・相対URL・HTTP(S)以外・userinfo/query/fragment付きは無効", () => {
+    for (const url of ["", "/v1", "ftp://localhost/v1", "https://user@example.com/v1", "https://example.com/v1?q=1", "https://example.com/v1#x"]) {
+      expect(classifyOpenAiEndpoint(url)).toEqual({ location: "invalid", origin: null });
+    }
+  });
+});
 
 /** テスト用の LlmSettingsView 生成（roles は既定 inherit・tuning は既定全null・上書き可）。 */
 function mkView(over: Partial<LlmSettingsView> = {}): LlmSettingsView {
@@ -646,6 +674,16 @@ describe("resolveEffective", () => {
       model: { confirmed: true, text: "qwen3:30b-instruct" },
       effort: null,
       tier: null,
+      endpoint: { location: "loopback", origin: "http://localhost:11434" },
+    });
+  });
+
+  test("remote OpenAI互換URLは各ロールの実効originをremoteとして返す", () => {
+    const view = mkView({
+      provider: "openai-compat", baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini",
+    });
+    expect(resolveEffective("conversation", view).endpoint).toEqual({
+      location: "remote", origin: "https://api.openai.com",
     });
   });
 

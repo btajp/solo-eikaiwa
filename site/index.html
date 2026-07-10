@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>solo-eikaiwa — ひとりで回す、自分専用の英会話ジム</title>
-<meta name="description" content="毎日5分から回せる、研究ベースの英会話セルフトレーニングアプリ。録音・文字起こし・AI会話・音声合成まで、すべて自分の Mac の上で。完全ローカル構成にも対応。">
+<meta name="description" content="毎日5分から回せる研究ベースの英会話アプリ。録音・文字起こし・履歴はMacに保存し、AI処理は選択したproviderへ送信。既定はClaude、完全ローカル構成も選択可能。">
 <link rel="canonical" href="https://btajp.github.io/solo-eikaiwa/">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -12,7 +12,7 @@
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#181716">
 <meta property="og:type" content="website">
 <meta property="og:title" content="solo-eikaiwa — ひとりで回す、自分専用の英会話ジム">
-<meta property="og:description" content="録音・文字起こし・AI会話・音声合成まで、すべて自分の Mac の上で。完全ローカル構成にも対応する研究ベースの英会話セルフトレーニング。">
+<meta property="og:description" content="録音・文字起こし・履歴はMacに保存。AI処理のテキストは選択したproviderへ送信し、完全ローカル構成も選べる英会話セルフトレーニング。">
 <meta property="og:url" content="https://btajp.github.io/solo-eikaiwa/">
 <meta property="og:image" content="https://btajp.github.io/solo-eikaiwa/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -110,6 +110,10 @@
   .section-lead { color: var(--muted); font-size: 15px; margin-bottom: 16px; }
   .cta-left { margin-top: 24px; display: flex; gap: 14px; flex-wrap: wrap; }
   code.inline { background: var(--accent-soft); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; font-size: .9em; }
+  .privacy-table { width: 100%; min-width: 700px; border-collapse: collapse; background: var(--surface); font-size: 13px; }
+  .privacy-table th, .privacy-table td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+  .privacy-table th { color: var(--text); }
+  .privacy-table td { color: var(--muted); }
 
   footer { border-top: 1px solid var(--border); margin-top: 48px; }
   .footer-inner { padding-top: 56px; padding-bottom: 72px; text-align: center; color: var(--muted); font-size: 13.5px; }
@@ -127,7 +131,7 @@
   <h1>ひとりで回す、<br>自分専用の英会話ジム。
     <span class="en" lang="en">solo-eikaiwa — a research-grounded English speaking gym for daily self-study</span>
   </h1>
-  <p class="lead">毎日5分から。録音した声をローカルで文字起こしし、AI が会話相手とコーチを務め、練習履歴が貯まっていく — 誰にも聞かれず、すべて自分の Mac の上で。</p>
+  <p class="lead">毎日5分から。録音・文字起こし・練習履歴はMacに保存し、AI処理のテキストだけを選択したproviderへ送信します。既定はClaude、完全ローカル構成も選べます。</p>
   <div class="cta-row">
     <a class="btn btn-primary" href="https://github.com/btajp/solo-eikaiwa">GitHub で始める</a>
     <a class="btn btn-ghost" href="#はじめる">セットアップ手順</a>
@@ -141,12 +145,12 @@
 
 <section>
   <p class="eyebrow">Local-first</p>
-  <h2>マイクの音も会話も、Mac から一歩も出ない</h2>
-  <div class="flow-scroll"><div class="flow">ブラウザ録音 → <b>whisper.cpp</b>（ローカルSTT） → <b>Ollama などローカルLLM</b>（会話相手・コーチ） → <b>Kokoro / macOS say</b>（音声合成）</div></div>
+  <h2>保存はMac。AIの送信先は自分で選べる</h2>
+  <div class="flow-scroll"><div class="flow">ブラウザ録音 → <b>whisper.cpp</b>（ローカルSTT） → <b>選択したLLM</b>（既定Claude） → <b>選択したTTS</b>（キーなしはmacOS say）</div></div>
   <ul class="plain">
-    <li><b>完全ローカル構成なら、音声もテキストも外部に出ません。</b>STT・LLM・TTS のすべてをローカルで完結でき、API キー不要・追加コストゼロ</li>
-    <li><b>音声で喋るところまで動きます。</b>マイクで話し、AI の返事を音声で聞く — その全部が自分の Mac の中</li>
-    <li><b>品質が欲しい用途だけクラウドへ。</b>既定は Claude 併用。コーチングや月次レビューだけ Claude / Codex、会話はローカル、のような用途別の切替が設定画面からワンタップ</li>
+    <li><b>録音・文字起こし・練習履歴はMacに保存。</b>マイク音声はローカルSTTで処理し、クラウドへ送信しません</li>
+    <li><b>既定LLMはClaude。</b>発話テキスト・プロンプト・必要な会話文脈を、用途ごとに選んだClaude / Codex / OpenAI互換接続先へ送信します</li>
+    <li><b>完全ローカルは選択可能な構成。</b>LLMをloopbackのOllama等、TTSをmacOS sayやloopbackへ向ければ、音声もテキストもMac外へ出ません</li>
   </ul>
 </section>
 
@@ -163,14 +167,24 @@
   </div>
 </section>
 
-<section>
+<section id="privacy">
   <p class="eyebrow">Privacy</p>
-  <h2>データはローカルに貯まる。外に出るのは、選んだ分だけ</h2>
+  <h2>保存場所と送信先を分けて確認できる</h2>
+  <div class="flow-scroll">
+    <table class="privacy-table">
+      <thead><tr><th>構成 / provider</th><th>Mac外・別端末へ送るデータ</th><th>Mac側の保存</th><th>認証・課金先</th></tr></thead>
+      <tbody>
+        <tr><td>Claude（既定）</td><td>発話テキスト、プロンプト、必要な会話文脈</td><td>録音・文字起こし・履歴・進捗</td><td>Claude CLIのPro/Max、または選択時のみAnthropic API</td></tr>
+        <tr><td>Codex</td><td>同じテキスト</td><td>同上</td><td>Codex CLIのChatGPTログイン、または選択時のみOpenAI API</td></tr>
+        <tr><td>OpenAI互換</td><td>loopbackはMac外送信なし。LAN/remoteは画面に表示したoriginへ同じテキストを送信</td><td>同上</td><td>接続先の運営者。remoteではその認証・課金規約に従う</td></tr>
+        <tr><td>TTS</td><td>クラウド利用時は読み上げるテキストのみ。マイク録音は送らない</td><td>音声キャッシュ</td><td>接続先。キーなし既定はmacOS sayで追加課金なし</td></tr>
+        <tr><td>完全ローカル構成</td><td>外部送信なし</td><td>すべてMac内</td><td>クラウド認証・従量課金なし</td></tr>
+      </tbody>
+    </table>
+  </div>
   <ul class="plain">
-    <li><b>音声はマシンから出ません。</b>学習データ・録音・進捗はすべてローカルファイル。API サーバは 127.0.0.1 バインドのみ</li>
-    <li><b>既定構成で外部に出るのは「テキスト」だけ。</b>発話の文字起こしと AI 応答のテキストが Claude / TTS に送られます。フルローカル構成にすればそれもゼロに</li>
-    <li><b>LLM は用途別に切替可能。</b>会話はローカル LLM（Ollama 等）で速く・無料に、添削や測定は Claude / Codex に — 設定画面からワンタップ</li>
-    <li><b>音声合成もローカル対応。</b>kokoro-fastapi を立てれば TTS も API キー不要。女性/男性ボイスも選択可能</li>
+    <li><b>設定画面で場所とoriginを常時表示。</b>OpenAI互換URLを、このMac（loopback）/ LAN / remote / 無効に分類します</li>
+    <li><b>remote切替は保存前に開示。</b>プロンプトと文字起こしがMac外へ出ること、認証・データ取扱い・課金が接続先に従うことを表示します</li>
   </ul>
 </section>
 
