@@ -7,8 +7,8 @@ import { collectBestEffort } from "./chunks";
 
 export type CoachRoutesDeps = {
   aeFeedback: (args: { transcript: string; topicTitle: string }) => Promise<AeFeedback>;
-  /** 未知の topicId は null（ルートは404を返す）。topicTitle はライブラリ記録用（レスポンスには含めない） */
-  modelTalk: (topicId: string) => Promise<{ text: string; topicTitle?: string } | null>;
+  /** 未知の topicId は null（ルートは404を返す）。題名はライブラリ記録用（レスポンスには含めない） */
+  modelTalk: (topicId: string) => Promise<{ text: string; topicTitle?: string; topicTitleJa?: string } | null>;
   /** モデルトークの記録と一覧（実体は db.ts、テストはフェイク/インメモリ） */
   libraryStore: LibraryStore;
   reflection: (sessionId: string) => Promise<Reflection>;
@@ -69,7 +69,9 @@ async function handleModelTalk(req: Request, deps: CoachRoutesDeps): Promise<Res
   const talk = await deps.modelTalk(topicId);
   if (!talk) return json({ error: "unknown topicId" }, 404);
   bestEffort("[library] saveModelTalk failed, continuing:", () =>
-    deps.libraryStore.saveModelTalk({ topicId, topicTitle: talk.topicTitle ?? "", text: talk.text }));
+    deps.libraryStore.saveModelTalk({
+      topicId, topicTitle: talk.topicTitle ?? "", topicTitleJa: talk.topicTitleJa ?? "", text: talk.text,
+    }));
   return json({ text: talk.text });
 }
 

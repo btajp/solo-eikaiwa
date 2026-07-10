@@ -30,11 +30,12 @@ export type ModelTalkEntry = {
   createdAt: string;
   topicId: string;
   topicTitle: string;
+  topicTitleJa: string;
   text: string;
 };
 
 export type LibraryStore = {
-  saveModelTalk: (e: { topicId: string; topicTitle: string; text: string }) => void;
+  saveModelTalk: (e: { topicId: string; topicTitle: string; topicTitleJa: string; text: string }) => void;
   listModelTalks: (limit?: number) => ModelTalkEntry[];
 };
 
@@ -45,6 +46,12 @@ export function ensureLibrarySchema(db: Database): void {
     topic_id TEXT NOT NULL,
     topic_title TEXT NOT NULL,
     text TEXT NOT NULL
+  )`);
+  // 既存のmodel_talksへ列追加せず、題名の両言語を別テーブルで保持する。
+  db.run(`CREATE TABLE IF NOT EXISTS model_talk_topic_titles (
+    topic_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    title_ja TEXT NOT NULL
   )`);
 }
 
@@ -151,11 +158,20 @@ export function makeTranslationCache(db: Database): TalkExplainCache {
   return makeHashTextCache(db, "utterance_translations");
 }
 
-type Row = { id: number; created_at: string; topic_id: string; topic_title: string; text: string };
+type Row = {
+  id: number; created_at: string; topic_id: string; topic_title: string; text: string;
+  localized_title: string | null; localized_title_ja: string | null;
+};
 
 export function makeLibraryStore(db: Database): LibraryStore {
   return {
     saveModelTalk(e) {
+      // 既存本文と重複しても、題名のローカライズは教材の現行値へ更新する。
+      db.run(
+        `INSERT INTO model_talk_topic_titles (topic_id, title, title_ja) VALUES (?, ?, ?)
+         ON CONFLICT(topic_id) DO UPDATE SET title = excluded.title, title_ja = excluded.title_ja`,
+        [e.topicId, e.topicTitle, e.topicTitleJa],
+      );
       // 連打・再訪で同じトークが無限に増えないための素朴なガード:
       // 同一トピックの直近行と本文が同じなら挿入しない
       const last = db
@@ -169,13 +185,20 @@ export function makeLibraryStore(db: Database): LibraryStore {
     },
     listModelTalks(limit = 100) {
       const rows = db
-        .query<Row, [number]>("SELECT * FROM model_talks ORDER BY id DESC LIMIT ?")
+        .query<Row, [number]>(
+          `SELECT m.id, m.created_at, m.topic_id, m.topic_title, m.text,
+             t.title AS localized_title, t.title_ja AS localized_title_ja
+           FROM model_talks AS m
+           LEFT JOIN model_talk_topic_titles AS t ON t.topic_id = m.topic_id
+           ORDER BY m.id DESC LIMIT ?`,
+        )
         .all(limit);
       return rows.map((r) => ({
         id: r.id,
         createdAt: r.created_at,
         topicId: r.topic_id,
-        topicTitle: r.topic_title,
+        topicTitle: r.localized_title || r.topic_title,
+        topicTitleJa: r.localized_title_ja || "",
         text: r.text,
       }));
     },

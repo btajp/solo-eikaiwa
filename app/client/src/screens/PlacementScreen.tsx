@@ -213,17 +213,18 @@ export function PlacementScreen(props: { lang: Lang; onBeforeStart?: () => boole
     return (
       <div className="stack">
         <FlowExitButton onClick={exitPlacement}>{STR[props.lang].appShell.backToHome}</FlowExitButton>
+        <div className="hero"><h2 className="hero-title">{t.introTitle}</h2></div>
         {warnBeforeExit && <p className="text-sm text-muted">{t.exitNote}</p>}
         {children}
       </div>
     );
   }
 
-  if (step.kind === "loading") return placementFrame(<p>…</p>, false);
+  if (step.kind === "loading") return placementFrame(<p className="text-muted">{t.loading}</p>, false);
 
   if (step.kind === "load-error") {
     return placementFrame(
-      <Banner kind="error" action={<Button onClick={loadTasks}>↻</Button>}>
+      <Banner kind="error" action={<Button onClick={loadTasks}>{t.loadRetry}</Button>}>
         {step.message}
       </Banner>,
       false,
@@ -233,7 +234,7 @@ export function PlacementScreen(props: { lang: Lang; onBeforeStart?: () => boole
   if (step.kind === "intro") {
     return placementFrame(
       <div className="stack">
-        <Card header={t.introTitle}>
+        <Card>
           <p className="text-muted">{t.introBody}</p>
           <p className="text-sm text-muted">{t.xpNote}</p>
         </Card>

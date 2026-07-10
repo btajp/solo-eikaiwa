@@ -1,12 +1,17 @@
-/** トップページ・サイドバーの表示言語（デフォルト英語、localStorageに保存） */
+/** トップページ・サイドバーの表示言語（localStorageに保存） */
 export type Lang = "en" | "ja";
 
 import type { LlmRole } from "./api/llm-settings";
 import type { CloudTarget } from "./lib/llm-assignments";
 
+/** 保存済み設定を最優先し、初回だけブラウザの表示言語から日英を決める。 */
+export function resolveLang(saved: string | null, locale: string | undefined): Lang {
+  if (saved === "ja" || saved === "en") return saved;
+  return locale?.toLowerCase().startsWith("ja") ? "ja" : "en";
+}
+
 export function loadLang(): Lang {
-  const v = localStorage.getItem("lang");
-  return v === "ja" ? "ja" : "en";
+  return resolveLang(localStorage.getItem("lang"), navigator.language);
 }
 
 export function saveLang(lang: Lang): void {
@@ -282,7 +287,7 @@ type PlacementStrings = {
     cardTitleNew: string; cardBodyNew: string; startDefaultNote: (lv: number) => string;
     cardTitleMonthly: string; cardBodyMonthly: string;
     introTitle: string; introBody: string; introStart: string;
-    exitNote: string;
+    loading: string; loadRetry: string; exitNote: string;
     taskLabel: (i: number, total: number) => string;
     promptLabel: string;
     recordStart: string; recordReplace: string; recordStarting: string; recordStop: string; transcribing: string;
@@ -701,6 +706,7 @@ export const STR: Record<Lang, Strings> = {
       introTitle: "Level check",
       introBody: "You'll do three short speaking tasks: introduce yourself (1 min), explain a situation (1.5 min), and give an opinion (1 min). Record each one — the result only applies if you accept it.",
       introStart: "Start task 1",
+      loading: "Loading level check…", loadRetry: "Retry",
       exitNote: "Leaving this check discards the recordings and transcripts from this attempt.",
       taskLabel: (i, total) => `Task ${i} of ${total}`,
       promptLabel: "Your prompt",
@@ -1186,6 +1192,7 @@ export const STR: Record<Lang, Strings> = {
       introTitle: "レベル測定",
       introBody: "3つの短いスピーキングを行います: 自己紹介（1分）→ 状況説明（1.5分）→ 意見（1分）。それぞれ録音してください。結果はあなたが承認したときだけ反映されます。",
       introStart: "タスク1を始める",
+      loading: "レベル測定を読み込んでいます…", loadRetry: "再試行",
       exitNote: "ここでホームに戻ると、この測定で録音・文字起こしした内容は保存されません。",
       taskLabel: (i, total) => `タスク ${i} / ${total}`,
       promptLabel: "お題",

@@ -90,7 +90,7 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 .card-header h3 { font: inherit; margin: 0; }
 .card-header .text-sm { font-weight: 400; }
 
-/* Screen（画面ヘッダ） */
+/* セッション内画面のヘッダ（トップレベル画面は .hero + .hero-title を使う） */
 .screen-header { display: flex; align-items: baseline; gap: var(--sp-3); margin-bottom: var(--sp-4); }
 .screen-title { font-size: var(--fs-xl); letter-spacing: -0.01em; margin: 0; }
 .screen-meta { margin-left: auto; display: flex; align-items: center; gap: var(--sp-3); }

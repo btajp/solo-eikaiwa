@@ -5,7 +5,7 @@ import { synthesize, DEFAULT_TTS_BASE_URL } from "./tts";
 import { converseTurn, applyLlmRoleSettings, runnerFor, CLAUDE_EXECUTABLE_PATH } from "./converse";
 import { checkHealth } from "./health";
 import { buildQuickMenu, buildTodayMenu, invalidateTodayMenuCache } from "./menu";
-import { findScenario, findTopic } from "./content";
+import { findScenario, findTopic, loadContent } from "./content";
 import { generateAeFeedback, generateFixExplanation, generateModelTalk, generatePhraseHints, generatePrepPack, generateReflection, generateSentenceExplanation, generateTalkExplanation, generateUtteranceTranslation, roleplayPrompt } from "./coach";
 import { fttOutputSignals, listPracticeDays, readSessionEvents } from "./session-log";
 import { readSettings, writeSettings } from "./settings";
@@ -164,9 +164,12 @@ const realDeps: RouteDeps = {
       { assetsDir: TOPIC_ASSETS_DIR, topicsDir: TOPICS_DIR, cache: topicAssetCacheStore },
       () => generateModelTalk({ topicTitle: topic.title, hints: topic.hints, stage }, runnerFor("generation")),
     );
-    return { text: talk.text, topicTitle: topic.title };
+    return { text: talk.text, topicTitle: topic.title, topicTitleJa: topic.titleJa };
   },
   libraryStore,
+  libraryTopics: () => new Map(loadContent(TOPICS_DIR).map((topic) => [
+    topic.id, { title: topic.title, titleJa: topic.titleJa },
+  ])),
   reflection: (sessionId) => generateReflection({ events: readSessionEvents(sessionId) }, runnerFor("coaching")),
   scenarioPrompt: (scenarioId) => {
     const sc = findScenario(scenarioId);

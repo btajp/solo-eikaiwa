@@ -205,6 +205,7 @@ export function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
     getSettings: () => ({ anchor: "" }),
     saveSettings: (_s) => {},
     libraryStore: makeFakeLibraryStore(),
+    libraryTopics: () => new Map(),
     sentenceStore: makeFakeSentenceStore(),
     chunkStore: makeFakeChunkStore(),
     progressStore: makeFakeProgressStore(),
