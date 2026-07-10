@@ -10,6 +10,7 @@ export type Health = {
 
 export async function getHealth(): Promise<Health> {
   const res = await fetch("/api/health");
+  if (!res.ok) throw new Error(`health failed: ${await extractErrorMessage(res)}`);
   return res.json();
 }
 

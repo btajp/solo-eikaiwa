@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { makeLatestGeneration } from "./lib/latest-generation";
 
 export type LoadState<T> =
   | { status: "loading" }
@@ -15,16 +16,22 @@ export function useLoad<T>(fn: () => Promise<T>): { state: LoadState<T>; reload:
   const [state, setState] = useState<LoadState<T>>({ status: "loading" });
   const aliveRef = useRef(true);
   const fetchedRef = useRef(false);
+  const generationRef = useRef(makeLatestGeneration());
   // fn は呼び出しごとに新参照になりうるため ref に保持し、effect の依存から外す（挙動は「マウント時1回」）
   const fnRef = useRef(fn);
   fnRef.current = fn;
 
   function run() {
+    const generation = generationRef.current.begin();
     setState({ status: "loading" });
     fnRef.current()
-      .then((data) => { if (aliveRef.current) setState({ status: "ready", data }); })
+      .then((data) => {
+        if (aliveRef.current && generationRef.current.isCurrent(generation)) setState({ status: "ready", data });
+      })
       .catch((err) => {
-        if (aliveRef.current) setState({ status: "error", error: err instanceof Error ? err.message : String(err) });
+        if (aliveRef.current && generationRef.current.isCurrent(generation)) {
+          setState({ status: "error", error: err instanceof Error ? err.message : String(err) });
+        }
       });
   }
 

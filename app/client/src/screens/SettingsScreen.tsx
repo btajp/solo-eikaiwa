@@ -27,6 +27,8 @@ import {
 import { ttsAutoResolution } from "../lib/tts-resolution";
 import { STR, type Lang } from "../i18n";
 import { Button } from "../ui/Button";
+import { Banner } from "../ui/Banner";
+import { useLoad } from "../useLoad";
 
 export type UiScale = "small" | "medium" | "large" | "xlarge";
 
@@ -35,6 +37,7 @@ type Props = {
   uiScale: UiScale;
   setUiScale: (s: UiScale) => void;
   switchLang: (l: Lang) => void;
+  onHealthChanged: () => void;
 };
 
 type SaveState = { phase: "idle" | "saving" | "saved" | "error"; message: string | null };
@@ -168,14 +171,16 @@ function RoleTargetToggle(props: {
   );
 }
 
-export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props) {
+export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealthChanged }: Props) {
   const s = STR[lang];
+  const llmSettingsLoad = useLoad(fetchLlmSettings);
+  const ttsSettingsLoad = useLoad(fetchTtsSettings);
+  const secretsLoad = useLoad(fetchSecrets);
   const [view, setView] = useState<LlmSettingsView | null>(null);
   const [connectionSave, setConnectionSave] = useState<SaveState>(IDLE_SAVE);
   const [rolesSave, setRolesSave] = useState<SaveState>(IDLE_SAVE);
   const [ttsSave, setTtsSave] = useState<SaveState>(IDLE_SAVE);
   const [tab, setTab] = useState<"conn" | "roles" | "display">("conn");
-  const fetchedRef = useRef(false);
   const saveGenerationRef = useRef(makeSaveGenerationTracker());
   // モデルカタログ（GET /api/llm-models）。用途タブを開いたときに遅延取得する（app起動時には叩かない）。
   const [catalog, setCatalog] = useState<LlmModelsResponse | null>(null);
@@ -248,12 +253,16 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   }
 
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-    fetchLlmSettings().then(hydrateInitial).catch(() => {});
-    fetchTtsSettings().then(hydrateTts).catch(() => {});
-    fetchSecrets().then(setSecrets).catch(() => {});
-  }, []);
+    if (llmSettingsLoad.state.status === "ready") hydrateInitial(llmSettingsLoad.state.data);
+  }, [llmSettingsLoad.state]);
+
+  useEffect(() => {
+    if (ttsSettingsLoad.state.status === "ready") hydrateTts(ttsSettingsLoad.state.data);
+  }, [ttsSettingsLoad.state]);
+
+  useEffect(() => {
+    if (secretsLoad.state.status === "ready") setSecrets(secretsLoad.state.data);
+  }, [secretsLoad.state]);
 
   /** refresh=true は「モデル一覧を更新」ボタン用（?refresh=1）。失敗は fail-quiet — カタログは
    * null のままとなり、選択肢・実効表示は静的フォールバック/「実体未確認」へ劣化する（嘘の表示をしない）。 */
@@ -351,6 +360,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
       setAuthCodex(nextAuth.codex);
       setSavedConnection({ connection: nextConnection, globalClaudeModel: nextGlobalModel, auth: nextAuth });
       setConnectionSave({ phase: saved.applied === false ? "error" : "saved", message: appliedMessage(saved) });
+      onHealthChanged();
     } catch (err) {
       if (!saveGenerationRef.current.isCurrent("connection", generation)) return;
       const reason = err instanceof Error ? err.message : String(err);
@@ -375,6 +385,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
       setSavedTargets(nextTargets);
       setSavedTuning(nextTuning);
       setRolesSave({ phase: saved.applied === false ? "error" : "saved", message: appliedMessage(saved) });
+      onHealthChanged();
     } catch (err) {
       if (!saveGenerationRef.current.isCurrent("roles", generation)) return;
       const reason = err instanceof Error ? err.message : String(err);
@@ -411,6 +422,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
       : undefined;
     const r = await saveSecret(name, value, baseUrl);
     setSecrets(r.secrets);
+    onHealthChanged();
     fetchLlmSettings().then(setView).catch(() => {});
     fetchTtsSettings().then(setTtsView).catch(() => {});
     return r;
@@ -418,6 +430,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   async function onDeleteSecret(name: SecretName): Promise<SecretMutationResult> {
     const r = await deleteSecret(name);
     setSecrets(r.secrets);
+    onHealthChanged();
     fetchLlmSettings().then(setView).catch(() => {});
     fetchTtsSettings().then(setTtsView).catch(() => {});
     return r;
@@ -466,6 +479,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
       if (!saveGenerationRef.current.isCurrent("tts", generation)) return;
       hydrateTts(saved);
       setTtsSave({ phase: "saved", message: s.llm.applied });
+      onHealthChanged();
     } catch {
       if (!saveGenerationRef.current.isCurrent("tts", generation)) return;
       setTtsSave({ phase: "error", message: s.llm.saveFailed });
@@ -527,6 +541,22 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
         <button role="tab" aria-selected={tab === "display"} className={tab === "display" ? "is-active" : ""} disabled={settingsSaving} onClick={() => switchSettingsTab("display")}>{s.settings.displaySection}</button>
       </div>
 
+      {llmSettingsLoad.state.status === "error" && (
+        <Banner kind="error" action={<Button onClick={llmSettingsLoad.reload}>{s.settings.retry}</Button>}>
+          {s.settings.loadLlmFailed}
+        </Banner>
+      )}
+      {ttsSettingsLoad.state.status === "error" && (
+        <Banner kind="error" action={<Button onClick={ttsSettingsLoad.reload}>{s.settings.retry}</Button>}>
+          {s.settings.loadTtsFailed}
+        </Banner>
+      )}
+      {secretsLoad.state.status === "error" && (
+        <Banner kind="error" action={<Button onClick={secretsLoad.reload}>{s.settings.retry}</Button>}>
+          {s.settings.loadSecretsFailed}
+        </Banner>
+      )}
+
       {tab === "conn" && (
         <section className="support-panel stack">
           <div className="llm-fields stack">
@@ -548,7 +578,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
             {view?.authModes?.claude === "api-key" && !authKeys.anthropic && (
               <div className="info-pop">{s.settings.claudeAuthMissingKey}</div>
             )}
-            <SecretKeyField name="ANTHROPIC_API_KEY" status={secrets?.ANTHROPIC_API_KEY} disabled={settingsSaving || !view}
+            <SecretKeyField name="ANTHROPIC_API_KEY" status={secrets?.ANTHROPIC_API_KEY} disabled={settingsSaving || !view || secretsLoad.state.status !== "ready"}
               str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
             <div className="text-sm text-muted">{s.settings.authApiKeyNote}</div>
             <label className="llm-field">
@@ -596,7 +626,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                 );
               })()}
             </label>
-            <SecretKeyField name="OPENAI_COMPAT_API_KEY" status={secrets?.OPENAI_COMPAT_API_KEY} disabled={settingsSaving || !view}
+            <SecretKeyField name="OPENAI_COMPAT_API_KEY" status={secrets?.OPENAI_COMPAT_API_KEY} disabled={settingsSaving || !view || secretsLoad.state.status !== "ready"}
               approvalRequired={Boolean(secrets?.OPENAI_COMPAT_API_KEY.configured && view?.apiKeyApproved !== true)}
               str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
           </div>
@@ -638,7 +668,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                 ))}
               </select>
             </label>
-            <SecretKeyField name="CODEX_API_KEY" status={secrets?.CODEX_API_KEY} disabled={settingsSaving || !view}
+            <SecretKeyField name="CODEX_API_KEY" status={secrets?.CODEX_API_KEY} disabled={settingsSaving || !view || secretsLoad.state.status !== "ready"}
               str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
             <div className="text-sm text-muted">{s.settings.authApiKeyNote}</div>
           </div>
@@ -698,7 +728,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
               <span className="text-sm text-muted">{s.settings.ttsVoiceLabel}</span>
               <input ref={voiceInputRef} className="llm-input" value={ttsVoice} placeholder={s.settings.ttsVoicePlaceholder} disabled={settingsSaving || !ttsView} onChange={(e) => { setTtsVoice(e.target.value); markTtsEdited(); }} />
             </label>
-            <SecretKeyField name="TTS_API_KEY" status={secrets?.TTS_API_KEY} disabled={settingsSaving || !ttsView}
+            <SecretKeyField name="TTS_API_KEY" status={secrets?.TTS_API_KEY} disabled={settingsSaving || !ttsView || secretsLoad.state.status !== "ready"}
               approvalRequired={Boolean(secrets?.TTS_API_KEY.configured && ttsView?.apiKeyApproved !== true)}
               str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
             <div className="text-sm text-muted">{s.settings.ttsApiKeyOptionalNote}</div>

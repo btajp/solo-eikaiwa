@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchPracticeDays, fetchProgressSummary, getHealth, onProgressUpdate, progressLevelAction,
   sessionEnd, sessionEndKeepalive, sessionStart,
@@ -31,6 +31,7 @@ import {
 import {
   dismissSetupBanner, isSetupBannerDismissed, resumeSetupBanner, shouldShowSetupBanner, shouldShowSetupResume,
 } from "./lib/whisper-setup";
+import { healthRetryDelay } from "./lib/health-retry";
 
 type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource; sessionId: string } | { kind: "library" } | { kind: "sentences" } | { kind: "listening" } | { kind: "placement" } | { kind: "progress" } | { kind: "feedback" } | { kind: "settings" } | { kind: "about" };
 
@@ -40,6 +41,10 @@ const DEP_DISPLAY_NAME: Record<string, string> = { whisper: "whisper-cli" };
 export function App() {
   const [health, setHealth] = useState<Health | null>(null);
   const [serverDown, setServerDown] = useState(false);
+  const healthAliveRef = useRef(true);
+  const healthTimerRef = useRef<number | null>(null);
+  const healthRetryAttemptRef = useRef(0);
+  const healthGenerationRef = useRef(0);
   // Tauri配布アプリ内かどうか（UAマーカー判定・audio.ts参照）。バナー文言・依存判定の文脈分岐に使う
   const desktop = isDesktopContext();
   const missing = missingDeps(health, desktop);
@@ -77,11 +82,42 @@ export function App() {
   // サイドバー「自主練」見出し横の ⓘ ポップオーバー開閉
   const [selfHintOpen, setSelfHintOpen] = useState(false);
 
-  function refetchHealth() {
+  const clearHealthRetry = useCallback(() => {
+    if (healthTimerRef.current !== null) {
+      window.clearTimeout(healthTimerRef.current);
+      healthTimerRef.current = null;
+    }
+  }, []);
+
+  const refetchHealth = useCallback((resetRetry = true) => {
+    if (resetRetry) {
+      healthRetryAttemptRef.current = 0;
+      clearHealthRetry();
+    }
+    const generation = healthGenerationRef.current + 1;
+    healthGenerationRef.current = generation;
     getHealth()
-      .then((h) => { setHealth(h); setServerDown(false); })
-      .catch(() => { setHealth(null); setServerDown(true); });
-  }
+      .then((h) => {
+        if (!healthAliveRef.current || healthGenerationRef.current !== generation) return;
+        clearHealthRetry();
+        healthRetryAttemptRef.current = 0;
+        setHealth(h);
+        setServerDown(false);
+      })
+      .catch(() => {
+        if (!healthAliveRef.current || healthGenerationRef.current !== generation) return;
+        setHealth(null);
+        setServerDown(true);
+        const attempt = healthRetryAttemptRef.current + 1;
+        const delay = healthRetryDelay(attempt);
+        if (delay === null) return;
+        healthRetryAttemptRef.current = attempt;
+        healthTimerRef.current = window.setTimeout(() => {
+          healthTimerRef.current = null;
+          refetchHealth(false);
+        }, delay);
+      });
+  }, [clearHealthRetry]);
 
   function moveTo(next: Mode) {
     setBlockedCapabilities(null);
@@ -106,6 +142,7 @@ export function App() {
   }
 
   useEffect(() => {
+    healthAliveRef.current = true;
     refetchHealth();
     if (!startedRef.current) {
       startedRef.current = true;
@@ -114,10 +151,13 @@ export function App() {
     const onPageHide = () => sessionEndKeepalive(sessionId);
     window.addEventListener("pagehide", onPageHide);
     return () => {
+      healthAliveRef.current = false;
+      healthGenerationRef.current += 1;
+      clearHealthRetry();
       window.removeEventListener("pagehide", onPageHide);
       sessionEnd(sessionId);
     };
-  }, [sessionId]);
+  }, [clearHealthRetry, refetchHealth, sessionId]);
 
   function onSelect(sel: StartSelection) {
     if (startSelectionNeedsRecordingReadiness(sel) && !requestRecordingStart()) return;
@@ -203,7 +243,9 @@ export function App() {
       </aside>
       <main className="app">
       {serverDown && (
-        <Banner kind="error">{desktop ? t.banners.serverDownDesktop : t.banners.serverDownDev}</Banner>
+        <Banner kind="error" action={<Button variant="secondary" onClick={() => refetchHealth()}>{t.banners.retry}</Button>}>
+          {desktop ? t.banners.serverDownDesktop : t.banners.serverDownDev}
+        </Banner>
       )}
       {!serverDown && missing.length > 0 && (
         <Banner kind="error">
@@ -271,7 +313,7 @@ export function App() {
       {mode.kind === "progress" && <ProgressScreen lang={lang} />}
       {mode.kind === "feedback" && <FeedbackScreen lang={lang} />}
       {mode.kind === "settings" && (
-        <SettingsScreen lang={lang} uiScale={uiScale} setUiScale={setUiScale} switchLang={switchLang} />
+        <SettingsScreen lang={lang} uiScale={uiScale} setUiScale={setUiScale} switchLang={switchLang} onHealthChanged={refetchHealth} />
       )}
       {mode.kind === "about" && <AboutScreen lang={lang} />}
       </main>

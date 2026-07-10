@@ -67,6 +67,7 @@ type BannerStrings = {
     depsMissingDesktop: string;
     serverDownDev: string;
     serverDownDesktop: string;
+    retry: string;
     ttsKeyMissing: string;
   };
 };
@@ -133,6 +134,10 @@ type SettingsStrings = {
   settings: {
     title: string;
     llmSection: string;
+    loadLlmFailed: string;
+    loadTtsFailed: string;
+    loadSecretsFailed: string;
+    retry: string;
     roleName: Record<LlmRole, string>;
     roleDesc: Record<LlmRole, string>;
     roleReason: Record<LlmRole, string>;
@@ -469,6 +474,7 @@ export const STR: Record<Lang, Strings> = {
       depsMissingDesktop: "A bundled app file is missing (whisper). Please reinstall the app.",
       serverDownDev: "Can't connect to the API server — run `cd app && bun run dev` to start it.",
       serverDownDesktop: "Can't connect to the local server. Please restart the app.",
+      retry: "Try again",
       ttsKeyMissing: "OPENAI_API_KEY isn't set, so text-to-speech falls back to macOS's say command.",
     },
     setup: {
@@ -525,6 +531,10 @@ export const STR: Record<Lang, Strings> = {
     settings: {
       title: "Settings",
       llmSection: "Language model",
+      loadLlmFailed: "Couldn't load the model connection settings. Nothing has been changed.",
+      loadTtsFailed: "Couldn't load the voice settings. Nothing has been changed.",
+      loadSecretsFailed: "Couldn't load API-key status. Key changes are unavailable until it is loaded.",
+      retry: "Try again",
       roleName: {
         conversation: "Conversation",
         assist: "Quick assist",
@@ -972,6 +982,7 @@ export const STR: Record<Lang, Strings> = {
       depsMissingDesktop: "アプリの同梱ファイルが見つかりません（whisper）。アプリを再インストールしてください。",
       serverDownDev: "APIサーバに接続できません — `cd app && bun run dev` で起動してください",
       serverDownDesktop: "ローカルサーバに接続できません。アプリを再起動してください。",
+      retry: "再試行",
       ttsKeyMissing: "OPENAI_API_KEY 未設定のため TTS は say フォールバックです",
     },
     setup: {
@@ -1028,6 +1039,10 @@ export const STR: Record<Lang, Strings> = {
     settings: {
       title: "設定",
       llmSection: "言語モデル",
+      loadLlmFailed: "モデル接続設定を取得できませんでした。設定は変更していません。",
+      loadTtsFailed: "音声設定を取得できませんでした。設定は変更していません。",
+      loadSecretsFailed: "APIキーの設定状態を取得できませんでした。取得できるまでキーの変更はできません。",
+      retry: "再試行",
       roleName: {
         conversation: "会話",
         assist: "クイック支援",

@@ -3,13 +3,13 @@ import type { AuthMode, LlmSettingsView, TtsSettingsView } from "../api";
 import type { Connection, RoleTargets } from "./llm-assignments";
 import {
   connectionDraftChanged,
-  makeLatestGeneration,
   makeSaveGenerationTracker,
   mergeConnectionSaveView,
   mergeRolesSaveView,
   rolesDraftChanged,
   ttsDraftChanged,
 } from "./settings-save-scopes";
+import { makeLatestGeneration } from "./latest-generation";
 
 const TARGETS: RoleTargets = {
   conversation: "claude", assist: "claude", coaching: "claude", generation: "claude", assessment: "claude",

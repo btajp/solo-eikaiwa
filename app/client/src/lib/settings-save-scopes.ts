@@ -1,6 +1,8 @@
 import type { AuthMode, LlmAuthProvider, LlmSettingsView, RoleTuning, TtsProvider, TtsSettingsView } from "../api";
 import type { Connection, RoleTargets } from "./llm-assignments";
 
+export { makeLatestGeneration } from "./latest-generation";
+
 export type ConnectionDraft = {
   connection: Connection;
   globalClaudeModel: string;
@@ -8,20 +10,6 @@ export type ConnectionDraft = {
 };
 
 export type SaveScope = "connection" | "roles" | "tts";
-
-/** 1つの非同期操作列で、最新要求だけを画面状態へ反映するための世代管理。 */
-export function makeLatestGeneration(): { begin: () => number; isCurrent: (generation: number) => boolean } {
-  let latest = 0;
-  return {
-    begin() {
-      latest += 1;
-      return latest;
-    },
-    isCurrent(generation) {
-      return latest === generation;
-    },
-  };
-}
 
 function sameJson(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
