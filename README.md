@@ -150,6 +150,8 @@ TTS を OpenAI 以外（ローカル等）に向けるときは「⚙️ 設定 
 ./scripts/install-daemon.sh   # クライアントビルド → LaunchAgent 登録 → ヘルスチェック
 ```
 
+LaunchAgentの起動ラッパーはログインシェルからPATHだけを最大3秒で取得し、応答しない場合は子プロセスを終了して既知のPATHへフォールバックします。サーバ本体はログインシェルの配下で実行しないため、シェル初期化が壊れていても無応答のまま残りません。APIキーはmacOS Keychainまたは`app/.env`に設定してください。
+
 **② Caddy の用意（任意・https や `solo-eikaiwa` ドメインでアクセスしたい場合のみ）**。マシンごとに初回のみ。Homebrew の Caddy を常駐サービスにする例:
 
 ```bash

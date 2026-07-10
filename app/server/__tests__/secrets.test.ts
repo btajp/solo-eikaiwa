@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  KEYCHAIN_SECRET_NAMES, isValidSecretValue, makeSecretsManager,
+  KEYCHAIN_SECRET_NAMES, isValidSecretValue, makeSecretsManager, realSecretsSpawn,
   type SecretsSpawnFn,
 } from "../secrets";
 
@@ -101,6 +101,24 @@ describe("makeSecretsManager", () => {
     expect(mgr.status().TTS_API_KEY).toEqual({ configured: true, source: "env" });
   });
 
+  test("load: security が永久pendingでもdeadlineでabortし、envのみで起動を継続する", async () => {
+    let observedSignal: AbortSignal | undefined;
+    const spawn: SecretsSpawnFn = async (_cmd, _stdin, opts) => {
+      observedSignal = opts?.signal;
+      return await new Promise(() => {});
+    };
+    const env: Record<string, string | undefined> = { CODEX_API_KEY: "sk-env-timeout" };
+    const mgr = makeSecretsManager({ spawn, env, timeoutMs: 20 });
+    const started = performance.now();
+
+    await mgr.load();
+
+    expect(performance.now() - started).toBeLessThan(200);
+    expect(observedSignal?.aborted).toBe(true);
+    expect(mgr.get("CODEX_API_KEY")).toBe("sk-env-timeout");
+    expect(mgr.status().CODEX_API_KEY).toEqual({ configured: true, source: "env" });
+  });
+
   test("remove: Keychain値だけを削除し、env由来値へresolverが戻る", async () => {
     const { spawn } = makeFakeSpawn(OK);
     const env: Record<string, string | undefined> = { OPENAI_COMPAT_API_KEY: "sk-env-original" };
@@ -146,5 +164,21 @@ describe("makeSecretsManager", () => {
     expect([...KEYCHAIN_SECRET_NAMES]).toEqual([
       "ANTHROPIC_API_KEY", "CODEX_API_KEY", "OPENAI_COMPAT_API_KEY", "TTS_API_KEY",
     ]);
+  });
+});
+
+describe("realSecretsSpawn", () => {
+  test("AbortSignalで応答しない子プロセスを終了する", async () => {
+    const controller = new AbortController();
+    const started = performance.now();
+    const pending = realSecretsSpawn(
+      ["/bin/sh", "-c", "exec /bin/sleep 10"],
+      undefined,
+      { signal: controller.signal },
+    );
+    setTimeout(() => controller.abort(), 20);
+    const result = await pending;
+    expect(performance.now() - started).toBeLessThan(2_000);
+    expect(result.exitCode).not.toBe(0);
   });
 });

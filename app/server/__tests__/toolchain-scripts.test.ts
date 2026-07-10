@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   chmodSync,
   copyFileSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -13,6 +14,7 @@ import path from "node:path";
 const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
 const CHECK_SCRIPT = path.join(REPO_ROOT, "scripts", "check-toolchain.sh");
 const INSTALL_SCRIPT = path.join(REPO_ROOT, "scripts", "install-bun-deps.sh");
+const DAEMON_SCRIPT = path.join(REPO_ROOT, "scripts", "daemon-server.sh");
 const tempDirs: string[] = [];
 
 afterEach(() => {
@@ -51,6 +53,36 @@ function run(script: string, args: string[], fakeBin: string, extraEnv: Record<s
 
 function output(result: ReturnType<typeof Bun.spawnSync>) {
   return `${result.stdout?.toString() ?? ""}${result.stderr?.toString() ?? ""}`;
+}
+
+async function runDaemonWithDeadline(env: Record<string, string>) {
+  const proc = Bun.spawn({
+    cmd: ["/bin/bash", DAEMON_SCRIPT],
+    cwd: REPO_ROOT,
+    env: { ...process.env, ...env },
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  let killedByTest = false;
+  const timer = setTimeout(() => {
+    killedByTest = true;
+    proc.kill();
+  }, 2_000);
+  try {
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+    return { stdout, stderr, exitCode, killedByTest };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function writeExecutable(file: string, contents: string) {
+  writeFileSync(file, contents);
+  chmodSync(file, 0o755);
 }
 
 describe("toolchain contract", () => {
@@ -159,6 +191,62 @@ describe("repository guards", () => {
       expect(text, relative).toContain("install-bun-deps.sh");
       expect(text, relative).not.toMatch(/bun install(?! --frozen-lockfile)/);
     }
+  });
+
+  test("LaunchAgent wrapperはログインシェル配下でserver本体を実行せず、PATH取得をtimeoutしてkillする", () => {
+    const text = readFileSync(path.join(REPO_ROOT, "scripts", "daemon-server.sh"), "utf8");
+    expect(text).not.toContain("exec /bin/zsh -lc");
+    expect(text).toContain("LOGIN_SHELL_PATH_TIMEOUT");
+    expect(text).toContain("kill -KILL");
+    expect(text).toContain("exec \"$BUN_BIN\" server/index.ts");
+  });
+
+  test("LaunchAgent wrapperはログインシェルのPATHだけを使いserverを直接execする", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "solo-daemon-path-"));
+    tempDirs.push(dir);
+    const capturedBin = path.join(dir, "captured-bin");
+    mkdirSync(capturedBin);
+    const fakeShell = path.join(dir, "fake-zsh");
+    writeExecutable(path.join(capturedBin, "bun"), "#!/bin/sh\nprintf 'fake-bun:%s\\n' \"$*\"\n");
+    writeExecutable(
+      fakeShell,
+      "#!/bin/sh\nprintf 'noise\\n<SOLO_EIKAIWA_PATH>%s</SOLO_EIKAIWA_PATH>' \"$FAKE_LOGIN_PATH\"\n",
+    );
+
+    const result = await runDaemonWithDeadline({
+      PATH: "/usr/bin:/bin",
+      HOME: dir,
+      FAKE_LOGIN_PATH: `${capturedBin}:/usr/bin:/bin`,
+      SOLO_EIKAIWA_LOGIN_SHELL_BIN: fakeShell,
+    });
+
+    expect(result.killedByTest).toBe(false);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("fake-bun:server/index.ts");
+    expect(result.stderr).not.toContain("timeout");
+  });
+
+  test("LaunchAgent wrapperはハングしたログインシェルをkillして既知のbunで継続する", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "solo-daemon-timeout-"));
+    tempDirs.push(dir);
+    const homeBin = path.join(dir, ".bun", "bin");
+    mkdirSync(homeBin, { recursive: true });
+    const fakeShell = path.join(dir, "hanging-zsh");
+    writeExecutable(path.join(homeBin, "bun"), "#!/bin/sh\nprintf 'fallback-bun:%s\\n' \"$*\"\n");
+    writeExecutable(fakeShell, "#!/bin/sh\nexec /bin/sleep 10\n");
+
+    const result = await runDaemonWithDeadline({
+      PATH: "/usr/bin:/bin",
+      HOME: dir,
+      SOLO_EIKAIWA_LOGIN_SHELL_BIN: fakeShell,
+      SOLO_EIKAIWA_LOGIN_SHELL_PATH_TIMEOUT_ATTEMPTS: "2",
+      SOLO_EIKAIWA_LOGIN_SHELL_PATH_POLL_INTERVAL: "0.01",
+    });
+
+    expect(result.killedByTest).toBe(false);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("fallback-bun:server/index.ts");
+    expect(result.stderr).toContain("PATH取得がtimeout");
   });
 
   test("releaseは共通verify後にbuildし、その後にもcleanを強制する", () => {

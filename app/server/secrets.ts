@@ -41,25 +41,61 @@ export function isValidSecretValue(v: string): boolean {
 }
 
 /** secrets 専用の spawn シーム。既存の SpawnFn は stdin/stdout 非対応のため別定義（テストで注入する）。 */
+export type SecretsSpawnOptions = { signal?: AbortSignal };
+
 export type SecretsSpawnFn = (
   cmd: string[],
   stdin?: string,
+  opts?: SecretsSpawnOptions,
 ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
 
-export const realSecretsSpawn: SecretsSpawnFn = async (cmd, stdin) => {
+export const realSecretsSpawn: SecretsSpawnFn = async (cmd, stdin, opts) => {
   const proc = Bun.spawn(cmd, {
     env: minimalSubprocessEnv(),
     stdin: stdin !== undefined ? new TextEncoder().encode(stdin) : "ignore",
     stdout: "pipe",
     stderr: "pipe",
   });
-  const [stdout, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
-  const exitCode = await proc.exited;
-  return { exitCode, stdout, stderr };
+  const kill = () => {
+    try { proc.kill(); } catch { /* 終了済みとの競合は無視 */ }
+  };
+  if (opts?.signal?.aborted) kill();
+  else opts?.signal?.addEventListener("abort", kill, { once: true });
+  try {
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+    return { exitCode, stdout, stderr };
+  } finally {
+    opts?.signal?.removeEventListener("abort", kill);
+  }
 };
+
+const DEFAULT_KEYCHAIN_TIMEOUT_MS = 5_000;
+
+async function spawnWithTimeout(
+  spawn: SecretsSpawnFn,
+  cmd: string[],
+  stdin: string | undefined,
+  timeoutMs: number,
+): ReturnType<SecretsSpawnFn> {
+  const controller = new AbortController();
+  const boundedTimeoutMs = Math.max(1, Math.ceil(timeoutMs));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`keychain command timed out after ${boundedTimeoutMs}ms`));
+    }, boundedTimeoutMs);
+  });
+  try {
+    return await Promise.race([spawn(cmd, stdin, { signal: controller.signal }), timeout]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
 
 export type SecretSource = "keychain" | "env" | null;
 export type SecretStatus = { configured: boolean; source: SecretSource };
@@ -81,17 +117,34 @@ export function makeSecretsManager(opts?: {
   spawn?: SecretsSpawnFn;
   /** 注入先の env（既定 process.env）。テストではプレーンオブジェクトを注入する。 */
   env?: Record<string, string | undefined>;
+  /** Keychain起動処理全体、およびsave/remove 1回あたりの上限。テストでは短縮して注入する。 */
+  timeoutMs?: number;
 }): SecretsManager {
   const spawn = opts?.spawn ?? realSecretsSpawn;
   const env = opts?.env ?? (process.env as Record<string, string | undefined>);
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_KEYCHAIN_TIMEOUT_MS;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("timeoutMs must be a positive finite number");
   const keychainValues = new Map<SecretName, string>();
 
   return {
     async load() {
+      // 4鍵を従来どおり直列に読むが、全体deadlineを共有する。1鍵目がハングしても最大5秒で
+      // 残りをenvへfail-openし、sidecarのhealth待ち上限より前にlistenへ到達できる。
+      const deadline = performance.now() + timeoutMs;
       for (const name of KEYCHAIN_SECRET_NAMES) {
+        const remainingMs = deadline - performance.now();
+        if (remainingMs <= 0) {
+          console.warn("secrets: keychain read deadline reached (continuing with env)");
+          break;
+        }
         try {
           // find は値が stdout に「出てくる」方向なので argv に秘密は乗らない
-          const r = await spawn(["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", name, "-w"]);
+          const r = await spawnWithTimeout(
+            spawn,
+            ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", name, "-w"],
+            undefined,
+            remainingMs,
+          );
           if (r.exitCode !== 0) {
             keychainValues.delete(name);
             continue;
@@ -115,7 +168,12 @@ export function makeSecretsManager(opts?: {
         throw new Error("invalid secret value (1..500 printable ASCII chars, no spaces/quotes/backslashes)");
       }
       // -U: 既存項目を上書き。値は stdin のコマンド行にのみ現れる（argv には security -i だけ）
-      const r = await spawn(["/usr/bin/security", "-i"], `add-generic-password -U -a ${name} -s ${KEYCHAIN_SERVICE} -w "${value}"\n`);
+      const r = await spawnWithTimeout(
+        spawn,
+        ["/usr/bin/security", "-i"],
+        `add-generic-password -U -a ${name} -s ${KEYCHAIN_SERVICE} -w "${value}"\n`,
+        timeoutMs,
+      );
       if (r.exitCode !== 0) {
         const detail = r.stderr.trim().replaceAll(value, "[redacted]") || `exit ${r.exitCode}`;
         throw new Error(`keychain write failed for ${name}: ${detail}`);
@@ -125,7 +183,12 @@ export function makeSecretsManager(opts?: {
 
     async remove(name) {
       if (!isSecretName(name)) throw new Error(`unknown secret name: ${String(name)}`);
-      const r = await spawn(["/usr/bin/security", "delete-generic-password", "-s", KEYCHAIN_SERVICE, "-a", name]);
+      const r = await spawnWithTimeout(
+        spawn,
+        ["/usr/bin/security", "delete-generic-password", "-s", KEYCHAIN_SERVICE, "-a", name],
+        undefined,
+        timeoutMs,
+      );
       // 44 = 項目なし。冪等な削除として成功扱いにする
       if (r.exitCode !== 0 && r.exitCode !== 44) {
         throw new Error(`keychain delete failed for ${name}: ${r.stderr.trim() || `exit ${r.exitCode}`}`);
