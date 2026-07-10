@@ -267,23 +267,33 @@ export async function genTopicAssetSlot(deps: GenTopicAssetSlotDeps): Promise<To
 
   for (let attempt = 1; attempt <= 3 && !(prepPack && modelTalk); attempt++) {
     if (!prepPack) {
-      const candidate = await generatePrepPack(
-        { topicTitle: topic.title, hints: topic.hints, chunkCount: p.chunkCount, hintLang: p.hintLang, stage },
-        deps.runner,
-      );
-      const allChunksPass = candidate.chunks.length > 0 && candidate.chunks.every((c) => checkPrepChunk(c).pass);
-      if (allChunksPass) {
-        prepPack = candidate;
-      } else if (attempt < 3) {
-        log(`  ${topic.id}/stage${stage} prepPack: 検証NG — 再生成します(${attempt}/3)`);
+      try {
+        const candidate = await generatePrepPack(
+          { topicTitle: topic.title, hints: topic.hints, chunkCount: p.chunkCount, hintLang: p.hintLang, stage },
+          deps.runner,
+        );
+        const allChunksPass = candidate.chunks.length > 0 && candidate.chunks.every((c) => checkPrepChunk(c).pass);
+        if (allChunksPass) {
+          prepPack = candidate;
+        } else if (attempt < 3) {
+          log(`  ${topic.id}/stage${stage} prepPack: 検証NG — 再生成します(${attempt}/3)`);
+        }
+      } catch (error) {
+        console.warn("[topic-assets] prepPack runner error:", error instanceof Error ? error.message : String(error));
+        if (attempt < 3) log(`  ${topic.id}/stage${stage} prepPack: 実行失敗 — 再生成します(${attempt}/3)`);
       }
     }
     if (!modelTalk) {
-      const candidate = await generateModelTalk({ topicTitle: topic.title, hints: topic.hints, stage }, deps.runner);
-      if (checkModelTalk(candidate.text, band).pass) {
-        modelTalk = candidate;
-      } else if (attempt < 3) {
-        log(`  ${topic.id}/stage${stage} modelTalk: 検証NG — 再生成します(${attempt}/3)`);
+      try {
+        const candidate = await generateModelTalk({ topicTitle: topic.title, hints: topic.hints, stage }, deps.runner);
+        if (checkModelTalk(candidate.text, band).pass) {
+          modelTalk = candidate;
+        } else if (attempt < 3) {
+          log(`  ${topic.id}/stage${stage} modelTalk: 検証NG — 再生成します(${attempt}/3)`);
+        }
+      } catch (error) {
+        console.warn("[topic-assets] modelTalk runner error:", error instanceof Error ? error.message : String(error));
+        if (attempt < 3) log(`  ${topic.id}/stage${stage} modelTalk: 実行失敗 — 再生成します(${attempt}/3)`);
       }
     }
   }

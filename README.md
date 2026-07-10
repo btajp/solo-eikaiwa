@@ -403,8 +403,12 @@ Talk about:
 ```bash
 bun scripts/generate-content.ts sentences --dry   # 何が追加されるかのプレビュー（書き込みなし）
 bun scripts/generate-content.ts sentences         # 例文練習の自己評価から苦手カテゴリを選び、例文を4文ずつ追記
-bun scripts/generate-content.ts topics            # 現在のレベルに合ったお題2本+ロールプレイシナリオ1本を追加
+bun scripts/generate-content.ts --fill-coverage --dry  # お題・シナリオ・多聴の不足セルを検証付きでプレビュー
+bun scripts/generate-content.ts --fill-coverage        # 不足セルを帯×ドメイン単位で補充
+bun scripts/generate-content.ts topics-target --band foundation --domain daily --count 1  # セルを明示して生成
 ```
+
+お題・シナリオは `--fill-coverage` または `topics-target` / `scenarios-target` を使います。旧 `topics` / `scenarios` / `topics-band` は品質ゲートを迂回できたため廃止し、実行しても書き込みません。現行経路はお題の経験アンカー、シナリオ冒頭の口語性、Markdownの書き込み前ラウンドトリップを必ず検証します。
 
 生成物はリポジトリに恒久的に残るため、既定より高品質な設定を推奨します:
 

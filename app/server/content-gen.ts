@@ -14,11 +14,33 @@ import { spokenStyleFor, type SpokenBand } from "./spoken-style";
 import { BAND_STAGE_RANGE, BANDS, computeBandCoverageStatuses, prioritizeFillTasks, type Band } from "./content-coverage";
 import { checkTopicAnchor } from "./topic-anchor-check";
 import { checkScenarioStarter, checkSpokenRegister, countWords, findWrittenVocabHits } from "./spoken-register-check";
+import {
+  writeContentCandidates,
+  writeListeningCandidates,
+  type GeneratedContentCandidate,
+  type GeneratedListeningCandidate,
+} from "./content-gen-markdown";
+
+export { contentToMarkdown, listeningToMarkdown } from "./content-gen-markdown";
 
 const ORIGINALITY = "All output must be completely original — do not copy or adapt sentences from existing textbooks or courses.";
 
 export type NewSentenceCandidate = { domain: string; en: string; ja: string; note: string };
 const DOMAINS = ["daily", "business", "it"] as const;
+
+/** Markdownの行構造を壊さないhint配列へ正規化する。exactLength指定時は件数も一致必須。 */
+export function validateGeneratedHints(raw: unknown, exactLength?: number): string[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  if (exactLength !== undefined && raw.length !== exactLength) return null;
+  if (!raw.every((hint) => typeof hint === "string" && hint.trim().length > 0 && !/[\r\n]/.test(hint))) return null;
+  return raw.map((hint) => (hint as string).trim());
+}
+
+/** 品質ゲート導入前の重複サブコマンドは現行のcoverage/target経路へ統合し、書き込み不可にする。 */
+export function deprecatedContentCommandMessage(subcommand: string | undefined): string | null {
+  if (!["topics", "scenarios", "topics-band"].includes(subcommand ?? "")) return null;
+  return `${subcommand} は非推奨のため廃止しました。品質ゲート付きの --fill-coverage または *-target を使ってください。`;
+}
 
 /**
  * 生成候補を検証して Sentence[] に整形する。1件でも不正・重複があれば null（全体不採用 → 再生成を促す）。
@@ -55,46 +77,7 @@ export function validateNewSentences(
   return out;
 }
 
-export type NewContentCandidate = {
-  id: string;
-  kind: "topic" | "scenario";
-  title: string;
-  titleJa: string;
-  domain: string;
-  level: [number, number];
-  hints: string[];
-  /** scenario専用の3件の英語オープナー。topicは常に未設定（既存挙動を変えない） */
-  starters?: string[];
-  /**
-   * v0.26 content-ladder wave1: topicの「完全に既知」アンカー（topic-anchor-check対象・省略可）。
-   * 省略時はcontentToMarkdownがフィールド自体を出力しない（既存テスト・既存挙動を変えない）。
-   */
-  experienceAnchor?: string;
-  memoryCue?: string;
-  commonObjectsOrActions?: string[];
-};
-
-/** menu.ts の parseContentFile が読める markdown に整形する（ラウンドトリップをテストで保証） */
-export function contentToMarkdown(c: NewContentCandidate): string {
-  const heading = c.kind === "topic" ? "Talk about:" : "Roleplay setup:";
-  return [
-    "---",
-    `id: ${c.id}`,
-    `kind: ${c.kind}`,
-    `title: "${c.title}"`,
-    `title_ja: "${c.titleJa}"`,
-    `domain: ${c.domain}`,
-    `level: [${c.level[0]}, ${c.level[1]}]`,
-    ...(c.experienceAnchor ? [`experience_anchor: "${c.experienceAnchor}"`] : []),
-    ...(c.memoryCue ? [`memory_cue: "${c.memoryCue}"`] : []),
-    ...(c.commonObjectsOrActions ? [`common_objects_or_actions: "${c.commonObjectsOrActions.join(", ")}"`] : []),
-    "---",
-    heading,
-    ...c.hints.map((h) => `- ${h}`),
-    ...(c.starters ? c.starters.map((s) => `> ${s}`) : []),
-    "",
-  ].join("\n");
-}
+export type NewContentCandidate = GeneratedContentCandidate;
 
 /**
  * AI生成トピック/シナリオ候補の厳格バリデーション（menu.ts の parseContentFile とは別物）。
@@ -116,8 +99,8 @@ export function validateTopicCandidate(
   if (typeof c.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.id)) return null;
   if (existingIds.has(c.id) || existsSync(path.join(dir, `${c.id}.md`))) return null;
 
-  if (typeof c.title !== "string" || !c.title.trim()) return null;
-  if (typeof c.titleJa !== "string" || !c.titleJa.trim()) return null;
+  if (typeof c.title !== "string" || !c.title.trim() || /[\r\n"]/.test(c.title)) return null;
+  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\r\n"]/.test(c.titleJa)) return null;
   if (!(DOMAINS as readonly string[]).includes(c.domain as string)) return null;
 
   if (!Array.isArray(c.level) || c.level.length !== 2) return null;
@@ -127,12 +110,12 @@ export function validateTopicCandidate(
   if (min < 1 || max > 6 || min > max) return null;
   if (!(min <= stage && stage <= max)) return null;
 
-  if (!Array.isArray(c.hints) || c.hints.length === 0) return null;
-  if (!c.hints.every((h) => typeof h === "string" && h.trim().length > 0)) return null;
+  const hints = validateGeneratedHints(c.hints);
+  if (!hints) return null;
 
   return {
     id: c.id, kind, title: c.title.trim(), titleJa: c.titleJa.trim(),
-    domain: c.domain as string, level: [min, max], hints: c.hints.map((h) => h.trim()),
+    domain: c.domain as string, level: [min, max], hints,
   };
 }
 
@@ -308,20 +291,10 @@ Do not use any tools — reply directly with text only.`;
     return;
   }
 
-  // 全候補の検証済み後にまとめて書き込む。途中で衝突等が判明した場合はここまでの分もロールバックする。
-  const written: string[] = [];
-  try {
-    for (const cand of candidates) {
-      const dir = cand.kind === "topic" ? deps.topicsDir : deps.scenariosDir;
-      const file = path.join(dir, `${cand.id}.md`);
-      if (existsSync(file)) throw new Error(`エラー: ${file} は既に存在します。中止します。`);
-      writeFileSync(file, contentToMarkdown(cand));
-      written.push(file);
-    }
-  } catch (err) {
-    for (const f of written) rmSync(f, { force: true });
-    throw err;
-  }
+  const written = writeContentCandidates(
+    candidates,
+    (candidate) => candidate.kind === "topic" ? deps.topicsDir : deps.scenariosDir,
+  );
   log(`完了: ${written.length} ファイルを追加しました。`);
 }
 
@@ -360,15 +333,15 @@ function validateScenarioCandidate(
   const c = parsed as Partial<NewContentCandidate>;
   if (typeof c.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.id)) return null;
   if (existingIds.has(c.id) || existsSync(path.join(dir, `${c.id}.md`))) return null;
-  if (typeof c.title !== "string" || !c.title.trim() || /[\n"]/.test(c.title)) return null;
-  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\n"]/.test(c.titleJa)) return null;
-  if (!Array.isArray(c.hints) || c.hints.length === 0) return null;
-  if (!c.hints.every((h) => typeof h === "string" && h.trim().length > 0)) return null;
+  if (typeof c.title !== "string" || !c.title.trim() || /[\r\n"]/.test(c.title)) return null;
+  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\r\n"]/.test(c.titleJa)) return null;
+  const hints = validateGeneratedHints(c.hints);
+  if (!hints) return null;
   const starters = validateStarters(c.starters);
   if (!starters) return null;
   return {
     id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(),
-    hints: c.hints.map((h) => h.trim()), starters,
+    hints, starters,
   };
 }
 
@@ -424,18 +397,7 @@ Do not use any tools — reply directly with text only.`;
     return;
   }
 
-  const written: string[] = [];
-  try {
-    for (const cand of candidates) {
-      const file = path.join(deps.scenariosDir, `${cand.id}.md`);
-      if (existsSync(file)) throw new Error(`エラー: ${file} は既に存在します。中止します。`);
-      writeFileSync(file, contentToMarkdown(cand));
-      written.push(file);
-    }
-  } catch (err) {
-    for (const f of written) rmSync(f, { force: true });
-    throw err;
-  }
+  const written = writeContentCandidates(candidates, () => deps.scenariosDir);
   log(`完了: ${written.length} 本の stage1 シナリオを追加しました。`);
 }
 
@@ -465,13 +427,13 @@ function validateTopicBandCandidate(
   const c = parsed as Partial<NewContentCandidate>;
   if (typeof c.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.id)) return null;
   if (existingIds.has(c.id) || existsSync(path.join(dir, `${c.id}.md`))) return null;
-  if (typeof c.title !== "string" || !c.title.trim() || /[\n"]/.test(c.title)) return null;
-  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\n"]/.test(c.titleJa)) return null;
-  if (!Array.isArray(c.hints) || c.hints.length !== 4) return null;
-  if (!c.hints.every((h) => typeof h === "string" && h.trim().length > 0)) return null;
+  if (typeof c.title !== "string" || !c.title.trim() || /[\r\n"]/.test(c.title)) return null;
+  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\r\n"]/.test(c.titleJa)) return null;
+  const hints = validateGeneratedHints(c.hints, 4);
+  if (!hints) return null;
   return {
     id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(),
-    hints: c.hints.map((h) => h.trim()),
+    hints,
   };
 }
 
@@ -524,38 +486,11 @@ Do not use any tools — reply directly with text only.`;
     return;
   }
 
-  const written: string[] = [];
-  try {
-    for (const cand of candidates) {
-      const file = path.join(deps.topicsDir, `${cand.id}.md`);
-      if (existsSync(file)) throw new Error(`エラー: ${file} は既に存在します。中止します。`);
-      writeFileSync(file, contentToMarkdown(cand));
-      written.push(file);
-    }
-  } catch (err) {
-    for (const f of written) rmSync(f, { force: true });
-    throw err;
-  }
+  const written = writeContentCandidates(candidates, () => deps.topicsDir);
   log(`完了: ${written.length} 本の stage1帯 business/IT お題を追加しました。`);
 }
 
-export type NewListeningCandidate = { id: string; title: string; titleJa: string; paragraphs: string[] };
-
-/** parseListeningFile が読める markdown に整形する（ラウンドトリップをテストで保証）。domain/level はプラン側で固定。 */
-export function listeningToMarkdown(c: NewListeningCandidate & { domain: string; level: [number, number] }): string {
-  return [
-    "---",
-    `id: ${c.id}`,
-    `title: "${c.title}"`,
-    `title_ja: "${c.titleJa}"`,
-    `domain: ${c.domain}`,
-    `level: [${c.level[0]}, ${c.level[1]}]`,
-    "---",
-    "",
-    c.paragraphs.join("\n\n"),
-    "",
-  ].join("\n");
-}
+export type NewListeningCandidate = Omit<GeneratedListeningCandidate, "domain" | "level">;
 
 /** talk-explain のクライアント訳解説が受け付ける本文の上限（3000字）に対し、余裕を持たせた生成側の上限 */
 const LISTENING_BODY_MAX_CHARS = 2800;
@@ -577,8 +512,8 @@ export function validateListeningCandidate(
   if (typeof c.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.id)) return null;
   if (c.id === "log") return null;
   if (existingIds.has(c.id) || existsSync(path.join(dir, `${c.id}.md`))) return null;
-  if (typeof c.title !== "string" || !c.title.trim() || /[\n"]/.test(c.title)) return null;
-  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\n"]/.test(c.titleJa)) return null;
+  if (typeof c.title !== "string" || !c.title.trim() || /[\r\n"]/.test(c.title)) return null;
+  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\r\n"]/.test(c.titleJa)) return null;
   if (!Array.isArray(c.paragraphs) || c.paragraphs.length < 2) return null;
   if (!c.paragraphs.every((p) => typeof p === "string" && p.trim().length > 0)) return null;
   const paragraphs = c.paragraphs.map((p) => p.trim());
@@ -674,18 +609,7 @@ Do not use any tools — reply directly with text only.`;
   }
 
   mkdirSync(deps.listeningDir, { recursive: true });
-  const written: string[] = [];
-  try {
-    for (const cand of candidates) {
-      const file = path.join(deps.listeningDir, `${cand.id}.md`);
-      if (existsSync(file)) throw new Error(`エラー: ${file} は既に存在します。中止します。`);
-      writeFileSync(file, listeningToMarkdown(cand));
-      written.push(file);
-    }
-  } catch (err) {
-    for (const f of written) rmSync(f, { force: true });
-    throw err;
-  }
+  const written = writeListeningCandidates(candidates, deps.listeningDir);
   log(`完了: ${written.length} 本の ${deps.domain}/${deps.band} listening を追加しました。`);
 }
 
@@ -762,10 +686,10 @@ function validateTopicTargetCandidate(
   const c = parsed as Partial<NewContentCandidate>;
   if (typeof c.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.id)) return null;
   if (existingIds.has(c.id) || existsSync(path.join(dir, `${c.id}.md`))) return null;
-  if (typeof c.title !== "string" || !c.title.trim() || /[\n"]/.test(c.title)) return null;
-  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\n"]/.test(c.titleJa)) return null;
-  if (!Array.isArray(c.hints) || c.hints.length !== 4) return null;
-  if (!c.hints.every((h) => typeof h === "string" && h.trim().length > 0)) return null;
+  if (typeof c.title !== "string" || !c.title.trim() || /[\r\n"]/.test(c.title)) return null;
+  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\r\n"]/.test(c.titleJa)) return null;
+  const hints = validateGeneratedHints(c.hints, 4);
+  if (!hints) return null;
   if (typeof c.experienceAnchor !== "string" || !c.experienceAnchor.trim() || !safeInlineField(c.experienceAnchor)) return null;
   if (typeof c.memoryCue !== "string" || !c.memoryCue.trim() || !safeInlineField(c.memoryCue)) return null;
   if (
@@ -780,7 +704,7 @@ function validateTopicTargetCandidate(
   });
   if (!anchor.pass) return null;
   return {
-    id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(), hints: c.hints.map((h) => h.trim()),
+    id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(), hints,
     experienceAnchor: c.experienceAnchor.trim(), memoryCue: c.memoryCue.trim(),
     commonObjectsOrActions: c.commonObjectsOrActions.map((x) => x.trim()),
   };
@@ -855,18 +779,7 @@ Do not use any tools — reply directly with text only.`;
     return;
   }
 
-  const written: string[] = [];
-  try {
-    for (const cand of candidates) {
-      const file = path.join(deps.topicsDir, `${cand.id}.md`);
-      if (existsSync(file)) throw new Error(`エラー: ${file} は既に存在します。中止します。`);
-      writeFileSync(file, contentToMarkdown(cand));
-      written.push(file);
-    }
-  } catch (err) {
-    for (const f of written) rmSync(f, { force: true });
-    throw err;
-  }
+  const written = writeContentCandidates(candidates, () => deps.topicsDir);
   log(`完了: ${written.length} 本の ${deps.domain}/${deps.band} topic を追加しました。`);
 }
 
@@ -885,14 +798,14 @@ function validateScenarioTargetCandidate(
   const c = parsed as Partial<NewContentCandidate>;
   if (typeof c.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.id)) return null;
   if (existingIds.has(c.id) || existsSync(path.join(dir, `${c.id}.md`))) return null;
-  if (typeof c.title !== "string" || !c.title.trim() || /[\n"]/.test(c.title)) return null;
-  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\n"]/.test(c.titleJa)) return null;
-  if (!Array.isArray(c.hints) || c.hints.length === 0) return null;
-  if (!c.hints.every((h) => typeof h === "string" && h.trim().length > 0)) return null;
+  if (typeof c.title !== "string" || !c.title.trim() || /[\r\n"]/.test(c.title)) return null;
+  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\r\n"]/.test(c.titleJa)) return null;
+  const hints = validateGeneratedHints(c.hints);
+  if (!hints) return null;
   const starters = validateStarters(c.starters);
   if (!starters) return null;
   if (!starters.every((s) => checkScenarioStarter(s).pass)) return null;
-  return { id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(), hints: c.hints.map((h) => h.trim()), starters };
+  return { id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(), hints, starters };
 }
 
 export type GenScenariosForTargetDeps = {
@@ -961,18 +874,7 @@ Do not use any tools — reply directly with text only.`;
     return;
   }
 
-  const written: string[] = [];
-  try {
-    for (const cand of candidates) {
-      const file = path.join(deps.scenariosDir, `${cand.id}.md`);
-      if (existsSync(file)) throw new Error(`エラー: ${file} は既に存在します。中止します。`);
-      writeFileSync(file, contentToMarkdown(cand));
-      written.push(file);
-    }
-  } catch (err) {
-    for (const f of written) rmSync(f, { force: true });
-    throw err;
-  }
+  const written = writeContentCandidates(candidates, () => deps.scenariosDir);
   log(`完了: ${written.length} 本の ${deps.domain}/${deps.band} scenario を追加しました。`);
 }
 

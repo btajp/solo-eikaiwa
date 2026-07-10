@@ -16,6 +16,7 @@ const REPO_ROOT = path.resolve(import.meta.dir, "../../..");
 const CHECK_SCRIPT = path.join(REPO_ROOT, "scripts", "check-toolchain.sh");
 const INSTALL_SCRIPT = path.join(REPO_ROOT, "scripts", "install-bun-deps.sh");
 const DAEMON_SCRIPT = path.join(REPO_ROOT, "scripts", "daemon-server.sh");
+const GENERATE_CONTENT_SCRIPT = path.join(REPO_ROOT, "scripts", "generate-content.ts");
 const tempDirs: string[] = [];
 
 afterEach(() => {
@@ -190,6 +191,20 @@ describe("repository guards", () => {
   test("server typecheckの対象に教材scriptsを含める", () => {
     const tsconfig = JSON.parse(readFileSync(path.join(REPO_ROOT, "app", "tsconfig.json"), "utf8"));
     expect(tsconfig.include).toContain("../scripts");
+  });
+
+  test("品質ゲートのない旧教材サブコマンドはLLM・DB・書き込み前に拒否する", () => {
+    for (const subcommand of ["topics", "scenarios", "topics-band"]) {
+      const result = Bun.spawnSync({
+        cmd: [process.execPath, GENERATE_CONTENT_SCRIPT, subcommand, "--dry"],
+        cwd: REPO_ROOT,
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+      expect(result.exitCode, subcommand).toBe(1);
+      expect(output(result), subcommand).toContain("非推奨のため廃止");
+      expect(output(result), subcommand).toContain("--fill-coverage");
+    }
   });
 
   test("setup/daemon/sidecarと共通verifyがfrozen install helperを使う", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -23,18 +23,20 @@ import {
 
 /** systemPrompt の内容で prepPack 用/model talk 用の呼び出しを判別する fake ClaudeRunner。
  *  coach.ts の prepSystem/modelTalkSystem の冒頭文言は生成物の一部ではなく固定文言なので判別キーとして安全。 */
-function makeSlotRunner(prepResponses: string[], talkResponses: string[]): { runner: ClaudeRunner; state: { prepCalls: number; talkCalls: number } } {
+function makeSlotRunner(prepResponses: Array<string | Error>, talkResponses: Array<string | Error>): { runner: ClaudeRunner; state: { prepCalls: number; talkCalls: number } } {
   const state = { prepCalls: 0, talkCalls: 0 };
   const runner: ClaudeRunner = async (_prompt, _resumeId, opts) => {
     const isPrep = opts?.systemPrompt?.startsWith("You prepare a Japanese IT professional") ?? false;
     if (isPrep) {
-      const text = prepResponses[Math.min(state.prepCalls, prepResponses.length - 1)];
+      const response = prepResponses[Math.min(state.prepCalls, prepResponses.length - 1)];
       state.prepCalls++;
-      return { text, sessionId: "fake" };
+      if (response instanceof Error) throw response;
+      return { text: response, sessionId: "fake" };
     }
-    const text = talkResponses[Math.min(state.talkCalls, talkResponses.length - 1)];
+    const response = talkResponses[Math.min(state.talkCalls, talkResponses.length - 1)];
     state.talkCalls++;
-    return { text, sessionId: "fake" };
+    if (response instanceof Error) throw response;
+    return { text: response, sessionId: "fake" };
   };
   return { runner, state };
 }
@@ -343,6 +345,41 @@ describe("topic-assets / genTopicAssetSlot（1スロットのprepPack+model talk
   test("3回とも検証NGならエラーをthrowする（3ラウンド規律）", async () => {
     const { runner } = makeSlotRunner([FAILING_PREP_JSON, FAILING_PREP_JSON, FAILING_PREP_JSON], [PASSING_TALK]);
     await expect(genTopicAssetSlot({ runner, topic: SAMPLE_TOPIC, stage: 3 })).rejects.toThrow();
+  });
+
+  test("runnerの一過性例外はwarnへ原因を残して同じslot内で再試行する", async () => {
+    const { runner, state } = makeSlotRunner(
+      [new Error("temporary prep failure"), PASSING_PREP_JSON],
+      [new Error("temporary talk failure"), PASSING_TALK],
+    );
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const result = await genTopicAssetSlot({ runner, topic: SAMPLE_TOPIC, stage: 3 });
+      expect(result.prepPack?.chunks).toHaveLength(1);
+      expect(result.modelTalk?.text).toBe(PASSING_TALK);
+      expect(state.prepCalls).toBe(2);
+      expect(state.talkCalls).toBe(2);
+      expect(warn).toHaveBeenCalledWith("[topic-assets] prepPack runner error:", "temporary prep failure");
+      expect(warn).toHaveBeenCalledWith("[topic-assets] modelTalk runner error:", "temporary talk failure");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test("runner例外が3回続いたslotだけthrowする", async () => {
+    const { runner, state } = makeSlotRunner(
+      [new Error("failure 1"), new Error("failure 2"), new Error("failure 3")],
+      [PASSING_TALK],
+    );
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await expect(genTopicAssetSlot({ runner, topic: SAMPLE_TOPIC, stage: 3 })).rejects.toThrow(/3回とも/);
+      expect(state.prepCalls).toBe(3);
+      expect(state.talkCalls).toBe(1);
+      expect(warn).toHaveBeenCalledTimes(3);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

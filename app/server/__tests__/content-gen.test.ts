@@ -8,7 +8,7 @@ import { loadSentences, type Sentence } from "../sentences";
 import type { ClaudeRunner } from "../converse";
 import {
   contentToMarkdown, genSentences, genTopics, genScenarios, genTopicsBand, SCENARIO_BAND_PLAN, TOPIC_BAND_PLAN,
-  validateNewSentences, validateTopicCandidate,
+  deprecatedContentCommandMessage, validateGeneratedHints, validateNewSentences, validateTopicCandidate,
   genTopicsForTarget, genScenariosForTarget,
 } from "../content-gen";
 import { loadListening, parseListeningFile } from "../listening";
@@ -217,6 +217,32 @@ describe("content-gen / validateTopicCandidate", () => {
     expect(validateTopicCandidate({ ...BASE, title: "  " }, "topic", new Set(), dir, 3)).toBeNull();
     expect(validateTopicCandidate({ ...BASE, titleJa: "" }, "topic", new Set(), dir, 3)).toBeNull();
     rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("title/titleJaの改行・二重引用符とhintの改行はnull", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-topic-inline-"));
+    expect(validateTopicCandidate({ ...BASE, title: "Line 1\nLine 2" }, "topic", new Set(), dir, 3)).toBeNull();
+    expect(validateTopicCandidate({ ...BASE, titleJa: '不正な"題名' }, "topic", new Set(), dir, 3)).toBeNull();
+    expect(validateTopicCandidate({ ...BASE, hints: ["First part\n> injected starter"] }, "topic", new Set(), dir, 3)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("content-gen / generated markdown safety", () => {
+  test("全topic/scenario validatorが共有するhint検証は改行を拒否する", () => {
+    expect(validateGeneratedHints(["safe hint"], 1)).toEqual(["safe hint"]);
+    expect(validateGeneratedHints(["first\nsecond"])).toBeNull();
+    expect(validateGeneratedHints(["first\rsecond"])).toBeNull();
+    expect(validateGeneratedHints(["one", "two"], 1)).toBeNull();
+  });
+
+  test("品質ゲートを持たない旧サブコマンドは書き込み不可の移行案内を返す", () => {
+    for (const sub of ["topics", "scenarios", "topics-band"]) {
+      expect(deprecatedContentCommandMessage(sub)).toMatch(/廃止|非推奨/);
+      expect(deprecatedContentCommandMessage(sub)).toContain("--fill-coverage");
+    }
+    expect(deprecatedContentCommandMessage("topics-target")).toBeNull();
+    expect(deprecatedContentCommandMessage("sentences")).toBeNull();
   });
 });
 
