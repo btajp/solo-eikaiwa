@@ -5,6 +5,7 @@ import {
 } from "../api";
 import { Recorder, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
+import { resolveSttOutcome } from "../stt-result";
 import { formatMmSs, useCountdown } from "../useCountdown";
 import { useExplain } from "../useExplain";
 import { Banner } from "../ui/Banner";
@@ -126,8 +127,16 @@ export function PlacementScreen(props: { lang: Lang; onExit: () => void }) {
     try {
       const { blob, durationSec } = await recorderRef.current.stopTimed();
       if (!aliveRef.current) return;
-      const text = await sttUpload(blob);
+      const outcome = await resolveSttOutcome(() => sttUpload(blob));
       if (!aliveRef.current || activeTaskIndexRef.current !== index) return;
+      if (outcome.kind === "empty") {
+        setErrorMsg(t.notHeard);
+        if (fromExpiry) timer.reset(tasks[index]?.durationSec ?? 60);
+        updateRecState("idle");
+        return;
+      }
+      if (outcome.kind === "error") throw outcome.error;
+      const text = outcome.text;
       // 測定なので録り直しは「置き換え」（追記しない）
       setTranscripts((prev) => prev.map((v, i) => (i === index ? text : v)));
       setDurations((prev) => prev.map((v, i) => (i === index ? durationSec : v)));

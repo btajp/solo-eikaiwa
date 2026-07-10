@@ -23,6 +23,7 @@ A local-first, research-grounded English speaking practice app for daily self-st
 ### 💬 自由会話
 
 英語でただ話す。録音ボタンを押して話すと、ローカルで文字起こしされ、AI が音声で返してきます。
+文字起こしが空で返った場合は発話量や英語力として扱わず、自由会話・レベル測定・4/3/2の各画面で理由を案内して、その場で録音し直せます。
 
 ### 支援情報の表示
 

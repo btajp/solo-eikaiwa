@@ -265,7 +265,7 @@ type PlacementStrings = {
     chooseLabel: string; apply: string; confirmError: string;
     xpNote: string;
     showPromptJa: string; translating: string; translateError: string; retryTranslate: string;
-    micError: (detail: string) => string;
+    micError: (detail: string) => string; notHeard: string;
   };
 };
 type SentencesStrings = {
@@ -328,7 +328,7 @@ type Ftt432Strings = { ftt432: {
   doneBody: (count: number) => string;
   roundHeading: (n: number, min: string, topic: string) => string;
   timeUp: string; recStop: string; recStarting: string; recTranscribing: string; recStart: string; roundFinish: string;
-  micError: (detail: string) => string;
+  micError: (detail: string) => string; notHeard: string;
   explainMore: string; explainLoading: string; explainError: string;
 } };
 type ReflectionStrings = { reflection: {
@@ -662,6 +662,7 @@ export const STR: Record<Lang, Strings> = {
       translateError: "Couldn't load the translation.",
       retryTranslate: "Retry",
       micError: (detail) => `Can't access the microphone: ${detail}`,
+      notHeard: "Couldn't catch that. Please record again.",
     },
     sentences: {
       heroTitle: "390 Sentences",
@@ -756,6 +757,7 @@ export const STR: Record<Lang, Strings> = {
       timeUp: "— Time reached", recStop: "⏹ Stop recording", recStarting: "Requesting microphone…", recTranscribing: "📝 Transcribing…",
       recStart: "🎙 Start speaking", roundFinish: "End this round →",
       micError: (detail) => `Can't access the microphone: ${detail}`,
+      notHeard: "Couldn't catch that. Please record again.",
       explainMore: "💡 Explain more", explainLoading: "Writing an explanation…", explainError: "Couldn't load the explanation.",
     },
     reflection: {
@@ -1096,6 +1098,7 @@ export const STR: Record<Lang, Strings> = {
       translateError: "訳を取得できませんでした。",
       retryTranslate: "再試行",
       micError: (detail) => `マイクにアクセスできません: ${detail}`,
+      notHeard: "音声を聞き取れませんでした。もう一度録音してください。",
     },
     sentences: {
       heroTitle: "暗記例文390",
@@ -1190,6 +1193,7 @@ export const STR: Record<Lang, Strings> = {
       timeUp: "— 目安の時間になりました", recStop: "⏹ 録音を止める", recStarting: "マイクを準備中…", recTranscribing: "📝 文字起こし中…",
       recStart: "🎙 話し始める", roundFinish: "このラウンドを終える →",
       micError: (detail) => `マイクにアクセスできません: ${detail}`,
+      notHeard: "音声を聞き取れませんでした。もう一度録音してください。",
       explainMore: "💡 もっと詳しく", explainLoading: "解説を書いています…", explainError: "解説を取得できませんでした。",
     },
     reflection: {

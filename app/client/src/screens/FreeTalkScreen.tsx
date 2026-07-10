@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { converse, fetchPhraseHints, fetchUtteranceTranslation, sttUpload, ttsFetch, type PhraseHint } from "../api";
 import { playBlob, Recorder, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
+import { resolveSttOutcome } from "../stt-result";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { FeedbackRow } from "../ui/FeedbackRow";
@@ -62,13 +63,15 @@ export function FreeTalkScreen(props: {
       updateStatus("transcribing");
       const blob = await recorderRef.current.stop();
       if (!aliveRef.current) return;
-      const text = await sttUpload(blob);
+      const outcome = await resolveSttOutcome(() => sttUpload(blob));
       if (!aliveRef.current) return;
-      if (!text) {
+      if (outcome.kind === "empty") {
         setErrorMsg(t.notHeard);
         updateStatus("error");
         return;
       }
+      if (outcome.kind === "error") throw outcome.error;
+      const text = outcome.text;
       setTurns((prev) => [...prev, { role: "you", text }]);
 
       updateStatus("thinking");

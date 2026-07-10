@@ -8,6 +8,7 @@ import { formatMmSs, useCountdown } from "../useCountdown";
 import { usePlayRow } from "../usePlayRow";
 import { useExplain } from "../useExplain";
 import { STR, type Lang } from "../i18n";
+import { resolveSttOutcome } from "../stt-result";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -100,7 +101,7 @@ export function FourThreeTwoScreen(props: {
   const elapsedSecRef = useRef<number[]>(Array(roundsSec.length).fill(0));
   const segmentStartedAtRef = useRef(0);
   const timer = useCountdown(roundsSec[0], {
-    onExpire: () => { void stopRecording(roundIndexRef.current); },
+    onExpire: () => { void stopRecording(roundIndexRef.current, true); },
   });
 
   const roundIndex = phase.kind === "round" ? phase.index : 0;
@@ -224,29 +225,39 @@ export function FourThreeTwoScreen(props: {
     if (recStateRef.current === "recording") await stopRecording(index);
   }
 
-  async function stopRecording(index: number) {
-    if (recStateRef.current !== "recording" || stopInFlightRef.current || roundIndexRef.current !== index) return;
+  async function stopRecording(index: number, fromExpiry = false): Promise<boolean> {
+    if (recStateRef.current !== "recording" || stopInFlightRef.current || roundIndexRef.current !== index) return false;
     stopInFlightRef.current = true;
     updateRecState("transcribing");
     timer.pause();
     try {
       const { blob, durationSec } = await recorderRef.current.stopTimed();
-      elapsedSecRef.current[index] += durationSec;
-      if (!aliveRef.current) return;
-      const text = await sttUpload(blob);
-      if (!aliveRef.current || roundIndexRef.current !== index) return;
+      if (!aliveRef.current) return false;
+      const outcome = await resolveSttOutcome(() => sttUpload(blob));
+      if (!aliveRef.current || roundIndexRef.current !== index) return false;
+      if (outcome.kind === "empty") {
+        sttFailedRef.current[index] = true;
+        setErrorMsg(t.notHeard);
+        if (fromExpiry) timer.reset(roundsSec[index]);
+        return false;
+      }
+      if (outcome.kind === "error") throw outcome.error;
       // 同一ラウンド内で失敗後に録り直して成功した場合、直前の失敗印を引きずらないよう解除する
       sttFailedRef.current[index] = false;
-      transcriptsRef.current[index] = [transcriptsRef.current[index], text]
+      elapsedSecRef.current[index] += durationSec;
+      transcriptsRef.current[index] = [transcriptsRef.current[index], outcome.text]
         .filter(Boolean)
         .join(" ");
       setTranscripts([...transcriptsRef.current]);
+      return true;
     } catch (err) {
-      if (!aliveRef.current) return;
+      if (!aliveRef.current) return false;
       // STT呼び出しの失敗でtranscriptが空のままround_endが記録され得るため印を付ける
       // （技術障害を英語力の低さのシグナルとして扱わないため。サーバ側 fttOutputSignals で観測対象外にする）
       sttFailedRef.current[index] = true;
       setErrorMsg(err instanceof Error ? err.message : String(err));
+      if (fromExpiry) timer.reset(roundsSec[index]);
+      return false;
     } finally {
       stopInFlightRef.current = false;
       if (aliveRef.current && roundIndexRef.current === index) updateRecState("idle");
@@ -259,7 +270,10 @@ export function FourThreeTwoScreen(props: {
     if (recStateRef.current === "starting" || recStateRef.current === "transcribing") return;
     finishInFlightRef.current = true;
     try {
-      if (recStateRef.current === "recording") await stopRecording(index);
+      if (recStateRef.current === "recording") {
+        const transcribed = await stopRecording(index);
+        if (!transcribed) return;
+      }
       if (!aliveRef.current || roundIndexRef.current !== index) return;
       timer.pause();
       if (roundStartedRef.current) {
