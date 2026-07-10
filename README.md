@@ -195,6 +195,35 @@ cd app/client && bun run dev # UI :5173（/api をプロキシ）
 
 ソースからビルドして動かす場合の手順・開発時の詳細（`cargo tauri dev`・env・ログ・既知の制約）は [`desktop/README.md`](desktop/README.md) を参照してください。
 
+## データのバックアップと復元
+
+学習DBはWAL modeで動くため、稼働中に `learn-english.db` だけをFinderや `cp` でコピーしてはいけません。リポジトリをcloneしたソース環境では、次の管理CLIがSQLiteの整合snapshotを作り、manifestのSHA-256・schema fingerprint・`PRAGMA integrity_check`まで検証します。`backup` はアプリ稼働中でも実行できます。
+
+```bash
+SNAPSHOT="$HOME/Desktop/solo-eikaiwa-db-backup"
+bun scripts/data-backup.ts backup "$SNAPSHOT"
+bun scripts/data-backup.ts verify "$SNAPSHOT"
+```
+
+デスクトップアプリのDBを同じCLIで扱う場合は、先にデータ保存先を指定します（このCLI自体の実行にはソースcheckoutとBunが必要です）。
+
+```bash
+export SOLO_EIKAIWA_DATA_DIR="$HOME/Library/Application Support/com.local.solo-eikaiwa.desktop"
+bun scripts/data-backup.ts backup "$HOME/Desktop/solo-eikaiwa-desktop-db-backup"
+```
+
+復元時だけは、デスクトップアプリを `Cmd+Q` で終了し、開発サーバは `Ctrl+C`、LaunchAgent常駐版は次の `bootout` で停止してください。CLIは3111/3112番portに応答があれば復元を拒否します。
+
+```bash
+launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.local.solo-eikaiwa.server.plist"
+bun scripts/data-backup.ts restore "$SNAPSHOT" --confirm-stopped
+./scripts/install-daemon.sh  # LaunchAgent常駐版だけ再登録
+```
+
+復元は、snapshotのchecksum・integrity・現行schemaとの互換性を別ファイルで検証してから切り替えます。処理中は `.restore-lock` でアプリの同時起動も防ぎます。現在のDBは直前に `data/backups/pre-restore-*` へ整合snapshot化し、DB本体とWAL/SHMもその配下の `original-files/` へ移動して残します。切替後の検証に失敗した場合は元ファイルを自動で戻し、失敗した候補も削除せず退避します。Macの強制終了後にlockだけが残った場合は、restoreプロセスが無いことを確認してからlockを別名へ退避します。
+
+このCLIの対象はSQLite DBです。会話JSONL・録音・進捗ファイル・TTS cache等を含む完全移行では、**アプリとサーバを停止した状態で**ソース運用の `data/`、またはデスクトップ版の `~/Library/Application Support/com.local.solo-eikaiwa.desktop` を `ditto <元dir> <backup dir>` でディレクトリごとコピーしてください。復元前は現在のディレクトリを別名へ `mv` して残し、backupを元の場所へ `ditto` します。コピーや起動確認に失敗したら、失敗した復元先も別名へ移してから退避済みディレクトリを元の名前へ戻します。API keyはmacOS Keychainまたは `app/.env` にあり、このbackupには含まれません。ソース運用の `models/` も `data/` 外ですが、モデルは再ダウンロードできます。
+
 ## LLM プロバイダの切替
 
 コーチ・会話・コンテンツ生成が使う LLM バックエンドの設定は **UI が唯一の真実**（v0.29〜。既定は Claude = Anthropic Claude Agent SDK）。**環境変数で設定できるのは API キーだけ**で、旧 `LLM_PROVIDER` / `OPENAI_COMPAT_BASE_URL` / `OPENAI_COMPAT_MODEL` / `CODEX_MODEL` の env はサーバは読まない（教材生成 CLI のみ従来どおり env 駆動・後述）。LaunchAgent の plist には秘密情報を書かない。切替は「記録・測定」の **⚙️ 設定**（**モデル接続設定** / **用途ごとのモデル**タブ）から行い、保存すると実行中のアプリへ再起動なしで即時適用される（設定は SQLite の `llm_settings`〔接続〕・`llm_role_settings`〔ロール割当〕・`llm_role_tuning`〔ロール別チューニング〕・`llm_auth`〔認証モード〕に保存。**API キーだけは DB に置かず、UI から保存すると macOS Keychain に保管されます**〔`app/.env` も併用可・Keychain が優先・値は UI にもサーバ応答にも表示されません〕）。

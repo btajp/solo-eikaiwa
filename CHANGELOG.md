@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- WAL稼働中でもトランザクション整合性を保つSQLite backup/restore CLIを追加した。snapshotはmanifest・SHA-256・schema fingerprint・integrity checkで検証し、復元前の現DBを自動退避して、切替失敗時は元データへ戻す
+
 ### Changed
 
 - 開発・常駐化・デスクトップビルド・リリース時のBun依存解決をfrozen lockfileへ統一し、Bun/Tauri CLIの検証済みexact版と異なる環境では処理を開始しないようにした

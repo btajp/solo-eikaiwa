@@ -17,6 +17,7 @@ import { ensureLlmRoleTuningSchema } from "./llm-role-tuning-store";
 import { ensureLlmAuthSchema } from "./llm-auth-store";
 import { ensureTopicAssetCacheSchema } from "./topic-assets";
 import { assertSchemaCompatible, readSchemaContract, type SchemaContract } from "./schema-contract";
+import { assertDatabaseNotRestoring } from "./database-lock";
 
 /** 構造化された状態・履歴の置き場（ログはJSONLのまま）。data/ はローカル専用（gitignore済み）。 */
 // DB ファイル名はリネーム（solo-eikaiwa）後も旧名を維持する: 既存ユーザーの学習データ継続のため（表示名とは独立）
@@ -96,6 +97,7 @@ function getExpectedSchemaContract(): SchemaContract {
 export function openDb(dbPath: string = DEFAULT_DB_PATH): Database {
   const expected = getExpectedSchemaContract();
   const displayPath = dbPath === ":memory:" ? dbPath : path.resolve(dbPath);
+  assertDatabaseNotRestoring(dbPath);
   if (dbPath !== ":memory:") mkdirSync(path.dirname(dbPath), { recursive: true });
   const db = new Database(dbPath, { create: true });
   try {
