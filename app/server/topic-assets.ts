@@ -45,7 +45,7 @@ export function computeSourceHash(rawContent: string): string {
 function isValidPrepPack(x: unknown): x is PrepPack {
   if (typeof x !== "object" || x === null) return false;
   const p = x as Partial<PrepPack>;
-  if (!Array.isArray(p.chunks)) return false;
+  if (!Array.isArray(p.chunks) || p.chunks.length === 0) return false;
   if (!p.chunks.every((c) => typeof c?.en === "string" && typeof c?.ja === "string")) return false;
   if (!Array.isArray(p.outline) || !p.outline.every((o) => typeof o === "string")) return false;
   if (p.hintDefault !== "ja" && p.hintDefault !== "en") return false;
@@ -192,7 +192,7 @@ export function makeTopicAssetCacheStore(db: Database): TopicAssetCacheStore {
       const row = db.query<{ text: string }, [string, number]>(
         "SELECT text FROM model_talk_cache WHERE topic_id = ? AND stage = ?",
       ).get(topicId, stage);
-      return row?.text ?? null;
+      return row && isValidModelTalk(row) ? row.text : null;
     },
     saveModelTalk(topicId, stage, text) {
       db.run(
@@ -219,7 +219,7 @@ export async function resolvePrepPack(
   const cached = deps.cache.getPrepPack(topicId, stage);
   if (cached) return cached;
   const generated = await generate();
-  deps.cache.savePrepPack(topicId, stage, generated);
+  if (isValidPrepPack(generated)) deps.cache.savePrepPack(topicId, stage, generated);
   return generated;
 }
 
@@ -232,7 +232,7 @@ export async function resolveModelTalk(
   const cached = deps.cache.getModelTalk(topicId, stage);
   if (cached !== null) return { text: cached };
   const generated = await generate();
-  deps.cache.saveModelTalk(topicId, stage, generated.text);
+  if (isValidModelTalk(generated)) deps.cache.saveModelTalk(topicId, stage, generated.text);
   return generated;
 }
 
