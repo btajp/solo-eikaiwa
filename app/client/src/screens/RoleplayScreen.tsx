@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { type ContentItem } from "../api";
 import { STR, type Lang } from "../i18n";
+import { localizedTitle } from "../localized-title";
 import { Card } from "../ui/Card";
 import { LevelChip } from "../ui/LevelChip";
 import { FreeTalkScreen } from "./FreeTalkScreen";
@@ -12,8 +13,7 @@ export function RoleplayScreen(props: {
   const t = STR[props.lang].roleplay;
   const starters = props.scenario.starters ?? [];
   const readyNotifiedRef = useRef(false);
-  // EN 表示ではシナリオの英語タイトル、JA では従来どおり titleJa
-  const heading = props.lang === "ja" ? props.scenario.titleJa : props.scenario.title;
+  const heading = localizedTitle(props.scenario, props.lang);
   useEffect(() => {
     if (readyNotifiedRef.current) return;
     readyNotifiedRef.current = true;

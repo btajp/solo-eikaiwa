@@ -60,6 +60,13 @@ describe("画面導線と学習素材の呼称", () => {
     expect(STR.ja.placement.levelApplied(13)).toContain("Lv13");
   });
 
+  test("レベル測定の読み込みと再試行は両言語でテキストとして示す", () => {
+    expect(STR.en.placement.loading).toContain("Loading");
+    expect(STR.en.placement.loadRetry).toBe("Retry");
+    expect(STR.ja.placement.loading).toContain("読み込んで");
+    expect(STR.ja.placement.loadRetry).toBe("再試行");
+  });
+
   test("モデルトークとリスニングはナビ・画面・記録で対応する名称にする", () => {
     expect(STR.en.nav.library).toBe(STR.en.library.title);
     expect(STR.ja.nav.library).toBe(STR.ja.library.title);

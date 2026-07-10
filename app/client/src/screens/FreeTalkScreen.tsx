@@ -7,6 +7,7 @@ import { resolveSttOutcome } from "../stt-result";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { FeedbackRow } from "../ui/FeedbackRow";
+import { LevelChip } from "../ui/LevelChip";
 import { RecordButton } from "../ui/RecordButton";
 
 type Turn = { role: "you" | "ai"; text: string };
@@ -22,6 +23,7 @@ export function FreeTalkScreen(props: {
   lang: Lang;
 }) {
   const t = STR[props.lang].freeTalkScreen;
+  const page = STR[props.lang].freeTalk;
   const LABELS: Record<Status, string> = {
     idle: t.idle, starting: t.starting, recording: t.recording, transcribing: t.transcribing,
     thinking: t.thinking, speaking: t.speaking, error: t.errorLabel,
@@ -151,80 +153,89 @@ export function FreeTalkScreen(props: {
   }
 
   return (
-    <div>
-      <div className="start-row">
-        <RecordButton
-          recording={status === "recording"}
-          onClick={onMainButton}
-          disabled={status === "starting" || status === "transcribing" || status === "thinking" || status === "speaking"}
-        >
-          {LABELS[status]}
-        </RecordButton>
-        {canDiscardConversationRecording(status) && (
-          <Button variant="secondary" onClick={discardRecording}>{t.discardRecording}</Button>
-        )}
-      </div>
-      {status === "recording" && <p className="text-sm text-muted">{t.stopAndSendHint}</p>}
-      {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
-      <div className="phrase-hint stack">
-        <label className="text-sm text-muted" htmlFor="phrase-hint-input">
-          {t.hintLabel}
-        </label>
-        <input
-          id="phrase-hint-input"
-          type="text"
-          value={hintInput}
-          onChange={(e) => setHintInput(e.target.value)}
-          placeholder={t.hintPlaceholder}
-        />
-        <Button variant="secondary" onClick={requestHints} disabled={hints === "loading" || !hintInput.trim()}>
-          {t.hintButton}
-        </Button>
-        {hints === "loading" && <p className="text-sm text-muted">{t.hintThinking}</p>}
-        {hintError && (
-          <p className="sentence-explain text-sm">
-            {hintError}
-            <Button variant="ghost" onClick={requestHints} disabled={!hintInput.trim()}>{t.retry}</Button>
-          </p>
-        )}
-        {Array.isArray(hints) && (
-          <div className="stack">
-            {hints.map((h, i) => (
-              <div key={i} className="sentence-explain text-sm">
-                <div>{h.en}</div>
-                {h.ja && <div className="text-muted">{h.ja}</div>}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <section className="chat">
-        {turns.map((turn, i) => (
-          <div key={i} className={`chat-row ${turn.role === "you" ? "you" : "ai"}`}>
-            <div className={`bubble ${turn.role === "you" ? "bubble-you" : "bubble-ai"}`} aria-label={turn.role === "you" ? t.you : t.ai}>{turn.text}</div>
-            {turn.role === "ai" && (
-              <div className="chat-translate">
-                {translations[i] === undefined && (
-                  <Button variant="ghost" onClick={() => translateTurn(i, turn.text)}>{t.translate}</Button>
-                )}
-                {translations[i] === "loading" && <p className="text-sm text-muted">{t.translating}</p>}
-                {translations[i] === "error" && (
-                  <p className="text-sm text-muted">
-                    {t.translateError}
-                    <Button variant="ghost" onClick={() => translateTurn(i, turn.text)}>{t.retry}</Button>
-                  </p>
-                )}
-                {translations[i] !== undefined && translations[i] !== "loading" && translations[i] !== "error" && (
-                  <p className="sentence-explain text-sm">{translations[i]}</p>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-      </section>
-      {props.scenarioId === undefined && turns.length >= 2 && (
-        <FeedbackRow context={{ blockKind: "free-talk", refId: null }} lang={props.lang} />
+    <div className={props.scenarioId === undefined ? "stack" : undefined}>
+      {props.scenarioId === undefined && (
+        <div className="hero">
+          <h2 className="hero-title">{page.title}</h2>
+          <LevelChip kind="auto" lang={props.lang} />
+          <p className="hero-date">{page.desc}</p>
+        </div>
       )}
+      <div>
+        <div className="start-row">
+          <RecordButton
+            recording={status === "recording"}
+            onClick={onMainButton}
+            disabled={status === "starting" || status === "transcribing" || status === "thinking" || status === "speaking"}
+          >
+            {LABELS[status]}
+          </RecordButton>
+          {canDiscardConversationRecording(status) && (
+            <Button variant="secondary" onClick={discardRecording}>{t.discardRecording}</Button>
+          )}
+        </div>
+        {status === "recording" && <p className="text-sm text-muted">{t.stopAndSendHint}</p>}
+        {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
+        <div className="phrase-hint stack">
+          <label className="text-sm text-muted" htmlFor="phrase-hint-input">
+            {t.hintLabel}
+          </label>
+          <input
+            id="phrase-hint-input"
+            type="text"
+            value={hintInput}
+            onChange={(e) => setHintInput(e.target.value)}
+            placeholder={t.hintPlaceholder}
+          />
+          <Button variant="secondary" onClick={requestHints} disabled={hints === "loading" || !hintInput.trim()}>
+            {t.hintButton}
+          </Button>
+          {hints === "loading" && <p className="text-sm text-muted">{t.hintThinking}</p>}
+          {hintError && (
+            <p className="sentence-explain text-sm">
+              {hintError}
+              <Button variant="ghost" onClick={requestHints} disabled={!hintInput.trim()}>{t.retry}</Button>
+            </p>
+          )}
+          {Array.isArray(hints) && (
+            <div className="stack">
+              {hints.map((h, i) => (
+                <div key={i} className="sentence-explain text-sm">
+                  <div>{h.en}</div>
+                  {h.ja && <div className="text-muted">{h.ja}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <section className="chat">
+          {turns.map((turn, i) => (
+            <div key={i} className={`chat-row ${turn.role === "you" ? "you" : "ai"}`}>
+              <div className={`bubble ${turn.role === "you" ? "bubble-you" : "bubble-ai"}`} aria-label={turn.role === "you" ? t.you : t.ai}>{turn.text}</div>
+              {turn.role === "ai" && (
+                <div className="chat-translate">
+                  {translations[i] === undefined && (
+                    <Button variant="ghost" onClick={() => translateTurn(i, turn.text)}>{t.translate}</Button>
+                  )}
+                  {translations[i] === "loading" && <p className="text-sm text-muted">{t.translating}</p>}
+                  {translations[i] === "error" && (
+                    <p className="text-sm text-muted">
+                      {t.translateError}
+                      <Button variant="ghost" onClick={() => translateTurn(i, turn.text)}>{t.retry}</Button>
+                    </p>
+                  )}
+                  {translations[i] !== undefined && translations[i] !== "loading" && translations[i] !== "error" && (
+                    <p className="sentence-explain text-sm">{translations[i]}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </section>
+        {props.scenarioId === undefined && turns.length >= 2 && (
+          <FeedbackRow context={{ blockKind: "free-talk", refId: null }} lang={props.lang} />
+        )}
+      </div>
     </div>
   );
 }

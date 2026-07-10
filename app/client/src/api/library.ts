@@ -1,6 +1,8 @@
 import { extractErrorMessage } from "./http";
 
-export type ModelTalkEntry = { id: number; createdAt: string; topicId: string; topicTitle: string; text: string };
+export type ModelTalkEntry = {
+  id: number; createdAt: string; topicId: string; topicTitle: string; topicTitleJa?: string; text: string;
+};
 
 export async function fetchModelTalkLibrary(): Promise<ModelTalkEntry[]> {
   const res = await fetch("/api/library/model-talks");

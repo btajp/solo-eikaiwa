@@ -26,10 +26,18 @@ function trendArrow(cur: number, prev: number): string {
 export function ProgressScreen({ lang }: { lang: Lang }) {
   const t = STR[lang].progress;
   const { state, reload } = useLoad(() => fetchMetricsSummary(14));
+  const pageHero = <div className="hero"><h2 className="hero-title">{t.title}</h2></div>;
 
-  if (state.status === "loading") return <p className="text-muted">{t.loading}</p>;
+  if (state.status === "loading") {
+    return <div className="stack">{pageHero}<p className="text-muted">{t.loading}</p></div>;
+  }
   if (state.status === "error") {
-    return <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{state.error}</Banner>;
+    return (
+      <div className="stack">
+        {pageHero}
+        <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{state.error}</Banner>
+      </div>
+    );
   }
   const summary = state.data;
 
@@ -38,7 +46,7 @@ export function ProgressScreen({ lang }: { lang: Lang }) {
   if (!hasData) {
     return (
       <div className="stack">
-        <h2 className="screen-title">{t.title}</h2>
+        {pageHero}
         <Card><p className="text-muted">{t.empty}</p></Card>
         <MonthlyReview lang={lang} />
       </div>
@@ -54,7 +62,7 @@ export function ProgressScreen({ lang }: { lang: Lang }) {
 
   return (
     <div className="stack">
-      <h2 className="screen-title">{t.title}</h2>
+      {pageHero}
 
       <Card>
         <div className="card-header"><h3>{t.speakingTime}</h3></div>

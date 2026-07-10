@@ -5,6 +5,7 @@ import {
 } from "../api";
 import { stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
+import { localizedTitle } from "../localized-title";
 import { useLoad } from "../useLoad";
 import { useExplain } from "../useExplain";
 import { Banner } from "../ui/Banner";
@@ -79,7 +80,7 @@ function ListeningList({ data, lang, weekCount, onOpen }: {
       {shown.map((it) => (
         <Card
           key={it.id}
-          header={<>{it.titleJa || it.title}{" "}<span className="text-sm text-muted">{t.domain[it.domain]}</span></>}
+          header={<>{localizedTitle(it, lang)} <span className="text-sm text-muted">{t.domain[it.domain]}</span></>}
         >
           <Button variant="primary" onClick={() => onOpen(it)}>{t.open}</Button>
         </Card>
@@ -97,7 +98,7 @@ function ListeningPlayer({ meta, lang, onListened, onBack }: {
   return (
     <div className="stack">
       <FlowExitButton onClick={onBack}>{t.back}</FlowExitButton>
-      <div className="hero"><h2 className="hero-title">{meta.titleJa || meta.title}</h2></div>
+      <div className="hero"><h2 className="hero-title">{localizedTitle(meta, lang)}</h2></div>
       {state.status === "loading" && <p className="text-muted">{t.scriptLoading}</p>}
       {state.status === "error" && (
         <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{state.error}</Banner>

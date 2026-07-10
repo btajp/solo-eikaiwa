@@ -4,11 +4,11 @@ import { makeFakeLibraryStore, makeTestDeps } from "./helpers/route-deps";
 import { getReq, postJson } from "./helpers/http";
 
 describe("library", () => {
-  test("model-talk 成功時に libraryStore.saveModelTalk が topicTitle 付きで呼ばれ、レスポンスは {text} のみ", async () => {
-    const saved: Array<{ topicId: string; topicTitle: string; text: string }> = [];
+  test("model-talk 成功時に libraryStore.saveModelTalk が両言語題名付きで呼ばれ、レスポンスは {text} のみ", async () => {
+    const saved: Array<{ topicId: string; topicTitle: string; topicTitleJa: string; text: string }> = [];
     const { deps } = makeTestDeps({
       modelTalk: async (topicId: string) =>
-        topicId === "known-topic" ? { text: "model talk", topicTitle: "Known Topic" } : null,
+        topicId === "known-topic" ? { text: "model talk", topicTitle: "Known Topic", topicTitleJa: "既知の題名" } : null,
       libraryStore: makeFakeLibraryStore({ saveModelTalk: (e) => saved.push(e) }),
     });
     const res = await makeFetchHandler(deps)(
@@ -16,7 +16,7 @@ describe("library", () => {
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ text: "model talk" }); // topicTitle を漏らさない
-    expect(saved).toEqual([{ topicId: "known-topic", topicTitle: "Known Topic", text: "model talk" }]);
+    expect(saved).toEqual([{ topicId: "known-topic", topicTitle: "Known Topic", topicTitleJa: "既知の題名", text: "model talk" }]);
   });
 
   test("unknown topicId (404) では保存しない", async () => {
@@ -31,14 +31,17 @@ describe("library", () => {
     expect(saved).toHaveLength(0);
   });
 
-  test("GET /api/library/model-talks が {entries} を返す", async () => {
-    const entry = { id: 1, createdAt: "2026-07-06T00:00:00.000Z", topicId: "t1", topicTitle: "T", text: "talk" };
+  test("GET /api/library/model-talks は現在の教材から両言語題名を返す", async () => {
+    const entry = { id: 1, createdAt: "2026-07-06T00:00:00.000Z", topicId: "t1", topicTitle: "T", topicTitleJa: "", text: "talk" };
     const { deps } = makeTestDeps({
       libraryStore: makeFakeLibraryStore({ listModelTalks: () => [entry] }),
+      libraryTopics: () => new Map([["t1", { title: "English title", titleJa: "日本語の題名" }]]),
     });
     const res = await makeFetchHandler(deps)(getReq("/api/library/model-talks"));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ entries: [entry] });
+    expect(await res.json()).toEqual({
+      entries: [{ ...entry, topicTitle: "English title", topicTitleJa: "日本語の題名" }],
+    });
   });
 
   test("saveModelTalk が例外を投げても POST /api/coach/model-talk は200で {text} を返す", async () => {

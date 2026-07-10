@@ -1,5 +1,6 @@
 import { fetchModelTalkLibrary, fetchTalkExplanation, type ModelTalkEntry } from "../api";
 import { STR, type Lang } from "../i18n";
+import { localizedTitle } from "../localized-title";
 import { localYmdFromTimestamp } from "../dates";
 import { useLoad } from "../useLoad";
 import { usePlayRow } from "../usePlayRow";
@@ -17,8 +18,8 @@ export function LibraryScreen({ lang }: { lang: Lang }) {
   const row = usePlayRow<number>();
 
   return (
-    <div>
-      <h3>{t.title}</h3>
+    <div className="stack">
+      <div className="hero"><h2 className="hero-title">{t.title}</h2></div>
       {state.status === "loading" && <p className="text-muted">{t.loading}</p>}
       {state.status === "error" && (
         <Banner kind="error" action={<Button onClick={reload}>{t.retry}</Button>}>{state.error}</Banner>
@@ -42,6 +43,7 @@ function LibraryEntry({ entry, lang, row }: {
   const t = STR[lang].library;
   const playback = STR[lang].playback;
   const explainer = useExplain(() => fetchTalkExplanation(entry.text));
+  const title = localizedTitle({ title: entry.topicTitle, titleJa: entry.topicTitleJa }, lang) || entry.topicId;
   return (
     <Card
       header={
@@ -53,9 +55,9 @@ function LibraryEntry({ entry, lang, row }: {
             disabled={row.playingKey !== null}
             playLabel="▶"
             stopLabel={playback.stop}
-            playAriaLabel={t.playAria(entry.topicTitle || entry.topicId)}
+            playAriaLabel={t.playAria(title)}
           />{" "}
-          {entry.topicTitle || entry.topicId}{" "}
+          {title}{" "}
           <span className="text-sm text-muted">{localYmdFromTimestamp(entry.createdAt)}</span>
         </>
       }

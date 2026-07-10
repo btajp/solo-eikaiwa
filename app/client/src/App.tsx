@@ -20,7 +20,6 @@ import { StartScreen, type StartSelection } from "./screens/StartScreen";
 import { SettingsScreen, type UiScale } from "./screens/SettingsScreen";
 import { Banner } from "./ui/Banner";
 import { Button } from "./ui/Button";
-import { LevelChip } from "./ui/LevelChip";
 import { SetupBanner } from "./ui/SetupBanner";
 import { localYmd } from "./dates";
 import { saveSupport, useSupport, type SupportToggle } from "./support";
@@ -259,16 +258,7 @@ export function App() {
           onBeforeRecording={requestRecordingStart} onExit={() => moveTo({ kind: "start" })}
         />
       )}
-      {mode.kind === "free" && (
-        <div className="stack">
-          <div className="hero">
-            <h2 className="hero-title">{t.freeTalk.title}</h2>
-            <LevelChip kind="auto" lang={lang} />
-            <p className="hero-date">{t.freeTalk.desc}</p>
-          </div>
-          <FreeTalkScreen activitySessionId={sessionId} lang={lang} onBeforeRecord={requestRecordingStart} />
-        </div>
-      )}
+      {mode.kind === "free" && <FreeTalkScreen activitySessionId={sessionId} lang={lang} onBeforeRecord={requestRecordingStart} />}
       {mode.kind === "library" && <LibraryScreen lang={lang} />}
       {mode.kind === "sentences" && <SentencesScreen lang={lang} />}
       {mode.kind === "listening" && <ListeningScreen lang={lang} />}
