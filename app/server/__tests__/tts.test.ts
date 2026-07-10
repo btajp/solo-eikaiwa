@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
-  cacheKeyFor, synthesize, resolveTtsConfig,
+  cacheKeyFor, httpCacheKeyFor, synthesize, resolveTtsConfig, TtsTimeoutError,
   DEFAULT_TTS_BASE_URL, DEFAULT_TTS_MODEL, DEFAULT_TTS_VOICE,
 } from "../tts";
 
@@ -23,14 +23,14 @@ async function withNoApiKey<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-// say / ffmpeg が生成するはずの出力ファイルを偽造する共通フェイク
-// say: ["say","-v","Samantha","-o",<aiff>,"-f",<textFile>] → -o の次
-// ffmpeg: ["ffmpeg","-i",<aiff>,<mp3>,"-y"] → 末尾 "-y" の1つ前
+// say が生成するはずの出力ファイルを偽造する共通フェイク。
 function makeFakeSpawn(spawned: string[][]) {
-  return async (cmd: string[]) => {
+  return async (cmd: string[], options?: { signal?: AbortSignal }) => {
     spawned.push(cmd);
     const oIdx = cmd.indexOf("-o");
-    const out = oIdx >= 0 ? cmd[oIdx + 1] : cmd[cmd.length - 2];
+    expect(oIdx).toBeGreaterThanOrEqual(0);
+    expect(options?.signal).toBeInstanceOf(AbortSignal);
+    const out = cmd[oIdx + 1]!;
     await Bun.write(out, new Uint8Array([9, 9]));
     return { exitCode: 0, stderr: "" };
   };
@@ -44,6 +44,15 @@ describe("tts", () => {
     expect(k1).toBe(k2);
     expect(k1).not.toBe(k3);
     expect(k1).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  test("HTTP cache keyはschema/provider/正規化base URL/model/voiceを分離する", () => {
+    const cfg = { baseUrl: "https://api.openai.com/v1", model: "m", voice: "v" };
+    const key = httpCacheKeyFor("auto", cfg, "Hello");
+    expect(key).toBe(httpCacheKeyFor("auto", { ...cfg, baseUrl: "https://api.openai.com/v1/" }, "Hello"));
+    expect(key).not.toBe(httpCacheKeyFor("openai-compat", cfg, "Hello"));
+    expect(key).not.toBe(httpCacheKeyFor("auto", { ...cfg, baseUrl: "https://other.example/v1" }, "Hello"));
+    expect(key).toMatch(/^[0-9a-f]{64}$/);
   });
 
   test("同梱音声があれば APIキーなしでも say に落ちず openai として返す", async () => {
@@ -72,6 +81,21 @@ describe("tts", () => {
     expect(Array.from(r.audio)).toEqual([5]);
   });
 
+  test("provider=sayは既定ラベルの同梱OpenAI音声を使わない", async () => {
+    const bundledDir = mkdtempSync(path.join(tmpdir(), "tts-bundle-"));
+    const key = cacheKeyFor(DEFAULT_TTS_MODEL, DEFAULT_TTS_VOICE, "Use say");
+    await Bun.write(path.join(bundledDir, `${key}.mp3`), new Uint8Array([5]));
+    const spawned: string[][] = [];
+
+    const result = await synthesize("Use say", {
+      provider: "say", bundledDir, spawnFn: makeFakeSpawn(spawned), env: {},
+    });
+
+    expect(result.engine).toBe("say");
+    expect(Array.from(result.audio)).toEqual([9, 9]);
+    expect(spawned).toHaveLength(1);
+  });
+
   test("APIキーがあれば OpenAI を呼び、2回目はキャッシュを使う", async () => {
     const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-"));
     let calls = 0;
@@ -89,14 +113,31 @@ describe("tts", () => {
     expect(readdirSync(cacheDir)).toHaveLength(1);
   });
 
+  test("同梱生成modeは凍結済みlegacy keyへ原子的に保存する", async () => {
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-bundled-generate-"));
+    const text = "New bundled sentence";
+    const legacyPath = path.join(cacheDir, `${cacheKeyFor(DEFAULT_TTS_MODEL, DEFAULT_TTS_VOICE, text)}.mp3`);
+    const fakeFetch = (async () => new Response(new Uint8Array([1, 2, 3]), { status: 200 })) as unknown as typeof fetch;
+
+    await synthesize(text, {
+      apiKey: "sk-test", cacheDir, cacheTarget: "bundled", fetchFn: fakeFetch, env: {},
+    });
+
+    expect(existsSync(legacyPath)).toBe(true);
+    expect(readdirSync(cacheDir)).toEqual([path.basename(legacyPath)]);
+  });
+
   test("APIキーが無ければ say フォールバックで生成する", async () => {
     await withNoApiKey(async () => {
       const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-"));
       const spawned: string[][] = [];
       const r = await synthesize("Hello", { apiKey: undefined, cacheDir, spawnFn: makeFakeSpawn(spawned), env: {} });
       expect(r.engine).toBe("say");
+      expect(r.mime).toBe("audio/mp4");
       expect(spawned[0][0]).toBe("say");
-      expect(spawned[1][0]).toBe("ffmpeg");
+      expect(spawned).toHaveLength(1);
+      expect(spawned[0]).toContain("--data-format=aac");
+      expect(spawned[0].some((arg) => arg.endsWith(".m4a"))).toBe(true);
     });
   });
 
@@ -153,6 +194,83 @@ describe("tts", () => {
     expect(r.engine).toBe("openai");
     expect(Array.from(r.audio)).toEqual([4, 2, 0]);
     expect(calls).toBe(1);
+  });
+
+  test("cache書き込み失敗では一時・最終ファイルを残さず、次回は再合成する", async () => {
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-atomic-"));
+    let fetchCalls = 0;
+    const fakeFetch = (async () => {
+      fetchCalls++;
+      return new Response(new Uint8Array([4, 2, 0]), { status: 200 });
+    }) as unknown as typeof fetch;
+    const failingWrite = async (filePath: string, data: Uint8Array) => {
+      await Bun.write(filePath, data.slice(0, 1));
+      throw new Error("ENOSPC");
+    };
+
+    await synthesize("Atomic cache", {
+      apiKey: "sk-test", cacheDir, fetchFn: fakeFetch, cacheWriteFn: failingWrite, env: {},
+    });
+    expect(readdirSync(cacheDir)).toEqual([]);
+    await synthesize("Atomic cache", {
+      apiKey: "sk-test", cacheDir, fetchFn: fakeFetch, cacheWriteFn: failingWrite, env: {},
+    });
+    expect(fetchCalls).toBe(2);
+    expect(readdirSync(cacheDir)).toEqual([]);
+  });
+
+  test("cache参照時に強制終了で残った一時ファイルを掃除する", async () => {
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-stale-"));
+    const stale = path.join(cacheDir, "old.mp3.tmp-123-dead");
+    await Bun.write(stale, new Uint8Array([1]));
+    const fakeFetch = (async () => new Response(new Uint8Array([2]), { status: 200 })) as unknown as typeof fetch;
+
+    await synthesize("Clean stale", { apiKey: "sk-test", cacheDir, fetchFn: fakeFetch, env: {} });
+
+    expect(existsSync(stale)).toBe(false);
+    expect(readdirSync(cacheDir).some((name) => name.includes(".tmp-"))).toBe(false);
+  });
+
+  test("HTTP timeoutはfetchをabortし、sayへ継続せず総deadlineで終了する", async () => {
+    let fetchSignal: AbortSignal | null | undefined;
+    let spawnCalls = 0;
+    const hangingFetch = ((_url: string, init: RequestInit) => {
+      fetchSignal = init.signal;
+      return new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+      });
+    }) as unknown as typeof fetch;
+
+    await expect(synthesize("Timeout", {
+      apiKey: "sk-test",
+      fetchFn: hangingFetch,
+      spawnFn: async () => { spawnCalls++; return { exitCode: 0, stderr: "" }; },
+      timeoutMs: 5,
+      env: {},
+    })).rejects.toBeInstanceOf(TtsTimeoutError);
+    expect(fetchSignal?.aborted).toBe(true);
+    expect(spawnCalls).toBe(0);
+  });
+
+  test("sayのcancelでも一時ディレクトリを必ず削除する", async () => {
+    const tempRoot = mkdtempSync(path.join(tmpdir(), "tts-say-cancel-"));
+    const controller = new AbortController();
+    let spawnSignal: AbortSignal | undefined;
+    const hangingSpawn = async (_cmd: string[], options?: { signal?: AbortSignal }) => {
+      spawnSignal = options?.signal;
+      return new Promise<{ exitCode: number; stderr: string }>((_resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => reject(options.signal?.reason), { once: true });
+      });
+    };
+    const running = synthesize("Cancel say", {
+      provider: "say", spawnFn: hangingSpawn, signal: controller.signal, tempRoot, env: {},
+    });
+    await Promise.resolve();
+    controller.abort(new Error("cancel say"));
+
+    await expect(running).rejects.toThrow("cancel say");
+    expect(spawnSignal?.aborted).toBe(true);
+    expect(readdirSync(tempRoot)).toEqual([]);
   });
 
   test("say 実行時、先頭が「-」のテキストも argv に直接渡らずファイル経由になる（引数インジェクション対策）", async () => {
@@ -312,6 +430,47 @@ describe("tts provider config", () => {
     });
     expect(called).toBe(1); // バンドルはミス → HTTP を叩いた
     expect(Array.from(r.audio)).toEqual([2, 2]);
+  });
+
+  test("カスタムendpointは既定model/voiceと同じ名前でも同梱音声へ短絡しない", async () => {
+    const bundledDir = mkdtempSync(path.join(tmpdir(), "tts-bundle-"));
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-"));
+    const bundledKey = cacheKeyFor(DEFAULT_TTS_MODEL, DEFAULT_TTS_VOICE, "Same labels");
+    await Bun.write(path.join(bundledDir, `${bundledKey}.mp3`), new Uint8Array([7]));
+    let calls = 0;
+    const fakeFetch = (async () => {
+      calls++;
+      return new Response(new Uint8Array([3]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const result = await synthesize("Same labels", {
+      bundledDir, cacheDir, fetchFn: fakeFetch,
+      baseUrl: "http://localhost:8880/v1", model: DEFAULT_TTS_MODEL, voice: DEFAULT_TTS_VOICE, env: {},
+    });
+
+    expect(calls).toBe(1);
+    expect(Array.from(result.audio)).toEqual([3]);
+  });
+
+  test("providerまたはendpoint変更後は同じtext/model/voiceでも旧HTTP cacheを返さない", async () => {
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-isolation-"));
+    let calls = 0;
+    const fakeFetch = (async () => {
+      calls++;
+      return new Response(new Uint8Array([calls]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await synthesize("Shared labels", { provider: "auto", apiKey: "sk", cacheDir, fetchFn: fakeFetch, env: {} });
+    await synthesize("Shared labels", {
+      provider: "openai-compat", apiKey: "sk", cacheDir, fetchFn: fakeFetch, env: {},
+    });
+    await synthesize("Shared labels", {
+      provider: "openai-compat", baseUrl: "http://localhost:8880/v1",
+      model: DEFAULT_TTS_MODEL, voice: DEFAULT_TTS_VOICE, cacheDir, fetchFn: fakeFetch, env: {},
+    });
+
+    expect(calls).toBe(3);
+    expect(readdirSync(cacheDir)).toHaveLength(3);
   });
 
   test("カスタムエンドポイントでも HTTP 失敗時は say にフォールバックする", async () => {

@@ -41,6 +41,7 @@ async function generateOne(s: { no: number; en: string }): Promise<void> {
         model: DEFAULT_TTS_MODEL,
         voice: DEFAULT_TTS_VOICE,
         apiKey: Bun.env.OPENAI_API_KEY,
+        cacheTarget: "bundled",
         env: {},
       });
       // Check if actually using OpenAI (not the say fallback which is not cached)

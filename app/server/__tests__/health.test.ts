@@ -30,6 +30,11 @@ describe("health", () => {
     expect(h.ok).toBe(true);
   });
 
+  test("TTS_API_KEYだけの構成もttsKey=trueとして認識する", () => {
+    const h = checkHealth({ whichFn: () => "/bin/x", env: { TTS_API_KEY: "sk-tts" }, modelExists: () => true });
+    expect(h.ttsKey).toBe(true);
+  });
+
   test("whisper が無いと ok=false", () => {
     const h = checkHealth({
       whichFn: (bin) => (bin.startsWith("whisper") ? null : "/bin/x"),

@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { playTtsCached, prefetchTts } from "./api/tts";
+import {
+  invalidateTtsCaches, MODEL_TALK_CACHE_MAX_ENTRIES, playTtsCached, prefetchModelTalkAudio, prefetchTts,
+  TTS_BLOB_CACHE_MAX_ENTRIES, ttsCacheStats,
+} from "./api/tts";
+import { saveTtsSettings } from "./api/tts-settings";
+import { deleteSecret, saveSecret } from "./api/secrets";
 import { isDesktopContext, pickRecorderMimeType, playBlob, Recorder, stopPlayback } from "./audio";
 
 function deferred<T>() {
@@ -37,6 +42,7 @@ const realCreateObjectURL = URL.createObjectURL;
 const realRevokeObjectURL = URL.revokeObjectURL;
 
 afterEach(() => {
+  invalidateTtsCaches();
   stopPlayback();
   globalThis.fetch = realFetch;
   if (realAudio === undefined) delete (globalThis as { Audio?: unknown }).Audio;
@@ -44,6 +50,26 @@ afterEach(() => {
   URL.createObjectURL = realCreateObjectURL;
   URL.revokeObjectURL = realRevokeObjectURL;
 });
+
+const ttsSettingsView = {
+  provider: "auto" as const,
+  baseUrl: null,
+  model: null,
+  voice: null,
+  apiKeyConfigured: false,
+  defaults: { baseUrl: "https://api.openai.com/v1", model: "m", voice: "v" },
+};
+
+const secretMutationView = {
+  secrets: {
+    ANTHROPIC_API_KEY: { configured: false, source: null },
+    CODEX_API_KEY: { configured: false, source: null },
+    OPENAI_COMPAT_API_KEY: { configured: false, source: null },
+    TTS_API_KEY: { configured: true, source: "keychain" },
+  },
+  applied: true,
+  error: null,
+};
 
 describe("isDesktopContext", () => {
   test("UAにsolo-eikaiwa-desktopマーカーが含まれていればtrue", () => {
@@ -249,5 +275,128 @@ describe("再生世代", () => {
     plays[0].resolve();
     await newPlaying;
     expect(instances[0].pauseCalls).toBe(1);
+  });
+});
+
+describe("タブ内TTS cache", () => {
+  test("TTS設定保存で通常音声とモデルトークを両方無効化し再取得する", async () => {
+    let ttsCalls = 0;
+    let modelCalls = 0;
+    globalThis.fetch = mock(async (input) => {
+      const url = String(input);
+      if (url === "/api/tts-settings") return Response.json(ttsSettingsView);
+      if (url === "/api/coach/model-talk") {
+        modelCalls++;
+        return Response.json({ text: `talk-${modelCalls}` });
+      }
+      if (url === "/api/tts") {
+        ttsCalls++;
+        return new Response(new Uint8Array([ttsCalls]), { status: 200 });
+      }
+      throw new Error(`unexpected URL: ${url}`);
+    }) as unknown as typeof fetch;
+
+    await prefetchTts("same text");
+    await prefetchModelTalkAudio("topic-1");
+    expect({ ttsCalls, modelCalls }).toEqual({ ttsCalls: 2, modelCalls: 1 });
+
+    await saveTtsSettings({ voice: "new-voice" });
+    await prefetchTts("same text");
+    await prefetchModelTalkAudio("topic-1");
+    expect({ ttsCalls, modelCalls }).toEqual({ ttsCalls: 4, modelCalls: 2 });
+  });
+
+  test("TTS secretの保存・削除でもcacheを無効化する", async () => {
+    let ttsCalls = 0;
+    globalThis.fetch = mock(async (input) => {
+      const url = String(input);
+      if (url === "/api/tts") {
+        ttsCalls++;
+        return new Response(new Uint8Array([ttsCalls]), { status: 200 });
+      }
+      if (url === "/api/secrets" || url === "/api/secrets/TTS_API_KEY") {
+        return Response.json(secretMutationView);
+      }
+      throw new Error(`unexpected URL: ${url}`);
+    }) as unknown as typeof fetch;
+
+    await prefetchTts("secret voice");
+    await saveSecret("TTS_API_KEY", "sk-new", "https://api.openai.com/v1");
+    await prefetchTts("secret voice");
+    await deleteSecret("TTS_API_KEY");
+    await prefetchTts("secret voice");
+
+    expect(ttsCalls).toBe(3);
+  });
+
+  test("通常音声とモデルトークのLRUが件数上限を超えず最古を再取得する", async () => {
+    let ttsCalls = 0;
+    let modelCalls = 0;
+    globalThis.fetch = mock(async (input, init) => {
+      const url = String(input);
+      if (url === "/api/coach/model-talk") {
+        modelCalls++;
+        const topicId = JSON.parse(String(init?.body)).topicId as string;
+        return Response.json({ text: `talk-${topicId}` });
+      }
+      if (url === "/api/tts") {
+        ttsCalls++;
+        return new Response(new Uint8Array([1]), { status: 200 });
+      }
+      throw new Error(`unexpected URL: ${url}`);
+    }) as unknown as typeof fetch;
+
+    for (let i = 0; i <= TTS_BLOB_CACHE_MAX_ENTRIES; i++) await prefetchTts(`text-${i}`);
+    expect(ttsCacheStats().ttsEntries).toBe(TTS_BLOB_CACHE_MAX_ENTRIES);
+    const directCalls = ttsCalls;
+    await prefetchTts("text-0");
+    expect(ttsCalls).toBe(directCalls + 1);
+
+    for (let i = 0; i <= MODEL_TALK_CACHE_MAX_ENTRIES; i++) await prefetchModelTalkAudio(`topic-${i}`);
+    expect(ttsCacheStats().modelTalkEntries).toBe(MODEL_TALK_CACHE_MAX_ENTRIES);
+    const beforeOldest = modelCalls;
+    await prefetchModelTalkAudio("topic-0");
+    expect(modelCalls).toBe(beforeOldest + 1);
+  });
+
+  test("取得失敗はentryを残さず次回再試行できる", async () => {
+    let calls = 0;
+    globalThis.fetch = mock(async () => {
+      calls++;
+      return calls === 1
+        ? new Response("failed", { status: 500 })
+        : new Response(new Uint8Array([1]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await prefetchTts("retry text");
+    expect(ttsCacheStats().ttsEntries).toBe(0);
+    await prefetchTts("retry text");
+    expect(calls).toBe(2);
+    expect(ttsCacheStats().ttsEntries).toBe(1);
+  });
+
+  test("設定変更前のin-flight完了は変更後cacheへ復活しない", async () => {
+    const stale = deferred<Response>();
+    let ttsCalls = 0;
+    globalThis.fetch = mock(async (input) => {
+      const url = String(input);
+      if (url === "/api/tts-settings") return Response.json(ttsSettingsView);
+      if (url === "/api/tts") {
+        ttsCalls++;
+        return ttsCalls === 1 ? stale.promise : new Response(new Uint8Array([2]), { status: 200 });
+      }
+      throw new Error(`unexpected URL: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const oldPrefetch = prefetchTts("in-flight");
+    await Promise.resolve();
+    await saveTtsSettings({ voice: "new" });
+    await prefetchTts("in-flight");
+    stale.resolve(new Response(new Uint8Array([1]), { status: 200 }));
+    await oldPrefetch;
+    await prefetchTts("in-flight");
+
+    expect(ttsCalls).toBe(2);
+    expect(ttsCacheStats().ttsEntries).toBe(1);
   });
 });

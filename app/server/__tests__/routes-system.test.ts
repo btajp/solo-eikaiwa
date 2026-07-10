@@ -232,6 +232,29 @@ describe("routes: tts", () => {
     expect(res.status).toBe(200);
     expect(received).toBe(text);
   });
+
+  test("HTTP requestのAbortSignalをsynthesizeへ渡す", async () => {
+    let signal: AbortSignal | undefined;
+    const { deps } = makeTestDeps({
+      synthesize: async (_text, opts) => {
+        signal = opts?.signal;
+        return { audio: new Uint8Array([1]), mime: "audio/mpeg", engine: "say" as const };
+      },
+    });
+    const controller = new AbortController();
+    const request = new Request("http://localhost/api/tts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: "hello" }),
+      signal: controller.signal,
+    });
+
+    const response = await makeFetchHandler(deps)(request);
+    controller.abort();
+
+    expect(response.status).toBe(200);
+    expect(signal?.aborted).toBe(true);
+  });
 });
 
 describe("routes: stt request budget", () => {

@@ -1,4 +1,5 @@
 import { extractErrorMessage } from "./http";
+import { invalidateTtsCaches } from "./tts";
 
 /** TTS プロバイダの明示選択（サーバの tts_provider_settings と一致）。auto=従来の暗黙決定。 */
 export type TtsProvider = "auto" | "say" | "openai-compat";
@@ -37,5 +38,6 @@ export async function saveTtsSettings(input: TtsSettingsInput): Promise<TtsSetti
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(`tts-settings save failed: ${await extractErrorMessage(res)}`);
+  invalidateTtsCaches();
   return res.json();
 }

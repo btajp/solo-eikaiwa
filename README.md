@@ -317,9 +317,10 @@ ollama pull qwen3:30b-instruct   # Qwen3-30B-A3B-Instruct（MoE・約18GB・RAM 
 読み上げ音声（AI 応答・例文・モデルトーク）の合成先は OpenAI 互換の `/v1/audio/speech` を叩く。既定は OpenAI（`https://api.openai.com/v1`・`gpt-4o-mini-tts`・`alloy`）で、`OPENAI_API_KEY` があれば OpenAI、無ければ macOS `say` にフォールバックする（現行どおり）。ここを **Base URL・モデル・voice** の3点で差し替えられる。
 
 - 設定場所: サイドバー「記録・測定」の **⚙️ 設定 → モデル接続設定**（音声/TTS の設定はモデル接続設定タブ内に統合済み。**エンジン選択**〔自動 / macOS say 固定 / OpenAI 互換固定〕もここ）。env に置くのは鍵（`TTS_API_KEY`）のみ（v0.29 で `TTS_BASE_URL` 等の env フォールバックは廃止）。
-- **APIキー値は UI・DB に保存されない**（UI保存時はmacOS Keychain、DBには承認済みoriginだけを保存）。`TTS_API_KEY`は設定画面で保存した時点のHTTPSまたはloopback originだけに送る。`OPENAI_API_KEY`のレガシーフォールバックは`TTS_API_KEY`自体が未設定の場合に限り、既定の`https://api.openai.com`だけで使う。Base URLが既定以外でも鍵なし通信は試せるため、Ollama/Kokoro等のLAN内HTTPは鍵なしで利用できる。合成に失敗したら`say`へフォールバックする。
+- **APIキー値は UI・DB に保存されない**（UI保存時はmacOS Keychain、DBには承認済みoriginだけを保存）。`TTS_API_KEY`は設定画面で保存した時点のHTTPSまたはloopback originだけに送る。`OPENAI_API_KEY`のレガシーフォールバックは`TTS_API_KEY`自体が未設定の場合に限り、既定の`https://api.openai.com`だけで使う。Base URLが既定以外でも鍵なし通信は試せるため、Ollama/Kokoro等のLAN内HTTPは鍵なしで利用できる。合成に失敗したら`say`へフォールバックする。HTTPと`say`を合わせた処理上限は60秒で、画面移動等による要求中断も実処理へ伝わる。
 - 暗記例文390・多聴42本・モデルトーク72通りの**同梱音声**は既定（OpenAI）のキーで事前生成され、共通のディレクトリ（`content/sentences/audio/`）にまとめて格納されているため、TTS を差し替えると同梱にヒットせずローカル TTS の声で都度合成される（アプリ全体で声が揃う）。既定に戻せば同梱音声に戻る。
-- キャッシュ（`data/tts-cache`）はモデル名と voice でキー分けされる。**同じモデル名かつ同じ voice のまま Base URL だけ別プロバイダに変える**と旧キャッシュと混ざりうるので、その場合は `data/tts-cache` を消すか voice/モデル名を変える。
+- キャッシュ（`data/tts-cache`）はエンジン・正規化した接続先・モデル・voice・生成形式で分離し、一時ファイルへの書き込み完了後だけ原子的に公開する。設定やTTSキーの保存・削除時はタブ内キャッシュも即時無効化されるため、リロードや手動削除なしで新しい声へ切り替わる。
+- macOS `say` はOS標準機能からAAC/M4Aを直接生成するため、読み上げ目的のffmpegや追加sidecarは不要。
 
 ### OpenAI TTS のコスト目安（実測）
 

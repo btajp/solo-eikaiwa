@@ -188,6 +188,13 @@ whisper-cliの実行ファイルと同階層に置く必要がある（`lib/`に
 （ブラウザ版は従来どおり`audio/webm`固定・挙動不変）。変換対象は録音完了後の単一Blobのみで、
 `timeslice`を使ったチャンク単位の変換は行わない。
 
+## TTS変換: ffmpeg非同梱・macOS sayの直接出力
+
+APIキーやローカルTTSが無い場合、`app/server/tts.ts` はmacOS標準の`/usr/bin/say`へ
+`--data-format=aac`を指定し、ブラウザで再生できるAAC/M4Aを直接生成する。AIFFからMP3への変換や
+PATH上のffmpegには依存しないため、GUI起動時の最小PATHでも動作する。OS標準コンポーネントを呼び出すだけで
+追加の第三者バイナリを配布物へ同梱しないため、この経路による追加ライセンス表記も発生しない。
+
 ## macOSマイク権限（getUserMedia）に関する調査結果
 
 WKWebView上の `navigator.mediaDevices.getUserMedia` がmacOSで動くために必要な設定を実装済み:

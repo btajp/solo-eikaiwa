@@ -1,4 +1,5 @@
 import { extractErrorMessage } from "./http";
+import { invalidateTtsCaches } from "./tts";
 
 /** UI から設定できる API キー（サーバの KEYCHAIN_SECRET_NAMES と一致・binding）。 */
 export type SecretName = "ANTHROPIC_API_KEY" | "CODEX_API_KEY" | "OPENAI_COMPAT_API_KEY" | "TTS_API_KEY";
@@ -23,11 +24,13 @@ export async function saveSecret(name: SecretName, value: string, baseUrl?: stri
     body: JSON.stringify({ name, value, ...(baseUrl !== undefined ? { baseUrl } : {}) }),
   });
   if (!res.ok) throw new Error(`secret save failed: ${await extractErrorMessage(res)}`);
+  if (name === "TTS_API_KEY") invalidateTtsCaches();
   return res.json();
 }
 
 export async function deleteSecret(name: SecretName): Promise<SecretMutationResult> {
   const res = await fetch(`/api/secrets/${name}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`secret delete failed: ${await extractErrorMessage(res)}`);
+  if (name === "TTS_API_KEY") invalidateTtsCaches();
   return res.json();
 }

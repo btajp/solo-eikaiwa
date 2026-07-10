@@ -63,6 +63,7 @@ async function generateOne(target: AudioTarget): Promise<void> {
         model: DEFAULT_TTS_MODEL,
         voice: DEFAULT_TTS_VOICE,
         apiKey: Bun.env.OPENAI_API_KEY,
+        cacheTarget: "bundled",
         env: {},
       });
       if (result.engine === "openai") return;

@@ -115,6 +115,7 @@ async function handleTts(req: Request, deps: SystemRoutesDeps): Promise<Response
     model: tts?.model ?? undefined,
     baseUrl: tts?.baseUrl ?? undefined,
     provider: deps.getTtsProvider(),
+    signal: req.signal,
   });
   return new Response(audio as unknown as BodyInit, { headers: { "content-type": mime, "x-tts-engine": engine } });
 }

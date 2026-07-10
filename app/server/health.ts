@@ -39,7 +39,7 @@ export function checkHealth(opts: {
   const ffmpeg = Boolean(which("ffmpeg"));
   const claude = Boolean(which("claude"));
   const codex = Boolean(which("codex"));
-  const ttsKey = Boolean(env.OPENAI_API_KEY);
+  const ttsKey = Boolean(env.TTS_API_KEY?.trim() || env.OPENAI_API_KEY?.trim());
   const modelFile = modelExists();
   const llmReady = claude || codex || isOpenAiCompatReady(opts.llmSettings ?? null, env);
 
