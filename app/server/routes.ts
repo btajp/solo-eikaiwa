@@ -21,6 +21,7 @@ import { makeFeedbackRoutes, type FeedbackRoutesDeps } from "./routes/feedback";
 import { makeLlmSettingsRoutes, type LlmSettingsRoutesDeps } from "./routes/llm-settings";
 import { makeLlmModelsRoutes, type LlmModelsRoutesDeps } from "./routes/llm-models";
 import { makeTtsSettingsRoutes, type TtsSettingsRoutesDeps } from "./routes/tts-settings";
+import { makeSecretsRoutes, type SecretsRoutesDeps } from "./routes/secrets";
 import { makeSetupRoutes, type SetupRoutesDeps } from "./routes/setup";
 
 /**
@@ -34,7 +35,7 @@ export type RouteDeps =
   SettingsRoutesDeps & LibraryRoutesDeps & CoachRoutesDeps & SentenceRoutesDeps &
   ChunkRoutesDeps & ProgressRoutesDeps & PlacementRoutesDeps & MetricsRoutesDeps &
   AssessmentRoutesDeps & ListeningRoutesDeps & FeedbackRoutesDeps & LlmSettingsRoutesDeps &
-  LlmModelsRoutesDeps & TtsSettingsRoutesDeps & SetupRoutesDeps & StaticRoutesDeps & DevRoutesDeps;
+  LlmModelsRoutesDeps & TtsSettingsRoutesDeps & SecretsRoutesDeps & SetupRoutesDeps & StaticRoutesDeps & DevRoutesDeps;
 
 /** 現在の index.ts の全ルーティング・ハンドラをソケットを開かずにテストできる形に切り出したもの */
 export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Response> {
@@ -57,6 +58,7 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
     ...makeLlmSettingsRoutes(deps),
     ...makeLlmModelsRoutes(deps),
     ...makeTtsSettingsRoutes(deps),
+    ...makeSecretsRoutes(deps),
     ...makeSetupRoutes(deps),
     ...makeDevRoutes(deps),
   ];
