@@ -6,6 +6,7 @@ import {
 } from "./api";
 import { isDesktopContext } from "./audio";
 import { isHomeNavigationActive } from "./navigation-state";
+import { parseRouteHash, routeHash, type ParsedRoute, type RouteMode } from "./route-state";
 import { loadLang, saveLang, STR, type Lang } from "./i18n";
 import { AboutScreen } from "./screens/AboutScreen";
 import { FeedbackScreen } from "./screens/FeedbackScreen";
@@ -34,7 +35,9 @@ import {
 import { healthRetryDelay } from "./lib/health-retry";
 import { reportClientError } from "./api/http";
 
-type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource; sessionId: string } | { kind: "library" } | { kind: "sentences"; tab?: "practice" | "browse" } | { kind: "listening" } | { kind: "placement" } | { kind: "progress" } | { kind: "feedback" } | { kind: "settings" } | { kind: "about" };
+type SessionMode = { kind: "session"; source: MenuSource; sessionId: string };
+type Mode = RouteMode | SessionMode;
+type PendingNavigation = { target: RouteMode; source: "history" | "navigation" };
 
 /** 依存不足バナー（dev文脈）での表示名。health のフィールド名と実際のバイナリ名が異なるもののみ変換する */
 const DEP_DISPLAY_NAME: Record<string, string> = { whisper: "whisper-cli" };
@@ -56,7 +59,13 @@ export function App() {
   const [setupBannerDismissed, setSetupBannerDismissed] = useState(() => isSetupBannerDismissed());
   // 録音系の開始を止めた場合だけ表示する、機能固有の準備案内。初期バナーを閉じても消えない。
   const [blockedCapabilities, setBlockedCapabilities] = useState<PracticeCapability[] | null>(null);
-  const [mode, setMode] = useState<Mode>({ kind: "start" });
+  const initialRouteRef = useRef<ParsedRoute>(parseRouteHash(window.location.hash));
+  const [mode, setMode] = useState<Mode>(() => initialRouteRef.current.mode);
+  const modeRef = useRef<Mode>(initialRouteRef.current.mode);
+  const [routeNotice, setRouteNotice] = useState(initialRouteRef.current.notice);
+  const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
+  const restoringSessionHistoryRef = useRef(false);
+  const allowingSessionHistoryLeaveRef = useRef(false);
   const [lang, setLang] = useState<Lang>(() => loadLang());
   const t = STR[lang];
   useEffect(() => {
@@ -121,11 +130,61 @@ export function App() {
       });
   }, [clearHealthRetry]);
 
-  function moveTo(next: Mode) {
+  function setCurrentMode(next: Mode) {
+    modeRef.current = next;
+    setMode(next);
+  }
+
+  function modeHash(next: Mode): string {
+    return next.kind === "session" ? "#/session" : routeHash(next);
+  }
+
+  function transitionTo(next: Mode, options: { replace?: boolean; writeHistory?: boolean } = {}) {
+    const current = modeRef.current;
     setBlockedCapabilities(null);
     // 設定でLLMを更新した後、次の画面ではhealthを取り直して録音開始可否を再評価する。
-    if (mode.kind === "settings" && next.kind !== "settings") refetchHealth();
-    setMode(next);
+    if (current.kind === "settings" && next.kind !== "settings") refetchHealth();
+    setRouteNotice(null);
+    setPendingNavigation(null);
+    setCurrentMode(next);
+
+    if (options.writeHistory === false) return;
+    const nextHash = modeHash(next);
+    const currentHash = modeHash(current);
+    if (options.replace) {
+      window.history.replaceState(null, "", nextHash);
+    } else if (nextHash !== currentHash) {
+      window.history.pushState(null, "", nextHash);
+    }
+  }
+
+  function applyRouteFromHistory(parsed: ParsedRoute) {
+    const current = modeRef.current;
+    setBlockedCapabilities(null);
+    if (current.kind === "settings" && parsed.mode.kind !== "settings") refetchHealth();
+    setPendingNavigation(null);
+    setRouteNotice(parsed.notice);
+    setCurrentMode(parsed.mode);
+    if (parsed.notice) window.history.replaceState(null, "", routeHash(parsed.mode));
+  }
+
+  function requestNavigation(next: RouteMode) {
+    if (modeRef.current.kind === "session") {
+      setPendingNavigation({ target: next, source: "navigation" });
+      return;
+    }
+    transitionTo(next);
+  }
+
+  function leavePendingNavigation() {
+    if (!pendingNavigation) return;
+    if (pendingNavigation.source === "history") {
+      allowingSessionHistoryLeaveRef.current = true;
+      setPendingNavigation(null);
+      window.history.go(-1);
+      return;
+    }
+    transitionTo(pendingNavigation.target, { replace: true });
   }
 
   function requestRecordingStart(): boolean {
@@ -142,6 +201,38 @@ export function App() {
     resumeSetupBanner();
     setSetupBannerDismissed(false);
   }
+
+  useEffect(() => {
+    // 存在しないURLと直接開いたセッションURLは、説明を残して安定したHome URLへ正規化する。
+    if (initialRouteRef.current.notice) {
+      window.history.replaceState(null, "", routeHash(initialRouteRef.current.mode));
+    }
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      if (restoringSessionHistoryRef.current) {
+        restoringSessionHistoryRef.current = false;
+        return;
+      }
+      const parsed = parseRouteHash(window.location.hash);
+      if (allowingSessionHistoryLeaveRef.current) {
+        allowingSessionHistoryLeaveRef.current = false;
+        applyRouteFromHistory(parsed);
+        return;
+      }
+      if (modeRef.current.kind === "session") {
+        // 戻る操作で進行中フローを即時unmountせず、同じ履歴位置へ戻して選択を求める。
+        restoringSessionHistoryRef.current = true;
+        window.history.go(1);
+        setPendingNavigation({ target: parsed.mode, source: "history" });
+        return;
+      }
+      applyRouteFromHistory(parsed);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [refetchHealth]);
 
   useEffect(() => {
     healthAliveRef.current = true;
@@ -163,23 +254,23 @@ export function App() {
 
   function onSelect(sel: StartSelection) {
     if (startSelectionNeedsRecordingReadiness(sel) && !requestRecordingStart()) return;
-    if (sel.type === "free") moveTo({ kind: "free" });
-    else if (sel.type === "library") moveTo({ kind: "library" });
-    else if (sel.type === "placement") moveTo({ kind: "placement" });
-    else moveTo({ kind: "session", source: sel.source, sessionId: crypto.randomUUID() });
+    if (sel.type === "free") requestNavigation({ kind: "free" });
+    else if (sel.type === "library") requestNavigation({ kind: "library" });
+    else if (sel.type === "placement") requestNavigation({ kind: "placement" });
+    else transitionTo({ kind: "session", source: sel.source, sessionId: crypto.randomUUID() });
   }
 
   type NavSection = "today" | "self" | "records";
   const navItems: Array<{ key: string; icon: string; label: string; active: boolean; go: () => void; section: NavSection }> = [
-    { key: "home", icon: "🏠", label: t.nav.home, active: isHomeNavigationActive(mode.kind), go: () => moveTo({ kind: "start" }), section: "today" },
+    { key: "home", icon: "🏠", label: t.nav.home, active: isHomeNavigationActive(mode.kind), go: () => requestNavigation({ kind: "start" }), section: "today" },
     { key: "placement", icon: "📐", label: t.nav.placement, active: mode.kind === "placement", go: () => onSelect({ type: "placement" }), section: "records" },
     { key: "free", icon: "💬", label: t.nav.free, active: mode.kind === "free", go: () => onSelect({ type: "free" }), section: "self" },
-    { key: "library", icon: "📚", label: t.nav.library, active: mode.kind === "library", go: () => moveTo({ kind: "library" }), section: "records" },
-    { key: "sentences", icon: "📖", label: t.nav.sentences, active: mode.kind === "sentences", go: () => moveTo({ kind: "sentences" }), section: "self" },
-    { key: "listening", icon: "🎧", label: t.nav.listening, active: mode.kind === "listening", go: () => moveTo({ kind: "listening" }), section: "self" },
-    { key: "progress", icon: "📈", label: t.nav.progress, active: mode.kind === "progress", go: () => moveTo({ kind: "progress" }), section: "records" },
-    { key: "feedback", icon: "📝", label: t.nav.feedback, active: mode.kind === "feedback", go: () => moveTo({ kind: "feedback" }), section: "records" },
-    { key: "settings", icon: "⚙️", label: t.nav.settings, active: mode.kind === "settings", go: () => moveTo({ kind: "settings" }), section: "records" },
+    { key: "library", icon: "📚", label: t.nav.library, active: mode.kind === "library", go: () => requestNavigation({ kind: "library" }), section: "records" },
+    { key: "sentences", icon: "📖", label: t.nav.sentences, active: mode.kind === "sentences", go: () => requestNavigation({ kind: "sentences" }), section: "self" },
+    { key: "listening", icon: "🎧", label: t.nav.listening, active: mode.kind === "listening", go: () => requestNavigation({ kind: "listening" }), section: "self" },
+    { key: "progress", icon: "📈", label: t.nav.progress, active: mode.kind === "progress", go: () => requestNavigation({ kind: "progress" }), section: "records" },
+    { key: "feedback", icon: "📝", label: t.nav.feedback, active: mode.kind === "feedback", go: () => requestNavigation({ kind: "feedback" }), section: "records" },
+    { key: "settings", icon: "⚙️", label: t.nav.settings, active: mode.kind === "settings", go: () => requestNavigation({ kind: "settings" }), section: "records" },
   ];
   const navSections: Array<{ key: NavSection; label: string }> = [
     { key: "today", label: t.nav.sectionToday },
@@ -220,7 +311,7 @@ export function App() {
           ))}
         </nav>
         {mode.kind === "session" && (
-          <Button variant="secondary" onClick={() => moveTo({ kind: "start" })}>{t.appShell.backToHome}</Button>
+          <Button variant="secondary" onClick={() => requestNavigation({ kind: "start" })}>{t.appShell.backToHome}</Button>
         )}
         <div className="sidebar-spacer" />
         <div className="sidebar-quick">
@@ -240,10 +331,26 @@ export function App() {
           <a className="side-link" href="https://github.com/btajp/solo-eikaiwa" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
             <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
           </a>
-          <button className={`side-link${mode.kind === "about" ? " is-active" : ""}`} aria-current={mode.kind === "about" ? "page" : undefined} onClick={() => moveTo({ kind: "about" })}>{t.about.title}</button>
+          <button className={`side-link${mode.kind === "about" ? " is-active" : ""}`} aria-current={mode.kind === "about" ? "page" : undefined} onClick={() => requestNavigation({ kind: "about" })}>{t.about.title}</button>
         </div>
       </aside>
       <main className="app">
+      {routeNotice && (
+        <Banner kind="info">{routeNotice === "unknown" ? t.routes.unknown : t.routes.sessionNotRestored}</Banner>
+      )}
+      {pendingNavigation && (
+        <Banner
+          kind="info"
+          action={
+            <>
+              <Button variant="secondary" onClick={() => setPendingNavigation(null)}>{t.routes.stay}</Button>
+              <Button variant="primary" onClick={leavePendingNavigation}>{t.routes.leave}</Button>
+            </>
+          }
+        >
+          {t.routes.leaveSession}
+        </Banner>
+      )}
       {serverDown && (
         <Banner kind="error" action={<Button variant="secondary" onClick={() => refetchHealth()}>{t.banners.retry}</Button>}>
           {desktop ? t.banners.serverDownDesktop : t.banners.serverDownDev}
@@ -295,23 +402,29 @@ export function App() {
           lang={lang}
           missing={missingPracticeCapabilities(health, blockedCapabilities)}
           onOpenSetup={reopenSetup}
-          onOpenSettings={() => moveTo({ kind: "settings" })}
+          onOpenSettings={() => requestNavigation({ kind: "settings" })}
         />
       )}
       {mode.kind === "start" && <StartScreen onSelect={onSelect} lang={lang} />}
       {mode.kind === "session" && (
         <SessionRunner
           source={mode.source} sessionId={mode.sessionId} lang={lang}
-          onBeforeRecording={requestRecordingStart} onExit={() => moveTo({ kind: "start" })}
-          onOpenCollectedPhrases={() => moveTo({ kind: "sentences", tab: "browse" })}
+          onBeforeRecording={requestRecordingStart} onExit={() => transitionTo({ kind: "start" }, { replace: true })}
+          onOpenCollectedPhrases={() => transitionTo({ kind: "sentences", tab: "browse" }, { replace: true })}
         />
       )}
       {mode.kind === "free" && <FreeTalkScreen activitySessionId={sessionId} lang={lang} onBeforeRecord={requestRecordingStart} />}
       {mode.kind === "library" && <LibraryScreen lang={lang} />}
-      {mode.kind === "sentences" && <SentencesScreen lang={lang} initialTab={mode.tab} />}
+      {mode.kind === "sentences" && (
+        <SentencesScreen
+          lang={lang}
+          initialTab={mode.tab}
+          onTabChange={(tab) => transitionTo({ kind: "sentences", tab })}
+        />
+      )}
       {mode.kind === "listening" && <ListeningScreen lang={lang} />}
       {mode.kind === "placement" && (
-        <PlacementScreen lang={lang} onBeforeStart={requestRecordingStart} onExit={() => moveTo({ kind: "start" })} />
+        <PlacementScreen lang={lang} onBeforeStart={requestRecordingStart} onExit={() => requestNavigation({ kind: "start" })} />
       )}
       {mode.kind === "progress" && <ProgressScreen lang={lang} />}
       {mode.kind === "feedback" && <FeedbackScreen lang={lang} />}

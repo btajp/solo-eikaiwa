@@ -48,6 +48,13 @@ type NavStrings = {
   };
 };
 type AppShellStrings = { appShell: { backToHome: string; textSize: string; language: string } };
+type RouteStrings = { routes: {
+  unknown: string;
+  sessionNotRestored: string;
+  leaveSession: string;
+  stay: string;
+  leave: string;
+} };
 /**
  * Tauri Phase 2: Claude/Codex/ローカルLLMがいずれも未導入のときの一度きりの案内バナー文言（情報的トーン・研究制約）。
  * health.claude===false で表示し、ユーザーが閉じるまで再訪のたびに出る（サイドバー設定等と同じ「明示的に閉じるまで
@@ -458,7 +465,7 @@ type FeedbackScreenStrings = { feedbackScreen: {
 type AboutStrings = { about: { title: string; desc: string; lpButton: string; githubButton: string; license: string } };
 
 type Strings =
-  & NavStrings & UiScaleStrings & AppShellStrings & SupportStrings & StatStrings & HeroStrings
+  & NavStrings & UiScaleStrings & AppShellStrings & RouteStrings & SupportStrings & StatStrings & HeroStrings
   & QuickStrings & IntensiveStrings & DrillsStrings & SessionCardStrings
   & CalendarStrings & FreeTalkHeaderStrings & ProgressStrings & PlacementStrings & SentencesStrings & CollectedPhrasesStrings
   & MenuTitleStrings & SessionStrings
@@ -479,6 +486,13 @@ export const STR: Record<Lang, Strings> = {
       selfStudyHint: "Your main path is Today's practice. Self-study fits spare moments — a good order: listen (Listening) → memorize (Sentences) → speak (Free talk).",
     },
     appShell: { backToHome: "← Back to home", textSize: "Text size", language: "Language" },
+    routes: {
+      unknown: "That address isn't available, so you're back on Home.",
+      sessionNotRestored: "An in-progress practice can't be restored after a reload. You're back on Home.",
+      leaveSession: "Leave the current practice and open the selected screen?",
+      stay: "Keep practicing",
+      leave: "Leave practice",
+    },
     llmNotice: {
       body: "Claude, Codex, or a local LLM isn't set up. Conversation, corrections, and explanations won't work, but example sentences, listening, shadowing, and recording transcripts still work as-is.",
       linkLabel: "Setup guide",
@@ -1014,6 +1028,13 @@ export const STR: Record<Lang, Strings> = {
       selfStudyHint: "メインは「今日の練習」。自主練はすきま時間に。目安の順番: リスニング → 暗記例文 → 自由会話。",
     },
     appShell: { backToHome: "← ホームに戻る", textSize: "文字サイズ", language: "言語" },
+    routes: {
+      unknown: "このURLの画面は開けないため、ホームに戻りました。",
+      sessionNotRestored: "進行中の練習は再読込後に復元できないため、ホームに戻りました。",
+      leaveSession: "現在の練習を離れて、選んだ画面を開きますか？",
+      stay: "練習を続ける",
+      leave: "練習を離れる",
+    },
     llmNotice: {
       body: "Claude/Codex/ローカルLLMが未導入の場合、会話・添削・解説は使えません。例文・リスニング・シャドーイング・録音の文字起こしはそのまま使えます。",
       linkLabel: "セットアップ手順",

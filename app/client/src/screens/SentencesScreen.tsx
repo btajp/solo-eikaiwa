@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { STR, type Lang } from "../i18n";
 import { Button } from "../ui/Button";
 import { LevelChip } from "../ui/LevelChip";
@@ -38,7 +38,13 @@ function saveNewPerDay(v: number): void {
   localStorage.setItem(NEW_PER_DAY_KEY, String(v));
 }
 
-export function SentencesScreen({ lang, initialTab = "practice" }: { lang: Lang; initialTab?: Tab }) {
+export function SentencesScreen({
+  lang, initialTab = "practice", onTabChange,
+}: {
+  lang: Lang;
+  initialTab?: Tab;
+  onTabChange?: (tab: Tab) => void;
+}) {
   const t = STR[lang].sentences;
   const [tab, setTab] = useState<Tab>(initialTab);
   const [hideNote, setHideNote] = useState(() => loadHideNote());
@@ -47,6 +53,9 @@ export function SentencesScreen({ lang, initialTab = "practice" }: { lang: Lang;
   const [queueNewPerDay, setQueueNewPerDay] = useState(() => loadNewPerDay());
   const [practiceRevision, setPracticeRevision] = useState(0);
   const support = useSupport();
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
   // cloze を最初から出すか: 個別トグル → 既定 false（cloze は補助なので「オン」でのみ既定表示）
   const clozeDefault = resolveSupport(support.cloze, false);
 
@@ -75,6 +84,7 @@ export function SentencesScreen({ lang, initialTab = "practice" }: { lang: Lang;
   function selectTab(next: Tab) {
     if (next === "practice" && tab !== "practice") applyNewPerDay();
     setTab(next);
+    if (next !== tab) onTabChange?.(next);
   }
 
   return (
