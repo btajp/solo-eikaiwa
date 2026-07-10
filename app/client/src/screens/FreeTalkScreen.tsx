@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { converse, fetchPhraseHints, fetchUtteranceTranslation, sttUpload, ttsFetch, type PhraseHint } from "../api";
 import { playBlob, Recorder, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
+import { canDiscardConversationRecording, type ConversationRecordingStatus } from "../recording-controls";
 import { resolveSttOutcome } from "../stt-result";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { FeedbackRow } from "../ui/FeedbackRow";
+import { RecordButton } from "../ui/RecordButton";
 
 type Turn = { role: "you" | "ai"; text: string };
-type Status = "idle" | "starting" | "recording" | "transcribing" | "thinking" | "speaking" | "error";
+type Status = ConversationRecordingStatus;
 
 /** 会話ループ画面。scenarioId を渡すとロールプレイモードになる（M1の自由会話UIを抽出したもの） */
 export function FreeTalkScreen(props: {
@@ -30,6 +32,8 @@ export function FreeTalkScreen(props: {
   const [errorMsg, setErrorMsg] = useState("");
   const sessionIdRef = useRef<string | undefined>(undefined);
   const recorderRef = useRef(new Recorder());
+  // 録音開始待ちを破棄してすぐ録り直したとき、古い開始要求が新しい状態を上書きしないための世代番号。
+  const recordingGenerationRef = useRef(0);
   // stop→sttUpload→converse→ttsFetch→playBlob の対話パイプラインがアンマウント後も
   // 走り続けないようにするフラグ。await の後・setState の前（特に playBlob の前）で毎回チェックする
   const aliveRef = useRef(true);
@@ -48,17 +52,25 @@ export function FreeTalkScreen(props: {
     setStatus(next);
   }
 
+  function isCurrentStart(generation: number): boolean {
+    return recordingGenerationRef.current === generation && statusRef.current === "starting";
+  }
+
   async function onMainButton() {
     setErrorMsg("");
     if (statusRef.current === "idle" || statusRef.current === "error") {
       if (props.onBeforeRecord && !props.onBeforeRecord()) return;
+      const generation = ++recordingGenerationRef.current;
       updateStatus("starting");
       try {
         await recorderRef.current.start();
-        if (!aliveRef.current) return;
+        if (!aliveRef.current || !isCurrentStart(generation)) {
+          if (recordingGenerationRef.current === generation) recorderRef.current.cancel();
+          return;
+        }
         updateStatus("recording");
       } catch (err) {
-        if (!aliveRef.current) return;
+        if (!aliveRef.current || !isCurrentStart(generation)) return;
         setErrorMsg(t.micError(err instanceof Error ? err.message : String(err)));
         updateStatus("error");
       }
@@ -103,6 +115,14 @@ export function FreeTalkScreen(props: {
     }
   }
 
+  function discardRecording() {
+    if (!canDiscardConversationRecording(statusRef.current)) return;
+    recordingGenerationRef.current++;
+    recorderRef.current.cancel();
+    setErrorMsg("");
+    updateStatus("idle");
+  }
+
   async function translateTurn(i: number, text: string) {
     setTranslations((m) => ({ ...m, [i]: "loading" }));
     try {
@@ -132,14 +152,19 @@ export function FreeTalkScreen(props: {
 
   return (
     <div>
-      <Button
-        variant="primary"
-        size="lg"
-        onClick={onMainButton}
-        disabled={status === "starting" || status === "transcribing" || status === "thinking" || status === "speaking"}
-      >
-        {LABELS[status]}
-      </Button>
+      <div className="start-row">
+        <RecordButton
+          recording={status === "recording"}
+          onClick={onMainButton}
+          disabled={status === "starting" || status === "transcribing" || status === "thinking" || status === "speaking"}
+        >
+          {LABELS[status]}
+        </RecordButton>
+        {canDiscardConversationRecording(status) && (
+          <Button variant="secondary" onClick={discardRecording}>{t.discardRecording}</Button>
+        )}
+      </div>
+      {status === "recording" && <p className="text-sm text-muted">{t.stopAndSendHint}</p>}
       {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
       <div className="phrase-hint stack">
         <label className="text-sm text-muted" htmlFor="phrase-hint-input">

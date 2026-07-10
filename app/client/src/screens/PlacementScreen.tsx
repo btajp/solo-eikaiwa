@@ -5,12 +5,14 @@ import {
 } from "../api";
 import { Recorder, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
+import { placementRecordingAction } from "../recording-controls";
 import { resolveSttOutcome } from "../stt-result";
 import { formatMmSs, useCountdown } from "../useCountdown";
 import { useExplain } from "../useExplain";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { RecordButton } from "../ui/RecordButton";
 import { TimerChip } from "../ui/TimerChip";
 
 type Step =
@@ -219,6 +221,7 @@ export function PlacementScreen(props: { lang: Lang; onBeforeStart?: () => boole
     const def = tasks[i];
     const instruction = props.lang === "ja" ? def.instructionJa : def.instructionEn;
     const hasAnswer = transcripts[i].trim().length > 0;
+    const recordingAction = placementRecordingAction(hasAnswer);
     const isLast = i === tasks.length - 1;
     return (
       <div className="stack">
@@ -229,10 +232,10 @@ export function PlacementScreen(props: { lang: Lang; onBeforeStart?: () => boole
           <TimerChip remaining={timer.remaining} expired={timer.expired} />
         </Card>
         <div className="start-row">
-          <button
-            className={`btn btn-primary btn-lg record-btn${recState === "recording" ? " is-recording" : ""}`}
+          <RecordButton
             onClick={() => toggleRecording(i)}
             disabled={recState === "starting" || recState === "transcribing"}
+            recording={recState === "recording"}
           >
             {recState === "recording"
               ? t.recordStop
@@ -240,8 +243,8 @@ export function PlacementScreen(props: { lang: Lang; onBeforeStart?: () => boole
                 ? t.recordStarting
                 : recState === "transcribing"
                   ? t.transcribing
-                  : t.recordStart}
-          </button>
+                  : recordingAction === "replace" ? t.recordReplace : t.recordStart}
+          </RecordButton>
           {hasAnswer && recState === "idle" && (
             <Button onClick={() => redo(i)}>{t.redo}</Button>
           )}

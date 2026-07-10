@@ -284,7 +284,7 @@ type PlacementStrings = {
     introTitle: string; introBody: string; introStart: string;
     taskLabel: (i: number, total: number) => string;
     promptLabel: string;
-    recordStart: string; recordStarting: string; recordStop: string; transcribing: string;
+    recordStart: string; recordReplace: string; recordStarting: string; recordStop: string; transcribing: string;
     yourAnswer: string; redo: string; next: string; submit: string;
     submitting: string; submitError: string; retry: string;
     resultTitle: string; resultStage: (stage: number) => string;
@@ -380,6 +380,7 @@ type LibraryStrings = { library: {
 type RoleplayStrings = { roleplay: { starters: string } };
 type FreeTalkScreenStrings = { freeTalkScreen: {
   idle: string; starting: string; recording: string; transcribing: string; thinking: string; speaking: string; errorLabel: string;
+  discardRecording: string; stopAndSendHint: string;
   micError: (detail: string) => string; notHeard: string;
   hintLabel: string; hintPlaceholder: string; hintButton: string; hintThinking: string; hintError: string; retry: string;
   you: string; ai: string; translate: string; translating: string; translateError: string;
@@ -697,7 +698,7 @@ export const STR: Record<Lang, Strings> = {
       introStart: "Start task 1",
       taskLabel: (i, total) => `Task ${i} of ${total}`,
       promptLabel: "Your prompt",
-      recordStart: "🎙 Start speaking", recordStarting: "Requesting microphone…",
+      recordStart: "🎙 Start speaking", recordReplace: "Record again (replaces your previous answer)", recordStarting: "Requesting microphone…",
       recordStop: "⏹ Stop recording", transcribing: "📝 Transcribing…",
       yourAnswer: "Your answer", redo: "Record again", next: "Next task →", submit: "Get my result →",
       submitting: "Scoring your three tasks…",
@@ -843,8 +844,9 @@ export const STR: Record<Lang, Strings> = {
     },
     roleplay: { starters: "You could open with:" },
     freeTalkScreen: {
-      idle: "🎙 Speak (click to start recording)", starting: "Requesting microphone…", recording: "⏹ Recording… (click to send)",
+      idle: "🎙 Start recording", starting: "Requesting microphone…", recording: "⏹ Stop and send",
       transcribing: "📝 Transcribing…", thinking: "🤔 Thinking…", speaking: "🔊 Playing…", errorLabel: "🎙 Speak again",
+      discardRecording: "Discard this recording", stopAndSendHint: "Stopping sends this recording to the conversation.",
       micError: (detail) => `Can't access the microphone: ${detail}`, notHeard: "Couldn't catch that. Please try again.",
       hintLabel: "Stuck? Type what you want to say in Japanese and I'll suggest ways to say it in English",
       hintPlaceholder: "e.g. その機能はまだ試していません", hintButton: "💡 Phrasing hint",
@@ -1164,7 +1166,7 @@ export const STR: Record<Lang, Strings> = {
       introStart: "タスク1を始める",
       taskLabel: (i, total) => `タスク ${i} / ${total}`,
       promptLabel: "お題",
-      recordStart: "🎙 話し始める", recordStarting: "マイクを準備中…",
+      recordStart: "🎙 話し始める", recordReplace: "録り直す（前の回答を置き換え）", recordStarting: "マイクを準備中…",
       recordStop: "⏹ 録音を止める", transcribing: "📝 文字起こし中…",
       yourAnswer: "あなたの回答", redo: "録音し直す", next: "次のタスクへ →", submit: "結果を見る →",
       submitting: "3つのタスクを採点しています…",
@@ -1310,8 +1312,9 @@ export const STR: Record<Lang, Strings> = {
     },
     roleplay: { starters: "こう切り出せます:" },
     freeTalkScreen: {
-      idle: "🎙 話す（クリックで録音開始）", starting: "マイクを準備中…", recording: "⏹ 録音中…（クリックで送信）",
+      idle: "🎙 録音を始める", starting: "マイクを準備中…", recording: "⏹ 止めて送信",
       transcribing: "📝 文字起こし中…", thinking: "🤔 考え中…", speaking: "🔊 再生中…", errorLabel: "🎙 もう一度話す",
+      discardRecording: "この録音を破棄", stopAndSendHint: "「止めて送信」を押すと、この録音を会話に送信します。",
       micError: (detail) => `マイクにアクセスできません: ${detail}`, notHeard: "音声を聞き取れませんでした。もう一度話してください。",
       hintLabel: "うまく言えないときは、言いたいことを日本語で入力すると英語の言い方を提案します",
       hintPlaceholder: "例: その機能はまだ試していません", hintButton: "💡 言い方のヒント",

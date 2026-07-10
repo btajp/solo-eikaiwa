@@ -15,6 +15,7 @@ import { Card } from "../ui/Card";
 import { ChunkList } from "../ui/ChunkList";
 import { ExplainBox } from "../ui/ExplainBox";
 import { LevelChip } from "../ui/LevelChip";
+import { RecordButton } from "../ui/RecordButton";
 import { TimerChip } from "../ui/TimerChip";
 import { canRevealJaFromHintDefault, getSupport, resolveSupport, useSupport } from "../support";
 import { isDisclosureOpen, splitBilingualHint, toggleDisclosure } from "../support-disclosure";
@@ -492,19 +493,19 @@ export function FourThreeTwoScreen(props: {
       </div>
       <p className="text-sm text-muted">{t.roundTimeboxNote}</p>
       <div className="round-actions">
-        <button
-          className={`btn btn-primary btn-lg record-btn${recState === "recording" ? " is-recording" : ""}`}
+        <RecordButton
           onClick={toggleRecording}
           disabled={recState === "starting" || recState === "transcribing" || (timer.expired && recState === "idle")}
+          recording={recState === "recording"}
         >
           {recState === "recording"
             ? t.recStop
             : recState === "starting"
               ? t.recStarting
               : recState === "transcribing"
-                ? t.recTranscribing
-                : t.recStart}
-        </button>
+              ? t.recTranscribing
+              : t.recStart}
+        </RecordButton>
         <Button onClick={finishRound} disabled={recState === "starting" || recState === "transcribing"}>
           {t.roundFinish}
         </Button>
