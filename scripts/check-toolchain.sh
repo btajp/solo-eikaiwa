@@ -49,15 +49,34 @@ check_tauri() {
   echo "OK: Tauri CLI $actual"
 }
 
+check_cargo_audit() {
+  local expected output actual
+  expected="$(read_version cargoAudit)"
+  if ! command -v cargo >/dev/null 2>&1 || ! output="$(cargo audit --version 2>&1)"; then
+    echo "ERROR: cargo-audit version mismatch: expected=$expected actual=missing" >&2
+    exit 1
+  fi
+  actual="${output##* }"
+  if [[ "$actual" != "$expected" ]]; then
+    echo "ERROR: cargo-audit version mismatch: expected=$expected actual=${actual:-unknown}" >&2
+    exit 1
+  fi
+  echo "OK: cargo-audit $actual"
+}
+
 case "${1:-all}" in
   bun) check_bun ;;
   tauri) check_tauri ;;
+  audit)
+    check_bun
+    check_cargo_audit
+    ;;
   all)
     check_bun
     check_tauri
     ;;
   *)
-    echo "使い方: $0 [bun|tauri|all]" >&2
+    echo "使い方: $0 [bun|tauri|audit|all]" >&2
     exit 2
     ;;
 esac

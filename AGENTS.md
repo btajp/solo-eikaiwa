@@ -9,10 +9,10 @@ macOS ローカルで完結する英会話練習アプリ。Bun + TypeScript サ
 ## 検証ゲート（変更の種類を問わず必須）
 
 ```bash
-cd app && bun test            # 全テスト緑（サーバ + クライアント純ロジック）
-cd app && bun run typecheck   # サーバ型チェック
-cd app/client && bun run build  # クライアント型チェック + ビルド
+./scripts/verify.sh pr  # client build → 型 → shellcheck → 全test → 教材検証
 ```
+
+デスクトップ変更は`./scripts/verify.sh desktop`も必須。リリースは`./scripts/verify.sh release`を使い、依存監査まで通す。
 
 ## ドキュメント規約（コード完了 ≠ タスク完了）
 

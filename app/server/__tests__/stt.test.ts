@@ -10,6 +10,7 @@ import {
 import { realSpawn } from "../spawn";
 
 type FakeSpawnResult = { exitCode: number; stderr: string };
+const fakeFfmpegAvailable = (binary: string) => binary === "ffmpeg" ? "/fake/ffmpeg" : null;
 
 /**
  * ffmpeg/whisper の実行をシミュレートする fake spawnFn を作る。
@@ -82,7 +83,7 @@ describe("stt", () => {
     const inputPath = "/in/input.webm";
     const { spawnFn, calls } = makeFakeSpawn({});
 
-    const result = await transcribeAudio(inputPath, { spawnFn });
+    const result = await transcribeAudio(inputPath, { spawnFn, whichFn: fakeFfmpegAvailable });
 
     expect(result.text).toBe("Hi.");
     expect(calls.length).toBe(2);
@@ -102,7 +103,8 @@ describe("stt", () => {
       ffmpegResult: { exitCode: 1, stderr: "boom" },
     });
 
-    await expect(transcribeAudio("/in/input.webm", { spawnFn })).rejects.toThrow(/ffmpeg failed/);
+    await expect(transcribeAudio("/in/input.webm", { spawnFn, whichFn: fakeFfmpegAvailable }))
+      .rejects.toThrow(/ffmpeg failed/);
     expect(calls.length).toBe(1);
   });
 
@@ -111,7 +113,8 @@ describe("stt", () => {
       whisperResult: { exitCode: 1, stderr: "boom" },
     });
 
-    await expect(transcribeAudio("/in/input.webm", { spawnFn })).rejects.toThrow(/whisper failed/);
+    await expect(transcribeAudio("/in/input.webm", { spawnFn, whichFn: fakeFfmpegAvailable }))
+      .rejects.toThrow(/whisper failed/);
     expect(calls.length).toBe(2);
   });
 
@@ -120,7 +123,8 @@ describe("stt", () => {
       ffmpegResult: { exitCode: 1, stderr: "boom" },
     });
 
-    await expect(transcribeAudio("/in/input.webm", { spawnFn })).rejects.toThrow(/ffmpeg failed/);
+    await expect(transcribeAudio("/in/input.webm", { spawnFn, whichFn: fakeFfmpegAvailable }))
+      .rejects.toThrow(/ffmpeg failed/);
 
     const ffmpegCmd = calls[0];
     const wavPath = ffmpegCmd[ffmpegCmd.length - 2];

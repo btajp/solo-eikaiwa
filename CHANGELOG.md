@@ -8,6 +8,8 @@
 
 - 開発・常駐化・デスクトップビルド・リリース時のBun依存解決をfrozen lockfileへ統一し、Bun/Tauri CLIの検証済みexact版と異なる環境では処理を開始しないようにした
 - 教材生成・検証スクリプトも通常のTypeScript型検査へ含め、サーバ変更によるCLI破損を事前検出するようにした
+- PR・ローカル・リリースで同じ検証スクリプトを使い、Bun/TypeScript/client buildに加えてShellCheck・教材品質・desktopのRust test/clippyを継続確認するようにした
+- Bun/Cargo依存監査を週次・手動・リリース前に追加し、脆弱性検出と監査サービス障害を区別して報告するようにした
 
 ### Security
 

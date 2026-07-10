@@ -19,11 +19,12 @@ afterEach(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-function makeFakeTools(options: { bun?: string; tauri?: string } = {}) {
+function makeFakeTools(options: { bun?: string; tauri?: string; cargoAudit?: string } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), "solo-toolchain-"));
   tempDirs.push(dir);
   const bun = options.bun ?? "1.3.14";
   const tauri = options.tauri ?? "2.11.4";
+  const cargoAudit = options.cargoAudit ?? "0.22.2";
 
   writeFileSync(
     path.join(dir, "bun"),
@@ -31,7 +32,7 @@ function makeFakeTools(options: { bun?: string; tauri?: string } = {}) {
   );
   writeFileSync(
     path.join(dir, "cargo"),
-    `#!/bin/sh\nif [ "$1" = "tauri" ] && [ "$2" = "--version" ]; then echo "tauri-cli ${tauri}"; exit 0; fi\nexit 2\n`,
+    `#!/bin/sh\nif [ "$1" = "tauri" ] && [ "$2" = "--version" ]; then echo "tauri-cli ${tauri}"; exit 0; fi\nif [ "$1" = "audit" ] && [ "$2" = "--version" ]; then echo "cargo-audit ${cargoAudit}"; exit 0; fi\nexit 2\n`,
   );
   chmodSync(path.join(dir, "bun"), 0o755);
   chmodSync(path.join(dir, "cargo"), 0o755);
@@ -55,7 +56,7 @@ function output(result: ReturnType<typeof Bun.spawnSync>) {
 describe("toolchain contract", () => {
   test("BunとTauri CLIの期待版を単一JSONにexactで保持する", () => {
     const versions = JSON.parse(readFileSync(path.join(REPO_ROOT, "toolchain.json"), "utf8"));
-    expect(versions).toEqual({ bun: "1.3.14", tauriCli: "2.11.4" });
+    expect(versions).toEqual({ bun: "1.3.14", tauriCli: "2.11.4", cargoAudit: "0.22.2" });
   });
 
   test("期待版ならBunとTauri CLIの検査が通る", () => {
@@ -77,6 +78,13 @@ describe("toolchain contract", () => {
     expect(result.exitCode).not.toBe(0);
     expect(output(result)).toContain("expected=2.11.4");
     expect(output(result)).toContain("actual=2.11.3");
+  });
+
+  test("cargo-audit版違いはexpected/actualを表示して失敗する", () => {
+    const result = run(CHECK_SCRIPT, ["audit"], makeFakeTools({ cargoAudit: "0.22.1" }));
+    expect(result.exitCode).not.toBe(0);
+    expect(output(result)).toContain("expected=0.22.2");
+    expect(output(result)).toContain("actual=0.22.1");
   });
 
   test("app/client双方をfrozen lockfileから順に準備する", () => {
@@ -140,12 +148,12 @@ describe("repository guards", () => {
     expect(tsconfig.include).toContain("../scripts");
   });
 
-  test("全consumerが共通のfrozen install helperを使う", () => {
+  test("setup/daemon/sidecarと共通verifyがfrozen install helperを使う", () => {
     for (const relative of [
       "scripts/setup.sh",
       "scripts/install-daemon.sh",
       "desktop/build-sidecar.sh",
-      "scripts/release-desktop.sh",
+      "scripts/verify.sh",
     ]) {
       const text = readFileSync(path.join(REPO_ROOT, relative), "utf8");
       expect(text, relative).toContain("install-bun-deps.sh");
@@ -153,14 +161,13 @@ describe("repository guards", () => {
     }
   });
 
-  test("releaseは依存準備後に検証しbuild後にもcleanを強制する", () => {
+  test("releaseは共通verify後にbuildし、その後にもcleanを強制する", () => {
     const text = readFileSync(path.join(REPO_ROOT, "scripts", "release-desktop.sh"), "utf8");
-    const prepare = text.indexOf('install-bun-deps.sh" all');
-    const tests = text.lastIndexOf("bun test");
+    const verify = text.indexOf('verify.sh" release');
     const build = text.indexOf('build-sidecar.sh"');
     const finalClean = text.lastIndexOf("assert_clean_worktree");
-    expect(prepare).toBeGreaterThan(0);
-    expect(tests).toBeGreaterThan(prepare);
+    expect(verify).toBeGreaterThan(0);
+    expect(build).toBeGreaterThan(verify);
     expect(finalClean).toBeGreaterThan(build);
   });
 });
