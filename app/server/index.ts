@@ -28,17 +28,24 @@ import { makeTtsProviderStore } from "./tts-provider-store";
 import { makeLlmRoleSettingsStore } from "./llm-role-settings-store";
 import { makeLlmRoleTuningStore } from "./llm-role-tuning-store";
 import { makeLlmAuthStore, setActiveAuthModes } from "./llm-auth-store";
-import { ensureCodexApiKeyHome } from "./codex-auth";
+import { ensureCodexApiKeyHome, resetCodexApiKeyHome } from "./codex-auth";
 import { conversationWarmup } from "./llm-warmup";
 import { DEFAULT_LLM_SETTINGS, LLM_ROLES } from "./llm-provider";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { getCodexAppServerClient, __resetCodexAppServerRegistry } from "./providers/codex-app-server";
 import { makeClaudeCatalogFetcher, makeCodexCatalogFetcher, makeLocalCatalogFetcher, makeModelCatalogCache } from "./providers/model-catalog";
 import { modelDownloadManager } from "./model-download";
+import { makeSecretsManager } from "./secrets";
 
 ensureDirs();
 const PORT = resolvePort(Bun.env);
 const HOSTNAME = resolveHostname(Bun.env);
+
+// 起動時: Keychain に保存済みの API キーをプロセス env へ注入する（Keychain > env・spec 2026-07-10）。
+// 以降の鍵消費点（settingsToEnv・codex-auth・tts・health・presence 判定）はすべてプロセス env を
+// 見るため、この1回の注入で全経路に効く。失敗しても env のみで継続する（fail-open・load 内で warn）。
+const secretsManager = makeSecretsManager();
+await secretsManager.load();
 
 const db = openDb();
 const libraryStore = makeLibraryStore(db);
@@ -179,6 +186,37 @@ const realDeps: RouteDeps = {
   saveTtsProvider: (p) => ttsProviderStore.save(p),
   // env 由来。TTS の APIキーは有無のみ開示（TTS_API_KEY 優先・無ければ OPENAI_API_KEY）。値は絶対に返さない。
   ttsEnv: () => ({ apiKeyConfigured: Boolean((Bun.env.TTS_API_KEY ?? Bun.env.OPENAI_API_KEY)?.trim()) }),
+  // API キーの Keychain 設定（routes/secrets.ts）。値はいかなる応答にも含めない。
+  // CODEX_API_KEY の変更は隔離 CODEX_HOME の auth.json を破棄し、api-key モード運用中なら
+  // 新しいキー（削除時は env 復元値）で再ログインする。キーが無くなった場合は情報的エラーを
+  // throw し、route が applied:false + error として返す（モード自体は変更しない）。
+  refreshCodexAuth: async () => {
+    resetCodexApiKeyHome();
+    if (llmAuthStore.getAll().codex !== "api-key") return;
+    if (!Bun.env.CODEX_API_KEY?.trim()) {
+      throw new Error("codex auth mode is api-key but no key is configured now; save a key or switch to subscription");
+    }
+    await ensureCodexApiKeyHome();
+  },
+  getSecretsStatus: () => secretsManager.status(),
+  saveSecret: (name, value) => secretsManager.save(name, value),
+  removeSecret: (name) => secretsManager.remove(name),
+  // 鍵変更後の再解決: llm-settings の applyResolved と同じ「現在の全体設定 + 保存済みロール/チューニング」で
+  // 5ロール runner を組み直す（openai-compat の apiKey は合成 env 経由なので新しい鍵が効く）。fail-open。
+  applySecretsChange: () => {
+    try {
+      applyLlmRoleSettings(
+        llmSettingsStore.get() ?? DEFAULT_LLM_SETTINGS,
+        llmRoleSettingsStore.getAll(),
+        Bun.env,
+        llmRoleTuningStore.getAll(),
+        llmRoleTuningStore.getGlobal(),
+      );
+      return { applied: true, error: null };
+    } catch (err) {
+      return { applied: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  },
   modelDownload: modelDownloadManager,
 };
 

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "bun:test";
-import { ensureCodexApiKeyHome, codexSpawnEnv, type CodexLoginSpawn } from "../codex-auth";
+import { ensureCodexApiKeyHome, resetCodexApiKeyHome, codexSpawnEnv, type CodexLoginSpawn } from "../codex-auth";
 
 /**
  * 実 DATA_DIR/codex-home には一切触れない（ローカル専用データを壊すリスクを避ける）。
@@ -136,5 +136,25 @@ describe("codexSpawnEnv", () => {
     const out = codexSpawnEnv("api-key", { PATH: "/usr/bin" });
     expect(out?.PATH).toBe("/usr/bin");
     expect(out?.CODEX_HOME).toMatch(/codex-home$/);
+  });
+});
+
+describe("resetCodexApiKeyHome（キーのローテーション/削除時の auth.json 破棄）", () => {
+  test("auth.json を削除する（次回 ensure が新しいキーで再ログインできる状態に戻す）", async () => {
+    const { mkdtempSync, writeFileSync, existsSync } = await import("node:fs");
+    const path = await import("node:path");
+    const os = await import("node:os");
+    const dir = mkdtempSync(path.join(os.tmpdir(), "codex-home-"));
+    const authPath = path.join(dir, "auth.json");
+    writeFileSync(authPath, JSON.stringify({ OPENAI_API_KEY: "old" }));
+    resetCodexApiKeyHome(dir);
+    expect(existsSync(authPath)).toBe(false);
+  });
+
+  test("auth.json が無くても冪等に成功する", async () => {
+    const { mkdtempSync } = await import("node:fs");
+    const path = await import("node:path");
+    const os = await import("node:os");
+    resetCodexApiKeyHome(mkdtempSync(path.join(os.tmpdir(), "codex-home-")));
   });
 });

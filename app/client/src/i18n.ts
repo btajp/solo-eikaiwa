@@ -106,7 +106,6 @@ type LlmPanelStrings = {
     notApplied: (msg: string) => string;
     saveFailed: string;
     saveFailedWithReason: (reason: string) => string;
-    apiKeyConfigured: string; apiKeyMissing: string;
     help: string; helpAria: string;
   };
 };
@@ -142,8 +141,16 @@ type SettingsStrings = {
     authModeLabel: string;
     authSubscription: string;
     authApiKey: string;
-    authKeyDetected: string;
-    authKeyMissing: string;
+    secretKeyLabel: string;
+    secretStatusKeychain: string;
+    secretStatusEnv: string;
+    secretStatusMissing: string;
+    secretPlaceholderSet: string;
+    secretPlaceholderNew: string;
+    secretSave: string;
+    secretDelete: string;
+    secretSaved: string;
+    secretDeleted: string;
     authApiKeyNote: string;
     roleAssignSection: string;
     roleAssignDesc: string;
@@ -177,6 +184,7 @@ type SettingsStrings = {
     ttsProviderShortSay: string; ttsProviderShortHttp: string;
     ttsProviderSay: string; ttsProviderHttp: string;
     ttsProviderNote: string;
+    ttsApiKeyOptionalNote: string;
     ttsBaseUrlLabel: string; ttsBaseUrlPlaceholder: string;
     ttsModelLabel: string; ttsModelPlaceholder: string;
     ttsVoiceLabel: string; ttsVoicePlaceholder: string;
@@ -185,7 +193,6 @@ type SettingsStrings = {
     ttsVoicePresetNote: string;
     ttsReset: string;
     ttsResetDescWith: (model: string, voice: string) => string;
-    ttsApiKeyConfigured: string; ttsApiKeyOptional: string;
   };
 };
 type StatStrings = { stat: { title: string; thisWeekUnit: string; total: (n: number) => string } };
@@ -426,8 +433,7 @@ export const STR: Record<Lang, Strings> = {
       notApplied: (msg) => `Saved, but not applied: ${msg}`,
       saveFailed: "Could not save settings.",
       saveFailedWithReason: (reason) => `Could not save settings: ${reason}`,
-      apiKeyConfigured: "API key: set in app/.env", apiKeyMissing: "API key: not set (app/.env)",
-      help: "The API key is read from app/.env only and is never stored here. Reply quality depends on the model you choose; Claude is the tested baseline.",
+      help: "API keys are stored in the macOS Keychain when saved here (app/.env also works; Keychain wins). The key value is never displayed or returned. Reply quality depends on the model you choose; Claude is the tested baseline.",
       helpAria: "About the LLM provider setting",
     },
     settings: {
@@ -481,8 +487,16 @@ export const STR: Record<Lang, Strings> = {
       authModeLabel: "Authentication",
       authSubscription: "Subscription (default)",
       authApiKey: "API key (pay-as-you-go)",
-      authKeyDetected: "API key: configured in app/.env",
-      authKeyMissing: "API key: not set (add it to app/.env)",
+      secretKeyLabel: "API key",
+      secretStatusKeychain: "Set (stored in Keychain)",
+      secretStatusEnv: "Set (detected from app/.env)",
+      secretStatusMissing: "Not set",
+      secretPlaceholderSet: "Enter a new key to replace the current one",
+      secretPlaceholderNew: "Paste your API key",
+      secretSave: "Save key",
+      secretDelete: "Delete key",
+      secretSaved: "Key saved to Keychain and applied.",
+      secretDeleted: "Key removed from Keychain.",
       authApiKeyNote: "API keys are billed pay-as-you-go via api.openai.com / the Anthropic API (separate from your subscription allowance). The key itself is never stored in the UI.",
       roleAssignSection: "Model per role",
       roleAssignDesc: "Choose which model handles each role.",
@@ -529,8 +543,7 @@ export const STR: Record<Lang, Strings> = {
       ttsVoicePresetNote: "Presets pick a matching voice for the current Base URL (OpenAI / Kokoro).",
       ttsReset: "Reset to default",
       ttsResetDescWith: (model, voice) => `Clear the overrides and return to the defaults (engine: Auto, OpenAI ${model} / ${voice} when a key is set, otherwise macOS say).`,
-      ttsApiKeyConfigured: "TTS API key detected (app/.env).",
-      ttsApiKeyOptional: "No TTS API key — fine for a local endpoint; OpenAI needs one.",
+      ttsApiKeyOptionalNote: "A key is only needed for endpoints that require one (e.g. OpenAI); local servers work without it.",
     },
     stat: { title: "Practice log", thisWeekUnit: "days this week", total: (n) => `${n} days total` },
     hero: {
@@ -827,8 +840,7 @@ export const STR: Record<Lang, Strings> = {
       notApplied: (msg) => `保存しましたが適用できませんでした: ${msg}`,
       saveFailed: "設定を保存できませんでした。",
       saveFailedWithReason: (reason) => `設定を保存できませんでした: ${reason}`,
-      apiKeyConfigured: "APIキー: app/.env に設定済み", apiKeyMissing: "APIキー: 未設定（app/.env）",
-      help: "APIキーは app/.env からのみ読み込み、ここには保存しません。応答品質は選んだモデルに依存します。Claude は動作確認済みの基準です。",
+      help: "ここで保存した API キーは macOS Keychain に保管されます（app/.env も併用可・Keychain が優先）。キーの値は表示・再取得されません。応答品質は選んだモデルに依存します。Claude は動作確認済みの基準です。",
       helpAria: "LLM プロバイダ設定の説明",
     },
     settings: {
@@ -882,8 +894,16 @@ export const STR: Record<Lang, Strings> = {
       authModeLabel: "認証",
       authSubscription: "サブスクリプション（既定）",
       authApiKey: "APIキー（従量課金）",
-      authKeyDetected: "APIキー: app/.env に設定済み",
-      authKeyMissing: "APIキー: 未設定（app/.env に追記してください）",
+      secretKeyLabel: "API キー",
+      secretStatusKeychain: "設定済み（Keychain に保存）",
+      secretStatusEnv: "設定済み（app/.env から検出）",
+      secretStatusMissing: "未設定",
+      secretPlaceholderSet: "置き換える場合は新しいキーを入力",
+      secretPlaceholderNew: "API キーを貼り付け",
+      secretSave: "キーを保存",
+      secretDelete: "キーを削除",
+      secretSaved: "キーを Keychain に保存し、適用しました。",
+      secretDeleted: "キーを Keychain から削除しました。",
       authApiKeyNote: "APIキーは api.openai.com / Anthropic API の従量課金です（サブスクの利用枠とは別）。キーは UI には保存されません。",
       roleAssignSection: "用途ごとのモデル",
       roleAssignDesc: "各用途をどのモデルに任せるか選びます。",
@@ -930,8 +950,7 @@ export const STR: Record<Lang, Strings> = {
       ttsVoicePresetNote: "現在の Base URL（OpenAI / Kokoro）に合った声を入力欄にセットします。",
       ttsReset: "既定に戻す",
       ttsResetDescWith: (model, voice) => `上書きを消して、既定（エンジン: 自動・キー設定時は OpenAI ${model} / ${voice}・無ければ macOS say）に戻します。`,
-      ttsApiKeyConfigured: "TTS API キーを検出（app/.env）。",
-      ttsApiKeyOptional: "TTS API キーなし — ローカルなら問題なし・OpenAI には必要。",
+      ttsApiKeyOptionalNote: "キーが必要なのは OpenAI 等の鍵必須エンドポイントのみです（ローカルサーバは不要）。",
     },
     stat: { title: "練習記録", thisWeekUnit: "日（今週）", total: (n) => `累計 ${n}日` },
     hero: {

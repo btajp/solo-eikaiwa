@@ -7,6 +7,7 @@ import {
   type LlmRole, type LlmSettingsView, type TtsSettingsView, type RoleTuning, type LlmModelsResponse, type CatalogModelEffort,
   type AuthMode, type LlmAuthProvider, type TtsProvider,
 } from "../api";
+import { fetchSecrets, saveSecret, deleteSecret, type SecretName, type SecretsView, type SecretStatus, type SecretMutationResult } from "../api";
 import {
   isLocalDefined, presetEnabled, presetTargets, matchPreset, hydrateConnection, hydrateTargets, hydrateTuning,
   hydrateGlobalTuning, hydrateAuthModes, hydrateAuthKeys, buildAuthPatch,
@@ -42,6 +43,71 @@ const VOICE_PRESET_MALE_VALUES = Object.values(VOICE_PRESETS).map((p) => p.male)
 function detectVoiceProviderKind(baseUrl: string): VoiceProviderKind {
   const lower = baseUrl.toLowerCase();
   return lower.includes("8880") || lower.includes("kokoro") ? "kokoro" : "openai";
+}
+
+/** API キー1件の write-only 入力欄。値の表示・再取得はできない（置換 or 削除のみ・ソースを必ず明示）。 */
+function SecretKeyField(props: {
+  name: SecretName;
+  status: SecretStatus | undefined;
+  disabled: boolean;
+  str: {
+    label: string; statusKeychain: string; statusEnv: string; statusMissing: string;
+    placeholderSet: string; placeholderNew: string; save: string; del: string;
+    saved: string; deleted: string;
+    saveFailedWithReason: (reason: string) => string;
+    notApplied: (reason: string) => string;
+  };
+  onSave: (name: SecretName, value: string) => Promise<SecretMutationResult>;
+  onDelete: (name: SecretName) => Promise<SecretMutationResult>;
+}) {
+  const [value, setValue] = useState("");
+  const [result, setResult] = useState<string | null>(null);
+  const st = props.status;
+  const statusText = st?.configured
+    ? st.source === "keychain" ? props.str.statusKeychain : props.str.statusEnv
+    : props.str.statusMissing;
+
+  async function run(action: () => Promise<SecretMutationResult>, doneMsg: string) {
+    setResult(null);
+    try {
+      const r = await action();
+      setValue("");
+      // 保存自体は成功しても実行中プロセスへの適用に失敗した場合（applied:false）は、
+      // 「保存し、適用しました」と嘘をつかずに理由つきで情報表示する（UI 真実性）。
+      setResult(r.applied === false ? props.str.notApplied(r.error ?? "") : doneMsg);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      setResult(props.str.saveFailedWithReason(reason));
+    }
+  }
+
+  return (
+    <div className="llm-field">
+      <span className="text-sm text-muted">{props.str.label} — {statusText}</span>
+      <div className="secret-key-row">
+        <input
+          className="llm-input"
+          type="password"
+          autoComplete="off"
+          value={value}
+          placeholder={st?.configured ? props.str.placeholderSet : props.str.placeholderNew}
+          disabled={props.disabled}
+          onChange={(e) => setValue(e.target.value)}
+        />
+        <Button variant="secondary" disabled={props.disabled || value.trim().length === 0}
+          onClick={() => void run(() => props.onSave(props.name, value.trim()), props.str.saved)}>
+          {props.str.save}
+        </Button>
+        {st?.source === "keychain" && (
+          <Button variant="secondary" disabled={props.disabled}
+            onClick={() => void run(() => props.onDelete(props.name), props.str.deleted)}>
+            {props.str.del}
+          </Button>
+        )}
+      </div>
+      {result && <div className="text-sm text-muted" role="status">{result}</div>}
+    </div>
+  );
 }
 
 /** 1ロールの割当トグル（Claude / ローカル / Codex）。ローカル未定義時はローカルを非活性 + 中立案内。 */
@@ -113,6 +179,8 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   // 無関係の保存まで 400 になりロックアウトする — buildAuthPatch 参照）。
   const [authBaseline, setAuthBaseline] = useState<Record<LlmAuthProvider, AuthMode>>({ claude: "subscription", codex: "subscription" });
   const authKeys = view ? hydrateAuthKeys(view) : { anthropic: false, codex: false };
+  // API キーの有無・ソース（値はサーバが返さない）
+  const [secrets, setSecrets] = useState<SecretsView | null>(null);
   // 音声（TTS）の編集状態
   const [ttsView, setTtsView] = useState<TtsSettingsView | null>(null);
   const [ttsProvider, setTtsProvider] = useState<TtsProvider>("auto");
@@ -148,6 +216,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
     fetchedRef.current = true;
     fetchLlmSettings().then(hydrate).catch(() => {});
     fetchTtsSettings().then(hydrateTts).catch(() => {});
+    fetchSecrets().then(setSecrets).catch(() => {});
   }, []);
 
   /** refresh=true は「モデル一覧を更新」ボタン用（?refresh=1）。失敗は fail-quiet — カタログは
@@ -210,6 +279,41 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
   function setTuningField<K extends keyof RoleTuning>(role: LlmRole, field: K, value: RoleTuning[K]) {
     setTuning((prev) => ({ ...prev, [role]: { ...prev[role], [field]: value } }));
   }
+
+  /**
+   * 鍵の保存/削除。鍵の有無で認証モードの選択可否（authKeys は view から導出）・TTS「自動」の
+   * 解決表示（ttsView.apiKeyConfigured）が変わるため view/ttsView だけを再取得する。
+   * hydrate/hydrateTts は呼ばない — 編集中の接続・TTS 入力（未保存）をサーバ値で上書きして
+   * 破棄してしまうため（レビュー指摘 2026-07-10）。
+   */
+  async function onSaveSecret(name: SecretName, value: string): Promise<SecretMutationResult> {
+    const r = await saveSecret(name, value);
+    setSecrets(r.secrets);
+    fetchLlmSettings().then(setView).catch(() => {});
+    fetchTtsSettings().then(setTtsView).catch(() => {});
+    return r;
+  }
+  async function onDeleteSecret(name: SecretName): Promise<SecretMutationResult> {
+    const r = await deleteSecret(name);
+    setSecrets(r.secrets);
+    fetchLlmSettings().then(setView).catch(() => {});
+    fetchTtsSettings().then(setTtsView).catch(() => {});
+    return r;
+  }
+  const secretStr = {
+    label: s.settings.secretKeyLabel,
+    statusKeychain: s.settings.secretStatusKeychain,
+    statusEnv: s.settings.secretStatusEnv,
+    statusMissing: s.settings.secretStatusMissing,
+    placeholderSet: s.settings.secretPlaceholderSet,
+    placeholderNew: s.settings.secretPlaceholderNew,
+    save: s.settings.secretSave,
+    del: s.settings.secretDelete,
+    saved: s.settings.secretSaved,
+    deleted: s.settings.secretDeleted,
+    saveFailedWithReason: s.llm.saveFailedWithReason,
+    notApplied: s.llm.notApplied,
+  };
 
   const voicePreset: "female" | "male" | "custom" = VOICE_PRESET_FEMALE_VALUES.includes(ttsVoice.trim())
     ? "female"
@@ -295,7 +399,8 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                 ))}
               </select>
             </label>
-            <div className="text-sm text-muted">{authKeys.anthropic ? s.settings.authKeyDetected : s.settings.authKeyMissing}</div>
+            <SecretKeyField name="ANTHROPIC_API_KEY" status={secrets?.ANTHROPIC_API_KEY} disabled={saving || !view}
+              str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
             <div className="text-sm text-muted">{s.settings.authApiKeyNote}</div>
             <label className="llm-field">
               <span className="text-sm text-muted">{s.settings.claudeGlobalModelLabel}</span>
@@ -337,7 +442,8 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                 );
               })()}
             </label>
-            <div className="text-sm text-muted">{view?.apiKeyConfigured ? s.llm.apiKeyConfigured : s.llm.apiKeyMissing}</div>
+            <SecretKeyField name="OPENAI_COMPAT_API_KEY" status={secrets?.OPENAI_COMPAT_API_KEY} disabled={saving || !view}
+              str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
           </div>
           <hr className="settings-divider" />
           <div className="llm-fields stack">
@@ -377,7 +483,8 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
                 ))}
               </select>
             </label>
-            <div className="text-sm text-muted">{authKeys.codex ? s.settings.authKeyDetected : s.settings.authKeyMissing}</div>
+            <SecretKeyField name="CODEX_API_KEY" status={secrets?.CODEX_API_KEY} disabled={saving || !view}
+              str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
             <div className="text-sm text-muted">{s.settings.authApiKeyNote}</div>
           </div>
           <div className="text-sm text-muted">{s.llm.help}</div>
@@ -431,7 +538,9 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang }: Props)
               <span className="text-sm text-muted">{s.settings.ttsVoiceLabel}</span>
               <input className="llm-input" value={ttsVoice} placeholder={s.settings.ttsVoicePlaceholder} onChange={(e) => setTtsVoice(e.target.value)} />
             </label>
-            <div className="text-sm text-muted">{ttsView?.apiKeyConfigured ? s.settings.ttsApiKeyConfigured : s.settings.ttsApiKeyOptional}</div>
+            <SecretKeyField name="TTS_API_KEY" status={secrets?.TTS_API_KEY} disabled={saving || !ttsView}
+              str={secretStr} onSave={onSaveSecret} onDelete={onDeleteSecret} />
+            <div className="text-sm text-muted">{s.settings.ttsApiKeyOptionalNote}</div>
           </div>
           <Button variant="secondary" onClick={onSaveTts} disabled={saving || !ttsView}>{saving ? s.llm.saving : s.llm.save}</Button>
           <div className="text-sm text-muted">{s.settings.ttsResetDescWith(ttsView?.defaults.model ?? "gpt-4o-mini-tts", ttsView?.defaults.voice ?? "alloy")}</div>

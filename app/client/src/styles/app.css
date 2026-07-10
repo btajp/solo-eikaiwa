@@ -225,6 +225,8 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 /* 設定画面のセクション見出し・区切り（どこからどこまでが何の設定かを視覚的に分ける） */
 .settings-section-title { font-size: var(--fs-lg); font-weight: 650; margin: var(--sp-2) 0 0; }
 .settings-divider { border: none; border-top: 1px solid var(--border); margin: var(--sp-3) 0 var(--sp-1); width: 100%; }
+.secret-key-row { display: flex; gap: var(--sp-2); align-items: center; }
+.secret-key-row .llm-input { flex: 1; }
 /* サポートパネルのラベル行 + ⓘ ヘルプ */
 .support-label-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
 .info-btn {

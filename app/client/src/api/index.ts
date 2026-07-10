@@ -28,4 +28,5 @@ export * from "./feedback";
 export * from "./llm-settings";
 export * from "./llm-models";
 export * from "./tts-settings";
+export * from "./secrets";
 export * from "./setup";

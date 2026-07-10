@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import path from "node:path";
 import { DATA_DIR } from "./paths";
 import type { AuthMode } from "./llm-auth-store";
@@ -52,6 +52,15 @@ export async function ensureCodexApiKeyHome(
   mkdirSync(dir, { recursive: true });
   await spawnFn({ env: { ...Bun.env, CODEX_HOME: dir }, stdin: apiKey });
   return dir;
+}
+
+/**
+ * 隔離 CODEX_HOME の auth.json を破棄する（キーのローテーション/削除時・冪等）。
+ * ensureCodexApiKeyHome は有効な auth.json があると early-return するため、キー変更を
+ * 反映するには先にこれを呼んで再ログインさせる必要がある（routes/secrets.ts 経由）。
+ */
+export function resetCodexApiKeyHome(dir: string = CODEX_HOME_DIR): void {
+  rmSync(path.join(dir, "auth.json"), { force: true });
 }
 
 /**
