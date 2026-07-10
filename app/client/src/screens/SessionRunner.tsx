@@ -36,7 +36,9 @@ function sourceSignature(src: MenuSource): string {
 }
 
 /** メニューを取得し、ブロックを順番に進行させる。ブロックタイマーと進行イベント記録を持つ */
-export function SessionRunner(props: { source: MenuSource; sessionId: string; lang: Lang; onExit: () => void }) {
+export function SessionRunner(props: {
+  source: MenuSource; sessionId: string; lang: Lang; onExit: () => void; onBeforeRecording?: () => boolean;
+}) {
   const t = STR[props.lang].session;
   const [menu, setMenu] = useState<Menu | null>(null);
   const [index, setIndex] = useState(0);
@@ -202,7 +204,10 @@ export function SessionRunner(props: { source: MenuSource; sessionId: string; la
       {/* v0.26 wave5: rotation の情報的注記。ラウンドロビン振替・帯域緩和で選ばれたときだけ出す中立な一文（警告調ではない） */}
       {block.fallback && <Banner kind="info">{t.fallbackNote}</Banner>}
       <div key={block.id} className="fade-in">
-        <BlockBody block={block} sessionId={props.sessionId} lang={props.lang} />
+        <BlockBody
+          block={block} sessionId={props.sessionId} lang={props.lang}
+          onBeforeRecording={props.onBeforeRecording}
+        />
       </div>
       <div className="round-actions">
         <Button variant="primary" size="lg" onClick={nextBlock} disabled={advancing}>
@@ -213,7 +218,11 @@ export function SessionRunner(props: { source: MenuSource; sessionId: string; la
   );
 }
 
-function BlockBody({ block, sessionId, lang }: { block: MenuBlock; sessionId: string; lang: Lang }) {
+function BlockBody({
+  block, sessionId, lang, onBeforeRecording,
+}: {
+  block: MenuBlock; sessionId: string; lang: Lang; onBeforeRecording?: () => boolean;
+}) {
   switch (block.kind) {
     case "chunk-placeholder":
       return <ChunkPlaceholderScreen />;
@@ -223,14 +232,18 @@ function BlockBody({ block, sessionId, lang }: { block: MenuBlock; sessionId: st
       return block.params.topic ? (
         <FourThreeTwoScreen
           topic={block.params.topic} sessionId={sessionId} blockId={block.id}
-          roundsSec={block.params.roundsSec} hintMode={block.params.hintMode} modelTalkMode={block.params.modelTalkMode} lang={lang}
+          roundsSec={block.params.roundsSec} hintMode={block.params.hintMode} modelTalkMode={block.params.modelTalkMode}
+          onBeforeRecord={onBeforeRecording} lang={lang}
         />
       ) : (
         <p>{STR[lang].session.noTopic}</p>
       );
     case "roleplay":
       return block.params.scenario
-        ? <RoleplayScreen scenario={block.params.scenario} sessionId={sessionId} lang={lang} />
+        ? <RoleplayScreen
+            scenario={block.params.scenario} sessionId={sessionId} lang={lang}
+            onBeforeRecord={onBeforeRecording}
+          />
         : <p>{STR[lang].session.noScenario}</p>;
     case "shadowing":
       return block.params.topic ? <ShadowingScreen topic={block.params.topic} lang={lang} /> : <p>{STR[lang].session.noTopic}</p>;
