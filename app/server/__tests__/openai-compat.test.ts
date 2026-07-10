@@ -123,7 +123,7 @@ describe("warmOpenAICompat", () => {
 
   test("非2xx は throw する（呼び出し側の warn に回す）", async () => {
     const badFetch = (async () => new Response("no", { status: 500 })) as unknown as typeof fetch;
-    await expect(warmOpenAICompat({ baseUrl: "http://x/v1", model: "m" }, badFetch)).rejects.toThrow(/500/);
+    await expect(warmOpenAICompat({ baseUrl: "http://localhost/v1", model: "m" }, badFetch)).rejects.toThrow(/500/);
   });
 });
 
@@ -140,6 +140,6 @@ describe("openAICompatWarmTargetFromEnv", () => {
   test("claude/codex/値欠落は null（warm しない）", () => {
     expect(openAICompatWarmTargetFromEnv({ LLM_PROVIDER: "claude" })).toBeNull();
     expect(openAICompatWarmTargetFromEnv({ LLM_PROVIDER: "codex" })).toBeNull();
-    expect(openAICompatWarmTargetFromEnv({ LLM_PROVIDER: "openai-compat", OPENAI_COMPAT_BASE_URL: "http://x/v1" })).toBeNull();
+    expect(openAICompatWarmTargetFromEnv({ LLM_PROVIDER: "openai-compat", OPENAI_COMPAT_BASE_URL: "http://localhost/v1" })).toBeNull();
   });
 });

@@ -14,6 +14,9 @@ export type AssessmentRoutesDeps = {
 async function handleAssessmentGenerate(req: Request, deps: AssessmentRoutesDeps): Promise<Response> {
   const parsed = await parseJsonBody<{ force?: unknown }>(req);
   if (!parsed.ok) return parsed.response;
+  if (parsed.body.force !== undefined && typeof parsed.body.force !== "boolean") {
+    return json({ error: "force must be a boolean" }, 400);
+  }
   const force = parsed.body.force === true;
   const today = localYmd();
   const existing = deps.assessmentStore.findByMonth(today.slice(0, 7));

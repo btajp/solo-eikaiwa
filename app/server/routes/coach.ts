@@ -31,10 +31,14 @@ export type CoachRoutesDeps = {
 };
 
 async function handleAeFeedback(req: Request, deps: CoachRoutesDeps): Promise<Response> {
-  const parsed = await parseJsonBody<{ transcript?: string; topicTitle?: string }>(req);
+  const parsed = await parseJsonBody<{ transcript?: unknown; topicTitle?: unknown }>(req);
   if (!parsed.ok) return parsed.response;
   const { transcript, topicTitle } = parsed.body;
-  if (!transcript?.trim()) return json({ error: "transcript is required" }, 400);
+  if (typeof transcript !== "string" || !transcript.trim()) return json({ error: "transcript is required" }, 400);
+  if (transcript.length > 32_000) return json({ error: "transcript must be at most 32000 characters" }, 400);
+  if (topicTitle !== undefined && (typeof topicTitle !== "string" || topicTitle.length > 500)) {
+    return json({ error: "topicTitle must be a string of at most 500 characters" }, 400);
+  }
   const fb = await deps.aeFeedback({ transcript, topicTitle: topicTitle ?? "" });
   const cands: CollectCandidate[] = fb.items
     .filter((i) => i.quote?.trim() && i.better?.trim())
@@ -51,10 +55,11 @@ async function handleReflection(deps: CoachRoutesDeps): Promise<Response> {
 }
 
 async function handleModelTalk(req: Request, deps: CoachRoutesDeps): Promise<Response> {
-  const parsed = await parseJsonBody<{ topicId?: string }>(req);
+  const parsed = await parseJsonBody<{ topicId?: unknown }>(req);
   if (!parsed.ok) return parsed.response;
   const topicId = parsed.body.topicId;
-  if (!topicId?.trim()) return json({ error: "topicId is required" }, 400);
+  if (typeof topicId !== "string" || !topicId.trim()) return json({ error: "topicId is required" }, 400);
+  if (topicId.length > 200) return json({ error: "topicId must be at most 200 characters" }, 400);
   const talk = await deps.modelTalk(topicId);
   if (!talk) return json({ error: "unknown topicId" }, 404);
   bestEffort("[library] saveModelTalk failed, continuing:", () =>
@@ -63,10 +68,12 @@ async function handleModelTalk(req: Request, deps: CoachRoutesDeps): Promise<Res
 }
 
 async function handlePrep(req: Request, deps: CoachRoutesDeps): Promise<Response> {
-  const parsed = await parseJsonBody<{ topicId?: string }>(req);
+  const parsed = await parseJsonBody<{ topicId?: unknown }>(req);
   if (!parsed.ok) return parsed.response;
-  if (!parsed.body.topicId?.trim()) return json({ error: "topicId is required" }, 400);
-  const pack = await deps.prepPack(parsed.body.topicId);
+  const topicId = parsed.body.topicId;
+  if (typeof topicId !== "string" || !topicId.trim()) return json({ error: "topicId is required" }, 400);
+  if (topicId.length > 200) return json({ error: "topicId must be at most 200 characters" }, 400);
+  const pack = await deps.prepPack(topicId);
   if (!pack) return json({ error: "unknown topicId" }, 404);
   return json(pack);
 }

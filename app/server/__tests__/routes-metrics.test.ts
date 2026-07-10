@@ -32,8 +32,8 @@ describe("routes: metrics", () => {
         ],
       }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/stt", {
-      method: "POST", body: new Uint8Array([1, 2, 3]),
+    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/stt", {
+      method: "POST", headers: { "content-type": "audio/webm" }, body: new Uint8Array([1, 2, 3]),
     }));
     expect(res.status).toBe(200);
     const body = await res.json();

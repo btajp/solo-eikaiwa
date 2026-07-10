@@ -23,6 +23,7 @@ import { makeLlmModelsRoutes, type LlmModelsRoutesDeps } from "./routes/llm-mode
 import { makeTtsSettingsRoutes, type TtsSettingsRoutesDeps } from "./routes/tts-settings";
 import { makeSecretsRoutes, type SecretsRoutesDeps } from "./routes/secrets";
 import { makeSetupRoutes, type SetupRoutesDeps } from "./routes/setup";
+import { validateRequestBoundary } from "./request-security";
 
 /**
  * HTTP ハンドラが依存する副作用の総体。各ドメインの狭い Deps 型の交差で構成する。
@@ -63,10 +64,13 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
     ...makeDevRoutes(deps),
   ];
   return async function fetch(req: Request): Promise<Response> {
-    // 受信を契機にローカルLLM（conversation が openai-compat のとき）を温める。throttle 済み・fire-and-forget。
-    // リクエスト処理には一切影響させない（await しない・例外を伝播させない）。
-    try { deps.warmLlm(); } catch { /* warmup must never affect request handling */ }
     const url = new URL(req.url);
+    const violation = validateRequestBoundary(req, url);
+    if (violation) return json({ error: violation.error }, violation.status);
+    // 画面/情報取得を契機にローカルLLMを温める。body付き副作用requestでは入力検証前の処理開始を避ける。
+    if (req.method === "GET" || req.method === "HEAD") {
+      try { deps.warmLlm(); } catch { /* warmup must never affect request handling */ }
+    }
     try {
       for (const r of routes) {
         if (req.method === r.method && r.match(url.pathname)) return await r.handler(req, url);

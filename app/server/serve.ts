@@ -1,3 +1,5 @@
+import { isLoopbackHostname } from "./request-security";
+
 export type ServeEnv = Record<string, string | undefined>;
 
 export const DEFAULT_PORT = 3111;
@@ -13,7 +15,11 @@ export function resolvePort(env: ServeEnv): number {
 
 /** SOLO_EIKAIWA_HOST が未設定/空なら DEFAULT_HOSTNAME にフォールバックする（現行既定は不変）。 */
 export function resolveHostname(env: ServeEnv): string {
-  return env.SOLO_EIKAIWA_HOST?.trim() || DEFAULT_HOSTNAME;
+  const hostname = env.SOLO_EIKAIWA_HOST?.trim() || DEFAULT_HOSTNAME;
+  if (!isLoopbackHostname(hostname)) {
+    throw new Error(`SOLO_EIKAIWA_HOST must be a loopback hostname; unauthenticated external bind is forbidden: ${hostname}`);
+  }
+  return hostname === "[::1]" ? "::1" : hostname;
 }
 
 function isAddrInUse(err: unknown): boolean {

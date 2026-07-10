@@ -132,7 +132,7 @@ describe("llm-settings API", () => {
     expect((await h(putJson("/api/llm-settings", { provider: "gemini" }))).status).toBe(400);
     expect((await h(putJson("/api/llm-settings", { provider: "openai-compat", model: "m" }))).status).toBe(400);
     expect((await h(putJson("/api/llm-settings", { provider: "openai-compat", baseUrl: "not a url", model: "m" }))).status).toBe(400);
-    expect((await h(putJson("/api/llm-settings", { provider: "openai-compat", baseUrl: "http://x/v1" }))).status).toBe(400);
+    expect((await h(putJson("/api/llm-settings", { provider: "openai-compat", baseUrl: "http://localhost/v1" }))).status).toBe(400);
     expect(saved).toHaveLength(0);
   });
 

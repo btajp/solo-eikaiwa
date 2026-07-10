@@ -8,7 +8,7 @@ describe("routes: session", () => {
   test("POST /api/session/start は {ok:true} を返し session_start をログする", async () => {
     const { deps, logFile } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(new Request("http://localhost/api/session/start", { method: "POST" }));
+    const res = await handler(postJson("/api/session/start", {}));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
     const events = readEvents(logFile);
@@ -25,7 +25,7 @@ describe("routes: session", () => {
     expect(events).toEqual([expect.objectContaining({ type: "session_start", sessionId: "app-uuid-1" })]);
   });
 
-  test("POST /api/session/start は不正なJSONボディでも従来どおり200で動く（500にならない）", async () => {
+  test("POST /api/session/start の不正なJSONボディは400で副作用なし", async () => {
     const { deps, logFile } = makeTestDeps();
     const handler = makeFetchHandler(deps);
     const res = await handler(new Request("http://localhost/api/session/start", {
@@ -33,10 +33,8 @@ describe("routes: session", () => {
       headers: { "content-type": "application/json" },
       body: "{not valid json",
     }));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
-    const events = readEvents(logFile);
-    expect(events).toEqual([expect.objectContaining({ type: "session_start", sessionId: "pending" })]);
+    expect(res.status).toBe(400);
+    expect(readEvents(logFile)).toEqual([]);
   });
 
   test("POST /api/session/end は {ok:true} を返し session_end をログする", async () => {

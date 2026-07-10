@@ -29,8 +29,15 @@ describe("resolveHostname", () => {
     expect(resolveHostname({})).toBe(DEFAULT_HOSTNAME);
   });
 
-  test("SOLO_EIKAIWA_HOSTで上書きされる", () => {
-    expect(resolveHostname({ SOLO_EIKAIWA_HOST: "0.0.0.0" })).toBe("0.0.0.0");
+  test("IPv4/IPv6 loopbackだけ上書きを許可する", () => {
+    expect(resolveHostname({ SOLO_EIKAIWA_HOST: "localhost" })).toBe("localhost");
+    expect(resolveHostname({ SOLO_EIKAIWA_HOST: "::1" })).toBe("::1");
+  });
+
+  test("認証のない非loopback待受は起動前に拒否する", () => {
+    expect(() => resolveHostname({ SOLO_EIKAIWA_HOST: "0.0.0.0" })).toThrow("loopback");
+    expect(() => resolveHostname({ SOLO_EIKAIWA_HOST: "192.168.1.10" })).toThrow("loopback");
+    expect(() => resolveHostname({ SOLO_EIKAIWA_HOST: "::" })).toThrow("loopback");
   });
 
   test("空文字/空白のみは既定値にフォールバックする", () => {

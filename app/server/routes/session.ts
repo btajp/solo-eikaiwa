@@ -7,6 +7,12 @@ export type SessionRoutesDeps = {
 
 const BLOCK_EVENT_TYPES = ["block_start", "block_end", "round_start", "round_end"] as const;
 type BlockEventType = (typeof BLOCK_EVENT_TYPES)[number];
+const MAX_SESSION_ID_CHARS = 200;
+
+function parseSessionId(value: unknown): string | undefined | null {
+  if (value === undefined) return undefined;
+  return typeof value === "string" && value.length <= MAX_SESSION_ID_CHARS ? value : null;
+}
 
 async function handleSessionEvent(req: Request, deps: SessionRoutesDeps): Promise<Response> {
   const parsed = await parseJsonBody<{ type?: string; sessionId?: string; meta?: Record<string, unknown> }>(req);
@@ -15,28 +21,27 @@ async function handleSessionEvent(req: Request, deps: SessionRoutesDeps): Promis
   if (!t || !(BLOCK_EVENT_TYPES as readonly string[]).includes(t)) {
     return json({ error: `type must be one of: ${BLOCK_EVENT_TYPES.join(", ")}` }, 400);
   }
+  const sessionId = parseSessionId(parsed.body.sessionId);
+  if (sessionId === null) return json({ error: "sessionId must be a string of at most 200 characters" }, 400);
+  if (parsed.body.meta !== undefined && (
+    parsed.body.meta === null || typeof parsed.body.meta !== "object" || Array.isArray(parsed.body.meta)
+  )) {
+    return json({ error: "meta must be an object" }, 400);
+  }
   appendEvent(deps.logFile(), {
     ts: new Date().toISOString(),
     type: t as BlockEventType,
-    sessionId: parsed.body.sessionId ?? "pending",
+    sessionId: sessionId ?? "pending",
     meta: parsed.body.meta,
   });
   return json({ ok: true });
 }
 
-/**
- * ボディは任意（後方互換: 空ボディ・不正JSONでも従来どおり sessionId 無しとして扱い 200 を返す）。
- * クライアント側で mint したアプリレベルの session UUID を受け取り、以後のライフサイクル/
- * ブロック/ラウンドイベントと突き合わせられるようにする。
- */
 async function handleSessionStart(req: Request, deps: SessionRoutesDeps): Promise<Response> {
-  let sessionId: string | undefined;
-  try {
-    const body = (await req.json()) as { sessionId?: string };
-    if (typeof body?.sessionId === "string" && body.sessionId) sessionId = body.sessionId;
-  } catch {
-    // ボディなし・不正JSONは従来どおり（sessionId無し）として扱う
-  }
+  const parsed = await parseJsonBody<{ sessionId?: unknown }>(req);
+  if (!parsed.ok) return parsed.response;
+  const sessionId = parseSessionId(parsed.body.sessionId);
+  if (sessionId === null) return json({ error: "sessionId must be a string of at most 200 characters" }, 400);
   appendEvent(deps.logFile(), {
     ts: new Date().toISOString(), type: "session_start", sessionId: sessionId ?? "pending",
   });
@@ -44,10 +49,12 @@ async function handleSessionStart(req: Request, deps: SessionRoutesDeps): Promis
 }
 
 async function handleSessionEnd(req: Request, deps: SessionRoutesDeps): Promise<Response> {
-  const parsed = await parseJsonBody<{ sessionId?: string }>(req);
+  const parsed = await parseJsonBody<{ sessionId?: unknown }>(req);
   if (!parsed.ok) return parsed.response;
+  const sessionId = parseSessionId(parsed.body.sessionId);
+  if (sessionId === null) return json({ error: "sessionId must be a string of at most 200 characters" }, 400);
   appendEvent(deps.logFile(), {
-    ts: new Date().toISOString(), type: "session_end", sessionId: parsed.body.sessionId ?? "unknown",
+    ts: new Date().toISOString(), type: "session_end", sessionId: sessionId ?? "unknown",
   });
   return json({ ok: true });
 }

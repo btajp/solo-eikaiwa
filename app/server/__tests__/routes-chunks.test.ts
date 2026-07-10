@@ -50,7 +50,7 @@ describe("chunks: 収集フックと API", () => {
         collect: (c) => { got.push(...c); return 1; },
       }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/coach/reflection", { method: "POST" }));
+    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/coach/reflection", { method: "POST" }));
     expect(res.status).toBe(200);
     expect(((await res.json()) as { collectedChunks: number }).collectedChunks).toBe(1);
     expect(got).toEqual([{ source: "reflection", promptText: "he go", en: "he goes", note: "" }]);
@@ -119,8 +119,8 @@ describe("chunks: 収集フックと API", () => {
   test("DELETE /api/chunks/:id: 成功は ok、未知は404、非整数は400", async () => {
     const { deps } = makeTestDeps();
     const h = makeFetchHandler(deps);
-    expect((await h(new Request("http://x/api/chunks/1", { method: "DELETE" }))).status).toBe(200);
-    expect((await h(new Request("http://x/api/chunks/999", { method: "DELETE" }))).status).toBe(404);
-    expect((await h(new Request("http://x/api/chunks/abc", { method: "DELETE" }))).status).toBe(400);
+    expect((await h(new Request("http://localhost/api/chunks/1", { method: "DELETE" }))).status).toBe(200);
+    expect((await h(new Request("http://localhost/api/chunks/999", { method: "DELETE" }))).status).toBe(404);
+    expect((await h(new Request("http://localhost/api/chunks/abc", { method: "DELETE" }))).status).toBe(400);
   });
 });

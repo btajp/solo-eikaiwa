@@ -10,10 +10,19 @@ export type ConverseRoutesDeps = {
 };
 
 async function handleConverse(req: Request, deps: ConverseRoutesDeps): Promise<Response> {
-  const parsed = await parseJsonBody<{ userText?: string; sessionId?: string; scenarioId?: string }>(req);
+  const parsed = await parseJsonBody<{ userText?: unknown; sessionId?: unknown; scenarioId?: unknown }>(req);
   if (!parsed.ok) return parsed.response;
   const body = parsed.body;
-  if (!body.userText?.trim()) return json({ error: "userText is required" }, 400);
+  if (typeof body.userText !== "string" || !body.userText.trim()) {
+    return json({ error: "userText is required" }, 400);
+  }
+  if (body.userText.length > 16_000) return json({ error: "userText must be at most 16000 characters" }, 400);
+  if (body.sessionId !== undefined && (typeof body.sessionId !== "string" || body.sessionId.length > 200)) {
+    return json({ error: "sessionId must be a string of at most 200 characters" }, 400);
+  }
+  if (body.scenarioId !== undefined && (typeof body.scenarioId !== "string" || body.scenarioId.length > 200)) {
+    return json({ error: "scenarioId must be a string of at most 200 characters" }, 400);
+  }
   let systemPromptOverride: string;
   if (body.scenarioId) {
     const p = deps.scenarioPrompt(body.scenarioId);

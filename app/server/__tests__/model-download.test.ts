@@ -438,6 +438,94 @@ describe("model-download: HTTPエラー", () => {
   });
 });
 
+describe("model-download: stream受信サイズ上限", () => {
+  test("Content-Lengthなしのchunked responseが期待サイズを超えた時点で中止しpartを破棄する", async () => {
+    const expected = makeContent(10, 1);
+    const registry = fakeRegistry(expected);
+    const dir = tmpModelsDir();
+    let cancelled = false;
+    let signal: AbortSignal | undefined;
+    const fetchFn: typeof fetch = (async (_url: string, init?: RequestInit) => {
+      signal = init?.signal ?? undefined;
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(makeContent(6, 1));
+          controller.enqueue(makeContent(5, 1));
+        },
+        cancel() { cancelled = true; },
+      });
+      return new Response(stream as unknown as BodyInit, { status: 200 });
+    }) as unknown as typeof fetch;
+    const mgr = createModelDownloadManager({ modelsDir: dir, registry, fetchFn });
+
+    const result = mgr.start("small");
+    if (result.ok) await result.done;
+
+    expect(mgr.getState()).toMatchObject({
+      status: "error", receivedBytes: 0, resumable: false,
+      error: expect.stringContaining("exceeds expected size"),
+    });
+    expect(signal?.aborted).toBe(true);
+    expect(cancelled).toBe(true);
+    expect(existsSync(path.join(dir, "ggml-small.bin.part"))).toBe(false);
+  });
+
+  test("虚偽の小さいContent-Lengthでも実chunk累積値で上限超過を検出する", async () => {
+    const expected = makeContent(10, 2);
+    const registry = fakeRegistry(expected);
+    const dir = tmpModelsDir();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(makeContent(11, 2));
+        controller.close();
+      },
+    });
+    const fetchFn: typeof fetch = (async () => new Response(stream as unknown as BodyInit, {
+      status: 200,
+      headers: { "content-length": "5" },
+    })) as unknown as typeof fetch;
+    const mgr = createModelDownloadManager({ modelsDir: dir, registry, fetchFn });
+
+    const result = mgr.start("small");
+    if (result.ok) await result.done;
+
+    expect(mgr.getState()).toMatchObject({ status: "error", receivedBytes: 0, resumable: false });
+    expect(existsSync(path.join(dir, "ggml-small.bin.part"))).toBe(false);
+  });
+
+  test("上限超過を宣言したContent-Lengthはstreamを読む前に拒否する", async () => {
+    const expected = makeContent(10, 3);
+    const registry = fakeRegistry(expected);
+    const dir = tmpModelsDir();
+    let pulls = 0;
+    let signal: AbortSignal | undefined;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls++;
+        controller.enqueue(makeContent(11, 3));
+        controller.close();
+      },
+    });
+    const fetchFn: typeof fetch = (async (_url: string, init?: RequestInit) => {
+      signal = init?.signal ?? undefined;
+      return new Response(stream as unknown as BodyInit, {
+        status: 200,
+        headers: { "content-length": "11" },
+      });
+    }) as unknown as typeof fetch;
+    const mgr = createModelDownloadManager({ modelsDir: dir, registry, fetchFn });
+
+    const result = mgr.start("small");
+    if (result.ok) await result.done;
+
+    expect(mgr.getState()).toMatchObject({ status: "error", receivedBytes: 0, resumable: false });
+    expect(signal?.aborted).toBe(true);
+    // ReadableStream自体の初期pull 1回を除き、managerはbodyを読み進めない。
+    expect(pulls).toBe(1);
+    expect(existsSync(path.join(dir, "ggml-small.bin.part"))).toBe(false);
+  });
+});
+
 describe("model-download: diskFreeBytes", () => {
   test("freeBytesFnの値をそのまま返す", () => {
     const content = makeContent(10);

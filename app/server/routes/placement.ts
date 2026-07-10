@@ -28,6 +28,9 @@ async function handlePlacementSubmit(req: Request, deps: PlacementRoutesDeps): P
     if (typeof raw.transcript !== "string" || !raw.transcript.trim()) {
       return json({ error: "transcript is required for every task" }, 400);
     }
+    if (raw.transcript.length > 16_000) {
+      return json({ error: "transcript must be at most 16000 characters for every task" }, 400);
+    }
     if (typeof raw.durationSec !== "number" || raw.durationSec <= 0 || raw.durationSec > 600) {
       return json({ error: "durationSec must be between 1 and 600" }, 400);
     }

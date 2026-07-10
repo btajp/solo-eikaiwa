@@ -30,8 +30,8 @@ describe("placement API", () => {
         save: (r) => { saved.push(r); return { id: 1, ts: "t", stage: 2, startLevel: 13, rationale: "r" }; },
       }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/placement/submit", {
-      method: "POST", body: JSON.stringify({ tasks: VALID_TASKS }),
+    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/placement/submit", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tasks: VALID_TASKS }),
     }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ stage: 2, startLevel: 13, rationale: "簡単な文は安定しています。" });
@@ -43,7 +43,7 @@ describe("placement API", () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
     const post = (tasks: unknown) =>
-      handler(new Request("http://x/api/placement/submit", { method: "POST", body: JSON.stringify({ tasks }) }));
+      handler(new Request("http://localhost/api/placement/submit", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tasks }) }));
     expect((await post(VALID_TASKS.slice(0, 2))).status).toBe(400);
     expect((await post([{ ...VALID_TASKS[0], taskId: "nope" }, VALID_TASKS[1], VALID_TASKS[2]])).status).toBe(400);
     expect((await post([VALID_TASKS[0], VALID_TASKS[0], VALID_TASKS[2]])).status).toBe(400);
@@ -60,8 +60,8 @@ describe("placement API", () => {
         save: (r) => { saved.push(r); return { id: 1, ts: "t", stage: 2, startLevel: 13, rationale: "r" }; },
       }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/placement/submit", {
-      method: "POST", body: JSON.stringify({ tasks: VALID_TASKS }),
+    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/placement/submit", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tasks: VALID_TASKS }),
     }));
     expect(res.status).toBe(502);
     expect(saved).toHaveLength(0);
@@ -76,8 +76,8 @@ describe("placement API", () => {
         placementSet: (l) => { placementSetCalls.push(l); return { summary: FAKE_SUMMARY, levelChanged: true }; },
       }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/placement/confirm", {
-      method: "POST", body: JSON.stringify({ accept: false }),
+    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/placement/confirm", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ accept: false }),
     }));
     expect(res.status).toBe(200);
     expect(placementSetCalls).toHaveLength(0);
@@ -97,8 +97,8 @@ describe("placement API", () => {
         placementSet: (l) => { placementSetCalls.push(l); return { summary: FAKE_SUMMARY, levelChanged: true }; },
       }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://x/api/placement/confirm", {
-      method: "POST", body: JSON.stringify({ accept: true }),
+    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/placement/confirm", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ accept: true }),
     }));
     expect(res.status).toBe(200);
     expect(placementSetCalls).toEqual([23]);
@@ -113,18 +113,18 @@ describe("placement API", () => {
       }),
     });
     const handler = makeFetchHandler(deps);
-    const ok = await handler(new Request("http://x/api/placement/confirm", {
-      method: "POST", body: JSON.stringify({ accept: true, level: 31 }),
+    const ok = await handler(new Request("http://localhost/api/placement/confirm", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ accept: true, level: 31 }),
     }));
     expect(ok.status).toBe(200);
     expect(placementSetCalls).toEqual([31]);
     // makeTestDeps デフォルトの latest() は null
-    const noLatest = await handler(new Request("http://x/api/placement/confirm", {
-      method: "POST", body: JSON.stringify({ accept: true }),
+    const noLatest = await handler(new Request("http://localhost/api/placement/confirm", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ accept: true }),
     }));
     expect(noLatest.status).toBe(400);
-    const badAccept = await handler(new Request("http://x/api/placement/confirm", {
-      method: "POST", body: JSON.stringify({ accept: "yes" }),
+    const badAccept = await handler(new Request("http://localhost/api/placement/confirm", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ accept: "yes" }),
     }));
     expect(badAccept.status).toBe(400);
   });

@@ -42,7 +42,7 @@ describe("feedback API", () => {
     expect((await handler(postJson("/api/feedback", { blockKind: "session", rating: "nope" }))).status).toBe(400);
     expect((await handler(postJson("/api/feedback", { blockKind: "session", rating: "hard", note: "x".repeat(301) }))).status).toBe(400);
     expect((await handler(postJson("/api/feedback", { blockKind: "session", rating: "hard", level: 1.5 }))).status).toBe(400);
-    const badJson = await handler(new Request("http://x/api/feedback", {
+    const badJson = await handler(new Request("http://localhost/api/feedback", {
       method: "POST", headers: { "content-type": "application/json" }, body: "{",
     }));
     expect(badJson.status).toBe(400);

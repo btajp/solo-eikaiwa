@@ -38,6 +38,7 @@ async function handleLog(req: Request, deps: ListeningRoutesDeps): Promise<Respo
   if (!parsed.ok) return parsed.response;
   const { itemId } = parsed.body;
   if (typeof itemId !== "string" || !itemId.trim()) return json({ error: "itemId must be a non-empty string" }, 400);
+  if (itemId.length > 200) return json({ error: "itemId must be at most 200 characters" }, 400);
   if (!deps.findListening(itemId)) return json({ error: `unknown listening id: ${itemId}` }, 400);
   const now = new Date();
   deps.listeningStore.log(itemId, localYmd(now));

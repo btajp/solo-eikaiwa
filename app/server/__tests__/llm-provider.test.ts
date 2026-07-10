@@ -43,7 +43,7 @@ describe("selectRunner", () => {
   });
 
   test("openai-compat: MODEL 欠落は明示エラー", () => {
-    expect(() => selectRunner(args({ LLM_PROVIDER: "openai-compat", OPENAI_COMPAT_BASE_URL: "http://x/v1" })))
+    expect(() => selectRunner(args({ LLM_PROVIDER: "openai-compat", OPENAI_COMPAT_BASE_URL: "http://localhost/v1" })))
       .toThrow(/OPENAI_COMPAT_MODEL/);
   });
 

@@ -63,7 +63,7 @@ describe("listening API", () => {
     const handler = makeFetchHandler(deps);
     expect((await handler(postJson("/api/listening/log", { itemId: "  " }))).status).toBe(400);
     expect((await handler(postJson("/api/listening/log", { itemId: "nope" }))).status).toBe(400);
-    const badJson = await handler(new Request("http://x/api/listening/log", {
+    const badJson = await handler(new Request("http://localhost/api/listening/log", {
       method: "POST", headers: { "content-type": "application/json" }, body: "{",
     }));
     expect(badJson.status).toBe(400);

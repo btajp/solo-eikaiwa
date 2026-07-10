@@ -86,6 +86,13 @@ export function defaultFreeBytes(dir: string): number {
  * 共有 state を誤って上書きしないためのガードに使う（`handle === current` で判定）。 */
 type RunHandle = { controller: AbortController; cancelled: boolean };
 
+class DownloadSizeExceededError extends Error {
+  constructor(received: number, expected: number) {
+    super(`download exceeds expected size: received ${received} bytes, limit ${expected} bytes`);
+    this.name = "DownloadSizeExceededError";
+  }
+}
+
 export function createModelDownloadManager(opts: {
   modelsDir?: string;
   registry?: Record<WhisperModelId, ModelRegistryEntry>;
@@ -117,7 +124,10 @@ export function createModelDownloadManager(opts: {
     mkdirSync(modelsDir, { recursive: true });
     const partPath = partPathOf(entry);
     let existingBytes = existsSync(partPath) ? statSync(partPath).size : 0;
-    if (existingBytes > entry.sizeBytes) existingBytes = 0; // 破損/別モデルの残骸なら最初からやり直す
+    if (existingBytes > entry.sizeBytes) {
+      rmSync(partPath, { force: true });
+      existingBytes = 0; // 破損/別モデルの残骸は保持せず最初からやり直す
+    }
 
     // 空き容量は「これから新規に書く分」だけで見積もる（既存.partの分は既に消費済みで追加不要）。
     const remainingBytes = entry.sizeBytes - existingBytes;
@@ -160,6 +170,7 @@ export function createModelDownloadManager(opts: {
   ): Promise<void> {
     let fh: FileHandle | null = null;
     let received = existingBytes;
+    let discardPartial = false;
     try {
       const headers: Record<string, string> = {};
       if (existingBytes > 0) headers.Range = `bytes=${existingBytes}-`;
@@ -183,12 +194,31 @@ export function createModelDownloadManager(opts: {
       if (handle === current) state = { ...state, receivedBytes: received };
 
       if (!res.body) throw new Error("download failed: empty response body");
+      const maxResponseBytes = resumed ? entry.sizeBytes - existingBytes : entry.sizeBytes;
+      const declaredLength = res.headers.get("content-length");
+      if (declaredLength !== null) {
+        if (!/^\d+$/.test(declaredLength) || !Number.isSafeInteger(Number(declaredLength))) {
+          throw new Error(`download failed: invalid Content-Length ${declaredLength}`);
+        }
+        if (Number(declaredLength) > maxResponseBytes) {
+          discardPartial = true;
+          handle.controller.abort();
+          try { await res.body.cancel("response exceeds expected size"); } catch { /* 元のsize errorを優先 */ }
+          throw new DownloadSizeExceededError(received + Number(declaredLength), entry.sizeBytes);
+        }
+      }
       fh = await fsOpen(partPath, resumed ? "a" : "w");
       const reader = res.body.getReader();
       for (;;) {
         const { done, value } = await reader.read();
         if (handle.cancelled) return;
         if (done) break;
+        if (received + value.length > entry.sizeBytes) {
+          discardPartial = true;
+          handle.controller.abort();
+          try { await reader.cancel("response exceeds expected size"); } catch { /* 元のsize errorを優先 */ }
+          throw new DownloadSizeExceededError(received + value.length, entry.sizeBytes);
+        }
         await fh.write(value);
         received += value.length;
         if (handle === current) state = { ...state, receivedBytes: received };
@@ -204,10 +234,16 @@ export function createModelDownloadManager(opts: {
       await verifyAndFinish(entry, partPath, handle);
     } catch (err) {
       if (handle.cancelled) return;
+      if (discardPartial) {
+        try { await fh?.close(); } catch { /* 破棄を継続 */ }
+        fh = null;
+        rmSync(partPath, { force: true });
+        received = 0;
+      }
       if (handle === current) {
         state = {
           status: "error", model: entry.id, receivedBytes: received, totalBytes: entry.sizeBytes,
-          error: err instanceof Error ? err.message : String(err), resumable: true,
+          error: err instanceof Error ? err.message : String(err), resumable: !discardPartial,
         };
         current = null;
       }
