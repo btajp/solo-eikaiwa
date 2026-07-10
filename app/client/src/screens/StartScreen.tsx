@@ -214,7 +214,7 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
           onAction={async (action) => {
             setProposalError(false);
             try {
-              setSummary(await progressLevelAction(action));
+              setSummary(await progressLevelAction(action, undefined, summary.proposal!));
             } catch (err) {
               console.warn("level action failed:", err);
               setProposalError(true);

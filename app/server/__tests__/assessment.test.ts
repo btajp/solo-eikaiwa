@@ -36,7 +36,7 @@ describe("assessment / categoryBadRates", () => {
 describe("assessment / makeAssembleMonthData", () => {
   test("30日窓のデータを組み立てる", () => {
     const db = openDb(":memory:");
-    // 練習日: block XP 2日分（窓内）+ 1日（窓外）
+    // 練習日: block / SRSを含む全XP日を共通定義で数える（窓内3日）
     db.run("INSERT INTO xp_events (ts, ymd, kind, amount) VALUES ('t','2026-07-01','block',6)");
     db.run("INSERT INTO xp_events (ts, ymd, kind, amount) VALUES ('t','2026-07-02','block',8)");
     db.run("INSERT INTO xp_events (ts, ymd, kind, amount) VALUES ('t','2026-05-01','block',6)");
@@ -53,20 +53,30 @@ describe("assessment / makeAssembleMonthData", () => {
 
     const fakeSummary: MetricsSummary = {
       days: [
-        { ymd: "2026-07-01", utterances: 2, speakingSec: 120, avgArticulationWpm: 100, avgPauseRatio: 0.2, repetitionRatio: 0.1 },
-        { ymd: "2026-07-02", utterances: 0, speakingSec: 0, avgArticulationWpm: 0, avgPauseRatio: 0, repetitionRatio: 0 },
+        {
+          ymd: "2026-07-01", utterances: 2, words: 200, speechMs: 120_000, totalMs: 150_000,
+          pauseMs: 30_000, repetitionWords: 200, repetitionWeightedWords: 20, speakingSec: 120,
+          avgArticulationWpm: 100, avgPauseRatio: 0.2, repetitionRatio: 0.1,
+        },
+        {
+          ymd: "2026-07-02", utterances: 0, words: 0, speechMs: 0, totalMs: 0,
+          pauseMs: 0, repetitionWords: 0, repetitionWeightedWords: 0, speakingSec: 0,
+          avgArticulationWpm: 0, avgPauseRatio: 0, repetitionRatio: 0,
+        },
       ],
+      weekly: { current: {} as never, previous: {} as never },
       level: { current: 14, history: [] },
     };
     const assemble = makeAssembleMonthData({
       db,
       sentences: SENTENCES,
       metricsSummary: () => fakeSummary,
+      practiceDays: () => [],
       currentLevel: () => 14,
       placementLatest: () => ({ id: 1, ts: "2026-06-20T00:00:00.000Z", stage: 2, startLevel: 13, rationale: "r" }),
     });
     const data = assemble("2026-07-06");
-    expect(data.practicedDays).toBe(2);
+    expect(data.practicedDays).toBe(3);
     expect(data.speakingSec).toBe(120);
     expect(data.utterances).toBe(2);
     expect(data.avgArticulationWpm).toBe(100);
@@ -78,6 +88,34 @@ describe("assessment / makeAssembleMonthData", () => {
     expect(data.chunkExamples).toEqual(["I went yesterday"]);
     expect(data.placement?.stage).toBe(2);
     expect(data.levelNow).toBe(14);
+  });
+
+  test("月次率は偏った日別件数でもraw分子・分母から計算する", () => {
+    const db = openDb(":memory:");
+    const fakeSummary = {
+      days: [
+        {
+          ymd: "2026-07-01", utterances: 1, words: 1, speechMs: 600, totalMs: 1_000,
+          pauseMs: 1_000, repetitionWords: 1, repetitionWeightedWords: 1, speakingSec: 1,
+          avgArticulationWpm: 100, avgPauseRatio: 1, repetitionRatio: 1,
+        },
+        {
+          ymd: "2026-07-02", utterances: 100, words: 100, speechMs: 60_000, totalMs: 100_000,
+          pauseMs: 0, repetitionWords: 100, repetitionWeightedWords: 0, speakingSec: 60,
+          avgArticulationWpm: 100, avgPauseRatio: 0, repetitionRatio: 0,
+        },
+      ],
+      weekly: { current: {}, previous: {} },
+      level: { current: 13, history: [] },
+    } as unknown as MetricsSummary;
+    const data = makeAssembleMonthData({
+      db, sentences: [], metricsSummary: () => fakeSummary, practiceDays: () => [],
+      currentLevel: () => 13, placementLatest: () => null,
+    })("2026-07-06");
+    expect(data.utterances).toBe(101);
+    expect(data.avgPauseRatio).toBe(0.01);
+    expect(data.repetitionRatio).toBe(0.01);
+    expect(data.avgArticulationWpm).toBe(100);
   });
 });
 
@@ -97,7 +135,11 @@ describe("assessment / worstCategories の閾値", () => {
 
     const assemble = makeAssembleMonthData({
       db, sentences: many,
-      metricsSummary: () => ({ days: [], level: { current: 13, history: [] } }),
+      metricsSummary: () => ({
+        days: [], weekly: { current: {} as never, previous: {} as never },
+        level: { current: 13, history: [] },
+      }),
+      practiceDays: () => [],
       currentLevel: () => 13,
       placementLatest: () => null,
     });

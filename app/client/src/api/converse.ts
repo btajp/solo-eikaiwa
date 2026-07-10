@@ -2,13 +2,14 @@ import { extractErrorMessage } from "./http";
 
 export async function converse(
   userText: string,
+  activitySessionId: string,
   sessionId?: string,
   scenarioId?: string,
 ): Promise<{ replyText: string; sessionId: string }> {
   const res = await fetch("/api/converse", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ userText, sessionId, scenarioId }),
+    body: JSON.stringify({ userText, activitySessionId, sessionId, scenarioId }),
   });
   if (!res.ok) throw new Error(`converse failed: ${await extractErrorMessage(res)}`);
   return res.json();

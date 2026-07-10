@@ -14,12 +14,17 @@ export type DownRationale = {
   triggers: ("lowCompletion" | "fttAborts" | "lowOutput")[];
 };
 export type Proposal = { kind: "up" | "down"; toLevel: number; rationale: UpRationale | DownRationale };
+export type ExpectedProposal = Pick<Proposal, "kind" | "toLevel">;
 export type ProgressSummary = {
   level: number; xp: number; xpIntoLevel: number; xpToNext: number;
   stage: number; difficultyMaxed: boolean; proposal: Proposal | null;
 };
 /** レベル変更系の戻り値。summary は従来どおり、levelChanged で「当日メニューキャッシュを無効化すべきか」を伝える */
-export type LevelChangeResult = { summary: ProgressSummary; levelChanged: boolean };
+export type LevelChangeResult = {
+  status: "applied" | "mismatch";
+  summary: ProgressSummary;
+  levelChanged: boolean;
+};
 export type BlockCompletionInput = {
   completionId: string;
   attemptId: number | null;
@@ -41,8 +46,13 @@ export type ProgressStore = {
   completeBlock(amount: number, input: BlockCompletionInput, today?: string): BlockCompletionResult;
   /** ユーザーが明示的に途中離脱したattemptだけを中断シグナルへ含める。 */
   abortBlock(attemptId: number, blockKind: string): BlockAbortResult;
-  /** accept/decline は提案が無ければ null。set は不正レベルで null。levelChanged=実際にレベルが動いたか */
-  levelAction(action: "accept" | "decline" | "set", level?: number, today?: string): LevelChangeResult | null;
+  /** accept/decline は表示時の提案と一致した場合のみ適用。set は不正レベルで null。 */
+  levelAction(
+    action: "accept" | "decline" | "set",
+    level?: number,
+    today?: string,
+    expected?: ExpectedProposal,
+  ): LevelChangeResult | null;
   /** プレースメント確定によるレベル設定（level_events kind: placement-set）。同一レベルは no-op（levelChanged=false） */
   placementSet(level: number, today?: string): LevelChangeResult | null;
   /** 日別XP合計（全kind・ymd昇順は呼び出し側で不要） */
@@ -248,12 +258,12 @@ export function makeProgressStore(
     const row = ensureRow();
     if (level === undefined || !Number.isInteger(level) || level < 1 || level > 999) return null;
     // 同一レベルへの set は no-op（xp_into_level を維持し、level_events も記録しない）
-    if (level === row.level) return { summary: summarize(row, today), levelChanged: false };
+    if (level === row.level) return { status: "applied", summary: summarize(row, today), levelChanged: false };
     recordLevelEvent(eventKind, row.level, level, null, today);
     row.level = level;
     row.xp_into_level = 0;
     save(row);
-    return { summary: summarize(row, today), levelChanged: true };
+    return { status: "applied", summary: summarize(row, today), levelChanged: true };
   }
 
   /** 検証済みXPを記録して進捗行を更新する。呼び出し側のtransaction内で使う。 */
@@ -420,14 +430,19 @@ export function makeProgressStore(
       return abortBlockTransaction.immediate(attemptId, blockKind);
     },
 
-    levelAction(action, level, today = localYmd()) {
+    levelAction(action, level, today = localYmd(), expected) {
       if (action === "set") return setLevelTo(level, "manual-set", today);
       const row = ensureRow();
       const proposal = computeProposal(row, today);
-      if (!proposal) return null;
+      if (!proposal
+        || !expected
+        || proposal.kind !== expected.kind
+        || proposal.toLevel !== expected.toLevel) {
+        return { status: "mismatch", summary: summarize(row, today), levelChanged: false };
+      }
       if (action === "decline") {
         recordLevelEvent(proposal.kind === "up" ? "decline-up" : "decline-down", row.level, proposal.toLevel, proposal.rationale, today);
-        return { summary: summarize(row, today), levelChanged: false };
+        return { status: "applied", summary: summarize(row, today), levelChanged: false };
       }
       // accept
       const fromLevel = row.level; // 変異前に捕捉（up のカスケード / down のレベル上書きで壊れないように）
@@ -441,7 +456,7 @@ export function makeProgressStore(
       }
       recordLevelEvent(proposal.kind === "up" ? "accept-up" : "accept-down", fromLevel, row.level, proposal.rationale, today);
       save(row);
-      return { summary: summarize(row, today), levelChanged: true };
+      return { status: "applied", summary: summarize(row, today), levelChanged: true };
     },
 
     placementSet(level, today = localYmd()) {

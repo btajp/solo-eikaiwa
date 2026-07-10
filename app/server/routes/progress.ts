@@ -1,5 +1,5 @@
 import { BLOCK_KINDS } from "../menu";
-import type { ProgressStore } from "../progress-store";
+import type { ExpectedProposal, ProgressStore } from "../progress-store";
 import { isIdempotencyKey } from "../idempotency-key";
 import { json, parseJsonBody, exact, type RouteEntry } from "./http";
 
@@ -71,17 +71,32 @@ async function handleProgressBlockAbort(req: Request, deps: ProgressRoutesDeps):
 const LEVEL_ACTIONS = ["accept", "decline", "set"] as const;
 
 async function handleProgressLevel(req: Request, deps: ProgressRoutesDeps): Promise<Response> {
-  const parsed = await parseJsonBody<{ action?: unknown; level?: unknown }>(req);
+  const parsed = await parseJsonBody<{
+    action?: unknown; level?: unknown; kind?: unknown; toLevel?: unknown;
+  }>(req);
   if (!parsed.ok) return parsed.response;
-  const { action, level } = parsed.body;
+  const { action, level, kind, toLevel } = parsed.body;
   if (!(LEVEL_ACTIONS as readonly string[]).includes(action as string)) {
     return json({ error: `action must be one of: ${LEVEL_ACTIONS.join(", ")}` }, 400);
   }
   if (level !== undefined && typeof level !== "number") return json({ error: "level must be a number" }, 400);
-  const r = deps.progressStore.levelAction(action as "accept" | "decline" | "set", level as number | undefined);
-  if (!r) {
-    return json({ error: action === "set" ? "level must be an integer between 1 and 999" : "no active proposal" }, 400);
+  let expected: ExpectedProposal | undefined;
+  if (action === "accept" || action === "decline") {
+    if ((kind !== "up" && kind !== "down") || !Number.isInteger(toLevel) || (toLevel as number) < 1) {
+      return json({ error: "kind and positive integer toLevel are required for accept/decline" }, 400);
+    }
+    expected = { kind, toLevel: toLevel as number };
   }
+  const r = deps.progressStore.levelAction(
+    action as "accept" | "decline" | "set",
+    level as number | undefined,
+    undefined,
+    expected,
+  );
+  if (!r) {
+    return json({ error: "level must be an integer between 1 and 999" }, 400);
+  }
+  if (r.status === "mismatch") return json({ error: "proposal changed", summary: r.summary }, 409);
   // 明示的なレベル変更（accept/set）で実際にレベルが動いたときだけ当日メニューを再構築する。
   // decline や同一レベルへの set は levelChanged=false なので無効化しない。
   if (r.levelChanged) deps.invalidateMenuCache();

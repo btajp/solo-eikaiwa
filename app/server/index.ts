@@ -7,7 +7,7 @@ import { checkHealth } from "./health";
 import { buildQuickMenu, buildTodayMenu, invalidateTodayMenuCache } from "./menu";
 import { findScenario, findTopic } from "./content";
 import { generateAeFeedback, generateFixExplanation, generateModelTalk, generatePhraseHints, generatePrepPack, generateReflection, generateSentenceExplanation, generateTalkExplanation, generateUtteranceTranslation, roleplayPrompt } from "./coach";
-import { fttOutputSignals, listPracticeDays, readEvents } from "./session-log";
+import { fttOutputSignals, listPracticeDays, readSessionEvents } from "./session-log";
 import { readSettings, writeSettings } from "./settings";
 import { makeFetchHandler, type RouteDeps } from "./routes";
 import { makeLibraryStore, makeTalkExplainCache, makeTranslationCache, openDb } from "./db";
@@ -124,6 +124,7 @@ const assembleMonthData = makeAssembleMonthData({
   db,
   sentences,
   metricsSummary,
+  practiceDays: () => listPracticeDays(),
   currentLevel: () => progressStore.getLevel(),
   placementLatest: () => placementStore.latest(),
 });
@@ -156,7 +157,7 @@ const realDeps: RouteDeps = {
     return { text: talk.text, topicTitle: topic.title };
   },
   libraryStore,
-  reflection: () => generateReflection({ events: readEvents(sessionLogPath(new Date())) }, runnerFor("coaching")),
+  reflection: (sessionId) => generateReflection({ events: readSessionEvents(sessionId) }, runnerFor("coaching")),
   scenarioPrompt: (scenarioId) => {
     const sc = findScenario(scenarioId);
     return sc ? roleplayPrompt(sc, stageOf(progressStore.getLevel())) : null;

@@ -50,7 +50,7 @@ describe("chunks: 収集フックと API", () => {
         collect: (c) => { got.push(...c); return 1; },
       }),
     });
-    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/coach/reflection", { method: "POST" }));
+    const res = await makeFetchHandler(deps)(postJson("/api/coach/reflection", { sessionId: "practice-1" }));
     expect(res.status).toBe(200);
     expect(((await res.json()) as { collectedChunks: number }).collectedChunks).toBe(1);
     expect(got).toEqual([{ source: "reflection", promptText: "he go", en: "he goes", note: "" }]);

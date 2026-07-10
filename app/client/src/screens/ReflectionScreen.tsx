@@ -22,9 +22,9 @@ function FixItem({ fix, lang }: { fix: { original: string; better: string }; lan
   );
 }
 
-export function ReflectionScreen({ lang }: { lang: Lang }) {
+export function ReflectionScreen({ sessionId, lang }: { sessionId: string; lang: Lang }) {
   const t = STR[lang].reflection;
-  const { state, reload } = useLoad(fetchReflection);
+  const { state, reload } = useLoad(() => fetchReflection(sessionId));
 
   if (state.status === "error") {
     return (

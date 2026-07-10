@@ -550,7 +550,7 @@ export const STR: Record<Lang, Strings> = {
       ttsResetDescWith: (model, voice) => `Clear the overrides and return to the defaults (engine: Auto, OpenAI ${model} / ${voice} when a key is set, otherwise macOS say).`,
       ttsApiKeyOptionalNote: "A key is only needed for endpoints that require one (e.g. OpenAI); local servers work without it.",
     },
-    stat: { title: "Practice log", thisWeekUnit: "days this week", total: (n) => `${n} days total` },
+    stat: { title: "Days with practice", thisWeekUnit: "days practiced this week", total: (n) => `${n} practiced days total` },
     hero: {
       title: "Ready to practice your English?",
       date: (d) => `${WEEKDAYS_EN[d.getDay()]}, ${MONTHS_EN[d.getMonth()]} ${d.getDate()}`,
@@ -568,7 +568,7 @@ export const STR: Record<Lang, Strings> = {
     },
     fullSession: { title: "Full Session", minutes: "60 min", desc: "Five blocks of solid practice" },
     shortSession: { title: "Short Session", minutes: "30 min", desc: "Focused training when you have time" },
-    calendar: { title: "Practice days", legendLess: "Less", legendMore: "More" },
+    calendar: { title: "Days with practice", legendLess: "Less", legendMore: "More" },
     freeTalk: { title: "Free Talk", desc: "Talk about anything in English — press the button to start and stop recording" },
     progress: {
       levelLabel: (n) => `Lv ${n}`,
@@ -719,7 +719,7 @@ export const STR: Record<Lang, Strings> = {
       explainMore: "💡 Explain more", explainLoading: "Writing an explanation…", explainError: "Couldn't load the explanation.",
     },
     reflection: {
-      loading: "Your coach is reviewing today's session…", retry: "Retry",
+      loading: "Your coach is reviewing this practice session…", retry: "Retry",
       goodPhrases: "👏 What went well", fixes: "✏️ Worth polishing", tomorrow: "📝 For tomorrow",
       explainMore: "💡 Explain more", explainLoading: "Writing an explanation…", explainError: "Couldn't load the explanation.",
     },
@@ -961,7 +961,7 @@ export const STR: Record<Lang, Strings> = {
       ttsResetDescWith: (model, voice) => `上書きを消して、既定（エンジン: 自動・キー設定時は OpenAI ${model} / ${voice}・無ければ macOS say）に戻します。`,
       ttsApiKeyOptionalNote: "キーが必要なのは OpenAI 等の鍵必須エンドポイントのみです（ローカルサーバは不要）。",
     },
-    stat: { title: "練習記録", thisWeekUnit: "日（今週）", total: (n) => `累計 ${n}日` },
+    stat: { title: "練習した日", thisWeekUnit: "日（今週の練習）", total: (n) => `練習日 累計${n}日` },
     hero: {
       title: "今日も英語を話しましょう",
       date: (d) => `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS_JA[d.getDay()]}）`,
@@ -979,7 +979,7 @@ export const STR: Record<Lang, Strings> = {
     },
     fullSession: { title: "通しセッション", minutes: "60分", desc: "5ブロックで総合的にしっかり練習" },
     shortSession: { title: "短縮セッション", minutes: "30分", desc: "時間がある日の集中トレーニング" },
-    calendar: { title: "練習日", legendLess: "少", legendMore: "多" },
+    calendar: { title: "練習した日", legendLess: "少", legendMore: "多" },
     freeTalk: { title: "自由会話", desc: "英語でなんでも話しかけてください — 録音ボタンで開始・停止" },
     progress: {
       levelLabel: (n) => `Lv ${n}`,
@@ -1130,7 +1130,7 @@ export const STR: Record<Lang, Strings> = {
       explainMore: "💡 もっと詳しく", explainLoading: "解説を書いています…", explainError: "解説を取得できませんでした。",
     },
     reflection: {
-      loading: "コーチが今日のセッションを振り返っています…", retry: "再試行",
+      loading: "コーチがこの練習を振り返っています…", retry: "再試行",
       goodPhrases: "👏 良かった表現", fixes: "✏️ 直したい表現", tomorrow: "📝 明日へ",
       explainMore: "💡 もっと詳しく", explainLoading: "解説を書いています…", explainError: "解説を取得できませんでした。",
     },

@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { appendEvent, fttOutputSignals, listPracticeDays, readEvents, type SessionEvent } from "../session-log";
+import {
+  appendEvent, fttOutputSignals, listPracticeDays, readEvents, readSessionEvents, type SessionEvent,
+} from "../session-log";
 
 describe("session-log", () => {
   test("appendEvent は1行1JSONで追記し readEvents で復元できる", () => {
@@ -37,8 +39,9 @@ describe("session-log", () => {
 describe("listPracticeDays", () => {
   test("YYYY-MM-DD.jsonl のみを昇順で返す（拡張子なし）", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "days-"));
-    writeFileSync(path.join(dir, "2026-07-03.jsonl"), "");
-    writeFileSync(path.join(dir, "2026-07-01.jsonl"), "");
+    const activity = JSON.stringify({ ts: "t", type: "user_utterance", sessionId: "s", text: "hi" }) + "\n";
+    writeFileSync(path.join(dir, "2026-07-03.jsonl"), activity);
+    writeFileSync(path.join(dir, "2026-07-01.jsonl"), activity);
     writeFileSync(path.join(dir, "notes.txt"), "");
     writeFileSync(path.join(dir, "bad-name.jsonl"), "");
     expect(listPracticeDays(dir)).toEqual(["2026-07-01", "2026-07-03"]);
@@ -47,14 +50,54 @@ describe("listPracticeDays", () => {
   test("ディレクトリが無ければ空配列", () => {
     expect(listPracticeDays("/nonexistent/nope")).toEqual([]);
   });
+
+  test("起動・閲覧だけの日を除外し、発話または明示完了がある日だけ返す", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "days-activity-"));
+    const write = (ymd: string, events: SessionEvent[]) => writeFileSync(
+      path.join(dir, `${ymd}.jsonl`), events.map((e) => JSON.stringify(e)).join("\n") + "\n",
+    );
+    write("2026-07-01", [
+      { ts: "t", type: "session_start", sessionId: "open-only" },
+      { ts: "t", type: "session_end", sessionId: "open-only" },
+    ]);
+    write("2026-07-02", [
+      { ts: "t", type: "block_end", sessionId: "aborted", meta: { aborted: true } },
+    ]);
+    write("2026-07-03", [
+      { ts: "t", type: "user_utterance", sessionId: "spoken", text: "hello" },
+    ]);
+    write("2026-07-04", [
+      { ts: "t", type: "block_end", sessionId: "completed", meta: { kind: "reflection" } },
+    ]);
+    expect(listPracticeDays(dir)).toEqual(["2026-07-03", "2026-07-04"]);
+  });
+});
+
+describe("readSessionEvents", () => {
+  test("同日別sessionを除外し、日付境界を跨いだ対象sessionを時刻順で返す", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "session-window-"));
+    writeFileSync(path.join(dir, "2026-07-01.jsonl"), [
+      { ts: "2026-07-01T23:59:50.000Z", type: "user_utterance", sessionId: "target", text: "before midnight" },
+      { ts: "2026-07-01T23:59:55.000Z", type: "user_utterance", sessionId: "other", text: "other tab" },
+    ].map((e) => JSON.stringify(e)).join("\n") + "\n");
+    writeFileSync(path.join(dir, "2026-07-02.jsonl"), [
+      { ts: "2026-07-02T00:00:10.000Z", type: "user_utterance", sessionId: "target", text: "after midnight" },
+      { ts: "2026-07-02T00:00:05.000Z", type: "assistant_reply", sessionId: "target", text: "reply" },
+    ].map((e) => JSON.stringify(e)).join("\n") + "\n");
+
+    expect(readSessionEvents("target", dir).map((e) => e.text)).toEqual([
+      "before midnight", "reply", "after midnight",
+    ]);
+  });
 });
 
 describe("session-log: 日付形式の互換性", () => {
   test("listPracticeDays は旧UTC名・新ローカル名のファイルを区別なく列挙する", () => {
     const dir = mkdtempSync(path.join(tmpdir(), "sessions-"));
     // 移行前（UTC名）と移行後（ローカル名）が混在しても、パターン一致で両方拾える
-    writeFileSync(path.join(dir, "2026-07-05.jsonl"), "");
-    writeFileSync(path.join(dir, "2026-07-06.jsonl"), "");
+    const activity = JSON.stringify({ ts: "t", type: "block_end", sessionId: "s", meta: {} }) + "\n";
+    writeFileSync(path.join(dir, "2026-07-05.jsonl"), activity);
+    writeFileSync(path.join(dir, "2026-07-06.jsonl"), activity);
     writeFileSync(path.join(dir, "not-a-log.txt"), "");
     expect(listPracticeDays(dir)).toEqual(["2026-07-05", "2026-07-06"]);
   });

@@ -4,7 +4,7 @@ import { Card } from "../ui/Card";
 import { LevelChip } from "../ui/LevelChip";
 import { FreeTalkScreen } from "./FreeTalkScreen";
 
-export function RoleplayScreen(props: { scenario: ContentItem; lang: Lang }) {
+export function RoleplayScreen(props: { scenario: ContentItem; sessionId: string; lang: Lang }) {
   const t = STR[props.lang].roleplay;
   const starters = props.scenario.starters ?? [];
   // EN 表示ではシナリオの英語タイトル、JA では従来どおり titleJa
@@ -26,7 +26,7 @@ export function RoleplayScreen(props: { scenario: ContentItem; lang: Lang }) {
           </div>
         )}
       </Card>
-      <FreeTalkScreen scenarioId={props.scenario.id} lang={props.lang} />
+      <FreeTalkScreen activitySessionId={props.sessionId} scenarioId={props.scenario.id} lang={props.lang} />
     </div>
   );
 }

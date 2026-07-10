@@ -46,13 +46,38 @@ export function isErrorLogged(err: unknown): boolean {
   return err instanceof Error && (err as Error & Record<symbol, unknown>)[LOGGED_MARKER] === true;
 }
 
-/** 練習を実施した日（セッションログが存在する日）の一覧。カレンダー表示用の情報的フィードバック */
+const DATE_LOG_PATTERN = /^\d{4}-\d{2}-\d{2}\.jsonl$/;
+
+/** 起動・閲覧ではなく、発話または明示完了を表すイベントだけを練習実施として扱う。 */
+export function isPracticeActivity(e: SessionEvent): boolean {
+  if (e.type === "user_utterance" || e.type === "stt_result") return true;
+  if (e.type === "round_end") return (e.meta as { aborted?: unknown } | undefined)?.aborted !== true;
+  if (e.type === "block_end") return (e.meta as { aborted?: unknown } | undefined)?.aborted !== true;
+  return false;
+}
+
+/** 練習を実施した日の一覧。起動だけで作られた既存ログは表示対象から除外する。 */
 export function listPracticeDays(dir: string = SESSIONS_DIR): string[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
-    .filter((f) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))
+    .filter((f) => DATE_LOG_PATTERN.test(f))
+    .filter((f) => readEvents(path.join(dir, f)).some(isPracticeActivity))
     .map((f) => f.slice(0, -6))
     .sort();
+}
+
+/** 日付ファイルを跨いで対象sessionだけを抽出し、timestampと記録順で安定ソートする。 */
+export function readSessionEvents(sessionId: string, dir: string = SESSIONS_DIR): SessionEvent[] {
+  if (!existsSync(dir)) return [];
+  let sequence = 0;
+  return readdirSync(dir)
+    .filter((file) => DATE_LOG_PATTERN.test(file))
+    .sort()
+    .flatMap((file) => readEvents(path.join(dir, file)))
+    .map((event) => ({ event, sequence: sequence++ }))
+    .filter(({ event }) => event.sessionId === sessionId)
+    .sort((a, b) => a.event.ts.localeCompare(b.event.ts) || a.sequence - b.sequence)
+    .map(({ event }) => event);
 }
 
 /**

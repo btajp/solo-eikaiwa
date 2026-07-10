@@ -113,13 +113,40 @@ describe("routes: progress", () => {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "reset" }) }));
     expect(badAction.status).toBe(400);
   });
+  test("POST /api/progress/level: accept/declineは表示提案のkind・toLevelを必須にする", async () => {
+    let calls = 0;
+    const { deps } = makeTestDeps({
+      progressStore: makeFakeProgressStore({
+        levelAction: () => { calls++; return { status: "applied", summary: FAKE_SUMMARY, levelChanged: true }; },
+      }),
+    });
+    const h = makeFetchHandler(deps);
+    expect((await h(new Request("http://localhost/api/progress/level", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "accept" }),
+    }))).status).toBe(400);
+    expect(calls).toBe(0);
+  });
+
+  test("POST /api/progress/level: 表示提案との不一致は最新summary付き409にする", async () => {
+    const { deps } = makeTestDeps({
+      progressStore: makeFakeProgressStore({
+        levelAction: () => ({ status: "mismatch", summary: FAKE_SUMMARY, levelChanged: false } as never),
+      }),
+    });
+    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/progress/level", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "accept", kind: "up", toLevel: 21 }),
+    }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "proposal changed", summary: FAKE_SUMMARY });
+  });
   test("POST /api/progress/level: accept/set 成功時のみ当日メニューキャッシュを無効化し、declineでは呼ばない", async () => {
     let invalidateCalls = 0;
     const { deps } = makeTestDeps({
       invalidateMenuCache: () => { invalidateCalls++; },
       progressStore: makeFakeProgressStore({
         // テスト目的で action を問わず成功させ、accept/decline それぞれのハンドラ分岐だけを見る
-        levelAction: (action) => ({ summary: FAKE_SUMMARY, levelChanged: action !== "decline" }),
+        levelAction: (action) => ({ status: "applied", summary: FAKE_SUMMARY, levelChanged: action !== "decline" }),
       }),
     });
     const handler = makeFetchHandler(deps);
@@ -130,12 +157,12 @@ describe("routes: progress", () => {
     expect(invalidateCalls).toBe(1);
 
     const acceptRes = await handler(new Request("http://localhost/api/progress/level", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "accept" }) }));
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "accept", kind: "up", toLevel: 21 }) }));
     expect(acceptRes.status).toBe(200);
     expect(invalidateCalls).toBe(2);
 
     const declineRes = await handler(new Request("http://localhost/api/progress/level", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "decline" }) }));
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "decline", kind: "up", toLevel: 21 }) }));
     expect(declineRes.status).toBe(200);
     expect(invalidateCalls).toBe(2); // decline は無効化しない
   });
@@ -144,7 +171,7 @@ describe("routes: progress", () => {
     const { deps } = makeTestDeps({
       invalidateMenuCache: () => { invalidateCalls++; },
       progressStore: makeFakeProgressStore({
-        levelAction: (_action, level) => ({ summary: FAKE_SUMMARY, levelChanged: level !== 13 }),
+        levelAction: (_action, level) => ({ status: "applied", summary: FAKE_SUMMARY, levelChanged: level !== 13 }),
       }),
     });
     const handler = makeFetchHandler(deps);

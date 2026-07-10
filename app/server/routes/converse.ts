@@ -10,7 +10,9 @@ export type ConverseRoutesDeps = {
 };
 
 async function handleConverse(req: Request, deps: ConverseRoutesDeps): Promise<Response> {
-  const parsed = await parseJsonBody<{ userText?: unknown; sessionId?: unknown; scenarioId?: unknown }>(req);
+  const parsed = await parseJsonBody<{
+    userText?: unknown; sessionId?: unknown; scenarioId?: unknown; activitySessionId?: unknown;
+  }>(req);
   if (!parsed.ok) return parsed.response;
   const body = parsed.body;
   if (typeof body.userText !== "string" || !body.userText.trim()) {
@@ -19,6 +21,11 @@ async function handleConverse(req: Request, deps: ConverseRoutesDeps): Promise<R
   if (body.userText.length > 16_000) return json({ error: "userText must be at most 16000 characters" }, 400);
   if (body.sessionId !== undefined && (typeof body.sessionId !== "string" || body.sessionId.length > 200)) {
     return json({ error: "sessionId must be a string of at most 200 characters" }, 400);
+  }
+  if (typeof body.activitySessionId !== "string"
+    || body.activitySessionId.length < 1
+    || body.activitySessionId.length > 200) {
+    return json({ error: "activitySessionId must be a non-empty string of at most 200 characters" }, 400);
   }
   if (body.scenarioId !== undefined && (typeof body.scenarioId !== "string" || body.scenarioId.length > 200)) {
     return json({ error: "scenarioId must be a string of at most 200 characters" }, 400);
@@ -32,7 +39,12 @@ async function handleConverse(req: Request, deps: ConverseRoutesDeps): Promise<R
     // 自由会話: stage 別の語彙レベリング付きパートナープロンプトを毎回組み立てる
     systemPromptOverride = partnerSystemPrompt(deps.conversationStage());
   }
-  const r = await deps.converse({ userText: body.userText, sessionId: body.sessionId, systemPromptOverride });
+  const r = await deps.converse({
+    userText: body.userText,
+    sessionId: body.sessionId,
+    activitySessionId: body.activitySessionId,
+    systemPromptOverride,
+  });
   return json(r);
 }
 

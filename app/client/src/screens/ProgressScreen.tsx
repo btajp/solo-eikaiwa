@@ -46,14 +46,10 @@ export function ProgressScreen({ lang }: { lang: Lang }) {
 
   const maxSec = Math.max(...days.map((d) => d.speakingSec), 1);
   const maxWpm = Math.max(...days.map((d) => d.avgArticulationWpm), 1);
-  const spoken = days.filter((d) => d.utterances > 0);
-  const lastWeek = spoken.filter((d) => d.ymd >= days[days.length - 7].ymd);
-  const prevWeek = spoken.filter((d) => d.ymd < days[days.length - 7].ymd);
-  const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
-  const pauseCur = avg(lastWeek.map((d) => d.avgPauseRatio));
-  const pausePrev = avg(prevWeek.map((d) => d.avgPauseRatio));
-  const repCur = avg(lastWeek.map((d) => d.repetitionRatio));
-  const repPrev = avg(prevWeek.map((d) => d.repetitionRatio));
+  const pauseCur = summary.weekly.current.avgPauseRatio;
+  const pausePrev = summary.weekly.previous.avgPauseRatio;
+  const repCur = summary.weekly.current.repetitionRatio;
+  const repPrev = summary.weekly.previous.repetitionRatio;
 
   return (
     <div className="stack">

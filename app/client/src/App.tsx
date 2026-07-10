@@ -27,7 +27,7 @@ import { dismissLlmNotice, isLlmNoticeDismissed, shouldShowLlmNotice } from "./l
 import { missingDeps } from "./lib/dep-banner";
 import { dismissSetupBanner, isSetupBannerDismissed, shouldShowSetupBanner } from "./lib/whisper-setup";
 
-type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource } | { kind: "library" } | { kind: "sentences" } | { kind: "listening" } | { kind: "placement" } | { kind: "progress" } | { kind: "feedback" } | { kind: "settings" } | { kind: "about" };
+type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource; sessionId: string } | { kind: "library" } | { kind: "sentences" } | { kind: "listening" } | { kind: "placement" } | { kind: "progress" } | { kind: "feedback" } | { kind: "settings" } | { kind: "about" };
 
 /** 依存不足バナー（dev文脈）での表示名。health のフィールド名と実際のバイナリ名が異なるもののみ変換する */
 const DEP_DISPLAY_NAME: Record<string, string> = { whisper: "whisper-cli" };
@@ -59,8 +59,8 @@ export function App() {
     document.documentElement.dataset.uiScale = uiScale;
     localStorage.setItem("ui.scale", uiScale);
   }, [uiScale]);
-  // このタブのセッションを識別するUUID。ライフサイクル/ブロック/ラウンドイベントは
-  // モードに関わらずすべてこのIDで記録する（converse() が返す会話用sessionIdとは別概念。そちらは変更しない）
+  // このタブのライフサイクルを識別するUUID。単独の自由会話にも使う。
+  // 通し・クイック練習は開始ごとに別IDを発行し、振り返りとblock/roundイベントをその練習へ束縛する。
   const [sessionId] = useState(() => crypto.randomUUID());
   // StrictMode の開発時二重マウントで session_start が重複記録されないようにする冪等ガード
   const startedRef = useRef(false);
@@ -91,7 +91,7 @@ export function App() {
     if (sel.type === "free") setMode({ kind: "free" });
     else if (sel.type === "library") setMode({ kind: "library" });
     else if (sel.type === "placement") setMode({ kind: "placement" });
-    else setMode({ kind: "session", source: sel.source });
+    else setMode({ kind: "session", source: sel.source, sessionId: crypto.randomUUID() });
   }
 
   type NavSection = "today" | "self" | "records";
@@ -210,7 +210,7 @@ export function App() {
       )}
       {mode.kind === "start" && <StartScreen onSelect={onSelect} lang={lang} />}
       {mode.kind === "session" && (
-        <SessionRunner source={mode.source} sessionId={sessionId} lang={lang} onExit={() => setMode({ kind: "start" })} />
+        <SessionRunner source={mode.source} sessionId={mode.sessionId} lang={lang} onExit={() => setMode({ kind: "start" })} />
       )}
       {mode.kind === "free" && (
         <div className="stack">
@@ -219,7 +219,7 @@ export function App() {
             <LevelChip kind="auto" lang={lang} />
             <p className="hero-date">{t.freeTalk.desc}</p>
           </div>
-          <FreeTalkScreen lang={lang} />
+          <FreeTalkScreen activitySessionId={sessionId} lang={lang} />
         </div>
       )}
       {mode.kind === "library" && <LibraryScreen lang={lang} />}

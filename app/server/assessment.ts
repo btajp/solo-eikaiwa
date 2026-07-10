@@ -3,7 +3,7 @@ import { addDaysYmd, localYmd } from "./dates";
 import { defaultRunner, type ClaudeRunner } from "./converse";
 import { insertReturningId } from "./db-util";
 import type { Sentence } from "./sentences";
-import type { MetricsSummary } from "./metrics-aggregate";
+import { aggregateMetricDays, type MetricsSummary } from "./metrics-aggregate";
 import type { PlacementResultRow } from "./placement";
 import { categoryBadRates, pickWorstCategories, type CategoryRate } from "./srs-analytics";
 
@@ -12,7 +12,7 @@ export type MonthData = {
   practicedDays: number;
   speakingSec: number;
   utterances: number;
-  /** 30日全体の加重平均（語数近似 = 日別wpm×発話分。近似である旨レポートには数値のみ渡る） */
+  /** 30日全体のraw語数 / speechMsから算出する構音速度 */
   avgArticulationWpm: number;
   avgPauseRatio: number;
   repetitionRatio: number;
@@ -32,6 +32,7 @@ export type AssembleDeps = {
   db: Database;
   sentences: Sentence[];
   metricsSummary: (days: number, today?: string) => MetricsSummary;
+  practiceDays: () => string[];
   currentLevel: () => number;
   placementLatest: () => PlacementResultRow | null;
 };
@@ -41,26 +42,24 @@ export function makeAssembleMonthData(deps: AssembleDeps) {
     const since = addDaysYmd(today, -29);
     const ms = deps.metricsSummary(30, today);
 
-    let words = 0, speechMin = 0, speakingSec = 0, utterances = 0, pauseW = 0, repW = 0;
-    for (const d of ms.days) {
-      if (d.utterances === 0) continue;
-      const min = d.speakingSec / 60;
-      words += d.avgArticulationWpm * min;
-      speechMin += min;
-      speakingSec += d.speakingSec;
-      utterances += d.utterances;
-      pauseW += d.avgPauseRatio * d.speakingSec;
-      repW += d.repetitionRatio * d.speakingSec;
-    }
+    const speaking = aggregateMetricDays(ms.days);
 
-    const practiced = deps.db
-      .query<{ n: number }, [string, string]>(
-        "SELECT COUNT(DISTINCT ymd) AS n FROM xp_events WHERE kind = 'block' AND ymd >= ? AND ymd <= ?")
-      .get(since, today)!;
+    const xpDays = deps.db
+      .query<{ ymd: string }, [string, string]>(
+        "SELECT DISTINCT ymd FROM xp_events WHERE ymd >= ? AND ymd <= ?")
+      .all(since, today)
+      .map((row) => row.ymd);
+    const practicedDays = new Set([
+      ...deps.practiceDays().filter((ymd) => ymd >= since && ymd <= today),
+      ...xpDays,
+    ]).size;
 
     const attempts = deps.db
       .query<{ total: number; done: number }, [string, string]>(
-        "SELECT COUNT(*) AS total, SUM(completed) AS done FROM block_attempts WHERE ymd >= ? AND ymd <= ?")
+        `SELECT COUNT(*) AS total, SUM(a.completed) AS done FROM block_attempts a
+         LEFT JOIN block_attempt_outcomes o ON o.attempt_id = a.id
+         WHERE a.ymd >= ? AND a.ymd <= ?
+           AND (o.attempt_id IS NULL OR o.status IN ('completed', 'aborted'))`)
       .get(since, today)!;
 
     const srs = deps.db
@@ -82,12 +81,12 @@ export function makeAssembleMonthData(deps: AssembleDeps) {
 
     return {
       windowDays: 30,
-      practicedDays: practiced.n,
-      speakingSec,
-      utterances,
-      avgArticulationWpm: speechMin > 0 ? Math.round((words / speechMin) * 10) / 10 : 0,
-      avgPauseRatio: speakingSec > 0 ? Math.round((pauseW / speakingSec) * 1000) / 1000 : 0,
-      repetitionRatio: speakingSec > 0 ? Math.round((repW / speakingSec) * 1000) / 1000 : 0,
+      practicedDays,
+      speakingSec: speaking.speakingSec,
+      utterances: speaking.utterances,
+      avgArticulationWpm: speaking.avgArticulationWpm,
+      avgPauseRatio: speaking.avgPauseRatio,
+      repetitionRatio: speaking.repetitionRatio,
       blockAttempts: attempts.total,
       blockCompletionRate: attempts.total > 0 ? Math.round(((attempts.done ?? 0) / attempts.total) * 1000) / 1000 : null,
       srsReviews30d: srs.total,

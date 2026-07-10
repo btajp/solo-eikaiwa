@@ -84,8 +84,8 @@ export function makeFakeProgressStore(overrides: Partial<ProgressStore> = {}): P
     abortBlock: (_attemptId, _blockKind) => ({ status: "aborted" }),
     levelAction: (action, level) =>
       action === "set" && Number.isInteger(level) && (level as number) >= 1
-        ? { summary: FAKE_SUMMARY, levelChanged: true } : null,
-    placementSet: (_level) => ({ summary: FAKE_SUMMARY, levelChanged: true }),
+        ? { status: "applied", summary: FAKE_SUMMARY, levelChanged: true } : null,
+    placementSet: (_level) => ({ status: "applied", summary: FAKE_SUMMARY, levelChanged: true }),
     xpByDay: () => ({ "2026-07-01": 32 }),
     ...overrides,
   } satisfies ProgressStore;
@@ -183,7 +183,7 @@ export function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
   const deps: RouteDeps = {
     transcribe: async (_inputPath: string) => ({ text: "fake transcript", segments: [] }),
     synthesize: async (_text: string) => ({ audio: new Uint8Array([1, 2, 3]), mime: "audio/mpeg", engine: "say" as const }),
-    converse: async (args: { userText: string; sessionId?: string }) => ({
+    converse: async (args: { userText: string; sessionId?: string; activitySessionId?: string }) => ({
       replyText: `echo: ${args.userText}`, sessionId: args.sessionId ?? "sess-fake",
     }),
     health: () => FAKE_HEALTH,
@@ -212,8 +212,22 @@ export function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
     metricsSummary: (days: number) => ({
       days: Array.from({ length: days }, (_, i) => ({
         ymd: `2026-07-${String(i + 1).padStart(2, "0")}`,
-        utterances: 0, speakingSec: 0, avgArticulationWpm: 0, avgPauseRatio: 0, repetitionRatio: 0,
+        utterances: 0, words: 0, speechMs: 0, totalMs: 0, pauseMs: 0,
+        repetitionWords: 0, repetitionWeightedWords: 0, speakingSec: 0,
+        avgArticulationWpm: 0, avgPauseRatio: 0, repetitionRatio: 0,
       })),
+      weekly: {
+        current: {
+          utterances: 0, words: 0, speechMs: 0, totalMs: 0, pauseMs: 0,
+          repetitionWords: 0, repetitionWeightedWords: 0, speakingSec: 0,
+          avgArticulationWpm: 0, avgPauseRatio: 0, repetitionRatio: 0,
+        },
+        previous: {
+          utterances: 0, words: 0, speechMs: 0, totalMs: 0, pauseMs: 0,
+          repetitionWords: 0, repetitionWeightedWords: 0, speakingSec: 0,
+          avgArticulationWpm: 0, avgPauseRatio: 0, repetitionRatio: 0,
+        },
+      },
       level: { current: 13, history: [] },
     }),
     explainTalk: async () => ({ text: "日本語訳: テスト訳\n\n表現ポイント:\n- test — テスト" }),

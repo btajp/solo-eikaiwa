@@ -18,10 +18,33 @@ describe("routes: converse", () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      postJson("/api/converse", { userText: "Hi", sessionId: "s1" }),
+      postJson("/api/converse", { userText: "Hi", sessionId: "s1", activitySessionId: "practice-1" }),
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ replyText: "echo: Hi", sessionId: "s1" });
+  });
+
+  test("activitySessionIdが無い・不正なら400", async () => {
+    const handler = makeFetchHandler(makeTestDeps().deps);
+    expect((await handler(postJson("/api/converse", { userText: "Hi" }))).status).toBe(400);
+    expect((await handler(postJson("/api/converse", {
+      userText: "Hi", activitySessionId: "x".repeat(201),
+    }))).status).toBe(400);
+  });
+
+  test("activitySessionIdを会話runnerへ渡す", async () => {
+    let seen: string | undefined;
+    const { deps } = makeTestDeps({
+      converse: async (args) => {
+        seen = args.activitySessionId;
+        return { replyText: "ok", sessionId: "conversation-1" };
+      },
+    });
+    const res = await makeFetchHandler(deps)(postJson("/api/converse", {
+      userText: "Hi", activitySessionId: "practice-1",
+    }));
+    expect(res.status).toBe(200);
+    expect(seen).toBe("practice-1");
   });
 
   test("不正なJSONボディは400（500にならない）", async () => {
@@ -49,7 +72,9 @@ describe("routes: converse + scenarioId", () => {
       },
     });
     const handler = makeFetchHandler(deps);
-    const res = await handler(postJson("/api/converse", { userText: "hi", scenarioId: "known-scenario" }));
+    const res = await handler(postJson("/api/converse", {
+      userText: "hi", scenarioId: "known-scenario", activitySessionId: "practice-1",
+    }));
     expect(res.status).toBe(200);
     expect(seen[0].systemPromptOverride).toBe("ROLEPLAY PROMPT");
   });
@@ -57,7 +82,9 @@ describe("routes: converse + scenarioId", () => {
   test("未知の scenarioId は400", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
-    const res = await handler(postJson("/api/converse", { userText: "hi", scenarioId: "nope" }));
+    const res = await handler(postJson("/api/converse", {
+      userText: "hi", scenarioId: "nope", activitySessionId: "practice-1",
+    }));
     expect(res.status).toBe(400);
   });
 
@@ -70,7 +97,7 @@ describe("routes: converse + scenarioId", () => {
       },
     });
     const handler = makeFetchHandler(deps);
-    await handler(postJson("/api/converse", { userText: "hi" }));
+    await handler(postJson("/api/converse", { userText: "hi", activitySessionId: "practice-1" }));
     // route-deps の conversationStage() は 2（低ステージ）→ 高頻度語彙制約が入る
     expect(seen[0].systemPromptOverride).toContain("word families");
   });

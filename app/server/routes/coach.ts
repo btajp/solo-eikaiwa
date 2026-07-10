@@ -11,7 +11,7 @@ export type CoachRoutesDeps = {
   modelTalk: (topicId: string) => Promise<{ text: string; topicTitle?: string } | null>;
   /** モデルトークの記録と一覧（実体は db.ts、テストはフェイク/インメモリ） */
   libraryStore: LibraryStore;
-  reflection: () => Promise<Reflection>;
+  reflection: (sessionId: string) => Promise<Reflection>;
   /** 未知の topicId は null（ルートは404を返す） */
   prepPack: (topicId: string) => Promise<PrepPack | null>;
   /** モデルトークの日本語訳＋表現解説を生成（実体は coach.ts、テストはフェイク） */
@@ -46,8 +46,14 @@ async function handleAeFeedback(req: Request, deps: CoachRoutesDeps): Promise<Re
   return json({ ...fb, collectedChunks: collectBestEffort(deps.chunkStore, cands) });
 }
 
-async function handleReflection(deps: CoachRoutesDeps): Promise<Response> {
-  const refl = await deps.reflection();
+async function handleReflection(req: Request, deps: CoachRoutesDeps): Promise<Response> {
+  const parsed = await parseJsonBody<{ sessionId?: unknown }>(req);
+  if (!parsed.ok) return parsed.response;
+  const sessionId = parsed.body.sessionId;
+  if (typeof sessionId !== "string" || sessionId.length < 1 || sessionId.length > 200) {
+    return json({ error: "sessionId must be a non-empty string of at most 200 characters" }, 400);
+  }
+  const refl = await deps.reflection(sessionId);
   const cands: CollectCandidate[] = refl.fixes
     .filter((f) => f.original?.trim() && f.better?.trim())
     .map((f) => ({ source: "reflection" as const, promptText: f.original, en: f.better, note: "" }));
@@ -139,7 +145,7 @@ export function makeCoachRoutes(deps: CoachRoutesDeps): RouteEntry[] {
     exact("POST", "/api/feedback/ae", (req) => handleAeFeedback(req, deps)),
     exact("POST", "/api/coach/model-talk", (req) => handleModelTalk(req, deps)),
     exact("POST", "/api/coach/prep", (req) => handlePrep(req, deps)),
-    exact("POST", "/api/coach/reflection", () => handleReflection(deps)),
+    exact("POST", "/api/coach/reflection", (req) => handleReflection(req, deps)),
     exact("POST", "/api/coach/talk-explain", (req) =>
       respondHashCached(req, deps.talkExplainCache, deps.explainTalk, "[coach] talk explanation cache write failed, continuing:")),
     exact("POST", "/api/coach/translate", (req) =>

@@ -32,7 +32,9 @@ describe("converse", () => {
       return { text: "Nice to meet you!", sessionId: "claude-sess-1" };
     };
 
-    const r = await converseTurn({ userText: "Hi, I am Shin.", runner: fakeRunner, logFile });
+    const r = await converseTurn({
+      userText: "Hi, I am Shin.", activitySessionId: "practice-session-1", runner: fakeRunner, logFile,
+    });
 
     expect(r.replyText).toBe("Nice to meet you!");
     expect(r.sessionId).toBe("claude-sess-1");
@@ -41,6 +43,7 @@ describe("converse", () => {
 
     const events = readEvents(logFile);
     expect(events.map((e) => e.type)).toEqual(["user_utterance", "assistant_reply"]);
+    expect(events.map((e) => e.sessionId)).toEqual(["practice-session-1", "practice-session-1"]);
     expect(events[1].text).toBe("Nice to meet you!");
   });
 

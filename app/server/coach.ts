@@ -189,8 +189,8 @@ export async function generateModelTalk(
   return { text };
 }
 
-const REFLECTION_SYSTEM = `You review one day of an English learner's speaking practice (CEFR A2-B1, Japanese IT professional).
-You receive the learner's utterances from today's session log.
+const REFLECTION_SYSTEM = `You review one English learner's speaking practice session (CEFR A2-B1, Japanese IT professional).
+You receive only the learner's utterances associated with that practice session.
 Reply with STRICT JSON only — no markdown fences — exactly this shape:
 {"goodPhrases":["<up to 3 phrases the learner used well>"],"fixes":[{"original":"<learner's words>","better":"<natural version>"}],"noteForTomorrow_ja":"<明日に向けた1〜2文の日本語メモ>"}
 Keep fixes to the 3 most useful items.
@@ -204,7 +204,7 @@ export async function generateReflection(
     .filter((e) => e.type === "user_utterance" && e.text)
     .map((e) => `- ${e.text}`)
     .join("\n");
-  const prompt = `Today's learner utterances:\n${utterances || "(none)"}`;
+  const prompt = `This session's learner utterances:\n${utterances || "(none)"}`;
   const { text } = await runner(prompt, undefined, { systemPrompt: REFLECTION_SYSTEM });
   const parsed = extractJson<Reflection>(text);
   if (parsed && Array.isArray(parsed.goodPhrases)) return parsed;

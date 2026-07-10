@@ -10,7 +10,9 @@ type Turn = { role: "you" | "ai"; text: string };
 type Status = "idle" | "recording" | "transcribing" | "thinking" | "speaking" | "error";
 
 /** 会話ループ画面。scenarioId を渡すとロールプレイモードになる（M1の自由会話UIを抽出したもの） */
-export function FreeTalkScreen(props: { scenarioId?: string; onSessionId?: (id: string) => void; lang: Lang }) {
+export function FreeTalkScreen(props: {
+  activitySessionId: string; scenarioId?: string; onSessionId?: (id: string) => void; lang: Lang;
+}) {
   const t = STR[props.lang].freeTalkScreen;
   const LABELS: Record<Status, string> = {
     idle: t.idle, recording: t.recording, transcribing: t.transcribing,
@@ -61,7 +63,9 @@ export function FreeTalkScreen(props: { scenarioId?: string; onSessionId?: (id: 
       setTurns((prev) => [...prev, { role: "you", text }]);
 
       setStatus("thinking");
-      const { replyText, sessionId } = await converse(text, sessionIdRef.current, props.scenarioId);
+      const { replyText, sessionId } = await converse(
+        text, props.activitySessionId, sessionIdRef.current, props.scenarioId,
+      );
       if (!aliveRef.current) return;
       sessionIdRef.current = sessionId;
       props.onSessionId?.(sessionId);

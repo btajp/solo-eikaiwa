@@ -27,11 +27,19 @@ describe("routes: coach", () => {
   });
 
   test("POST /api/coach/reflection は Reflection を返す", async () => {
-    const { deps } = makeTestDeps();
+    let seenSessionId: string | undefined;
+    const { deps } = makeTestDeps({
+      reflection: async (sessionId) => {
+        seenSessionId = sessionId;
+        return FAKE_REFLECTION;
+      },
+    });
     const handler = makeFetchHandler(deps);
-    const res = await handler(postJson("/api/coach/reflection", {}));
+    const res = await handler(postJson("/api/coach/reflection", { sessionId: "practice-session-1" }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ...FAKE_REFLECTION, collectedChunks: 0 });
+    expect(seenSessionId).toBe("practice-session-1");
+    expect((await handler(postJson("/api/coach/reflection", {}))).status).toBe(400);
   });
 });
 

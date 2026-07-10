@@ -73,7 +73,7 @@ describe("placement API", () => {
     const { deps } = makeTestDeps({
       invalidateMenuCache: () => { invalidated.push("x"); },
       progressStore: makeFakeProgressStore({
-        placementSet: (l) => { placementSetCalls.push(l); return { summary: FAKE_SUMMARY, levelChanged: true }; },
+        placementSet: (l) => { placementSetCalls.push(l); return { status: "applied", summary: FAKE_SUMMARY, levelChanged: true }; },
       }),
     });
     const res = await makeFetchHandler(deps)(new Request("http://localhost/api/placement/confirm", {
@@ -94,7 +94,7 @@ describe("placement API", () => {
         latest: () => ({ id: 1, ts: "t", stage: 3, startLevel: 23, rationale: "r" }),
       }),
       progressStore: makeFakeProgressStore({
-        placementSet: (l) => { placementSetCalls.push(l); return { summary: FAKE_SUMMARY, levelChanged: true }; },
+        placementSet: (l) => { placementSetCalls.push(l); return { status: "applied", summary: FAKE_SUMMARY, levelChanged: true }; },
       }),
     });
     const res = await makeFetchHandler(deps)(new Request("http://localhost/api/placement/confirm", {
@@ -109,7 +109,7 @@ describe("placement API", () => {
     const placementSetCalls: number[] = [];
     const { deps } = makeTestDeps({
       progressStore: makeFakeProgressStore({
-        placementSet: (l) => { placementSetCalls.push(l); return { summary: FAKE_SUMMARY, levelChanged: true }; },
+        placementSet: (l) => { placementSetCalls.push(l); return { status: "applied", summary: FAKE_SUMMARY, levelChanged: true }; },
       }),
     });
     const handler = makeFetchHandler(deps);

@@ -25,11 +25,11 @@ export async function fetchModelTalk(topicId: string): Promise<string> {
   return ((await res.json()) as { text: string }).text;
 }
 
-export async function fetchReflection(): Promise<Reflection> {
+export async function fetchReflection(sessionId: string): Promise<Reflection> {
   const res = await fetch("/api/coach/reflection", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ sessionId }),
   });
   if (!res.ok) throw new Error(`reflection failed: ${await extractErrorMessage(res)}`);
   return res.json();

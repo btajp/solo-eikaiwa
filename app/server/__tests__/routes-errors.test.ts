@@ -21,7 +21,7 @@ describe("routes: 404 と 500", () => {
     });
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      postJson("/api/converse", { userText: "hi" }),
+      postJson("/api/converse", { userText: "hi", activitySessionId: "practice-1" }),
     );
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "boom from dep" });
@@ -42,7 +42,7 @@ describe("routes: 404 と 500", () => {
     });
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      postJson("/api/converse", { userText: "hi" }),
+      postJson("/api/converse", { userText: "hi", activitySessionId: "practice-1" }),
     );
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "boom from dep" });
@@ -58,7 +58,7 @@ describe("routes: 404 と 500", () => {
     });
     const handler = makeFetchHandler(deps);
     const res = await handler(
-      postJson("/api/converse", { userText: "hi" }),
+      postJson("/api/converse", { userText: "hi", activitySessionId: "practice-1" }),
     );
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "already logged downstream" });

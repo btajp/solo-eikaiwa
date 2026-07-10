@@ -1,11 +1,14 @@
 import { extractErrorMessage } from "./http";
 
-export type DayMetrics = {
-  ymd: string; utterances: number; speakingSec: number;
+export type AggregatedMetrics = {
+  utterances: number; words: number; speechMs: number; totalMs: number;
+  pauseMs: number; repetitionWords: number; repetitionWeightedWords: number; speakingSec: number;
   avgArticulationWpm: number; avgPauseRatio: number; repetitionRatio: number;
 };
+export type DayMetrics = AggregatedMetrics & { ymd: string };
 export type MetricsSummary = {
   days: DayMetrics[];
+  weekly: { current: AggregatedMetrics; previous: AggregatedMetrics };
   level: { current: number; history: Array<{ ymd: string; level: number }> };
 };
 

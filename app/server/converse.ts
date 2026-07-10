@@ -369,6 +369,8 @@ conversationWarmup.setTarget(openAICompatWarmTargetFromEnv(settingsToEnv(DEFAULT
 export async function converseTurn(args: {
   userText: string;
   sessionId?: string;
+  /** ブラウザ側で生成する練習session ID。LLM runnerのresume IDとは分離してログ抽出に使う。 */
+  activitySessionId?: string;
   runner?: ClaudeRunner;
   logFile?: string;
   systemPromptOverride?: string;
@@ -376,9 +378,10 @@ export async function converseTurn(args: {
   const runner = args.runner ?? defaultRunner;
   const logFile = args.logFile ?? sessionLogPath(new Date());
   const now = () => new Date().toISOString();
+  const logSessionId = args.activitySessionId ?? args.sessionId ?? "pending";
 
   appendEvent(logFile, {
-    ts: now(), type: "user_utterance", sessionId: args.sessionId ?? "pending", text: args.userText,
+    ts: now(), type: "user_utterance", sessionId: logSessionId, text: args.userText,
   });
 
   let text: string;
@@ -392,12 +395,15 @@ export async function converseTurn(args: {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     appendEvent(logFile, {
-      ts: now(), type: "error", sessionId: args.sessionId ?? "pending", text: message,
+      ts: now(), type: "error", sessionId: logSessionId, text: message,
     });
     markErrorLogged(err);
     throw err;
   }
 
-  appendEvent(logFile, { ts: now(), type: "assistant_reply", sessionId, text });
+  appendEvent(logFile, {
+    ts: now(), type: "assistant_reply", sessionId: logSessionId, text,
+    meta: { conversationSessionId: sessionId },
+  });
   return { replyText: text, sessionId };
 }

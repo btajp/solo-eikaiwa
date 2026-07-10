@@ -58,11 +58,16 @@ describe("progress の summary 自動通知", () => {
   });
 
   test("progressLevelAction も同じラッパで通知する", async () => {
-    stubFetchOk(SUMMARY);
+    let posted: unknown;
+    globalThis.fetch = mock(async (_url, init) => {
+      posted = JSON.parse(String(init?.body));
+      return new Response(JSON.stringify(SUMMARY), { status: 200, headers: { "content-type": "application/json" } });
+    }) as unknown as typeof fetch;
     const seen: ProgressSummary[] = [];
     const unsub = onProgressUpdate((s) => seen.push(s));
-    await progressLevelAction("accept");
+    await progressLevelAction("accept", undefined, { kind: "down", toLevel: 15 });
     unsub();
     expect(seen).toEqual([SUMMARY]);
+    expect(posted).toEqual({ action: "accept", kind: "down", toLevel: 15 });
   });
 });

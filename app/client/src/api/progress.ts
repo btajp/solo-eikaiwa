@@ -85,9 +85,16 @@ export async function progressBlockAbort(attemptId: number, blockKind: string): 
 }
 
 export function progressLevelAction(
-  action: "accept" | "decline" | "set", level?: number,
+  action: "accept" | "decline" | "set",
+  level?: number,
+  expected?: Pick<LevelProposal, "kind" | "toLevel">,
 ): Promise<ProgressSummary> {
-  return postForSummary("/api/progress/level", { action, level });
+  return postForSummary("/api/progress/level", {
+    action,
+    level,
+    kind: expected?.kind,
+    toLevel: expected?.toLevel,
+  });
 }
 
 export type PracticeDaysView = { days: string[]; xpByDay: Record<string, number> };
