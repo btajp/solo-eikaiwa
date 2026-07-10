@@ -31,7 +31,7 @@ function wordCountOf(text: string): number {
  * プレースメント測定（スペック§6）: 3タスクを順に録音→STT→全件そろったら評価に送る。
  * 結果は利用者が確定操作をするまでレベルに反映しない（研究制約§2）。
  */
-export function PlacementScreen(props: { lang: Lang; onExit: () => void }) {
+export function PlacementScreen(props: { lang: Lang; onBeforeStart?: () => boolean; onExit: () => void }) {
   const t = STR[props.lang].placement;
   const [step, setStep] = useState<Step>({ kind: "loading" });
   const [tasks, setTasks] = useState<PlacementTaskDef[]>([]);
@@ -89,6 +89,7 @@ export function PlacementScreen(props: { lang: Lang; onExit: () => void }) {
   }
 
   function startTask(index: number) {
+    if (props.onBeforeStart && !props.onBeforeStart()) return;
     setErrorMsg("");
     activeTaskIndexRef.current = index;
     updateRecState("idle");
@@ -99,6 +100,7 @@ export function PlacementScreen(props: { lang: Lang; onExit: () => void }) {
   async function toggleRecording(index: number) {
     setErrorMsg("");
     if (recStateRef.current === "idle") {
+      if (props.onBeforeStart && !props.onBeforeStart()) return;
       activeTaskIndexRef.current = index;
       updateRecState("starting");
       try {

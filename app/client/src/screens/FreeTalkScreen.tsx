@@ -12,7 +12,10 @@ type Status = "idle" | "starting" | "recording" | "transcribing" | "thinking" | 
 
 /** 会話ループ画面。scenarioId を渡すとロールプレイモードになる（M1の自由会話UIを抽出したもの） */
 export function FreeTalkScreen(props: {
-  activitySessionId: string; scenarioId?: string; onSessionId?: (id: string) => void; lang: Lang;
+  activitySessionId: string; scenarioId?: string; onSessionId?: (id: string) => void;
+  /** STT・LLMの準備確認。falseなら録音を開始せず、親が復旧操作を表示する。 */
+  onBeforeRecord?: () => boolean;
+  lang: Lang;
 }) {
   const t = STR[props.lang].freeTalkScreen;
   const LABELS: Record<Status, string> = {
@@ -46,6 +49,7 @@ export function FreeTalkScreen(props: {
   async function onMainButton() {
     setErrorMsg("");
     if (statusRef.current === "idle" || statusRef.current === "error") {
+      if (props.onBeforeRecord && !props.onBeforeRecord()) return;
       updateStatus("starting");
       try {
         await recorderRef.current.start();

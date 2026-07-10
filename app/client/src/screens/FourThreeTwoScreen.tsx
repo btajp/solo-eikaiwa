@@ -46,7 +46,9 @@ type PrepState = "loading" | "ready" | "error";
  */
 export function FourThreeTwoScreen(props: {
   topic: ContentItem; sessionId: string; blockId: string; roundsSec?: number[];
-  hintMode?: "ja" | "en"; modelTalkMode?: "auto" | "button"; lang: Lang;
+  hintMode?: "ja" | "en"; modelTalkMode?: "auto" | "button";
+  onBeforeRecord?: () => boolean;
+  lang: Lang;
 }) {
   const t = STR[props.lang].ftt432;
   const support = useSupport();
@@ -196,6 +198,7 @@ export function FourThreeTwoScreen(props: {
     const index = roundIndexRef.current;
     if (recStateRef.current === "idle") {
       if (timer.expired) return;
+      if (props.onBeforeRecord && !props.onBeforeRecord()) return;
       updateRecState("starting");
       try {
         stopPlayback();
@@ -318,6 +321,7 @@ export function FourThreeTwoScreen(props: {
   }
 
   function startRound(index: number) {
+    if (props.onBeforeRecord && !props.onBeforeRecord()) return;
     roundIndexRef.current = index;
     updateRecState("idle");
     setPhase({ kind: "round", index });

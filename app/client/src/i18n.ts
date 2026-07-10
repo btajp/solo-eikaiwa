@@ -79,6 +79,18 @@ type SetupStrings = {
     progress: (received: string, total: string) => string;
     pollError: string;
     dismissAriaLabel: string;
+    resumeBannerBody: string;
+    resumeBannerAction: string;
+  };
+};
+/** 録音・採点を始める前の環境確認。不足時も操作を無言で無効化せず、復旧操作を同じ場所に出す。 */
+type PracticeReadinessStrings = {
+  practiceReadiness: {
+    sttNeeded: string;
+    llmNeeded: string;
+    sttAndLlmNeeded: string;
+    openSetup: string;
+    openSettings: string;
   };
 };
 /** 難易度の実態を1語で開示するチップの文言。kind ("auto"/"band"/"all") は事実マップに厳密対応（嘘のチップは信頼を壊す） */
@@ -391,7 +403,7 @@ type Strings =
   & WarmupStrings & Ftt432Strings & ReflectionStrings & ChunkListStrings
   & ShadowingStrings & LibraryStrings & RoleplayStrings & FreeTalkScreenStrings & ListeningScreenStrings
   & LevelChipStrings & FeedbackRowStrings & FeedbackScreenStrings & LlmPanelStrings & SettingsStrings
-  & AboutStrings & LlmNoticeStrings & SetupStrings & BannerStrings;
+  & AboutStrings & LlmNoticeStrings & SetupStrings & PracticeReadinessStrings & BannerStrings;
 
 const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -431,6 +443,15 @@ export const STR: Record<Lang, Strings> = {
       progress: (received, total) => `${received} / ${total}`,
       pollError: "Couldn't reach the server to check progress. The download may still be running — this will retry automatically.",
       dismissAriaLabel: "Dismiss",
+      resumeBannerBody: "Speech-to-text is not set up yet. You can return here at any time to download or resume the model.",
+      resumeBannerAction: "Set up speech-to-text",
+    },
+    practiceReadiness: {
+      sttNeeded: "This practice needs speech-to-text before recording can start.",
+      llmNeeded: "This practice needs an LLM before recording can start, so the conversation or level check can finish.",
+      sttAndLlmNeeded: "This practice needs speech-to-text and an LLM before recording can start.",
+      openSetup: "Set up speech-to-text",
+      openSettings: "Open LLM settings",
     },
     levelChip: { auto: "Adjusts to your level", band: "Pick by level band", all: "Same for all levels" },
     uiScale: { small: "A−", medium: "A", large: "A＋", xlarge: "A＋＋" },
@@ -867,6 +888,15 @@ export const STR: Record<Lang, Strings> = {
       progress: (received, total) => `${received} / ${total}`,
       pollError: "進捗確認でサーバに接続できませんでした。ダウンロードは継続している可能性があります（自動的に再試行します）。",
       dismissAriaLabel: "閉じる",
+      resumeBannerBody: "音声のテキスト化はまだ準備されていません。ここからいつでもモデルのダウンロード・再開に戻れます。",
+      resumeBannerAction: "音声のテキスト化を準備する",
+    },
+    practiceReadiness: {
+      sttNeeded: "この練習は、録音を始める前に音声のテキスト化を準備する必要があります。",
+      llmNeeded: "この練習は、会話またはレベル測定を最後まで行うために、録音を始める前にLLMの準備が必要です。",
+      sttAndLlmNeeded: "この練習は、録音を始める前に音声のテキスト化とLLMの準備が必要です。",
+      openSetup: "音声のテキスト化を準備する",
+      openSettings: "LLM設定を開く",
     },
     levelChip: { auto: "Lvに自動調整", band: "Lv帯で選ぶ", all: "全レベル共通" },
     uiScale: { small: "小", medium: "中", large: "大", xlarge: "特大" },

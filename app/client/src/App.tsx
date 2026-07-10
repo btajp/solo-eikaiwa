@@ -25,7 +25,12 @@ import { localYmd } from "./dates";
 import { saveSupport, useSupport, type SupportToggle } from "./support";
 import { dismissLlmNotice, isLlmNoticeDismissed, shouldShowLlmNotice } from "./lib/llm-notice";
 import { missingDeps } from "./lib/dep-banner";
-import { dismissSetupBanner, isSetupBannerDismissed, shouldShowSetupBanner } from "./lib/whisper-setup";
+import {
+  missingPracticeCapabilities, startSelectionNeedsRecordingReadiness, type PracticeCapability,
+} from "./lib/practice-readiness";
+import {
+  dismissSetupBanner, isSetupBannerDismissed, resumeSetupBanner, shouldShowSetupBanner, shouldShowSetupResume,
+} from "./lib/whisper-setup";
 
 type Mode = { kind: "start" } | { kind: "free" } | { kind: "session"; source: MenuSource; sessionId: string } | { kind: "library" } | { kind: "sentences" } | { kind: "listening" } | { kind: "placement" } | { kind: "progress" } | { kind: "feedback" } | { kind: "settings" } | { kind: "about" };
 
@@ -43,6 +48,8 @@ export function App() {
   const [llmNoticeDismissed, setLlmNoticeDismissed] = useState(() => isLlmNoticeDismissed());
   // whisperモデル未導入時の一度きりのセットアップ案内（同じく情報的トーン・lib/whisper-setup.ts 参照）
   const [setupBannerDismissed, setSetupBannerDismissed] = useState(() => isSetupBannerDismissed());
+  // 録音系の開始を止めた場合だけ表示する、機能固有の準備案内。初期バナーを閉じても消えない。
+  const [blockedCapabilities, setBlockedCapabilities] = useState<PracticeCapability[] | null>(null);
   const [mode, setMode] = useState<Mode>({ kind: "start" });
   const [lang, setLang] = useState<Lang>(() => loadLang());
   const t = STR[lang];
@@ -73,6 +80,28 @@ export function App() {
       .catch(() => { setHealth(null); setServerDown(true); });
   }
 
+  function moveTo(next: Mode) {
+    setBlockedCapabilities(null);
+    // 設定でLLMを更新した後、次の画面ではhealthを取り直して録音開始可否を再評価する。
+    if (mode.kind === "settings" && next.kind !== "settings") refetchHealth();
+    setMode(next);
+  }
+
+  function requestRecordingStart(): boolean {
+    const missingCapabilities = missingPracticeCapabilities(health);
+    if (missingCapabilities.length > 0) {
+      setBlockedCapabilities(missingCapabilities);
+      return false;
+    }
+    setBlockedCapabilities(null);
+    return true;
+  }
+
+  function reopenSetup() {
+    resumeSetupBanner();
+    setSetupBannerDismissed(false);
+  }
+
   useEffect(() => {
     refetchHealth();
     if (!startedRef.current) {
@@ -88,23 +117,24 @@ export function App() {
   }, [sessionId]);
 
   function onSelect(sel: StartSelection) {
-    if (sel.type === "free") setMode({ kind: "free" });
-    else if (sel.type === "library") setMode({ kind: "library" });
-    else if (sel.type === "placement") setMode({ kind: "placement" });
-    else setMode({ kind: "session", source: sel.source, sessionId: crypto.randomUUID() });
+    if (startSelectionNeedsRecordingReadiness(sel) && !requestRecordingStart()) return;
+    if (sel.type === "free") moveTo({ kind: "free" });
+    else if (sel.type === "library") moveTo({ kind: "library" });
+    else if (sel.type === "placement") moveTo({ kind: "placement" });
+    else moveTo({ kind: "session", source: sel.source, sessionId: crypto.randomUUID() });
   }
 
   type NavSection = "today" | "self" | "records";
   const navItems: Array<{ key: string; icon: string; label: string; active: boolean; go: () => void; section: NavSection }> = [
-    { key: "home", icon: "🏠", label: t.nav.home, active: mode.kind === "start", go: () => setMode({ kind: "start" }), section: "today" },
-    { key: "placement", icon: "📐", label: t.nav.placement, active: mode.kind === "placement", go: () => setMode({ kind: "placement" }), section: "records" },
-    { key: "free", icon: "💬", label: t.nav.free, active: mode.kind === "free", go: () => setMode({ kind: "free" }), section: "self" },
-    { key: "library", icon: "📚", label: t.nav.library, active: mode.kind === "library", go: () => setMode({ kind: "library" }), section: "records" },
-    { key: "sentences", icon: "📖", label: t.nav.sentences, active: mode.kind === "sentences", go: () => setMode({ kind: "sentences" }), section: "self" },
-    { key: "listening", icon: "🎧", label: t.nav.listening, active: mode.kind === "listening", go: () => setMode({ kind: "listening" }), section: "self" },
-    { key: "progress", icon: "📈", label: t.nav.progress, active: mode.kind === "progress", go: () => setMode({ kind: "progress" }), section: "records" },
-    { key: "feedback", icon: "📝", label: t.nav.feedback, active: mode.kind === "feedback", go: () => setMode({ kind: "feedback" }), section: "records" },
-    { key: "settings", icon: "⚙️", label: t.nav.settings, active: mode.kind === "settings", go: () => setMode({ kind: "settings" }), section: "records" },
+    { key: "home", icon: "🏠", label: t.nav.home, active: mode.kind === "start", go: () => moveTo({ kind: "start" }), section: "today" },
+    { key: "placement", icon: "📐", label: t.nav.placement, active: mode.kind === "placement", go: () => onSelect({ type: "placement" }), section: "records" },
+    { key: "free", icon: "💬", label: t.nav.free, active: mode.kind === "free", go: () => onSelect({ type: "free" }), section: "self" },
+    { key: "library", icon: "📚", label: t.nav.library, active: mode.kind === "library", go: () => moveTo({ kind: "library" }), section: "records" },
+    { key: "sentences", icon: "📖", label: t.nav.sentences, active: mode.kind === "sentences", go: () => moveTo({ kind: "sentences" }), section: "self" },
+    { key: "listening", icon: "🎧", label: t.nav.listening, active: mode.kind === "listening", go: () => moveTo({ kind: "listening" }), section: "self" },
+    { key: "progress", icon: "📈", label: t.nav.progress, active: mode.kind === "progress", go: () => moveTo({ kind: "progress" }), section: "records" },
+    { key: "feedback", icon: "📝", label: t.nav.feedback, active: mode.kind === "feedback", go: () => moveTo({ kind: "feedback" }), section: "records" },
+    { key: "settings", icon: "⚙️", label: t.nav.settings, active: mode.kind === "settings", go: () => moveTo({ kind: "settings" }), section: "records" },
   ];
   const navSections: Array<{ key: NavSection; label: string }> = [
     { key: "today", label: t.nav.sectionToday },
@@ -145,7 +175,7 @@ export function App() {
           ))}
         </nav>
         {mode.kind === "session" && (
-          <Button variant="secondary" onClick={() => setMode({ kind: "start" })}>{t.appShell.backToMenu}</Button>
+          <Button variant="secondary" onClick={() => moveTo({ kind: "start" })}>{t.appShell.backToMenu}</Button>
         )}
         <div className="sidebar-spacer" />
         <div className="sidebar-quick">
@@ -165,7 +195,7 @@ export function App() {
           <a className="side-link" href="https://github.com/btajp/solo-eikaiwa" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
             <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
           </a>
-          <button className="side-link" onClick={() => setMode({ kind: "about" })}>{t.about.title}</button>
+          <button className="side-link" onClick={() => moveTo({ kind: "about" })}>{t.about.title}</button>
         </div>
       </aside>
       <main className="app">
@@ -208,9 +238,25 @@ export function App() {
           onModelReady={refetchHealth}
         />
       )}
+      {!serverDown && shouldShowSetupResume(health, setupBannerDismissed) && (
+        <Banner kind="info" action={<Button variant="secondary" onClick={reopenSetup}>{t.setup.resumeBannerAction}</Button>}>
+          {t.setup.resumeBannerBody}
+        </Banner>
+      )}
+      {blockedCapabilities && (
+        <PracticeReadinessBanner
+          lang={lang}
+          missing={missingPracticeCapabilities(health, blockedCapabilities)}
+          onOpenSetup={reopenSetup}
+          onOpenSettings={() => moveTo({ kind: "settings" })}
+        />
+      )}
       {mode.kind === "start" && <StartScreen onSelect={onSelect} lang={lang} />}
       {mode.kind === "session" && (
-        <SessionRunner source={mode.source} sessionId={mode.sessionId} lang={lang} onExit={() => setMode({ kind: "start" })} />
+        <SessionRunner
+          source={mode.source} sessionId={mode.sessionId} lang={lang}
+          onBeforeRecording={requestRecordingStart} onExit={() => moveTo({ kind: "start" })}
+        />
       )}
       {mode.kind === "free" && (
         <div className="stack">
@@ -219,13 +265,15 @@ export function App() {
             <LevelChip kind="auto" lang={lang} />
             <p className="hero-date">{t.freeTalk.desc}</p>
           </div>
-          <FreeTalkScreen activitySessionId={sessionId} lang={lang} />
+          <FreeTalkScreen activitySessionId={sessionId} lang={lang} onBeforeRecord={requestRecordingStart} />
         </div>
       )}
       {mode.kind === "library" && <LibraryScreen lang={lang} />}
       {mode.kind === "sentences" && <SentencesScreen lang={lang} />}
       {mode.kind === "listening" && <ListeningScreen lang={lang} />}
-      {mode.kind === "placement" && <PlacementScreen lang={lang} onExit={() => setMode({ kind: "start" })} />}
+      {mode.kind === "placement" && (
+        <PlacementScreen lang={lang} onBeforeStart={requestRecordingStart} onExit={() => moveTo({ kind: "start" })} />
+      )}
       {mode.kind === "progress" && <ProgressScreen lang={lang} />}
       {mode.kind === "feedback" && <FeedbackScreen lang={lang} />}
       {mode.kind === "settings" && (
@@ -234,6 +282,35 @@ export function App() {
       {mode.kind === "about" && <AboutScreen lang={lang} />}
       </main>
     </div>
+  );
+}
+
+/** 録音系CTAからの事前確認。設定不足の理由と復旧操作を同じ場所に表示する。 */
+function PracticeReadinessBanner({
+  lang, missing, onOpenSetup, onOpenSettings,
+}: {
+  lang: Lang;
+  missing: PracticeCapability[];
+  onOpenSetup: () => void;
+  onOpenSettings: () => void;
+}) {
+  if (missing.length === 0) return null;
+  const t = STR[lang].practiceReadiness;
+  const needsStt = missing.includes("stt");
+  const needsLlm = missing.includes("llm");
+  const body = needsStt && needsLlm ? t.sttAndLlmNeeded : needsStt ? t.sttNeeded : t.llmNeeded;
+  return (
+    <Banner
+      kind="info"
+      action={
+        <>
+          {needsStt && <Button variant="secondary" onClick={onOpenSetup}>{t.openSetup}</Button>}
+          {needsLlm && <Button variant="secondary" onClick={onOpenSettings}>{t.openSettings}</Button>}
+        </>
+      }
+    >
+      {body}
+    </Banner>
   );
 }
 
