@@ -101,7 +101,9 @@ describe("chunks: 収集フックと API", () => {
       ...base,
       addXp: (kind, amount, meta) => { xp.push({ kind: kind as string, amount }); return base.addXp(kind, amount, meta); },
     };
-    const res = await makeFetchHandler(deps)(postJson("/api/chunks/grade", { id: 1, grade: "good" }));
+    const res = await makeFetchHandler(deps)(postJson("/api/chunks/grade", {
+      id: 1, grade: "good", answerId: "answer-route-chunk-001",
+    }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ id: 1, stage: 1, due: "2026-07-09" });
     expect(xp).toEqual([{ kind: "srs-grade", amount: 2 }]);
@@ -110,7 +112,9 @@ describe("chunks: 収集フックと API", () => {
   test("POST /api/chunks/grade: 未知idは400・不正gradeは400", async () => {
     const { deps } = makeTestDeps();
     const h = makeFetchHandler(deps);
-    const r1 = await h(postJson("/api/chunks/grade", { id: 999, grade: "good" }));
+    const r1 = await h(postJson("/api/chunks/grade", {
+      id: 999, grade: "good", answerId: "answer-route-chunk-002",
+    }));
     expect(r1.status).toBe(400);
     const r2 = await h(postJson("/api/chunks/grade", { id: 1, grade: "great" }));
     expect(r2.status).toBe(400);

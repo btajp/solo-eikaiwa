@@ -84,6 +84,84 @@ describe("progress-store: ブロック試行と完了率", () => {
       "SELECT COUNT(*) AS n FROM xp_events WHERE kind = 'block' AND ymd = ?").get(T)!;
     expect(events.n).toBe(1);
   });
+
+  test("completeBlockはattempt・kindを検証し、completionIdの再送を冪等化する", () => {
+    const { db, store } = freshStore();
+    const { attemptId } = store.blockStart("warmup-reading", T);
+    const input = { completionId: "completion-0001", attemptId, blockKind: "warmup-reading" };
+    const first = store.completeBlock(6, input, T);
+    const second = store.completeBlock(6, input, T);
+    expect(first.status).toBe("applied");
+    expect(second.status).toBe("duplicate");
+    expect(first.summary?.xp).toBe(6);
+    expect(second.summary?.xp).toBe(6);
+    expect(db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM xp_events WHERE kind = 'block'").get()!.n).toBe(1);
+
+    expect(store.completeBlock(6, {
+      completionId: "completion-0002", attemptId: 999, blockKind: "warmup-reading",
+    }, T).status).toBe("unknown-attempt");
+    expect(store.completeBlock(6, {
+      completionId: "completion-0003", attemptId, blockKind: "reflection",
+    }, T).status).toBe("attempt-mismatch");
+  });
+
+  test("attemptIdなしでもcompletionIdで再送を冪等化し、別payloadへの使い回しは拒否する", () => {
+    const { db, store } = freshStore();
+    const input = { completionId: "completion-no-attempt", attemptId: null, blockKind: "reflection" };
+    expect(store.completeBlock(5, input, T).status).toBe("applied");
+    expect(store.completeBlock(5, input, T).status).toBe("duplicate");
+    expect(store.completeBlock(6, input, T).status).toBe("conflict");
+    expect(db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM xp_events WHERE kind = 'block'").get()!.n).toBe(1);
+  });
+
+  test("XP記録失敗時はattempt完了・ledger・XPをすべてrollbackする", () => {
+    const { db, store } = freshStore();
+    const { attemptId } = store.blockStart("reflection", T);
+    db.run(`CREATE TRIGGER fail_block_xp BEFORE INSERT ON xp_events
+      WHEN NEW.kind = 'block' BEGIN SELECT RAISE(ABORT, 'xp write failed'); END`);
+
+    expect(() => store.completeBlock(5, {
+      completionId: "completion-fault", attemptId, blockKind: "reflection",
+    }, T)).toThrow("xp write failed");
+    expect(db.query<{ completed: number }, [number]>(
+      "SELECT completed FROM block_attempts WHERE id = ?",
+    ).get(attemptId)!.completed).toBe(0);
+    expect(db.query<{ status: string }, [number]>(
+      "SELECT status FROM block_attempt_outcomes WHERE attempt_id = ?",
+    ).get(attemptId)!.status).toBe("pending");
+    expect(db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM block_completion_events").get()!.n).toBe(0);
+    expect(store.getSummary(T).xp).toBe(0);
+  });
+
+  test("進捗行更新が最後に失敗してもXP eventとattempt完了を残さない", () => {
+    const { db, store } = freshStore();
+    store.getSummary(T); // user_progressを先に作り、UPDATEだけをfault injection対象にする
+    const { attemptId } = store.blockStart("reflection", T);
+    db.run(`CREATE TRIGGER fail_progress_update BEFORE UPDATE ON user_progress
+      BEGIN SELECT RAISE(ABORT, 'progress update failed'); END`);
+
+    expect(() => store.completeBlock(5, {
+      completionId: "completion-progress-fault", attemptId, blockKind: "reflection",
+    }, T)).toThrow("progress update failed");
+    expect(db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM xp_events").get()!.n).toBe(0);
+    expect(db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM block_completion_events").get()!.n).toBe(0);
+    expect(db.query<{ completed: number }, [number]>(
+      "SELECT completed FROM block_attempts WHERE id = ?",
+    ).get(attemptId)!.completed).toBe(0);
+  });
+
+  test("pendingな技術的孤児は降格集計から除外し、明示abortだけを中断として数える", () => {
+    const { store } = freshStore();
+    store.levelAction("set", 23, T);
+    const attempts = Array.from({ length: 5 }, () => store.blockStart("four-three-two", T).attemptId);
+    expect(store.getSummary(T).proposal).toBeNull();
+    for (const attemptId of attempts) {
+      expect(store.abortBlock(attemptId, "four-three-two").status).toBe("aborted");
+    }
+    const proposal = store.getSummary(T).proposal!;
+    expect(proposal.kind).toBe("down");
+    expect((proposal.rationale as { triggers: string[] }).triggers).toContain("fttAborts");
+  });
 });
 
 /** シグナル素材を直接仕込むヘルパ */

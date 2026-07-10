@@ -3,11 +3,14 @@ import { xpForGrade } from "../progression";
 import { GRADES, type Grade, type SentenceStore } from "../sentences";
 import type { Chunk, ChunkStore } from "../chunks";
 import type { ProgressStore } from "../progress-store";
+import type { SrsReviewStore } from "../srs-review-store";
+import { isIdempotencyKey } from "../idempotency-key";
 
 export type SentenceRoutesDeps = {
   sentenceStore: SentenceStore;
   chunkStore: ChunkStore;
   progressStore: ProgressStore;
+  srsReviewStore: SrsReviewStore;
   /** 例文の詳しい解説を生成（キャッシュは sentenceStore 側。実体は coach.ts、テストはフェイク） */
   explainSentence: (s: { en: string; ja: string; note: string }) => Promise<{ text: string }>;
 };
@@ -30,19 +33,29 @@ function handleSentenceQueue(url: URL, deps: SentenceRoutesDeps): Response {
 }
 
 async function handleSentenceGrade(req: Request, deps: SentenceRoutesDeps): Promise<Response> {
-  const parsed = await parseJsonBody<{ no?: unknown; grade?: unknown }>(req);
+  const parsed = await parseJsonBody<{ no?: unknown; grade?: unknown; answerId?: unknown }>(req);
   if (!parsed.ok) return parsed.response;
-  const { no, grade } = parsed.body;
+  const { no, grade, answerId } = parsed.body;
   if (typeof no !== "number" || !Number.isInteger(no)) return json({ error: "no must be an integer" }, 400);
   if (!(GRADES as readonly string[]).includes(grade as string)) {
     return json({ error: `grade must be one of: ${GRADES.join(", ")}` }, 400);
   }
-  const r = deps.sentenceStore.grade(no, grade as Grade);
-  if (!r) return json({ error: `unknown sentence no: ${no}` }, 400);
-  // 自己評価1枚ごとの努力XP（good=2 / soso=1 / bad=1）。付与失敗で採点自体は失敗させない
-  bestEffort("[progress] srs-grade xp failed, continuing:", () =>
-    deps.progressStore.addXp("srs-grade", xpForGrade(grade as Grade), { no }));
-  return json(r);
+  if (!isIdempotencyKey(answerId)) {
+    return json({ error: "answerId must be an idempotency key of 8..128 safe characters" }, 400);
+  }
+  const outcome = deps.srsReviewStore.apply({
+    answerId, targetKind: "sentence", targetId: no, grade: grade as Grade,
+  }, () => {
+    const result = deps.sentenceStore.grade(no, grade as Grade);
+    if (!result) return null;
+    const summary = deps.progressStore.addXp("srs-grade", xpForGrade(grade as Grade), { no, answerId });
+    if (!summary) throw new Error("failed to apply SRS grade XP");
+    return { stage: result.stage, due: result.due };
+  });
+  if (outcome.status === "missing") return json({ error: `unknown sentence no: ${no}` }, 400);
+  if (outcome.status === "conflict") return json({ error: "answerId was already used for different data" }, 409);
+  if (!("stage" in outcome)) throw new Error("unexpected SRS review outcome");
+  return json({ no, stage: outcome.stage, due: outcome.due });
 }
 
 async function handleSentenceExplain(req: Request, deps: SentenceRoutesDeps): Promise<Response> {

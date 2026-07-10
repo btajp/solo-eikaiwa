@@ -25,7 +25,9 @@ describe("sentences ルート", () => {
 
   test("POST /api/sentences/grade は成功で {no,stage,due}", async () => {
     const { deps } = makeTestDeps();
-    const res = await makeFetchHandler(deps)(postJson("/api/sentences/grade", { no: 1, grade: "good" }));
+    const res = await makeFetchHandler(deps)(postJson("/api/sentences/grade", {
+      no: 1, grade: "good", answerId: "answer-route-sentence-1",
+    }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ no: 1, stage: 1, due: "2026-07-09" });
   });
@@ -37,8 +39,12 @@ describe("sentences ルート", () => {
     expect(badGrade.status).toBe(400);
     const badNo = await handler(postJson("/api/sentences/grade", { no: 1.5, grade: "good" }));
     expect(badNo.status).toBe(400);
-    const unknownNo = await handler(postJson("/api/sentences/grade", { no: 999, grade: "good" }));
+    const unknownNo = await handler(postJson("/api/sentences/grade", {
+      no: 999, grade: "good", answerId: "answer-route-sentence-2",
+    }));
     expect(unknownNo.status).toBe(400);
+    const missingId = await handler(postJson("/api/sentences/grade", { no: 1, grade: "good" }));
+    expect(missingId.status).toBe(400);
     expect((await unknownNo.json()).error).toContain("unknown");
   });
 

@@ -31,11 +31,13 @@ export async function fetchChunks(): Promise<ChunkListItem[]> {
   return ((await res.json()) as { chunks: ChunkListItem[] }).chunks;
 }
 
-export async function gradeChunk(id: number, grade: "good" | "soso" | "bad"): Promise<{ id: number; stage: number; due: string }> {
+export async function gradeChunk(
+  id: number, grade: "good" | "soso" | "bad", answerId: string,
+): Promise<{ id: number; stage: number; due: string }> {
   const res = await fetch("/api/chunks/grade", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ id, grade }),
+    body: JSON.stringify({ id, grade, answerId }),
   });
   if (!res.ok) throw new Error(`grade failed: ${await extractErrorMessage(res)}`);
   return res.json();
@@ -58,11 +60,13 @@ export async function fetchSentenceQueue(newCount = 10): Promise<QueueItem[]> {
   return ((await res.json()) as { queue: QueueItem[] }).queue;
 }
 
-export async function gradeSentence(no: number, grade: "good" | "soso" | "bad"): Promise<{ no: number; stage: number; due: string }> {
+export async function gradeSentence(
+  no: number, grade: "good" | "soso" | "bad", answerId: string,
+): Promise<{ no: number; stage: number; due: string }> {
   const res = await fetch("/api/sentences/grade", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ no, grade }),
+    body: JSON.stringify({ no, grade, answerId }),
   });
   if (!res.ok) throw new Error(`grade failed: ${await extractErrorMessage(res)}`);
   return res.json();

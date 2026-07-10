@@ -58,8 +58,30 @@ export async function progressBlockStart(kind: string): Promise<number> {
   return ((await res.json()) as { attemptId: number }).attemptId;
 }
 
-export function progressBlockXp(amount: number, attemptId: number | null): Promise<ProgressSummary> {
-  return postForSummary("/api/progress/xp", { kind: "block", amount, attemptId: attemptId ?? undefined });
+export type BlockCompletionRequest = {
+  amount: number;
+  attemptId: number | null;
+  blockKind: string;
+  completionId: string;
+};
+
+export function progressBlockXp(input: BlockCompletionRequest): Promise<ProgressSummary> {
+  return postForSummary("/api/progress/xp", {
+    kind: "block",
+    amount: input.amount,
+    attemptId: input.attemptId ?? undefined,
+    blockKind: input.blockKind,
+    completionId: input.completionId,
+  });
+}
+
+export async function progressBlockAbort(attemptId: number, blockKind: string): Promise<void> {
+  const res = await fetch("/api/progress/block-abort", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ attemptId, blockKind }),
+  });
+  if (!res.ok) throw new Error(`block-abort failed: ${await extractErrorMessage(res)}`);
 }
 
 export function progressLevelAction(

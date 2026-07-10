@@ -13,6 +13,7 @@ export {
   fetchProgressSummary,
   progressBlockStart,
   progressBlockXp,
+  progressBlockAbort,
   progressLevelAction,
   fetchPracticeDays,
 } from "./progress";

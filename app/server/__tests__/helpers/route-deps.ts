@@ -17,6 +17,7 @@ import type { RoleTuning } from "../../llm-role-tuning-store";
 import type { CatalogResult, LlmCatalogProvider } from "../../providers/model-catalog";
 import type { LlmAuthModes } from "../../llm-auth-store";
 import type { DownloadState, ModelDownloadManager, WhisperModelId } from "../../model-download";
+import type { SrsReviewStore } from "../../srs-review-store";
 
 export const FAKE_HEALTH = {
   ok: true, whisper: true, ffmpeg: true, claude: true, ttsKey: true, modelFile: true,
@@ -77,6 +78,10 @@ export function makeFakeProgressStore(overrides: Partial<ProgressStore> = {}): P
       kind === "block" && Number.isInteger(amount) && amount >= 1 && amount <= 60 ? FAKE_SUMMARY
       : kind === "srs-grade" ? FAKE_SUMMARY : null,
     blockStart: (_kind) => ({ attemptId: 7 }),
+    completeBlock: (amount) => Number.isInteger(amount) && amount >= 1 && amount <= 60
+      ? { status: "applied", summary: FAKE_SUMMARY }
+      : { status: "invalid", summary: null },
+    abortBlock: (_attemptId, _blockKind) => ({ status: "aborted" }),
     levelAction: (action, level) =>
       action === "set" && Number.isInteger(level) && (level as number) >= 1
         ? { summary: FAKE_SUMMARY, levelChanged: true } : null,
@@ -84,6 +89,16 @@ export function makeFakeProgressStore(overrides: Partial<ProgressStore> = {}): P
     xpByDay: () => ({ "2026-07-01": 32 }),
     ...overrides,
   } satisfies ProgressStore;
+}
+
+export function makeFakeSrsReviewStore(overrides: Partial<SrsReviewStore> = {}): SrsReviewStore {
+  return {
+    apply: (_input, mutate) => {
+      const result = mutate();
+      return result === null ? { status: "missing" } : { status: "applied", ...result };
+    },
+    ...overrides,
+  };
 }
 
 export function makeFakePlacementStore(overrides: Partial<PlacementStore> = {}): PlacementStore {
@@ -189,6 +204,7 @@ export function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
     sentenceStore: makeFakeSentenceStore(),
     chunkStore: makeFakeChunkStore(),
     progressStore: makeFakeProgressStore(),
+    srsReviewStore: makeFakeSrsReviewStore(),
     invalidateMenuCache: () => {},
     placementStore: makeFakePlacementStore(),
     evaluatePlacement: async () => ({ stage: 2, startLevel: 13, rationaleJa: "簡単な文は安定しています。" }),

@@ -4,6 +4,7 @@ import {
   BOUNDARY_LEVELS, DEFAULT_LEVEL, demotionTargetLevel, needXp, stageOf, PLACEMENT_XP,
 } from "./progression";
 import { addDaysYmd, localYmd } from "./dates";
+import { isIdempotencyKey } from "./idempotency-key";
 
 export type XpKind = "block" | "srs-grade" | "placement";
 export type UpRationale = { xpReached: true; practicedDays14: number; completionRate: number };
@@ -19,12 +20,27 @@ export type ProgressSummary = {
 };
 /** レベル変更系の戻り値。summary は従来どおり、levelChanged で「当日メニューキャッシュを無効化すべきか」を伝える */
 export type LevelChangeResult = { summary: ProgressSummary; levelChanged: boolean };
+export type BlockCompletionInput = {
+  completionId: string;
+  attemptId: number | null;
+  blockKind: string;
+};
+export type BlockCompletionStatus =
+  | "applied" | "duplicate" | "conflict"
+  | "invalid" | "unknown-attempt" | "attempt-mismatch" | "attempt-aborted";
+export type BlockCompletionResult = { status: BlockCompletionStatus; summary: ProgressSummary | null };
+export type BlockAbortStatus = "aborted" | "duplicate" | "completed" | "unknown-attempt" | "attempt-mismatch";
+export type BlockAbortResult = { status: BlockAbortStatus };
 export type ProgressStore = {
   getLevel(): number;
   getSummary(today?: string): ProgressSummary;
   /** 不正な kind/amount は null（ルートは400にする）。meta.attemptId があれば該当試行を完了にする */
   addXp(kind: XpKind, amount: number, meta?: Record<string, unknown>, today?: string): ProgressSummary | null;
   blockStart(kind: string, today?: string): { attemptId: number };
+  /** completionIdで冪等化し、attempt検証・完了・XP付与を単一transactionで行う。 */
+  completeBlock(amount: number, input: BlockCompletionInput, today?: string): BlockCompletionResult;
+  /** ユーザーが明示的に途中離脱したattemptだけを中断シグナルへ含める。 */
+  abortBlock(attemptId: number, blockKind: string): BlockAbortResult;
   /** accept/decline は提案が無ければ null。set は不正レベルで null。levelChanged=実際にレベルが動いたか */
   levelAction(action: "accept" | "decline" | "set", level?: number, today?: string): LevelChangeResult | null;
   /** プレースメント確定によるレベル設定（level_events kind: placement-set）。同一レベルは no-op（levelChanged=false） */
@@ -70,7 +86,20 @@ export function ensureProgressSchema(db: Database): void {
     ts TEXT NOT NULL, ymd TEXT NOT NULL, kind TEXT NOT NULL,
     completed INTEGER NOT NULL DEFAULT 0
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS block_attempt_outcomes (
+    attempt_id INTEGER PRIMARY KEY,
+    status TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS block_completion_events (
+    completion_id TEXT PRIMARY KEY,
+    attempt_id INTEGER,
+    block_kind TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    created_at TEXT NOT NULL
+  )`);
   db.run("CREATE INDEX IF NOT EXISTS idx_xp_events_ymd ON xp_events(ymd)");
+  db.run("CREATE INDEX IF NOT EXISTS idx_block_completion_attempt ON block_completion_events(attempt_id)");
 }
 
 export function makeProgressStore(
@@ -124,7 +153,11 @@ export function makeProgressStore(
   /** 直近 limit 試行の完了率。試行0件は null */
   function completionRateLastN(limit: number): number | null {
     const rows = db.query<{ completed: number }, [number]>(
-      "SELECT completed FROM block_attempts ORDER BY id DESC LIMIT ?").all(limit);
+      `SELECT a.completed FROM block_attempts a
+       LEFT JOIN block_attempt_outcomes o ON o.attempt_id = a.id
+       WHERE o.attempt_id IS NULL OR o.status IN ('completed', 'aborted')
+       ORDER BY a.id DESC LIMIT ?`,
+    ).all(limit);
     if (rows.length === 0) return null;
     return rows.filter((r) => r.completed === 1).length / rows.length;
   }
@@ -133,14 +166,23 @@ export function makeProgressStore(
   function completionRate7d(today: string): { rate: number | null; count: number } {
     const since = addDaysYmd(today, -6);
     const rows = db.query<{ completed: number }, [string, string]>(
-      "SELECT completed FROM block_attempts WHERE ymd >= ? AND ymd <= ?").all(since, today);
+      `SELECT a.completed FROM block_attempts a
+       LEFT JOIN block_attempt_outcomes o ON o.attempt_id = a.id
+       WHERE a.ymd >= ? AND a.ymd <= ?
+         AND (o.attempt_id IS NULL OR o.status IN ('completed', 'aborted'))`,
+    ).all(since, today);
     if (rows.length === 0) return { rate: null, count: 0 };
     return { rate: rows.filter((r) => r.completed === 1).length / rows.length, count: rows.length };
   }
 
   function fttAbortsLast5(): { aborts: number; count: number } {
     const rows = db.query<{ completed: number }, []>(
-      "SELECT completed FROM block_attempts WHERE kind = 'four-three-two' ORDER BY id DESC LIMIT 5").all();
+      `SELECT a.completed FROM block_attempts a
+       LEFT JOIN block_attempt_outcomes o ON o.attempt_id = a.id
+       WHERE a.kind = 'four-three-two'
+         AND (o.attempt_id IS NULL OR o.status IN ('completed', 'aborted'))
+       ORDER BY a.id DESC LIMIT 5`,
+    ).all();
     return { aborts: rows.filter((r) => r.completed === 0).length, count: rows.length };
   }
 
@@ -214,6 +256,112 @@ export function makeProgressStore(
     return { summary: summarize(row, today), levelChanged: true };
   }
 
+  /** 検証済みXPを記録して進捗行を更新する。呼び出し側のtransaction内で使う。 */
+  function addXpCore(kind: XpKind, amount: number, meta: Record<string, unknown>, today: string): ProgressRow {
+    const row = ensureRow();
+    db.run("INSERT INTO xp_events (ts, ymd, kind, amount, meta) VALUES (?, ?, ?, ?, ?)",
+      [nowTs(), today, kind, amount, Object.keys(meta).length ? JSON.stringify(meta) : null]);
+    row.xp += amount;
+    row.xp_into_level += amount;
+    autoLevelUp(row);
+    save(row);
+    return row;
+  }
+
+  function validXp(kind: XpKind, amount: number): boolean {
+    return Object.prototype.hasOwnProperty.call(XP_CAPS, kind)
+      && Number.isInteger(amount)
+      && amount >= 1
+      && amount <= XP_CAPS[kind]
+      && (kind !== "placement" || amount === XP_CAPS.placement);
+  }
+
+  const completeBlockTransaction = db.transaction((
+    amount: number,
+    input: BlockCompletionInput,
+    today: string,
+  ): BlockCompletionResult => {
+    const existingCompletion = db.query<{
+      attempt_id: number | null; block_kind: string; amount: number;
+    }, [string]>(
+      "SELECT attempt_id, block_kind, amount FROM block_completion_events WHERE completion_id = ?",
+    ).get(input.completionId);
+    if (existingCompletion) {
+      const same = existingCompletion.attempt_id === input.attemptId
+        && existingCompletion.block_kind === input.blockKind
+        && existingCompletion.amount === amount;
+      return same
+        ? { status: "duplicate", summary: summarize(ensureRow(), today) }
+        : { status: "conflict", summary: null };
+    }
+
+    if (input.attemptId !== null) {
+      const attempt = db.query<{
+        kind: string; completed: number; status: string | null;
+      }, [number]>(
+        `SELECT a.kind, a.completed, o.status
+         FROM block_attempts a
+         LEFT JOIN block_attempt_outcomes o ON o.attempt_id = a.id
+         WHERE a.id = ?`,
+      ).get(input.attemptId);
+      if (!attempt) return { status: "unknown-attempt", summary: null };
+      if (attempt.kind !== input.blockKind) return { status: "attempt-mismatch", summary: null };
+      if (attempt.status === "aborted") return { status: "attempt-aborted", summary: null };
+      if (attempt.completed === 1 || attempt.status === "completed") {
+        const original = db.query<{ block_kind: string; amount: number }, [number]>(
+          "SELECT block_kind, amount FROM block_completion_events WHERE attempt_id = ? ORDER BY rowid LIMIT 1",
+        ).get(input.attemptId);
+        if (original && (original.block_kind !== input.blockKind || original.amount !== amount)) {
+          return { status: "conflict", summary: null };
+        }
+        db.run(
+          `INSERT INTO block_completion_events
+           (completion_id, attempt_id, block_kind, amount, created_at) VALUES (?, ?, ?, ?, ?)`,
+          [input.completionId, input.attemptId, input.blockKind, amount, nowTs()],
+        );
+        return { status: "duplicate", summary: summarize(ensureRow(), today) };
+      }
+    }
+
+    db.run(
+      `INSERT INTO block_completion_events
+       (completion_id, attempt_id, block_kind, amount, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [input.completionId, input.attemptId, input.blockKind, amount, nowTs()],
+    );
+    const meta: Record<string, unknown> = {
+      completionId: input.completionId,
+      blockKind: input.blockKind,
+      ...(input.attemptId !== null ? { attemptId: input.attemptId } : {}),
+    };
+    const row = addXpCore("block", amount, meta, today);
+    if (input.attemptId !== null) {
+      db.run("UPDATE block_attempts SET completed = 1 WHERE id = ?", [input.attemptId]);
+      db.run(
+        `INSERT INTO block_attempt_outcomes (attempt_id, status, updated_at) VALUES (?, 'completed', ?)
+         ON CONFLICT(attempt_id) DO UPDATE SET status = 'completed', updated_at = excluded.updated_at`,
+        [input.attemptId, nowTs()],
+      );
+    }
+    return { status: "applied", summary: summarize(row, today) };
+  });
+
+  const abortBlockTransaction = db.transaction((attemptId: number, blockKind: string): BlockAbortResult => {
+    const attempt = db.query<{ kind: string; completed: number; status: string | null }, [number]>(
+      `SELECT a.kind, a.completed, o.status FROM block_attempts a
+       LEFT JOIN block_attempt_outcomes o ON o.attempt_id = a.id WHERE a.id = ?`,
+    ).get(attemptId);
+    if (!attempt) return { status: "unknown-attempt" };
+    if (attempt.kind !== blockKind) return { status: "attempt-mismatch" };
+    if (attempt.completed === 1 || attempt.status === "completed") return { status: "completed" };
+    if (attempt.status === "aborted") return { status: "duplicate" };
+    db.run(
+      `INSERT INTO block_attempt_outcomes (attempt_id, status, updated_at) VALUES (?, 'aborted', ?)
+       ON CONFLICT(attempt_id) DO UPDATE SET status = 'aborted', updated_at = excluded.updated_at`,
+      [attemptId, nowTs()],
+    );
+    return { status: "aborted" };
+  });
+
   return {
     getLevel() {
       return ensureRow().level;
@@ -224,34 +372,52 @@ export function makeProgressStore(
     },
 
     addXp(kind, amount, meta = {}, today = localYmd()) {
-      if (!(kind in XP_CAPS)) return null;
-      if (!Number.isInteger(amount) || amount < 1 || amount > XP_CAPS[kind]) return null;
-      if (kind === "placement" && amount !== XP_CAPS.placement) return null;
+      if (!validXp(kind, amount)) return null;
       const attemptId = (meta as { attemptId?: unknown }).attemptId;
-      const hasAttempt = kind === "block" && Number.isInteger(attemptId);
-      if (hasAttempt) {
-        // 同一 attemptId の完了XPが二重に付与されないようにする（連打・再送で block_attempts が既に
-        // completed=1 なら xp_events への記録もXP加算も行わず、現在の summary をそのまま返す）
-        const existing = db.query<{ completed: number }, [number]>(
-          "SELECT completed FROM block_attempts WHERE id = ?").get(attemptId as number);
-        if (existing?.completed === 1) return summarize(ensureRow(), today);
+      if (kind === "block" && Number.isInteger(attemptId)) {
+        // 内部呼び出しの後方互換。HTTP経路はclient生成completionIdを必須にしてcompleteBlockを直接使う。
+        const attempt = db.query<{ kind: string }, [number]>(
+          "SELECT kind FROM block_attempts WHERE id = ?",
+        ).get(attemptId as number);
+        if (!attempt) return null;
+        const result = completeBlockTransaction.immediate(amount, {
+          completionId: `legacy-attempt-${String(attemptId)}`,
+          attemptId: attemptId as number,
+          blockKind: attempt.kind,
+        }, today);
+        return result.summary;
       }
-      const row = ensureRow();
-      db.run("INSERT INTO xp_events (ts, ymd, kind, amount, meta) VALUES (?, ?, ?, ?, ?)",
-        [nowTs(), today, kind, amount, Object.keys(meta).length ? JSON.stringify(meta) : null]);
-      if (hasAttempt) {
-        db.run("UPDATE block_attempts SET completed = 1 WHERE id = ?", [attemptId as number]);
-      }
-      row.xp += amount;
-      row.xp_into_level += amount;
-      autoLevelUp(row);
-      save(row);
-      return summarize(row, today);
+      return db.transaction(() => summarize(addXpCore(kind, amount, meta, today), today)).immediate();
     },
 
     blockStart(kind, today = localYmd()) {
-      db.run("INSERT INTO block_attempts (ts, ymd, kind, completed) VALUES (?, ?, ?, 0)", [nowTs(), today, kind]);
-      return { attemptId: insertReturningId(db) };
+      return db.transaction(() => {
+        db.run("INSERT INTO block_attempts (ts, ymd, kind, completed) VALUES (?, ?, ?, 0)", [nowTs(), today, kind]);
+        const attemptId = insertReturningId(db);
+        db.run(
+          "INSERT INTO block_attempt_outcomes (attempt_id, status, updated_at) VALUES (?, 'pending', ?)",
+          [attemptId, nowTs()],
+        );
+        return { attemptId };
+      }).immediate();
+    },
+
+    completeBlock(amount, input, today = localYmd()) {
+      if (!validXp("block", amount)
+        || !isIdempotencyKey(input.completionId)
+        || typeof input.blockKind !== "string"
+        || input.blockKind.length < 1
+        || (input.attemptId !== null && (!Number.isInteger(input.attemptId) || input.attemptId < 1))) {
+        return { status: "invalid", summary: null };
+      }
+      return completeBlockTransaction.immediate(amount, input, today);
+    },
+
+    abortBlock(attemptId, blockKind) {
+      if (!Number.isInteger(attemptId) || attemptId < 1 || typeof blockKind !== "string" || blockKind.length < 1) {
+        return { status: "unknown-attempt" };
+      }
+      return abortBlockTransaction.immediate(attemptId, blockKind);
     },
 
     levelAction(action, level, today = localYmd()) {

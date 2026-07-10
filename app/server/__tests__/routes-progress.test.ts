@@ -35,7 +35,9 @@ describe("routes: progress", () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);
     const ok = await handler(new Request("http://localhost/api/progress/xp", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "block", amount: 6, attemptId: 7 }) }));
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        kind: "block", amount: 6, attemptId: 7, blockKind: "warmup-reading", completionId: "completion-route-0001",
+      }) }));
     expect(ok.status).toBe(200);
     const badKind = await handler(new Request("http://localhost/api/progress/xp", {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "srs-grade", amount: 2 }) }));
@@ -44,8 +46,32 @@ describe("routes: progress", () => {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "block", amount: 61 }) }));
     expect(tooBig.status).toBe(400);
     const badAttempt = await handler(new Request("http://localhost/api/progress/xp", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "block", amount: 6, attemptId: "x" }) }));
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        kind: "block", amount: 6, attemptId: "x", blockKind: "warmup-reading", completionId: "completion-route-0002",
+      }) }));
     expect(badAttempt.status).toBe(400);
+    const missingCompletion = await handler(new Request("http://localhost/api/progress/xp", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        kind: "block", amount: 6, attemptId: 7, blockKind: "warmup-reading",
+      }) }));
+    expect(missingCompletion.status).toBe(400);
+  });
+
+  test("POST /api/progress/xp: attempt不整合を404/409で返す", async () => {
+    const progressStore = makeFakeProgressStore({
+      completeBlock: (_amount, input) => ({
+        status: input.attemptId === 404 ? "unknown-attempt" : "attempt-mismatch",
+        summary: null,
+      }),
+    });
+    const h = makeFetchHandler(makeTestDeps({ progressStore }).deps);
+    const send = (attemptId: number) => h(new Request("http://localhost/api/progress/xp", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        kind: "block", amount: 6, attemptId, blockKind: "reflection", completionId: `completion-${attemptId}-route`,
+      }),
+    }));
+    expect((await send(404)).status).toBe(404);
+    expect((await send(7)).status).toBe(409);
   });
   test("POST /api/progress/block-start: 有効kindで attemptId、不正kindは400", async () => {
     const { deps } = makeTestDeps();
@@ -56,6 +82,22 @@ describe("routes: progress", () => {
     expect(await ok.json()).toEqual({ attemptId: 7 });
     const bad = await handler(new Request("http://localhost/api/progress/block-start", {
       method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "bogus" }) }));
+    expect(bad.status).toBe(400);
+  });
+  test("POST /api/progress/block-abort: attemptとblock kindを検証する", async () => {
+    const { deps } = makeTestDeps();
+    const h = makeFetchHandler(deps);
+    const ok = await h(new Request("http://localhost/api/progress/block-abort", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        attemptId: 7, blockKind: "warmup-reading",
+      }),
+    }));
+    expect(ok.status).toBe(200);
+    const bad = await h(new Request("http://localhost/api/progress/block-abort", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
+        attemptId: 7, blockKind: "bogus",
+      }),
+    }));
     expect(bad.status).toBe(400);
   });
   test("POST /api/progress/level: set 成功・提案なしaccept/declineは400・不正actionは400", async () => {
@@ -127,9 +169,9 @@ describe("routes: progress", () => {
     });
     const handler = makeFetchHandler(deps);
     await handler(new Request("http://localhost/api/sentences/grade", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ no: 1, grade: "good" }) }));
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ no: 1, grade: "good", answerId: "answer-progress-0001" }) }));
     await handler(new Request("http://localhost/api/sentences/grade", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ no: 1, grade: "soso" }) }));
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ no: 1, grade: "soso", answerId: "answer-progress-0002" }) }));
     expect(calls).toEqual([{ kind: "srs-grade", amount: 2 }, { kind: "srs-grade", amount: 1 }]);
   });
 });

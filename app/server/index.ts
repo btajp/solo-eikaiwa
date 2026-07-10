@@ -42,6 +42,7 @@ import {
   resolveOriginBoundSecretWithFixedFallback,
   type OriginBoundSecretName,
 } from "./api-key-origin-store";
+import { makeSrsReviewStore } from "./srs-review-store";
 
 ensureDirs();
 const PORT = resolvePort(Bun.env);
@@ -94,6 +95,7 @@ const sentences = loadSentences();
 const sentenceStore = makeSentenceStore(db, sentences);
 const chunkStore = makeChunkStore(db, sentences.map((s) => s.en));
 const progressStore = makeProgressStore(db, (today) => fttOutputSignals(today));
+const srsReviewStore = makeSrsReviewStore(db);
 const placementStore = makePlacementStore(db);
 const metricsSummary = makeMetricsSummary({ db, currentLevel: () => progressStore.getLevel() });
 const assessmentStore = makeAssessmentStore(db);
@@ -178,6 +180,7 @@ const realDeps: RouteDeps = {
   sentenceStore,
   chunkStore,
   progressStore,
+  srsReviewStore,
   invalidateMenuCache: () => invalidateTodayMenuCache(),
   placementStore,
   evaluatePlacement: (subs) => evaluatePlacement(subs, runnerFor("assessment")),

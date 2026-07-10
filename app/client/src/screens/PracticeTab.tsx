@@ -13,6 +13,7 @@ import { Card } from "../ui/Card";
 import { ExplainBox } from "../ui/ExplainBox";
 import { localYmd } from "../dates";
 import { initialPhase, type Phase } from "./practicePhase";
+import { resolvePendingAnswer, type PendingAnswer } from "./answerRequest";
 
 const SET_SIZE = 20;
 
@@ -28,6 +29,9 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
   const [errorMsg, setErrorMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const aliveRef = useRef(true);
+  const gradingRef = useRef(false);
+  // response消失後の再評価でも同じanswerIdを再送し、SRSとXPを二重更新しない。
+  const pendingAnswerRef = useRef<PendingAnswer | null>(null);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -77,12 +81,18 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
   }
 
   async function grade(g: "good" | "soso" | "bad") {
+    if (gradingRef.current) return;
+    gradingRef.current = true;
     setBusy(true);
     setErrorMsg("");
     try {
-      if (current.kind === "chunk") await gradeChunk(current.id, g);
-      else await gradeSentence(current.no, g);
+      const itemKey = current.kind === "chunk" ? `chunk:${current.id}` : `sentence:${current.no}`;
+      const pending = resolvePendingAnswer(pendingAnswerRef.current, itemKey, g);
+      pendingAnswerRef.current = pending;
+      if (current.kind === "chunk") await gradeChunk(current.id, pending.grade, pending.answerId);
+      else await gradeSentence(current.no, pending.grade, pending.answerId);
       if (!aliveRef.current) return;
+      pendingAnswerRef.current = null;
       stopPlayback();
       setGradedCount((n) => n + 1);
       setIdx((i) => i + 1);
@@ -91,6 +101,7 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
       if (!aliveRef.current) return;
       setErrorMsg(err instanceof Error ? err.message : String(err));
     } finally {
+      gradingRef.current = false;
       if (aliveRef.current) setBusy(false);
     }
   }
