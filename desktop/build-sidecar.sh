@@ -25,6 +25,10 @@ TARGET_TRIPLE="$(rustc -vV | awk '/^host:/ { print $2 }')"
 
 log() { echo "== $* =="; }
 
+# compile前にBun/Tauri CLIのexact版と双方のlockfileを検証する。
+"$REPO_DIR/scripts/install-bun-deps.sh" all
+"$REPO_DIR/scripts/check-toolchain.sh" tauri
+
 # ---- 1. サーババイナリのcompile ----
 build_server_binary() {
   log "サーバをcompile中（bun build --compile）"
@@ -38,7 +42,7 @@ build_server_binary() {
 # ---- 2. クライアントbuild → dist コピー ----
 copy_client_dist() {
   log "クライアントをbuild中"
-  (cd "$REPO_DIR/app/client" && bun install && bun run build)
+  (cd "$REPO_DIR/app/client" && bun run build)
   rm -rf "$RES_DIR/dist"
   mkdir -p "$RES_DIR"
   cp -R "$REPO_DIR/app/client/dist" "$RES_DIR/dist"

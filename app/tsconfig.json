@@ -7,5 +7,5 @@
     "skipLibCheck": true,
     "types": ["bun-types"]
   },
-  "include": ["server"]
+  "include": ["server", "../scripts"]
 }

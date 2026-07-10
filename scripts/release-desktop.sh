@@ -4,7 +4,7 @@
 # 前提: ~/.config/solo-eikaiwa/release.env（無ければテンプレートを生成して終了する）
 #
 # やること（順に・失敗したら即中断）:
-#   1. バージョン整合チェック（app/package.json・tauri.conf.json・Cargo.toml・CHANGELOG・タグ未使用）
+#   1. バージョン・toolchain・frozen lockfile整合チェック
 #   2. 検証ゲート3種（bun test / typecheck / client build）
 #   3. build-sidecar.sh（サーバcompile・resources収集）
 #   4. whisper-bin の Mach-O プレ署名
@@ -24,6 +24,18 @@ VERSION="${1:?使い方: $0 <version 例: 0.29.0>}"
 REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd -P)"
 ENV_FILE="${SOLO_EIKAIWA_RELEASE_ENV:-$HOME/.config/solo-eikaiwa/release.env}"
 BUNDLE_DIR="$REPO_DIR/desktop/src-tauri/target/release/bundle"
+
+assert_clean_worktree() {
+  if ! git -C "$REPO_DIR" diff --quiet -- app/bun.lock app/client/bun.lock \
+    || ! git -C "$REPO_DIR" diff --cached --quiet -- app/bun.lock app/client/bun.lock; then
+    echo "ERROR: frozen install/build中にlockfileが変更されました" >&2
+    exit 1
+  fi
+  [[ -z "$(git -C "$REPO_DIR" status --porcelain --untracked-files=all)" ]] || {
+    echo "ERROR: 作業ツリーに未コミットの変更があります" >&2
+    exit 1
+  }
+}
 
 # 0. release.env（無ければテンプレート生成して人間に返す）
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -66,7 +78,7 @@ echo "== solo-eikaiwa desktop release v$VERSION =="
 #     という壊れたリリースになる（レビュー指摘 2026-07-10）。
 BRANCH="$(git -C "$REPO_DIR" branch --show-current)"
 [[ "$BRANCH" == "main" ]] || { echo "ERROR: リリースは main ブランチから実行してください（現在: $BRANCH）" >&2; exit 1; }
-[[ -z "$(git -C "$REPO_DIR" status --porcelain)" ]] || { echo "ERROR: 作業ツリーに未コミットの変更があります" >&2; exit 1; }
+assert_clean_worktree
 git -C "$REPO_DIR" fetch origin main --quiet
 HEAD_SHA="$(git -C "$REPO_DIR" rev-parse HEAD)"
 [[ "$HEAD_SHA" == "$(git -C "$REPO_DIR" rev-parse origin/main)" ]] || {
@@ -93,13 +105,16 @@ if git -C "$REPO_DIR" rev-parse "v$VERSION" >/dev/null 2>&1; then
   echo "ERROR: タグ v$VERSION は既に存在します" >&2; exit 1
 fi
 
-# 2. 検証ゲート3種
+# 2. toolchain検査・frozen依存準備・検証ゲート3種
+"$REPO_DIR/scripts/check-toolchain.sh" all
+"$REPO_DIR/scripts/install-bun-deps.sh" all
 echo "-- 検証ゲート"
 (cd "$REPO_DIR/app" && bun test && bun run typecheck)
 (cd "$REPO_DIR/app/client" && bun run build)
 
 # 3. sidecar・resources 構築
 "$REPO_DIR/desktop/build-sidecar.sh"
+assert_clean_worktree
 
 # 4. whisper-bin の Mach-O をプレ署名（理由はヘッダコメント参照）
 echo "-- whisper-bin プレ署名"
@@ -112,6 +127,7 @@ done
 # 5. ビルド（署名・公証は bundler が env から自動実行）
 echo "-- cargo tauri build（公証込み・数分かかります）"
 (cd "$REPO_DIR/desktop/src-tauri" && cargo tauri build --config tauri.updater-artifacts.conf.json)
+assert_clean_worktree
 
 # 6. 生成物の存在・署名・公証を検証
 APP="$BUNDLE_DIR/macos/solo-eikaiwa.app"
@@ -151,6 +167,7 @@ json.dump({
 PY
 
 # 9. GitHub Release（draft で全アセットを揃えてから publish）
+assert_clean_worktree
 echo "-- GitHub Release 作成"
 NOTES_FILE="$(mktemp)"
 python3 - "$REPO_DIR/CHANGELOG.md" "$VERSION" > "$NOTES_FILE" <<'PY'

@@ -46,7 +46,7 @@ cd app/client && bun run build  # クライアント型チェック + ビルド
 
 - 教材（`content/`）は frontmatter 付き Markdown / JSON。**AI 生成コンテンツの手修正は禁止**（検証 NG なら再生成）。
 - `data/` はローカル専用（gitignore 済み）。コミットしない。
-- API キー等の secrets は **macOS Keychain（設定 UI 経由・`security` CLI）または `app/.env`** のみ（優先順位: Keychain > env）。DB・API レスポンス・ログ・plist・argv に出さない（`/api/secrets` は write-only・値を返さない）。
+- API キー等の secrets は **macOS Keychain（設定 UI 経由・`security` CLI）または `app/.env`** のみ（優先順位: Keychain > env）。`.env.local`等の派生ファイルはランタイムが読んでも運用には使わない（全階層でgitignore済み）。DB・API レスポンス・ログ・plist・argv に出さない（`/api/secrets` は write-only・値を返さない）。
 - このリポジトリは PUBLIC。個人情報・私有パス・転載素材をコミットしない。
 
 ## デプロイ（LaunchAgent 常駐運用）

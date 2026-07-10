@@ -63,6 +63,9 @@ fi
 
 echo "== solo-eikaiwa daemon install =="
 
+# server/client双方を、Bun版とlockfileを検証してから準備する。
+"$REPO_DIR/scripts/install-bun-deps.sh" all
+
 # 1. ポート3111が dev サーバ (bun run dev) で使用中でないか確認してから進める
 if lsof_pids="$(lsof -nP -ti :3111 2>/dev/null)" && [[ -n "$lsof_pids" ]]; then
   pid="$(echo "$lsof_pids" | head -1)"
@@ -74,7 +77,7 @@ fi
 
 # 2. クライアントビルド（失敗したら中断）
 echo "-- クライアントビルド"
-if ! (cd "$REPO_DIR/app/client" && bun install && bun run build); then
+if ! (cd "$REPO_DIR/app/client" && bun run build); then
   echo "ERROR: クライアントビルドに失敗しました" >&2
   exit 1
 fi

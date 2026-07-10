@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(dirname "$0")/.."
+REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd -P)"
+cd "$REPO_DIR"
 
 echo "== solo-eikaiwa setup =="
 
 command -v brew >/dev/null || { echo "ERROR: Homebrew が必要です"; exit 1; }
 command -v bun >/dev/null || { echo "ERROR: bun が必要です (https://bun.sh)"; exit 1; }
+"$REPO_DIR/scripts/install-bun-deps.sh" all
 
 for pkg in whisper-cpp ffmpeg; do
   if ! brew list "$pkg" >/dev/null 2>&1; then
@@ -35,8 +37,5 @@ if [ ! -f app/.env ]; then
   cp app/.env.example app/.env
   echo "NOTE: app/.env を作成しました。OPENAI_API_KEY を設定すると高品質TTSになります（未設定なら say フォールバック）"
 fi
-
-(cd app && bun install)
-(cd app/client 2>/dev/null && bun install) || true
 
 echo "== setup 完了 =="

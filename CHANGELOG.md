@@ -2,6 +2,17 @@
 
 このプロジェクトの特筆すべき変更を記録します。形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に、バージョニングは [Semantic Versioning](https://semver.org/lang/ja/) に従います。
 
+## [Unreleased]
+
+### Changed
+
+- 開発・常駐化・デスクトップビルド・リリース時のBun依存解決をfrozen lockfileへ統一し、Bun/Tauri CLIの検証済みexact版と異なる環境では処理を開始しないようにした
+- 教材生成・検証スクリプトも通常のTypeScript型検査へ含め、サーバ変更によるCLI破損を事前検出するようにした
+
+### Security
+
+- Bun/Viteが自動読込する`.env.local`や環境別`.env`を全階層でGit管理対象外にし、秘密情報の誤コミットを防止した
+
 ## [0.29.0] - 2026-07-10
 
 ### Added
