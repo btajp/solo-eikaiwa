@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   fetchLatestMonthlyReport, fetchMetricsSummary, fetchMonthlyReportList, requestMonthlyReport,
   type MonthlyReport,
@@ -140,6 +140,12 @@ function MonthlyReview({ lang }: { lang: Lang }) {
   const [generateError, setGenerateError] = useState(false);
   const [alreadyGenerated, setAlreadyGenerated] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const aliveRef = useRef(true);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
 
   async function generate() {
     setGenerating(true);
@@ -147,14 +153,16 @@ function MonthlyReview({ lang }: { lang: Lang }) {
     setAlreadyGenerated(false);
     try {
       const { report: r, cached } = await requestMonthlyReport();
+      if (!aliveRef.current) return;
       setGeneratedReport(r);
       // 今月分が既にある場合はサーバが既存を返す（cached）。無反応に見えないよう情報表示する
       if (cached) setAlreadyGenerated(true);
     } catch (err) {
+      if (!aliveRef.current) return;
       console.warn("monthly review generate failed:", err);
       setGenerateError(true);
     } finally {
-      setGenerating(false);
+      if (aliveRef.current) setGenerating(false);
     }
   }
 

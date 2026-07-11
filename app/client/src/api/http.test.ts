@@ -59,4 +59,18 @@ describe("client error classification", () => {
     expect(calls[0][0]).toBe("[solo-eikaiwa] request failed");
     expect(calls[0][1]).toMatchObject({ reference: "trace-log", code: "SERVER", diagnostic: "Authorization=[redacted]" });
   });
+
+  test("macOS以外も含むローカルパスを診断から伏せる", () => {
+    const detail = describeClientError(new Error(
+      "at /private/var/db/app file:///Users/example/data file://localhost/Users/example/data C:\\Users\\example\\app /home/example/project /var/folders/a/b",
+    ));
+
+    expect(detail.diagnostic).not.toContain("/private/");
+    expect(detail.diagnostic).not.toContain("file:///");
+    expect(detail.diagnostic).not.toContain("file://localhost/");
+    expect(detail.diagnostic).not.toContain("C:\\Users");
+    expect(detail.diagnostic).not.toContain("/home/example");
+    expect(detail.diagnostic).not.toContain("/var/folders");
+    expect(detail.diagnostic).toContain("[local-path]");
+  });
 });

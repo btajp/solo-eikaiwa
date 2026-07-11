@@ -5,7 +5,7 @@ import {
 } from "../api";
 import { formatYmdShort } from "../dates";
 import { STR, type Lang } from "../i18n";
-import { filterBrowseSentences, matchesBrowseQuery, paginateBrowseItems, type BrowseFilters } from "../lib/browse-filter";
+import { filterBrowseChunks, filterBrowseSentences, paginateBrowseItems, type BrowseFilters } from "../lib/browse-filter";
 import { formatClientError } from "../lib/user-error";
 import { useExplain } from "../useExplain";
 import { useLoad } from "../useLoad";
@@ -56,9 +56,8 @@ export function BrowseTab({ lang }: { lang: Lang }) {
   const isHidden = (id: number) => visibilityOverrides[id] ?? originallyHidden.has(id);
   const visibleChunks = allChunks.filter((chunk) => !isHidden(chunk.id));
   const hiddenChunks = allChunks.filter((chunk) => isHidden(chunk.id));
-  const matchesChunk = (chunk: ChunkListItem) => filters.study !== "new" && matchesBrowseQuery(chunk, filters.query);
-  const matchedVisibleChunks = visibleChunks.filter(matchesChunk);
-  const matchedHiddenChunks = hiddenChunks.filter(matchesChunk);
+  const matchedVisibleChunks = filterBrowseChunks(visibleChunks, filters);
+  const matchedHiddenChunks = filterBrowseChunks(hiddenChunks, filters);
   const filteredSentences = filterBrowseSentences(items, filters);
   const pagedSentences = paginateBrowseItems(filteredSentences, page);
   const categories = groupSentencesByCategory(pagedSentences.items);

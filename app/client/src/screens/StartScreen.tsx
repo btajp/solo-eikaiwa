@@ -151,14 +151,19 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
   const aliveRef = useRef(true);
   const fetchedRef = useRef(false);
 
+  function loadPlacementLatest() {
+    setPlacementLatest("loading");
+    void fetchPlacementLatest()
+      .then((r) => { if (aliveRef.current) setPlacementLatest(r); })
+      .catch(() => { if (aliveRef.current) setPlacementLatest("unavailable"); });
+  }
+
   useEffect(() => {
     aliveRef.current = true;
     if (!fetchedRef.current) {
       fetchedRef.current = true;
       fetchProgressSummary().then((s) => { if (aliveRef.current) setSummary(s); }).catch(() => {});
-      fetchPlacementLatest()
-        .then((r) => { if (aliveRef.current) setPlacementLatest(r); })
-        .catch(() => { if (aliveRef.current) setPlacementLatest("unavailable"); });
+      loadPlacementLatest();
     }
     return () => { aliveRef.current = false; };
   }, []);
@@ -166,6 +171,8 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
   // プレースメント導線: 未測定→初回測定 / 前回から30日以上→月次測定 / それ以外は出さない（スペック§6.3, §9）
   const placementCard = placementCalloutKind(placementLatest, Date.now());
   const reservePlacementSpace = reservesInitialPlacementSpace(placementLatest);
+  const placementLoading = placementLatest === "loading";
+  const showPlacementSlot = reservePlacementSpace || placementCard !== "none";
 
   const today = new Date();
   const dateLabel = t.hero.date(today);
@@ -181,15 +188,27 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
 
       {showBedtime && <p className="hero-bedtime text-sm text-muted">{t.hero.bedtime}</p>}
 
-      {/* 結果待ちの枠を先に置くため、未測定CTAが後から挿入されても練習カードを押し下げない。 */}
-      {(reservePlacementSpace || placementCard === "new") && (
-        <div className={`placement-slot${reservePlacementSpace ? " is-loading" : ""}`} aria-busy={reservePlacementSpace || undefined}>
-          {reservePlacementSpace
+      {/* 結果待ちの枠を先に置き、初回・月次の導線を同じ位置へ描くため、練習カードを後から動かさない。 */}
+      {showPlacementSlot && (
+        <div
+          className={`placement-slot${placementLoading ? " is-loading" : ""}${placementLatest === "unavailable" ? " is-unavailable" : ""}`}
+          aria-busy={placementLoading || undefined}
+        >
+          {placementLoading
             ? <>
                 <PlacementCallout kind="new" tp={tp} level={summary?.level ?? 1} onGo={() => {}} hidden />
                 <p className="text-muted">{tp.loading}</p>
               </>
-            : <PlacementCallout kind="new" tp={tp} level={summary?.level} onGo={() => props.onSelect({ type: "placement" })} />}
+            : placementLatest === "unavailable"
+              ? <>
+                  <PlacementCallout kind="new" tp={tp} level={summary?.level ?? 1} onGo={() => {}} hidden />
+                  <p className="text-muted" role="status">
+                    {tp.homeLoadError} <Button variant="ghost" onClick={loadPlacementLatest}>{tp.loadRetry}</Button>
+                  </p>
+                </>
+              : placementCard === "new"
+                ? <PlacementCallout kind="new" tp={tp} level={summary?.level} onGo={() => props.onSelect({ type: "placement" })} />
+                : <PlacementCallout kind="monthly" tp={tp} onGo={() => props.onSelect({ type: "placement" })} />}
         </div>
       )}
 
@@ -243,8 +262,6 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
           </button>
         </div>
       </div>
-
-      {placementCard === "monthly" && <PlacementCallout kind="monthly" tp={tp} onGo={() => props.onSelect({ type: "placement" })} />}
 
       {summary?.proposal && (
         <ProposalCard

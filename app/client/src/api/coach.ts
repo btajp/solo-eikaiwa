@@ -1,8 +1,10 @@
 import { extractErrorMessage } from "./http";
+import type { ChunkListItem } from "./sentences";
 
 export type AeItem = { quote: string; issue: string; better: string; why_ja: string };
 export type CollectedChunkStatus = "saved" | "none" | "failed";
-export type CollectedChunkItem = { id: number; promptText: string; en: string };
+/** 収集結果は一覧APIと同じチャンク完全形を返す。 */
+export type CollectedChunkItem = ChunkListItem;
 export type CollectedChunks = {
   collectedChunks: number;
   collectedChunkItems: CollectedChunkItem[];

@@ -111,6 +111,16 @@ const metricsSummary = makeMetricsSummary({ db, currentLevel: () => progressStor
 const assessmentStore = makeAssessmentStore(db);
 const listeningStore = makeListeningStore(db);
 const topicAssetCacheStore = makeTopicAssetCacheStore(db);
+let cachedLibraryTopics: Map<string, { title: string; titleJa: string }> | null = null;
+
+function libraryTopics(): Map<string, { title: string; titleJa: string }> {
+  if (cachedLibraryTopics) return cachedLibraryTopics;
+  cachedLibraryTopics = new Map(loadContent(TOPICS_DIR).map((topic) => [
+    topic.id, { title: topic.title, titleJa: topic.titleJa },
+  ]));
+  return cachedLibraryTopics;
+}
+
 const feedbackStore = makeFeedbackStore(db);
 const llmSettingsStore = makeLlmSettingsStore(db);
 const ttsSettingsStore = makeTtsSettingsStore(db);
@@ -167,9 +177,7 @@ const realDeps: RouteDeps = {
     return { text: talk.text, topicTitle: topic.title, topicTitleJa: topic.titleJa };
   },
   libraryStore,
-  libraryTopics: () => new Map(loadContent(TOPICS_DIR).map((topic) => [
-    topic.id, { title: topic.title, titleJa: topic.titleJa },
-  ])),
+  libraryTopics,
   reflection: (sessionId) => generateReflection({ events: readSessionEvents(sessionId) }, runnerFor("coaching")),
   scenarioPrompt: (scenarioId) => {
     const sc = findScenario(scenarioId);

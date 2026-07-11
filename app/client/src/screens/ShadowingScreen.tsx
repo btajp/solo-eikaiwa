@@ -76,17 +76,23 @@ export function ShadowingScreen(props: {
     if (!audioBlob) return;
     const generation = ++playbackGenerationRef.current;
     setPlaybackFailed(false);
+    setErrorMsg("");
     setState("playing");
     let outcome: ShadowingPlaybackOutcome;
+    let playbackError: unknown = null;
     try {
       const played = await playBlob(audioBlob);
       outcome = played ? "completed" : "stopped";
-    } catch {
+    } catch (err) {
+      playbackError = err;
       outcome = "failed";
     }
     if (!aliveRef.current || playbackGenerationRef.current !== generation) return;
     const resolution = resolveShadowingPlaybackOutcome(outcome);
     if (resolution.validAttempt) props.onValidAttempt?.();
+    if (resolution.showRetry && playbackError !== null) {
+      setErrorMsg(formatClientError(props.lang, playbackError, "play"));
+    }
     setPlaybackFailed(resolution.showRetry);
     setState(resolution.nextState);
   }
@@ -114,7 +120,8 @@ export function ShadowingScreen(props: {
         <div className="stack">
           {state === "ready" && playbackFailed && (
             <Banner kind="error" action={<Button onClick={play}>{t.playbackRetry}</Button>}>
-              {t.playbackError}
+              <p>{t.playbackError}</p>
+              {errorMsg && <p className="text-sm text-muted">{errorMsg}</p>}
             </Banner>
           )}
           <PlaybackButton

@@ -24,4 +24,10 @@ describe("一括コピーの状態", () => {
     expect(canStartClipboardCopy(failed)).toBe(true);
     expect(transitionClipboardCopyStatus(retried, "succeeded")).toBe("copied");
   });
+
+  test("現在の状態に合わない完了・失敗・resetイベントは状態を変えない", () => {
+    expect(transitionClipboardCopyStatus("idle", "succeeded")).toBe("idle");
+    expect(transitionClipboardCopyStatus("copied", "failed")).toBe("copied");
+    expect(transitionClipboardCopyStatus("copying", "reset")).toBe("copying");
+  });
 });

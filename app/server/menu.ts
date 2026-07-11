@@ -60,8 +60,7 @@ function hasCurrentBlockShape(block: unknown): boolean {
   if (!block || typeof block !== "object") return false;
   const { kind, params } = block as { kind?: unknown; params?: unknown };
   if (!isBlockKind(kind)) return false;
-  if (kind !== "warmup-reading" && kind !== "four-three-two") return true;
-  return Boolean(params) && typeof params === "object";
+  return Boolean(params) && typeof params === "object" && !Array.isArray(params);
 }
 
 /** hintMode 追加前の当日メニューを、教材選定や使用記録を動かさずに現在の stage 既定で補完する。 */

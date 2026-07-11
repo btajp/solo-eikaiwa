@@ -11,8 +11,10 @@ export type LibraryRoutesDeps = {
 export function makeLibraryRoutes(deps: LibraryRoutesDeps): RouteEntry[] {
   return [
     exact("GET", "/api/library/model-talks", () => {
+      const entries = deps.libraryStore.listModelTalks();
+      if (entries.length === 0) return json({ entries });
       const topics = deps.libraryTopics();
-      return json({ entries: deps.libraryStore.listModelTalks().map((entry) => {
+      return json({ entries: entries.map((entry) => {
         const topic = topics.get(entry.topicId);
         return topic ? { ...entry, topicTitle: topic.title, topicTitleJa: topic.titleJa } : entry;
       }) });

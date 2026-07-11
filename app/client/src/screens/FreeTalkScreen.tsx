@@ -10,6 +10,7 @@ import { FeedbackRow } from "../ui/FeedbackRow";
 import { LevelChip } from "../ui/LevelChip";
 import { RecordButton } from "../ui/RecordButton";
 import { canShowFreeTalkReaction } from "../practice-reaction";
+import { pipelineFailureAction } from "./free-talk-error";
 import { FreeTalkPipeline, initialConversationPipelineState, type ConversationPipelineState } from "./free-talk-flow";
 
 type Turn = { role: "you" | "ai"; text: string };
@@ -162,9 +163,11 @@ export function FreeTalkScreen(props: {
   function pipelineErrorMessage(): string {
     if (pipelineState.failure === null) return "";
     if (pipelineState.failure === "stt-empty") return t.notHeard;
-    if (pipelineState.failure === "stt") return formatClientError(props.lang, pipelineState.error, "record");
-    if (pipelineState.failure === "reply") return formatClientError(props.lang, pipelineState.error, "request");
-    return formatClientError(props.lang, pipelineState.error, "play");
+    return formatClientError(
+      props.lang,
+      pipelineState.error,
+      pipelineFailureAction(pipelineState.failure, pipelineState.audioBlob !== null),
+    );
   }
 
   async function translateTurn(i: number, text: string) {

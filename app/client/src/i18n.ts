@@ -311,7 +311,7 @@ type PlacementStrings = {
     cardTitleNew: string; cardBodyNew: string; startDefaultNote: (lv: number) => string;
     cardTitleMonthly: string; cardBodyMonthly: string;
     introTitle: string; introBody: string; introStart: string;
-    loading: string; loadRetry: string; exitNote: string;
+    loading: string; homeLoadError: string; loadRetry: string; exitNote: string;
     taskLabel: (i: number, total: number) => string;
     promptLabel: string;
     recordStart: string; recordReplace: string; recordStarting: string; recordStop: string; transcribing: string;
@@ -784,7 +784,7 @@ export const STR: Record<Lang, Strings> = {
       introTitle: "Level check",
       introBody: "You'll do three short speaking tasks: introduce yourself (1 min), explain a situation (1.5 min), and give an opinion (1 min). Record each one — the result only applies if you accept it.",
       introStart: "Start task 1",
-      loading: "Loading level check…", loadRetry: "Retry",
+      loading: "Loading level check…", homeLoadError: "Couldn't check whether a level check is due. Try again when you're ready.", loadRetry: "Retry",
       exitNote: "Leaving this check discards the recordings and transcripts from this attempt.",
       taskLabel: (i, total) => `Task ${i} of ${total}`,
       promptLabel: "Your prompt",
@@ -1327,7 +1327,7 @@ export const STR: Record<Lang, Strings> = {
       introTitle: "レベル測定",
       introBody: "3つの短いスピーキングを行います: 自己紹介（1分）→ 状況説明（1.5分）→ 意見（1分）。それぞれ録音してください。結果はあなたが承認したときだけ反映されます。",
       introStart: "タスク1を始める",
-      loading: "レベル測定を読み込んでいます…", loadRetry: "再試行",
+      loading: "レベル測定を読み込んでいます…", homeLoadError: "レベル測定が必要か確認できませんでした。よければ、もう一度お試しください。", loadRetry: "再試行",
       exitNote: "ここでホームに戻ると、この測定で録音・文字起こしした内容は保存されません。",
       taskLabel: (i, total) => `タスク ${i} / ${total}`,
       promptLabel: "お題",

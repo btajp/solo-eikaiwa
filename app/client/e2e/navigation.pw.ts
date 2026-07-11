@@ -5,7 +5,7 @@ const health = {
   app: "solo-eikaiwa", version: "test", llmReady: true,
 };
 
-async function preparePage(page: Page) {
+async function preparePage(page: Page, placementLatest: unknown = null) {
   await page.addInitScript(() => {
     localStorage.clear();
     localStorage.setItem("lang", "en");
@@ -18,7 +18,7 @@ async function preparePage(page: Page) {
     if (url.pathname === "/api/progress/summary") {
       return json({ level: 1, xp: 0, xpIntoLevel: 0, xpToNext: 100, stage: 1, difficultyMaxed: false, proposal: null });
     }
-    if (url.pathname === "/api/placement/latest") return json({ result: null });
+    if (url.pathname === "/api/placement/latest") return json({ result: placementLatest });
     if (url.pathname === "/api/sentences") return json({ sentences: [] });
     if (url.pathname === "/api/sentences/queue") return json({ queue: [] });
     if (url.pathname === "/api/chunks") return json({ chunks: [] });
@@ -71,6 +71,29 @@ test("通常画面はURL・戻る/進む・再読込で現在地を保つ", asyn
   await expect(practice).toHaveAttribute("aria-pressed", "true");
   await page.goForward();
   await expect(page).toHaveURL(/#\/listening$/);
+});
+
+test("月次レベル測定の導線も初期予約枠に表示する", async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await preparePage(page, {
+    id: 1, ts: "2026-05-01T12:00:00.000Z", stage: 2, startLevel: 8, rationale: "Previous check",
+  });
+  try {
+    await page.goto("http://127.0.0.1:4173/");
+    const monthly = page.getByRole("button", { name: /Monthly level check/ });
+    await expect(monthly).toBeVisible();
+
+    const [calloutBox, guideBox] = await Promise.all([
+      monthly.boundingBox(),
+      page.locator(".home-choice").boundingBox(),
+    ]);
+    expect(calloutBox).not.toBeNull();
+    expect(guideBox).not.toBeNull();
+    expect(calloutBox!.y).toBeLessThan(guideBox!.y);
+  } finally {
+    await context.close();
+  }
 });
 
 test("不明なURLは説明とともにHomeへ戻す", async ({ page }) => {

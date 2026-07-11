@@ -509,8 +509,10 @@ fn record_download_chunk(
         Ok(progress) => progress,
         Err(poisoned) => poisoned.into_inner(),
     };
-    progress.received_bytes = progress.received_bytes.saturating_add(chunk_size as u64);
-    progress.last_chunk_at = Instant::now();
+    if chunk_size > 0 {
+        progress.received_bytes = progress.received_bytes.saturating_add(chunk_size as u64);
+        progress.last_chunk_at = Instant::now();
+    }
     let percent = download_percent(progress.received_bytes, total_bytes);
     if percent.is_some() && progress.last_announced_percent != percent {
         progress.last_announced_percent = percent;
@@ -668,7 +670,9 @@ mod tests {
 
         let progress = Mutex::new(DownloadProgress::new());
         assert_eq!(record_download_chunk(&progress, 50, Some(100)), Some(50));
+        let last_received_at = last_download_chunk_at(&progress);
         assert_eq!(record_download_chunk(&progress, 0, Some(100)), None);
+        assert_eq!(last_download_chunk_at(&progress), last_received_at);
         assert_eq!(record_download_chunk(&progress, 50, Some(100)), Some(100));
     }
 

@@ -5,7 +5,11 @@ describe("自動収集表現の表示状態", () => {
   test("実際に保存された表現があるときだけ保存済みとして表示する", () => {
     expect(collectedPhrasesNoticeKind({
       collectedChunks: 1,
-      collectedChunkItems: [{ id: 1, promptText: "I go", en: "I went" }],
+      collectedChunkItems: [{
+        id: 1, created: "2026-07-11T00:00:00.000Z", source: "ae",
+        promptText: "I go", en: "I went", note: "past tense",
+        srs: { stage: 1, due: "2026-07-12", reviews: 0 },
+      }],
       collectedChunkStatus: "saved",
     })).toBe("saved");
   });

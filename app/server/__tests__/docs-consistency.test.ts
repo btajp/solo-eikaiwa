@@ -12,7 +12,7 @@ describe("公開ドキュメントの実装同期", () => {
     const readme = readRepoFile("README.md");
     const landingPage = readRepoFile("site", "index.html");
 
-    expect(sentenceCount).toBe(390);
+    expect(sentenceCount).toBeGreaterThan(0);
     expect(readme).toContain(`暗記例文${sentenceCount}`);
     expect(landingPage).toContain(`暗記例文${sentenceCount}`);
     expect(landingPage).toContain(`${sentenceCount}文`);

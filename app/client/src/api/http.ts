@@ -63,7 +63,9 @@ function redactDiagnostic(value: string): string {
   return value
     .replace(/(api[ _-]?key|authorization|bearer|token|password)\s*[:=]\s*(?:bearer\s+)?[^\s,;]+/gi, "$1=[redacted]")
     .replace(/\bBearer\s+[^\s,;]+/gi, "Bearer [redacted]")
-    .replace(/\/Users\/[^\s:]+/g, "[local-path]")
+    .replace(/file:\/\/(?:\/|localhost\/)[^\s,;)\]}]+/gi, "[local-path]")
+    .replace(/\/(?:Users|home|private|var\/folders)\/[^\s,;)\]}]+/g, "[local-path]")
+    .replace(/\b[A-Za-z]:\\[^\s,;)\]}]+/g, "[local-path]")
     .slice(0, 500);
 }
 

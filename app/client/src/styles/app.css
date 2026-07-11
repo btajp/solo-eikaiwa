@@ -152,7 +152,9 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 .placement-callout .drill-title { color: var(--accent); }
 .placement-slot { position: relative; }
 .placement-slot.is-loading .placement-callout { visibility: hidden; }
-.placement-slot.is-loading > p { position: absolute; inset: 0; display: flex; align-items: center; margin: 0; }
+.placement-slot.is-unavailable .placement-callout { visibility: hidden; }
+.placement-slot.is-loading > p,
+.placement-slot.is-unavailable > p { position: absolute; inset: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin: 0; }
 .placement-callout-icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 42px; height: 42px; flex: none; font-size: 20px;

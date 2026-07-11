@@ -35,6 +35,15 @@ export function filterBrowseSentences(items: SentenceItem[], filters: BrowseFilt
   });
 }
 
+/** マイフレーズはカテゴリ・ドメインを持たないため、検索と学習状態だけを同じ意味で絞り込む。 */
+export function filterBrowseChunks(items: ChunkListItem[], filters: BrowseFilters): ChunkListItem[] {
+  return items.filter((item) => {
+    if (filters.study === "new" && item.srs.reviews !== 0) return false;
+    if (filters.study === "scheduled" && item.srs.reviews === 0) return false;
+    return matchesBrowseQuery(item, filters.query);
+  });
+}
+
 export function paginateBrowseItems<T>(items: T[], requestedPage: number, pageSize = BROWSE_PAGE_SIZE): {
   items: T[];
   page: number;

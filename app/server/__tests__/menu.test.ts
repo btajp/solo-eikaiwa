@@ -256,6 +256,20 @@ describe("buildTodayMenu", () => {
     expect(rebuilt.blocks.map((block) => block.topicTitle)).toEqual(first.blocks.map((block) => block.topicTitle));
   });
 
+  test("全ブロックでparamsが欠落したキャッシュは無効として再構築する", () => {
+    const dirs = makeContentDirs();
+    const first = buildTodayMenu(60, { ...dirs, today: JULY5 });
+    const cacheFile = path.join(dirs.menuCacheDir, "menu-2026-07-05-60.json");
+    const broken = JSON.parse(readFileSync(cacheFile, "utf8")) as typeof first;
+    const reflection = broken.blocks.find((block) => block.kind === "reflection") as { params?: unknown };
+    delete reflection.params;
+    writeFileSync(cacheFile, JSON.stringify(broken));
+
+    const rebuilt = buildTodayMenu(60, { ...dirs, today: JULY5 });
+    expect(rebuilt.blocks.every((block) => Boolean(block.params) && typeof block.params === "object" && !Array.isArray(block.params))).toBe(true);
+    expect(JSON.parse(readFileSync(cacheFile, "utf8"))).toEqual(rebuilt);
+  });
+
   test("破損した使用状況ファイルは空として扱い、メニューは構築され新規記録が作られる", () => {
     const dirs = makeContentDirs();
     writeFileSync(dirs.usageFile, "{ broken usage json");

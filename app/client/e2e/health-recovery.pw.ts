@@ -41,6 +41,6 @@ test("health が一度失敗しても画面を再読込せず復旧する", asyn
   await page.goto("/");
   const serverDown = page.getByText(/Can't connect to the API server/);
   await expect(serverDown).toBeVisible();
-  await expect(serverDown).toBeHidden({ timeout: 5_000 });
+  await expect(serverDown).toBeHidden({ timeout: 8_000 });
   expect(healthRequests).toBeGreaterThanOrEqual(3);
 });

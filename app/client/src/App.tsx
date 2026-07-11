@@ -66,12 +66,14 @@ export function App() {
   const [pendingNavigation, setPendingNavigation] = useState<PendingNavigation | null>(null);
   const restoringSessionHistoryRef = useRef(false);
   const allowingSessionHistoryLeaveRef = useRef(false);
-  const [lang, setLang] = useState<Lang>(() => loadLang());
+  const [lang, setLang] = useState<Lang>(() => {
+    const initialLang = loadLang();
+    document.documentElement.lang = initialLang;
+    return initialLang;
+  });
   const t = STR[lang];
-  useEffect(() => {
-    document.documentElement.lang = lang;
-  }, [lang]);
   function switchLang(next: Lang) {
+    document.documentElement.lang = next;
     setLang(next);
     saveLang(next);
   }
