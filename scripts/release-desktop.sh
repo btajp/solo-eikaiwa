@@ -6,18 +6,18 @@
 # やること（順に・失敗したら即中断）:
 #   1. バージョン・toolchain・frozen lockfile整合チェック
 #   2. 共通release検証（Bun/Rust/content/shellcheck/依存監査）
-#   3. build-sidecar.sh（サーバcompile・resources収集）
-#   4. whisper-bin の Mach-O プレ署名
+#   3. build-sidecar.sh（サーバcompile・固定native source・SBOM/NOTICE生成）
+#   4. whisper-bin の Mach-O プレ署名 + native manifest/SBOMの最終hash更新
 #      - tauri-bundler は Resources 配下を署名対象にしない（bundler 2.9.4 app.rs 実測）ため、
 #        ここで署名しないと公証が unsigned binary で必ず落ちる。whisper-cli は JIT 不要なので
-#        エンタイトルメント無しの hardened runtime 署名でよい（dylib/.so は同一 Team ID に
-#        なるため library validation も通る）
+#        エンタイトルメント無しの hardened runtime 署名でよい
 #   5. cargo tauri build（Developer ID 署名・公証は bundler が env から自動実行。
 #      updater アーティファクト(.app.tar.gz/.sig)は overlay で有効化）
 #   6. 生成物の存在・署名・公証を検証（公証は env 不備だと警告のみでスキップされるため必ず検証）
 #   7. dmg 自体の公証 + staple（Tauri が staple するのは .app のみ）
 #   8. latest.json 生成（signature には .sig ファイルの中身を埋め込む）
-#   9. GitHub Release（draft で全アセットを揃えてから publish = 原子的公開）
+#   9. SBOM・NOTICE・依存監査・checksum・provenance を生成
+#  10. GitHub Release（draft で全アセットを揃えてから publish = 原子的公開）
 set -euo pipefail
 
 usage() {
@@ -144,7 +144,7 @@ fi
 "$REPO_DIR/scripts/verify.sh" release
 assert_clean_worktree
 
-# 3. sidecar・resources 構築
+# 3. sidecar・resources 構築（fixed native input + SBOM/NOTICEを含む）
 "$REPO_DIR/desktop/build-sidecar.sh"
 assert_clean_worktree
 
@@ -155,6 +155,14 @@ find "$REPO_DIR/desktop/src-tauri/resources/whisper-bin" -type f | while read -r
     codesign --force --options runtime --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$f"
   fi
 done
+
+# Developer ID署名はMach-Oのcode signatureを更新するため、配布前の実hashをmanifestとSBOMへ反映する。
+"$REPO_DIR/scripts/refresh-native-manifest.sh" \
+  --output "$REPO_DIR/desktop/src-tauri/resources/whisper-bin"
+bun "$REPO_DIR/scripts/desktop-provenance.ts" \
+  --repo "$REPO_DIR" \
+  --resources "$REPO_DIR/desktop/src-tauri/resources" \
+  --output "$REPO_DIR/desktop/src-tauri/resources/provenance"
 
 # 5. ビルド（署名・公証は bundler が env から自動実行）
 echo "-- cargo tauri build（公証込み・数分かかります）"
@@ -205,7 +213,18 @@ json.dump({
 }, open(sys.argv[1], "w"), indent=2)
 PY
 
-# 9. GitHub Release（draft で全アセットを揃えてから publish）
+# 9. 配布 provenance（.app内SBOM/NOTICE、依存監査、artifact checksum）を生成
+"$REPO_DIR/scripts/create-release-provenance.sh" \
+  --version "$VERSION" \
+  --bundle-dir "$BUNDLE_DIR" \
+  --app "$APP" \
+  --dmg "$DMG" \
+  --tarball "$TARGZ" \
+  --signature "$SIG" \
+  --latest-json "$LATEST_JSON"
+PROVENANCE_DIR="$BUNDLE_DIR/provenance"
+
+# 10. GitHub Release（draft で全アセットを揃えてから publish）
 assert_clean_worktree
 echo "-- GitHub Release 作成"
 NOTES_FILE="$(mktemp)"
@@ -216,7 +235,15 @@ m = re.search(rf"^## \[{re.escape(sys.argv[2])}\][^\n]*\n(.*?)(?=^## \[|\Z)", te
 print(m.group(1).strip() if m else "")
 PY
 gh release create "v$VERSION" --draft --target "$HEAD_SHA" --title "v$VERSION" --notes-file "$NOTES_FILE" \
-  "$DMG" "$TARGZ" "$LATEST_JSON"
+  "$DMG" "$TARGZ" "$LATEST_JSON" \
+  "$PROVENANCE_DIR/solo-eikaiwa-${VERSION}.spdx.json" \
+  "$PROVENANCE_DIR/solo-eikaiwa-${VERSION}.THIRD_PARTY_NOTICES.md" \
+  "$PROVENANCE_DIR/solo-eikaiwa-${VERSION}.third-party-licenses.tar.gz" \
+  "$PROVENANCE_DIR/solo-eikaiwa-${VERSION}.native-deps.lock.json" \
+  "$PROVENANCE_DIR/solo-eikaiwa-${VERSION}.native-dependencies.json" \
+  "$PROVENANCE_DIR/solo-eikaiwa-${VERSION}.dependency-audit.txt" \
+  "$PROVENANCE_DIR/solo-eikaiwa-${VERSION}.checksums.txt" \
+  "$PROVENANCE_DIR/solo-eikaiwa-${VERSION}.provenance.json"
 gh release edit "v$VERSION" --draft=false
 rm -f "$NOTES_FILE"
 git -C "$REPO_DIR" fetch --tags

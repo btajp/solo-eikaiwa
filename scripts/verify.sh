@@ -28,6 +28,9 @@ verify_core() {
   log "Bun tests"
   (cd "$REPO_DIR/app" && bun test)
 
+  log "desktop provenance tests"
+  (cd "$REPO_DIR" && bun test scripts/__tests__/desktop-provenance.test.ts)
+
   log "content coverage"
   (cd "$REPO_DIR" && bun scripts/check-content-coverage.ts)
 
