@@ -2,6 +2,7 @@ mod attach;
 mod diagnostic_log;
 mod sidecar;
 mod updater;
+pub mod updater_signature;
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::{Manager, RunEvent};

@@ -90,7 +90,12 @@ dmg の公証 + staple → `latest.json` 生成 → GitHub Release（draft→pub
   `codesign --options runtime --timestamp` で個別署名する
 - **updater 署名鍵**（`~/.tauri/solo-eikaiwa-updater.key`・minisign・Apple とは別物）:
   公開鍵は `tauri.conf.json` の `plugins.updater.pubkey` にコミット済み。
-  **秘密鍵を失うと既存ユーザーへ自動更新を届ける手段が永久に失われる**ので必ずバックアップする
+  **秘密鍵を失うと既存ユーザーへ自動更新を届ける手段が永久に失われる**ので必ずバックアップする。
+  リリース前には `.app.tar.gz` と `.sig` を、実行時と同じ検証器で照合する。設定鍵・署名鍵・直前リリースの鍵が通常リリースで一致しなければ公開しない
+- **鍵ローテーション**: 既存利用者へ新鍵を配るには、まず `tauri.conf.json` を新公開鍵へ変更しつつ、
+  **旧秘密鍵**で署名した橋渡し版を `../scripts/release-desktop.sh <version> --allow-pubkey-rotation` で公開する。
+  その版を受け取ったアプリだけが新鍵を内包するため、次のリリースから新秘密鍵で通常どおり署名する。
+  新鍵で直接署名したり、フラグなしで鍵を変えたりすると旧版が更新を検証できないため、スクリプトが中断する
 - `createUpdaterArtifacts` は本体 config に入れず `tauri.updater-artifacts.conf.json`（overlay）
   でリリース/E2E時のみ有効化する（有効時に署名鍵 env が無いとビルド自体が失敗するため、
   開発ビルドを巻き込まないようにする設計。2026-07-10 実測）

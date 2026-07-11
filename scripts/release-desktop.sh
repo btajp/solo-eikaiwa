@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # solo-eikaiwa デスクトップアプリのリリース（署名・公証・updaterアーティファクト・GitHub Release）。
-# 使い方: ./scripts/release-desktop.sh 0.29.0
+# 使い方: ./scripts/release-desktop.sh 0.29.0 [--allow-pubkey-rotation]
 # 前提: ~/.config/solo-eikaiwa/release.env（無ければテンプレートを生成して終了する）
 #
 # やること（順に・失敗したら即中断）:
@@ -20,7 +20,42 @@
 #   9. GitHub Release（draft で全アセットを揃えてから publish = 原子的公開）
 set -euo pipefail
 
-VERSION="${1:?使い方: $0 <version 例: 0.29.0>}"
+usage() {
+  cat <<USAGE
+使い方: $0 <version 例: 0.29.0> [--allow-pubkey-rotation]
+USAGE
+}
+
+VERSION=""
+ALLOW_PUBKEY_ROTATION=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --allow-pubkey-rotation)
+      ALLOW_PUBKEY_ROTATION=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --*)
+      echo "ERROR: 未知のオプションです: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      [[ -z "$VERSION" ]] || {
+        echo "ERROR: version は1つだけ指定してください" >&2
+        usage >&2
+        exit 2
+      }
+      VERSION="$1"
+      shift
+      ;;
+  esac
+done
+[[ -n "$VERSION" ]] || { usage >&2; exit 2; }
+
 REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd -P)"
 ENV_FILE="${SOLO_EIKAIWA_RELEASE_ENV:-$HOME/.config/solo-eikaiwa/release.env}"
 BUNDLE_DIR="$REPO_DIR/desktop/src-tauri/target/release/bundle"
@@ -80,20 +115,20 @@ BRANCH="$(git -C "$REPO_DIR" branch --show-current)"
 [[ "$BRANCH" == "main" ]] || { echo "ERROR: リリースは main ブランチから実行してください（現在: $BRANCH）" >&2; exit 1; }
 assert_clean_worktree
 git -C "$REPO_DIR" fetch origin main --quiet
+git -C "$REPO_DIR" fetch --quiet --tags origin
 HEAD_SHA="$(git -C "$REPO_DIR" rev-parse HEAD)"
 [[ "$HEAD_SHA" == "$(git -C "$REPO_DIR" rev-parse origin/main)" ]] || {
   echo "ERROR: ローカル main が origin/main と一致しません。先に git push してください" >&2; exit 1
 }
 
-# 1b. updater 鍵ペア整合: 秘密鍵の隣の .pub と tauri.conf.json の pubkey が一致すること。
-#     不一致でも tauri-cli は警告のみでビルドが通り、配布後に全ユーザーの更新が
-#     署名不一致で拒否される事故になるため、ここで強制する。
-PUB_FILE="${TAURI_SIGNING_PRIVATE_KEY}.pub"
-[[ -f "$PUB_FILE" ]] || { echo "ERROR: 公開鍵ファイルがありません: $PUB_FILE" >&2; exit 1; }
-CONF_PUBKEY="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['plugins']['updater']['pubkey'])" "$REPO_DIR/desktop/src-tauri/tauri.conf.json")"
-[[ "$(tr -d '[:space:]' < "$PUB_FILE")" == "$(printf %s "$CONF_PUBKEY" | tr -d '[:space:]')" ]] || {
-  echo "ERROR: tauri.conf.json の pubkey と ${PUB_FILE} が一致しません（このままだと配布後の自動更新が全ユーザーで拒否されます）" >&2; exit 1
-}
+# 1b. updater鍵の継続性: 通常は設定鍵・署名鍵・直前リリースの鍵を一致させる。
+#     鍵ローテーションは旧アプリへ新鍵を届ける橋渡し版だけに限り、明示フラグと
+#     直前の署名鍵を要求する。helperの標準出力は今回の生成物を検証する公開鍵。
+KEY_POLICY_ARGS=(--repo "$REPO_DIR" --private-key "$TAURI_SIGNING_PRIVATE_KEY")
+if [[ "$ALLOW_PUBKEY_ROTATION" == true ]]; then
+  KEY_POLICY_ARGS+=(--allow-pubkey-rotation)
+fi
+UPDATER_SIGNATURE_PUBKEY="$("$REPO_DIR/scripts/check-updater-key-policy.sh" "${KEY_POLICY_ARGS[@]}")"
 
 # 1c. バージョン整合（3ファイル + CHANGELOG + タグ未使用）
 json_ver() { python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['version'])" "$1"; }
@@ -138,6 +173,8 @@ echo "-- 署名・公証の検証"
 codesign --verify --deep --strict "$APP"
 xcrun stapler validate "$APP"
 spctl -a -t exec -vv "$APP"
+echo "-- updater生成物のminisign署名を検証"
+(cd "$REPO_DIR/desktop/src-tauri" && cargo run --locked --quiet --bin verify-updater-signature -- "$TARGZ" "$SIG" "$UPDATER_SIGNATURE_PUBKEY")
 
 # 7. dmg 自体の公証 + staple
 echo "-- dmg 公証（数分かかります）"
