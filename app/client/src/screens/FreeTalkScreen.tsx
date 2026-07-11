@@ -3,14 +3,14 @@ import { converse, fetchPhraseHints, fetchUtteranceTranslation, sttUpload, ttsFe
 import { playBlob, Recorder, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
 import { formatClientError } from "../lib/user-error";
-import { canDiscardConversationRecording, type ConversationRecordingStatus } from "../recording-controls";
-import { resolveSttOutcome } from "../stt-result";
+import { canDiscardConversationRecording, conversationPrimaryAction, type ConversationRecordingStatus } from "../recording-controls";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { FeedbackRow } from "../ui/FeedbackRow";
 import { LevelChip } from "../ui/LevelChip";
 import { RecordButton } from "../ui/RecordButton";
 import { canShowFreeTalkReaction } from "../practice-reaction";
+import { FreeTalkPipeline, initialConversationPipelineState, type ConversationPipelineState } from "./free-talk-flow";
 
 type Turn = { role: "you" | "ai"; text: string };
 type Status = ConversationRecordingStatus;
@@ -28,20 +28,23 @@ export function FreeTalkScreen(props: {
   const page = STR[props.lang].freeTalk;
   const LABELS: Record<Status, string> = {
     idle: t.idle, starting: t.starting, recording: t.recording, transcribing: t.transcribing,
-    thinking: t.thinking, speaking: t.speaking, error: t.errorLabel,
+    "stt-retry": t.sttRetry, thinking: t.thinking, "reply-retry": t.replyRetry,
+    synthesizing: t.synthesizing, speaking: t.speaking, "audio-retry": t.audioRetry,
   };
   const [status, setStatus] = useState<Status>("idle");
   const statusRef = useRef<Status>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [practiceFinished, setPracticeFinished] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const sessionIdRef = useRef<string | undefined>(undefined);
+  const [recordingError, setRecordingError] = useState("");
+  const [pipelineState, setPipelineState] = useState<ConversationPipelineState>(initialConversationPipelineState);
   const recorderRef = useRef(new Recorder());
   // 録音開始待ちを破棄してすぐ録り直したとき、古い開始要求が新しい状態を上書きしないための世代番号。
   const recordingGenerationRef = useRef(0);
   // stop→sttUpload→converse→ttsFetch→playBlob の対話パイプラインがアンマウント後も
   // 走り続けないようにするフラグ。await の後・setState の前（特に playBlob の前）で毎回チェックする
   const aliveRef = useRef(true);
+  const latestPropsRef = useRef(props);
+  latestPropsRef.current = props;
   // AI発話ごとの訳。キーは turns の index。値: undefined=未取得, "loading"=取得中, それ以外=訳文
   const [translations, setTranslations] = useState<Record<number, string>>({});
   const [hintInput, setHintInput] = useState("");
@@ -49,83 +52,119 @@ export function FreeTalkScreen(props: {
   const [hints, setHints] = useState<PhraseHint[] | "loading" | null>(null);
   const [hintError, setHintError] = useState("");
 
-  // 録音中/再生中に画面を離脱してもマイク・音声が解放されるよう、アンマウント時に停止する
-  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false; recorderRef.current.cancel(); stopPlayback(); }; }, []);
-
   function updateStatus(next: Status) {
     statusRef.current = next;
     setStatus(next);
   }
 
+  const pipelineRef = useRef<FreeTalkPipeline | null>(null);
+  if (pipelineRef.current === null) {
+    pipelineRef.current = new FreeTalkPipeline({
+      transcribe: sttUpload,
+      requestReply: (text, sessionId) => {
+        const current = latestPropsRef.current;
+        return converse(text, current.activitySessionId, sessionId, current.scenarioId);
+      },
+      createAudio: ttsFetch,
+      playAudio: playBlob,
+      onUser: (text) => {
+        if (!aliveRef.current) return;
+        setTurns((prev) => [...prev, { role: "you", text }]);
+        latestPropsRef.current.onValidTurn?.();
+      },
+      onReply: (text, sessionId) => {
+        if (!aliveRef.current) return;
+        latestPropsRef.current.onSessionId?.(sessionId);
+        setTurns((prev) => [...prev, { role: "ai", text }]);
+      },
+      onState: (next) => {
+        if (!aliveRef.current) return;
+        setPipelineState(next);
+        updateStatus(next.phase);
+      },
+    });
+  }
+
+  // 録音中/再生中に画面を離脱してもマイク・音声が解放されるよう、アンマウント時に停止する
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+      pipelineRef.current?.cancel();
+      recorderRef.current.cancel();
+      stopPlayback();
+    };
+  }, []);
+
   function isCurrentStart(generation: number): boolean {
     return recordingGenerationRef.current === generation && statusRef.current === "starting";
   }
 
-  async function onMainButton() {
-    setErrorMsg("");
-    if (statusRef.current === "idle" || statusRef.current === "error") {
-      if (props.onBeforeRecord && !props.onBeforeRecord()) return;
-      const generation = ++recordingGenerationRef.current;
-      updateStatus("starting");
-      try {
-        await recorderRef.current.start();
-        if (!aliveRef.current || !isCurrentStart(generation)) {
-          if (recordingGenerationRef.current === generation) recorderRef.current.cancel();
-          return;
-        }
-        updateStatus("recording");
-      } catch (err) {
-        if (!aliveRef.current || !isCurrentStart(generation)) return;
-        setErrorMsg(formatClientError(props.lang, err, "record"));
-        updateStatus("error");
-      }
-      return;
-    }
-    if (statusRef.current !== "recording") return;
+  async function startRecording() {
+    setRecordingError("");
+    if (latestPropsRef.current.onBeforeRecord && !latestPropsRef.current.onBeforeRecord()) return;
+    const generation = ++recordingGenerationRef.current;
+    updateStatus("starting");
     try {
-      updateStatus("transcribing");
-      const blob = await recorderRef.current.stop();
-      if (!aliveRef.current) return;
-      const outcome = await resolveSttOutcome(() => sttUpload(blob));
-      if (!aliveRef.current) return;
-      if (outcome.kind === "empty") {
-        setErrorMsg(t.notHeard);
-        updateStatus("error");
+      await recorderRef.current.start();
+      if (!aliveRef.current || !isCurrentStart(generation)) {
+        if (recordingGenerationRef.current === generation) recorderRef.current.cancel();
         return;
       }
-      if (outcome.kind === "error") throw outcome.error;
-      const text = outcome.text;
-      setTurns((prev) => [...prev, { role: "you", text }]);
-      props.onValidTurn?.();
-
-      updateStatus("thinking");
-      const { replyText, sessionId } = await converse(
-        text, props.activitySessionId, sessionIdRef.current, props.scenarioId,
-      );
-      if (!aliveRef.current) return;
-      sessionIdRef.current = sessionId;
-      props.onSessionId?.(sessionId);
-      setTurns((prev) => [...prev, { role: "ai", text: replyText }]);
-
-      updateStatus("speaking");
-      const audioBlob = await ttsFetch(replyText);
-      if (!aliveRef.current) return;
-      await playBlob(audioBlob);
-      if (!aliveRef.current) return;
+      updateStatus("recording");
+    } catch (err) {
+      if (!aliveRef.current || !isCurrentStart(generation)) return;
+      setRecordingError(formatClientError(props.lang, err, "record"));
       updateStatus("idle");
+    }
+  }
+
+  async function stopAndSubmitRecording() {
+    if (statusRef.current !== "recording") return;
+    setRecordingError("");
+    updateStatus("transcribing");
+    try {
+      const blob = await recorderRef.current.stop();
+      if (!aliveRef.current) return;
+      void pipelineRef.current?.submitRecording(blob);
     } catch (err) {
       if (!aliveRef.current) return;
-      setErrorMsg(formatClientError(props.lang, err, "request"));
-      updateStatus("error");
+      setRecordingError(formatClientError(props.lang, err, "record"));
+      updateStatus("idle");
     }
+  }
+
+  function onMainButton() {
+    if (statusRef.current === "idle") void startRecording();
+    else if (statusRef.current === "recording") void stopAndSubmitRecording();
+  }
+
+  function retryPipelineStage() {
+    setRecordingError("");
+    void pipelineRef.current?.retry();
+  }
+
+  function recordAgain() {
+    if (statusRef.current !== "stt-retry") return;
+    pipelineRef.current?.reset();
+    void startRecording();
   }
 
   function discardRecording() {
     if (!canDiscardConversationRecording(statusRef.current)) return;
     recordingGenerationRef.current++;
     recorderRef.current.cancel();
-    setErrorMsg("");
+    pipelineRef.current?.reset();
+    setRecordingError("");
     updateStatus("idle");
+  }
+
+  function pipelineErrorMessage(): string {
+    if (pipelineState.failure === null) return "";
+    if (pipelineState.failure === "stt-empty") return t.notHeard;
+    if (pipelineState.failure === "stt") return formatClientError(props.lang, pipelineState.error, "record");
+    if (pipelineState.failure === "reply") return formatClientError(props.lang, pipelineState.error, "request");
+    return formatClientError(props.lang, pipelineState.error, "play");
   }
 
   async function translateTurn(i: number, text: string) {
@@ -155,6 +194,9 @@ export function FreeTalkScreen(props: {
     }
   }
 
+  const primaryAction = conversationPrimaryAction(status);
+  const errorMsg = recordingError || pipelineErrorMessage();
+
   return (
     <div className={props.scenarioId === undefined ? "stack" : undefined}>
       {props.scenarioId === undefined && (
@@ -168,13 +210,20 @@ export function FreeTalkScreen(props: {
         {!practiceFinished && (
           <>
             <div className="start-row">
-              <RecordButton
-                recording={status === "recording"}
-                onClick={onMainButton}
-                disabled={status === "starting" || status === "transcribing" || status === "thinking" || status === "speaking"}
-              >
-                {LABELS[status]}
-              </RecordButton>
+              {primaryAction === "retry-stt" || primaryAction === "retry-reply" || primaryAction === "retry-audio" ? (
+                <Button variant="primary" size="lg" onClick={retryPipelineStage}>{LABELS[status]}</Button>
+              ) : (
+                <RecordButton
+                  recording={status === "recording"}
+                  onClick={onMainButton}
+                  disabled={primaryAction === "busy"}
+                >
+                  {LABELS[status]}
+                </RecordButton>
+              )}
+              {status === "stt-retry" && (
+                <Button variant="secondary" onClick={recordAgain}>{t.recordAgain}</Button>
+              )}
               {canDiscardConversationRecording(status) && (
                 <Button variant="secondary" onClick={discardRecording}>{t.discardRecording}</Button>
               )}

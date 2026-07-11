@@ -427,7 +427,8 @@ type LibraryStrings = { library: {
 } };
 type RoleplayStrings = { roleplay: { starters: string } };
 type FreeTalkScreenStrings = { freeTalkScreen: {
-  idle: string; starting: string; recording: string; transcribing: string; thinking: string; speaking: string; errorLabel: string;
+  idle: string; starting: string; recording: string; transcribing: string; thinking: string; synthesizing: string; speaking: string;
+  sttRetry: string; replyRetry: string; audioRetry: string; recordAgain: string;
   discardRecording: string; stopAndSendHint: string;
   finishPractice: string; continuePractice: string;
   micError: (detail: string) => string; notHeard: string;
@@ -966,7 +967,8 @@ export const STR: Record<Lang, Strings> = {
     roleplay: { starters: "You could open with:" },
     freeTalkScreen: {
       idle: "🎙 Start recording", starting: "Requesting microphone…", recording: "⏹ Stop and send",
-      transcribing: "📝 Transcribing…", thinking: "🤔 Thinking…", speaking: "🔊 Playing…", errorLabel: "🎙 Speak again",
+      transcribing: "📝 Transcribing…", thinking: "🤔 Thinking…", synthesizing: "🔊 Preparing audio…", speaking: "🔊 Playing…",
+      sttRetry: "Retry transcription", replyRetry: "Retry reply", audioRetry: "Retry audio", recordAgain: "Record again",
       discardRecording: "Discard this recording", stopAndSendHint: "Stopping sends this recording to the conversation.",
       finishPractice: "Finish this practice", continuePractice: "Continue talking",
       micError: (detail) => `Can't access the microphone: ${detail}`, notHeard: "Couldn't catch that. Please try again.",
@@ -1508,7 +1510,8 @@ export const STR: Record<Lang, Strings> = {
     roleplay: { starters: "こう切り出せます:" },
     freeTalkScreen: {
       idle: "🎙 録音を始める", starting: "マイクを準備中…", recording: "⏹ 止めて送信",
-      transcribing: "📝 文字起こし中…", thinking: "🤔 考え中…", speaking: "🔊 再生中…", errorLabel: "🎙 もう一度話す",
+      transcribing: "📝 文字起こし中…", thinking: "🤔 考え中…", synthesizing: "🔊 音声を準備中…", speaking: "🔊 再生中…",
+      sttRetry: "文字起こしを再試行", replyRetry: "返答を再試行", audioRetry: "音声を再試行", recordAgain: "録音し直す",
       discardRecording: "この録音を破棄", stopAndSendHint: "「止めて送信」を押すと、この録音を会話に送信します。",
       finishPractice: "この練習を終える", continuePractice: "会話を続ける",
       micError: (detail) => `マイクにアクセスできません: ${detail}`, notHeard: "音声を聞き取れませんでした。もう一度話してください。",
