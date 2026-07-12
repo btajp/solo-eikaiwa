@@ -12,7 +12,7 @@
 | Platform | macOS |
 | Name | `solo-eikaiwa` |
 | Primary Language | Japanese |
-| Bundle ID | `io.tsumugi.solo-eikaiwa` |
+| Bundle ID | `org.btajp.solo-eikaiwa` |
 | SKU | `solo-eikaiwa-macos-001` |
 | Primary Category | Education |
 | Secondary Category | Productivity |

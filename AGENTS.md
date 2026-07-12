@@ -64,7 +64,7 @@ macOS ローカルで完結する英会話練習アプリ。Bun + TypeScript サ
   `Shintaro Okamura` を使用できるが、Appleがmembershipの法人名を表示する欄を人物名へ置き換えない。
 - GitHub Releases版はDeveloper ID Applicationで署名し、Apple公証とstapleを完了してから公開する。
   Mac App Store版は別のStore専用設定でApp Sandboxを有効にし、self-updaterを無効化して提出する。
-- Mac App Store版のBundle IDは`io.tsumugi.solo-eikaiwa`、sidecar portは3211/3212とする。外部CLIをspawnする
+- Mac App Store版のBundle IDは`org.btajp.solo-eikaiwa`、sidecar portは3211/3212とする。外部CLIをspawnする
   Claude/Codex連携はStore版だけ無効化し、OpenAI公式・OpenAI互換HTTP経路に限定する。直接配布版の機能は変えない。
 - Store向けのsandbox確認は`./scripts/build-app-store.sh sandbox`、署名・pkg検証は`package`、検証後のuploadは
   `upload`を使う。公開値と秘密値はリポジトリ外の`app-store.env`に置き、Store証明書とprofileを混同しない。

@@ -47,7 +47,7 @@ if [[ "$MODE" != "sandbox" ]]; then
   [[ -f "$APPLE_APPSTORE_PROFILE_PATH" ]] || { echo "ERROR: provisioning profile がありません" >&2; exit 1; }
   [[ -f "$APPLE_API_KEY_PATH" ]] || { echo "ERROR: App Store Connect API key がありません" >&2; exit 1; }
 else
-  APP_STORE_BUNDLE_ID="${APP_STORE_BUNDLE_ID:-io.tsumugi.solo-eikaiwa.preview}"
+  APP_STORE_BUNDLE_ID="${APP_STORE_BUNDLE_ID:-org.btajp.solo-eikaiwa.preview}"
   APP_STORE_BUILD_NUMBER="${APP_STORE_BUILD_NUMBER:-1}"
   APPLE_TEAM_ID=""
   APPLE_APP_DISTRIBUTION_IDENTITY="-"

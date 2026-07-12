@@ -40,7 +40,7 @@ Storeの開発元名として新設せず、既存アプリと同じ正式表記
 
 公開識別子とURLは次のとおり確定した。
 
-- Mac App Store版Bundle ID: `io.tsumugi.solo-eikaiwa`
+- Mac App Store版Bundle ID: `org.btajp.solo-eikaiwa`
 - GitHub配布版Bundle ID: `com.local.solo-eikaiwa.desktop`（変更しない）
 - プライバシーポリシーURL: `https://btajp.github.io/solo-eikaiwa/privacy.html`
 - サポートURL: `https://btajp.github.io/solo-eikaiwa/support.html`
@@ -225,7 +225,7 @@ AppleはMac App StoreアプリにApp Sandboxを必須としている。
 
 | 項目 | Store版の実装 |
 | --- | --- |
-| Bundle ID・データ | `io.tsumugi.solo-eikaiwa`、Store専用container、3211/3212番port |
+| Bundle ID・データ | `org.btajp.solo-eikaiwa`、Store専用container、3211/3212番port |
 | App Sandbox | main appにsandbox、マイク、network client/server、Bun実行に必要なJIT権限を付与 |
 | solo-server | sandbox継承とJIT権限で署名し、Store配布識別子を環境へ固定 |
 | whisper-cli・Keychain helper | sandbox継承署名。Keychainは`security` CLIを使わずSecurity frameworkで操作 |
@@ -249,7 +249,7 @@ Account HolderまたはAdminが「Certificates, Identifiers & Profiles > Identif
 
 - Platform: App
 - Type: Explicit App ID
-- Bundle ID: `io.tsumugi.solo-eikaiwa`
+- Bundle ID: `org.btajp.solo-eikaiwa`
 - Capability: App Sandboxと実際に使う機能だけ
 
 ### 6.2 Store用証明書
