@@ -165,8 +165,10 @@ bun "$REPO_DIR/scripts/desktop-provenance.ts" \
   --output "$REPO_DIR/desktop/src-tauri/resources/provenance"
 
 # 5. ビルド（署名・公証は bundler が env から自動実行）
+# CI=trueによりTauriのcreate-dmgへ--skip-jenkinsを渡し、Finder AppleScriptへ依存しない。
+# これはアイコン位置の装飾だけを省略し、app、Applicationsリンク、署名、公証には影響しない。
 echo "-- cargo tauri build（公証込み・数分かかります）"
-(cd "$REPO_DIR/desktop/src-tauri" && cargo tauri build --config tauri.updater-artifacts.conf.json)
+(cd "$REPO_DIR/desktop/src-tauri" && CI=true cargo tauri build --config tauri.updater-artifacts.conf.json)
 assert_clean_worktree
 
 # 6. 生成物の存在・署名・公証を検証

@@ -23,7 +23,11 @@ verify_core() {
     echo "ERROR: shellcheckが必要です" >&2
     return 1
   }
-  find "$REPO_DIR/scripts" "$REPO_DIR/desktop" -type f -name '*.sh' -print0 | xargs -0 shellcheck
+  # Tauriはbundle中にtarget配下へ外部由来のbundle_dmg.shを生成する。途中失敗後の再検証でも
+  # リポジトリ管理下のscriptだけを検査できるよう、build生成物のtargetは探索しない。
+  find "$REPO_DIR/scripts" "$REPO_DIR/desktop" \
+    -type d -name target -prune -o \
+    -type f -name '*.sh' -print0 | xargs -0 shellcheck
 
   log "Bun tests"
   (cd "$REPO_DIR/app" && bun test)

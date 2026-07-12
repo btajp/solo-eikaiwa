@@ -195,6 +195,8 @@ chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_KEYID.p8"
 
 このスクリプトはrelease検証、sidecar/native build、Developer ID署名、公証、staple、更新署名、
 SBOM・依存監査・checksum・provenance、GitHub Release公開までを一括で行う。
+Tauriのdmg生成はFinder AppleScriptへ依存しないCI経路を使うため、Automation権限やFinderの状態に左右されない。
+この経路ではdmg内のアイコン位置装飾を省略するが、アプリ、Applicationsリンク、署名、公証には影響しない。
 
 ### 4.6 公開後の実機確認
 

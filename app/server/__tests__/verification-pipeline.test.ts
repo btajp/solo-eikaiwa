@@ -94,10 +94,20 @@ describe("verification workflow contract", () => {
     expect(text).toContain("check-spoken-register.ts");
   });
 
+  test("ShellCheckはTauriがtarget配下へ生成したscriptを対象にしない", () => {
+    const text = readFileSync(VERIFY_SCRIPT, "utf8");
+    expect(text).toContain("-name target -prune");
+  });
+
   test("releaseは個別ゲートでなく共通release modeを呼ぶ", () => {
     const text = readFileSync(path.join(REPO_ROOT, "scripts", "release-desktop.sh"), "utf8");
     expect(text).toContain('verify.sh" release');
     expect(text).not.toContain("bun test && bun run typecheck");
+  });
+
+  test("releaseのDMG生成はFinder AppleScriptに依存しないCI経路を使う", () => {
+    const text = readFileSync(path.join(REPO_ROOT, "scripts", "release-desktop.sh"), "utf8");
+    expect(text).toContain("CI=true cargo tauri build");
   });
 
   test("PR workflowはread-only pull_requestでcore/desktopを実行する", () => {

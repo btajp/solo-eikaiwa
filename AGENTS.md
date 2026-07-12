@@ -64,6 +64,8 @@ macOS ローカルで完結する英会話練習アプリ。Bun + TypeScript サ
   `Shintaro Okamura` を使用できるが、Appleがmembershipの法人名を表示する欄を人物名へ置き換えない。
 - GitHub Releases版はDeveloper ID Applicationで署名し、Apple公証とstapleを完了してから公開する。
   Mac App Store版は別のStore専用設定でApp Sandboxを有効にし、self-updaterを無効化して提出する。
+- GitHub Releasesのdmg生成は標準スクリプトのCI経路を使い、Finder AppleScriptへ依存させない。
+  `desktop/src-tauri/target/` は生成物であり、ShellCheckやコミットの対象に含めない。
 - 公開前に `CHANGELOG.md`、README、`app/package.json`、Tauri config、Cargo manifest/lockのversionを揃え、
   `./scripts/verify.sh release` を通したpush済み・cleanな`main`から標準リリーススクリプトを実行する。
 - 証明書の実名、Team ID、API Key ID / Issuer ID、秘密鍵、ローカルの秘密情報パスを、コード、文書、
