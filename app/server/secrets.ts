@@ -125,13 +125,6 @@ export function makeSecretsManager(opts?: {
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_KEYCHAIN_TIMEOUT_MS;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("timeoutMs must be a positive finite number");
   const keychainValues = new Map<SecretName, string>();
-  // Store版はApp Sandbox内で公開Security frameworkを使う同梱helperへ固定する。
-  // 絶対パス以外は無視し、direct版の既存 `/usr/bin/security` 経路へ戻す。
-  const helper = env.SOLO_EIKAIWA_KEYCHAIN_HELPER?.trim();
-  const keychainHelper = env.SOLO_EIKAIWA_DISTRIBUTION?.trim() === "app-store"
-    && helper?.startsWith("/")
-    ? helper
-    : null;
 
   return {
     async load() {
@@ -146,10 +139,12 @@ export function makeSecretsManager(opts?: {
         }
         try {
           // find は値が stdout に「出てくる」方向なので argv に秘密は乗らない
-          const command = keychainHelper
-            ? [keychainHelper, "get", name]
-            : ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", name, "-w"];
-          const r = await spawnWithTimeout(spawn, command, undefined, remainingMs);
+          const r = await spawnWithTimeout(
+            spawn,
+            ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", name, "-w"],
+            undefined,
+            remainingMs,
+          );
           if (r.exitCode !== 0) {
             keychainValues.delete(name);
             continue;
@@ -173,13 +168,12 @@ export function makeSecretsManager(opts?: {
         throw new Error("invalid secret value (1..500 printable ASCII chars, no spaces/quotes/backslashes)");
       }
       // -U: 既存項目を上書き。値は stdin のコマンド行にのみ現れる（argv には security -i だけ）
-      const command = keychainHelper
-        ? [keychainHelper, "set", name]
-        : ["/usr/bin/security", "-i"];
-      const input = keychainHelper
-        ? value
-        : `add-generic-password -U -a ${name} -s ${KEYCHAIN_SERVICE} -w "${value}"\n`;
-      const r = await spawnWithTimeout(spawn, command, input, timeoutMs);
+      const r = await spawnWithTimeout(
+        spawn,
+        ["/usr/bin/security", "-i"],
+        `add-generic-password -U -a ${name} -s ${KEYCHAIN_SERVICE} -w "${value}"\n`,
+        timeoutMs,
+      );
       if (r.exitCode !== 0) {
         const detail = r.stderr.trim().replaceAll(value, "[redacted]") || `exit ${r.exitCode}`;
         throw new Error(`keychain write failed for ${name}: ${detail}`);
@@ -189,10 +183,12 @@ export function makeSecretsManager(opts?: {
 
     async remove(name) {
       if (!isSecretName(name)) throw new Error(`unknown secret name: ${String(name)}`);
-      const command = keychainHelper
-        ? [keychainHelper, "delete", name]
-        : ["/usr/bin/security", "delete-generic-password", "-s", KEYCHAIN_SERVICE, "-a", name];
-      const r = await spawnWithTimeout(spawn, command, undefined, timeoutMs);
+      const r = await spawnWithTimeout(
+        spawn,
+        ["/usr/bin/security", "delete-generic-password", "-s", KEYCHAIN_SERVICE, "-a", name],
+        undefined,
+        timeoutMs,
+      );
       // 44 = 項目なし。冪等な削除として成功扱いにする
       if (r.exitCode !== 0 && r.exitCode !== 44) {
         throw new Error(`keychain delete failed for ${name}: ${r.stderr.trim() || `exit ${r.exitCode}`}`);

@@ -21,7 +21,7 @@ import type { SrsReviewStore } from "../../srs-review-store";
 
 export const FAKE_HEALTH = {
   ok: true, whisper: true, ffmpeg: true, claude: true, ttsKey: true, modelFile: true,
-  app: "solo-eikaiwa" as const, version: "0.0.0-test", llmReady: true, distribution: "direct" as const,
+  app: "solo-eikaiwa" as const, version: "0.0.0-test", llmReady: true,
 };
 export const FAKE_MENU = {
   minutes: 60 as const,
@@ -248,7 +248,6 @@ export function makeTestDeps(overrides: Partial<RouteDeps> = {}): {
     findListening: (id: string) => (id === "morning-routine" ? FAKE_LISTENING_ITEM : undefined),
     listeningStore: makeFakeListeningStore(),
     feedbackStore: makeFakeFeedbackStore(),
-    getDistribution: () => "direct",
     getLlmSettings: () => null,
     saveLlmSettings: (_s) => {},
     getLlmRoleSettings: (): Record<LlmRole, LlmRoleSetting> => ({

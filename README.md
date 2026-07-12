@@ -74,9 +74,7 @@ A local-first, research-grounded English speaking practice app for daily self-st
 
 ### 🖥️ デスクトップアプリ（Tauri・単体配布）
 
-GitHub Releases から dmg をダウンロードして起動するだけで動く、ネイティブウィンドウ版のアプリです（macOS 13.3以降のApple Silicon Mac専用）。サーバ本体・教材コンテンツ・音声認識エンジンをアプリに同梱しているため、Bun や Homebrew のセットアップは不要です（初回のみ音声認識モデルのダウンロードが必要）。機能・データはブラウザ版と共通です。v0.29.1以降はDeveloper ID署名・Apple公証済みです。**新しいバージョンは起動時に自動で検知され、ダイアログの「更新する」から最新版を準備できます**（v0.29.0〜・強制更新はしません）。確認中・ダウンロード中はアプリメニューで状態を確認でき、適用後は再起動するタイミングを選べます。各Releaseには配布内容を確認できるSBOM・第三者ライセンス・checksumも添付します。入手方法・初回セットアップの詳しい説明は後述「起動: デスクトップアプリ（Tauri）」を参照してください。
-
-Mac App Store向けビルドはApp Sandbox内で動き、更新はMac App Storeへ一本化します。外部のClaude/Codex CLIを起動する連携はStore版だけ利用できず、OpenAI公式またはOpenAI互換のHTTP接続を用途へ設定します。GitHub Releases版・ソース版のClaude/Codex連携と自動更新は従来どおりです。プライバシーポリシーはアプリのサイドバー下部からいつでも確認できます。
+GitHub Releases から dmg をダウンロードして起動するだけで動く、ネイティブウィンドウ版のアプリです（macOS 13.3以降のApple Silicon Mac専用）。サーバ本体・教材コンテンツ・音声認識エンジンをアプリに同梱しているため、Bun や Homebrew のセットアップは不要です（初回のみ音声認識モデルのダウンロードが必要）。機能・データはブラウザ版と共通で、両方を同時に起動できます。v0.29.1以降はDeveloper ID署名・Apple公証済みです。**新しいバージョンは起動時に自動で検知され、ダイアログの「更新する」から最新版を準備できます**（v0.29.0〜・強制更新はしません）。確認中・ダウンロード中はアプリメニューで状態を確認でき、適用後は再起動するタイミングを選べます。各Releaseには配布内容を確認できるSBOM・第三者ライセンス・checksumも添付します。プライバシーポリシーはアプリのサイドバー下部から確認できます。入手方法・初回セットアップの詳しい説明は後述「起動: デスクトップアプリ（Tauri）」を参照してください。
 
 ## 学習設計の根拠
 
@@ -287,8 +285,6 @@ bun scripts/data-backup.ts restore "$SNAPSHOT" --confirm-stopped
 ## LLM プロバイダの切替
 
 コーチ・会話・コンテンツ生成が使う LLM バックエンドの設定は **UI が唯一の真実**（v0.29〜。既定は Claude = Anthropic Claude Agent SDK）。**環境変数で設定できるのは API キーだけ**で、旧 `LLM_PROVIDER` / `OPENAI_COMPAT_BASE_URL` / `OPENAI_COMPAT_MODEL` / `CODEX_MODEL` の env はサーバは読まない（教材生成 CLI のみ従来どおり env 駆動・後述）。LaunchAgent の plist には秘密情報を書かない。切替は「記録・測定・設定」の **⚙️ 設定**（**APIキー** / **モデル接続設定** / **用途ごとのモデル**タブ）から行い、保存すると実行中のアプリへ再起動なしで即時適用される（設定は SQLite の `llm_settings`〔接続〕・`llm_role_settings`〔ロール割当〕・`llm_role_tuning`〔ロール別チューニング〕・`llm_auth`〔認証モード〕に保存。**API キーだけは DB に置かず、UI から保存すると macOS Keychain に保管されます**〔`app/.env` も併用可・Keychain が優先・値は UI にもサーバ応答にも表示されません〕）。
-
-**Mac App Store版の違い**: App Sandboxの外にあるCLIを実行できないため、Claude/Codexの接続・認証・用途割当はStore版の設定候補に表示しません。OpenAI公式とOpenAI互換は利用でき、Keychain保存もSecurity framework経由で動きます。この制限はStore版だけで、GitHub Releases版・ソース版のClaude/Codex設定を無効化・削除するものではありません。
 
 **設定画面の構成（APIキー / モデル接続設定 / 用途ごとのモデル）**: **APIキー**タブにClaude・Codex・OpenAI公式・OpenAI互換LLM・OpenAI互換TTSのキー状態と保存/置換/削除を集約し、Claude/Codexの**認証モード**（サブスク/APIキー・後述）もここで選ぶ。**モデル接続設定**タブではOpenAI公式のモデル、OpenAI互換の Base URL・モデル、Codex の任意モデルを別々に定義する。公式OpenAIの接続先は `https://api.openai.com/v1` 固定で、互換接続のBase URLは入力中から **このMac（loopback）/ LAN / remote / 無効**に分類される。**用途ごとのモデル**タブでは、キーまたは接続が利用可能なproviderだけを5用途へ割り当てられ、各「実効」行でprovider・処理場所・originを常時確認できる。既存割当が利用不能になっても黙って変更せず、再設定が必要な状態として表示する。
 

@@ -15,20 +15,6 @@ function args(env: Record<string, string | undefined>) {
 }
 
 describe("selectRunner", () => {
-  test("Store版の未設定既定はClaude CLIを返さず、設定案内runnerへ閉じる", async () => {
-    const runner = selectRunner(args({ SOLO_EIKAIWA_DISTRIBUTION: "app-store" }));
-    expect(runner).not.toBe(sentinel);
-    await expect(runner("hello")).rejects.toThrow(/OpenAI/);
-  });
-
-  test("Store版は保存済みCodex指定も実行しない", async () => {
-    const runner = selectRunner(args({
-      SOLO_EIKAIWA_DISTRIBUTION: "app-store",
-      LLM_PROVIDER: "codex",
-    }));
-    await expect(runner("hello")).rejects.toThrow(/App Store/);
-  });
-
   test("LLM_PROVIDER 未設定: claudeRunner をそのまま返す（同一参照＝現行と完全同一）", () => {
     expect(selectRunner(args({}))).toBe(sentinel);
   });

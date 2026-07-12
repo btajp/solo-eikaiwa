@@ -4,7 +4,6 @@ import { makeCodexRunner } from "./providers/codex";
 import { getCodexAppServerRunner } from "./providers/codex-app-server";
 import { withFallback, withTimeout } from "./providers/decorators";
 import { OPENAI_BASE_URL } from "./openai";
-import { resolveDistribution } from "./distribution";
 
 /** サイドバー設定UIで選べる LLM プロバイダ。設定は UI/DB が唯一の真実（env フォールバック廃止・v0.29）。 */
 export type LlmProvider = "claude" | "openai" | "openai-compat" | "codex";
@@ -125,15 +124,6 @@ export function resolveCodexConn(
 export function selectRunner(args: SelectRunnerArgs): ClaudeRunner {
   const env = args.env ?? Bun.env;
   const provider = resolveProviderKey(env);
-  if (resolveDistribution(env) === "app-store" && (provider === "" || provider === "claude" || provider === "codex")) {
-    return async () => {
-      throw new Error(
-        provider === "codex"
-          ? "Codex is unavailable in the Mac App Store build; select OpenAI or OpenAI-compatible"
-          : "Configure OpenAI or OpenAI-compatible before starting a lesson in the Mac App Store build",
-      );
-    };
-  }
 
   switch (provider) {
     case "":
@@ -196,9 +186,6 @@ export function settingsToEnv(
     OPENAI_MODEL: s.openaiModel ?? undefined,
     CODEX_MODEL: s.codexModel ?? undefined,
   };
-  if (env.SOLO_EIKAIWA_DISTRIBUTION?.trim()) {
-    out.SOLO_EIKAIWA_DISTRIBUTION = env.SOLO_EIKAIWA_DISTRIBUTION.trim();
-  }
   // LLM runnerへ渡すsecretは選択providerが実際に使う1種類だけ。サーバ経路ではorigin承認resolverを
   // 必須配線し、CLI経路だけ従来の明示env入力へフォールバックする。
   if (s.provider === "openai-compat" && s.baseUrl) {

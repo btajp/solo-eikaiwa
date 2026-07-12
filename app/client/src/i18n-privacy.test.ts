@@ -18,13 +18,4 @@ describe("provider location disclosure i18n", () => {
     expect(STR.ja.footer.privacyLabel).toBe("プライバシーポリシー");
     expect(STR.en.footer.copyright).toBe(STR.ja.footer.copyright);
   });
-
-  test("Store版の接続説明は利用できないClaude/Codexを既定と案内しない", () => {
-    expect(STR.en.llm.appStoreHelp).toContain("OpenAI");
-    expect(STR.ja.llm.appStoreHelp).toContain("OpenAI");
-    expect(STR.en.llm.appStoreHelp).not.toContain("Claude");
-    expect(STR.ja.llm.appStoreHelp).not.toContain("Claude");
-    expect(STR.en.settings.appStoreConnectionSaveNote).not.toMatch(/Claude|Codex/);
-    expect(STR.ja.settings.appStoreConnectionSaveNote).not.toMatch(/Claude|Codex/);
-  });
 });

@@ -46,7 +46,6 @@
     ],
     "externalBin": ["binaries/solo-server"],
     "resources": {
-      "PrivacyInfo.xcprivacy": "PrivacyInfo.xcprivacy",
       "resources/dist": "dist",
       "resources/content": "content",
       "resources/whisper-bin": "whisper-bin",

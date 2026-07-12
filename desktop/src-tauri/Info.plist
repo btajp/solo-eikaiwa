@@ -2,9 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>英会話練習の発話を録音し、Mac内で文字起こしするために使います。Used to record speaking practice and transcribe it locally on your Mac.</string>
+	<string>英会話練習で発話を録音するためにマイクを使用します。</string>
 </dict>
 </plist>

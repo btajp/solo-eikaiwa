@@ -13,7 +13,6 @@ import { sessionLogPath } from "./paths";
 import { vocabConstraint } from "./progression";
 import type { RoleTuning } from "./llm-role-tuning-store";
 import { getActiveAuthModes, getActiveAuthSecrets, claudeSpawnEnv } from "./llm-auth-store";
-import { resolveDistribution } from "./distribution";
 
 export function partnerSystemPrompt(stage: number): string {
   return `You are an English conversation partner for a Japanese IT professional (CEFR A2-B1).
@@ -253,7 +252,7 @@ function resolveRoleRunner(
 ): ClaudeRunner {
   const roleEnv = settingsToEnv(settings, env, apiKeyForBaseUrl, openAiApiKey);
   const provider = resolveProviderKey(roleEnv);
-  if ((provider === "" || provider === "claude") && resolveDistribution(roleEnv) !== "app-store") {
+  if (provider === "" || provider === "claude") {
     return resolveClaudeRunner(resolveClaudeTuning(rt));
   }
   return selectRunner({

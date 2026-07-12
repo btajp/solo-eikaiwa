@@ -12,7 +12,7 @@ describe("health", () => {
     });
     expect(h).toEqual({
       ok: true, whisper: true, ffmpeg: true, claude: true, ttsKey: true, modelFile: true,
-      app: "solo-eikaiwa", version: pkg.version, llmReady: true, distribution: "direct",
+      app: "solo-eikaiwa", version: pkg.version, llmReady: true,
     });
   });
 
@@ -138,30 +138,5 @@ describe("health.llmReady（claude/codex/openai-compatのいずれかが実際�
   test("いずれも無し → llmReady=false", () => {
     const h = checkHealth({ whichFn: () => null, env: {}, modelExists: () => true, llmSettings: null });
     expect(h.llmReady).toBe(false);
-  });
-
-  test("Store版はPATH上のClaude/Codexを無視し、OpenAI設定だけを準備済みとして扱う", () => {
-    const unavailable = checkHealth({
-      whichFn: () => "/bin/x",
-      env: { SOLO_EIKAIWA_DISTRIBUTION: "app-store" },
-      modelExists: () => true,
-      llmSettings: null,
-    });
-    expect(unavailable.distribution).toBe("app-store");
-    expect(unavailable.claude).toBe(false);
-    expect(unavailable.llmReady).toBe(false);
-    expect(unavailable.ok).toBe(false);
-
-    const settings: LlmSettings = {
-      provider: "openai", baseUrl: null, model: null, openaiModel: "gpt-4.1-mini", codexModel: null,
-    };
-    const ready = checkHealth({
-      whichFn: (bin) => bin.startsWith("whisper") ? "/bin/whisper-cli" : null,
-      env: { SOLO_EIKAIWA_DISTRIBUTION: "app-store", OPENAI_API_KEY: "sk-openai" },
-      modelExists: () => true,
-      llmSettings: settings,
-    });
-    expect(ready.llmReady).toBe(true);
-    expect(ready.ok).toBe(true);
   });
 });

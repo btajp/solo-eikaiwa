@@ -9,13 +9,6 @@
 # `binaries/` と `resources/` は毎回作り直す生成物であり、コミットしない。
 set -euo pipefail
 
-MODE="direct"
-case "${1:-}" in
-  "") ;;
-  --app-store) MODE="app-store" ;;
-  *) echo "使い方: $0 [--app-store]" >&2; exit 2 ;;
-esac
-
 REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd -P)"
 DESKTOP_DIR="$REPO_DIR/desktop"
 SRC_TAURI_DIR="$DESKTOP_DIR/src-tauri"
@@ -31,20 +24,11 @@ log() { echo "== $* =="; }
 
 build_server_binary() {
   log "サーバを compile 中（bun build --compile）"
-  rm -rf "$BIN_DIR"
   mkdir -p "$BIN_DIR"
   local out="$BIN_DIR/solo-server-${TARGET_TRIPLE}"
   (cd "$REPO_DIR/app" && bun build --compile server/index.ts --outfile "$out")
   chmod +x "$out"
   log "サーババイナリ: $(du -h "$out" | cut -f1)"
-}
-
-build_keychain_helper() {
-  [[ "$MODE" == "app-store" ]] || return 0
-  log "Security framework Keychain helperを build 中"
-  (cd "$SRC_TAURI_DIR" && cargo build --locked --release --bin solo-keychain)
-  cp "$SRC_TAURI_DIR/target/release/solo-keychain" "$BIN_DIR/solo-keychain-${TARGET_TRIPLE}"
-  chmod +x "$BIN_DIR/solo-keychain-${TARGET_TRIPLE}"
 }
 
 copy_client_dist() {
@@ -78,7 +62,6 @@ generate_provenance() {
 }
 
 build_server_binary
-build_keychain_helper
 copy_client_dist
 copy_content
 build_fixed_whisper

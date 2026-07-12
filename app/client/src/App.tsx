@@ -51,10 +51,7 @@ export function App() {
   const healthGenerationRef = useRef(0);
   // Tauri配布アプリ内かどうか（UAマーカー判定・audio.ts参照）。バナー文言・依存判定の文脈分岐に使う
   const desktop = isDesktopContext();
-  // Store版は配布識別子でもdesktopと確定できる。WebViewのUA変化やブラウザ経由のStore E2Eでも
-  // 開発者向けのClaude/ffmpeg不足案内へ誤分類しない。
-  const distributionDesktop = desktop || health?.distribution === "app-store";
-  const missing = missingDeps(health, distributionDesktop);
+  const missing = missingDeps(health, desktop);
   // Claude/Codex/ローカルLLM未導入時の一度きりの案内バナー（研究制約: 情報的トーンのみ・ブロックしない）。
   // 既読状態はユーザーが実際に閉じるまで再訪のたびに出る（lib/llm-notice.ts 参照）
   const [llmNoticeDismissed, setLlmNoticeDismissed] = useState(() => isLlmNoticeDismissed());
@@ -358,7 +355,7 @@ export function App() {
       )}
       {!serverDown && missing.length > 0 && (
         <Banner kind="error">
-          {distributionDesktop
+          {desktop
             ? t.banners.depsMissingDesktop
             : t.banners.depsMissingDev(missing.map((d) => DEP_DISPLAY_NAME[d] ?? d).join(", "))}
         </Banner>
@@ -368,9 +365,9 @@ export function App() {
           kind="info"
           action={
             <>
-              {health?.distribution === "app-store"
-                ? <Button variant="secondary" onClick={() => requestNavigation({ kind: "settings" })}>{t.llmNotice.settingsLabel}</Button>
-                : <a href="https://github.com/btajp/solo-eikaiwa#前提条件" target="_blank" rel="noopener noreferrer">{t.llmNotice.linkLabel}</a>}
+              <a href="https://github.com/btajp/solo-eikaiwa#前提条件" target="_blank" rel="noopener noreferrer">
+                {t.llmNotice.linkLabel}
+              </a>
               <Button
                 variant="ghost"
                 ariaLabel={t.llmNotice.dismissAriaLabel}
@@ -379,7 +376,7 @@ export function App() {
             </>
           }
         >
-          {health?.distribution === "app-store" ? t.llmNotice.appStoreBody : t.llmNotice.body}
+          {t.llmNotice.body}
         </Banner>
       )}
       {!serverDown && shouldShowSetupBanner(health, setupBannerDismissed) && (

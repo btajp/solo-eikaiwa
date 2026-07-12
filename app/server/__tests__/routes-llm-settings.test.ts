@@ -7,35 +7,6 @@ import type { RoleTuning } from "../llm-role-tuning-store";
 import type { AuthMode, LlmAuthModes, LlmAuthProvider } from "../llm-auth-store";
 
 describe("llm-settings API", () => {
-  test("Store版GETは配布種別と利用可能providerを返し、既定をOpenAIにする", async () => {
-    const { deps } = makeTestDeps({
-      getDistribution: () => "app-store",
-      getLlmSettings: () => null,
-    });
-
-    const res = await makeFetchHandler(deps)(getReq("/api/llm-settings"));
-
-    expect(await res.json()).toMatchObject({
-      distribution: "app-store",
-      availableProviders: ["openai", "openai-compat"],
-      provider: "openai",
-    });
-  });
-
-  test("Store版PUTはclaude/codexの全体・用途設定と認証変更を拒否する", async () => {
-    const { deps } = makeTestDeps({ getDistribution: () => "app-store" });
-    const handler = makeFetchHandler(deps);
-
-    expect((await handler(putJson("/api/llm-settings", { provider: "claude" }))).status).toBe(400);
-    expect((await handler(putJson("/api/llm-settings", { provider: "codex" }))).status).toBe(400);
-    expect((await handler(putJson("/api/llm-settings/roles", {
-      roles: { conversation: { provider: "claude" } },
-    }))).status).toBe(400);
-    expect((await handler(putJson("/api/llm-settings/roles", {
-      auth: { codex: "subscription" },
-    }))).status).toBe(400);
-  });
-
   test("GET: 未設定なら provider:env と env 情報を返す（APIキーは boolean のみ）", async () => {
     const { deps } = makeTestDeps({
       getLlmSettings: () => null,
@@ -65,8 +36,6 @@ describe("llm-settings API", () => {
       },
       authModes: { claude: "subscription", codex: "subscription" },
       authKeys: { anthropic: false, codex: false },
-      distribution: "direct",
-      availableProviders: ["claude", "openai", "openai-compat", "codex"],
     });
   });
 
@@ -98,8 +67,6 @@ describe("llm-settings API", () => {
       },
       authModes: { claude: "subscription", codex: "subscription" },
       authKeys: { anthropic: false, codex: false },
-      distribution: "direct",
-      availableProviders: ["claude", "openai", "openai-compat", "codex"],
     });
   });
 

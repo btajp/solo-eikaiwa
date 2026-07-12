@@ -61,7 +61,7 @@ type RouteStrings = { routes: {
  * 表示し続ける」既読パターン。lib/llm-notice.ts 参照）。
  */
 type LlmNoticeStrings = {
-  llmNotice: { body: string; appStoreBody: string; linkLabel: string; settingsLabel: string; dismissAriaLabel: string };
+  llmNotice: { body: string; linkLabel: string; dismissAriaLabel: string };
 };
 /**
  * Tauri Phase 2: 依存不足エラー・サーバ未接続・TTSキー未設定の各バナー文言。
@@ -139,7 +139,6 @@ type LlmPanelStrings = {
     applied: string;
     notApplied: (msg: string) => string;
     help: string;
-    appStoreHelp: string;
   };
 };
 type SettingsStrings = {
@@ -169,7 +168,6 @@ type SettingsStrings = {
     applyRecommendedTuningNote: string;
     apiKeysSection: string;
     apiKeysIntro: string;
-    appStoreProviderNote: string;
     apiKeyTargetWith: (target: string) => string;
     apiKeyTargetRequired: string;
     apiKeyTransportBlocked: string;
@@ -244,7 +242,6 @@ type SettingsStrings = {
     saveAssignments: string;
     unsavedChanges: string;
     connectionSaveNote: string;
-    appStoreConnectionSaveNote: string;
     rolesSaveNote: string;
     presetSaveNote: string;
     saveConnectionFirst: string;
@@ -519,9 +516,7 @@ export const STR: Record<Lang, Strings> = {
     },
     llmNotice: {
       body: "Claude, Codex, or a local LLM isn't set up. Conversation, corrections, and explanations won't work, but example sentences, listening, shadowing, and recording transcripts still work as-is.",
-      appStoreBody: "OpenAI or an OpenAI-compatible connection isn't set up yet. Conversation, corrections, and explanations need one; example sentences, listening, shadowing, and recording transcripts remain available.",
       linkLabel: "Setup guide",
-      settingsLabel: "Open AI settings",
       dismissAriaLabel: "Dismiss",
     },
     banners: {
@@ -596,7 +591,6 @@ export const STR: Record<Lang, Strings> = {
       applied: "Applied to the running app.",
       notApplied: (msg) => `Saved, but not applied: ${msg}`,
       help: "Prompts and transcribed speech are sent to the provider assigned to each role (Claude is the default). Manage credentials in the API keys tab; key values are never displayed or returned.",
-      appStoreHelp: "Prompts and transcribed speech are sent to the OpenAI or OpenAI-compatible connection assigned to each role. Manage credentials in the API keys tab; key values are never displayed or returned.",
     },
     settings: {
       title: "Settings",
@@ -646,7 +640,6 @@ export const STR: Record<Lang, Strings> = {
       applyRecommendedTuningNote: "Sets the recommended model/effort/delivery for Claude/Codex roles. OpenAI and OpenAI-compatible roles are left as-is. Save assignments to confirm.",
       apiKeysSection: "API keys",
       apiKeysIntro: "Review and manage all credentials here. Only connections that are configured and usable here or in Model connections can be chosen in Model per role. Key values are write-only and stay in macOS Keychain.",
-      appStoreProviderNote: "The Mac App Store build uses OpenAI or OpenAI-compatible HTTP connections. Claude and Codex command-line integrations are available only in the direct-download build.",
       apiKeyTargetWith: (target) => `Key destination: ${target}`,
       apiKeyTargetRequired: "Save a Base URL in Model connections before adding this key.",
       apiKeyTransportBlocked: "API keys can only be sent to HTTPS or loopback HTTP. This endpoint may still be used without a key.",
@@ -721,7 +714,6 @@ export const STR: Record<Lang, Strings> = {
       saveAssignments: "Save assignments",
       unsavedChanges: "Unsaved changes",
       connectionSaveNote: "Saves provider models and endpoints, including values used by already saved OpenAI, OpenAI-compatible, or Codex roles. It does not save authentication, unsaved role choices, or role tuning.",
-      appStoreConnectionSaveNote: "Saves OpenAI and OpenAI-compatible models and endpoints. It does not save authentication, unsaved role choices, or role tuning.",
       rolesSaveNote: "Saves role choices and tuning. Connection edits in the other tab are not saved here.",
       presetSaveNote: "Choosing a preset stages its role assignments. Save assignments to apply them.",
       saveConnectionFirst: "Save the connection changes first so role assignments use the saved endpoint and model.",
@@ -1088,9 +1080,7 @@ export const STR: Record<Lang, Strings> = {
     },
     llmNotice: {
       body: "Claude/Codex/ローカルLLMが未導入の場合、会話・添削・解説は使えません。例文・リスニング・シャドーイング・録音の文字起こしはそのまま使えます。",
-      appStoreBody: "OpenAIまたはOpenAI互換接続が未設定です。会話・添削・解説には設定が必要ですが、例文・リスニング・シャドーイング・録音の文字起こしはそのまま使えます。",
       linkLabel: "セットアップ手順",
-      settingsLabel: "AI設定を開く",
       dismissAriaLabel: "閉じる",
     },
     banners: {
@@ -1165,7 +1155,6 @@ export const STR: Record<Lang, Strings> = {
       applied: "実行中のアプリに適用しました。",
       notApplied: (msg) => `保存しましたが適用できませんでした: ${msg}`,
       help: "プロンプトと文字起こしは用途ごとに割り当てたproviderへ送信されます（既定はClaude）。認証情報は「APIキー」タブで管理し、キーの値は表示・再取得しません。",
-      appStoreHelp: "プロンプトと文字起こしは用途ごとに割り当てたOpenAIまたはOpenAI互換接続へ送信されます。認証情報は「APIキー」タブで管理し、キーの値は表示・再取得しません。",
     },
     settings: {
       title: "設定",
@@ -1215,7 +1204,6 @@ export const STR: Record<Lang, Strings> = {
       applyRecommendedTuningNote: "Claude/Codex割当の用途に推奨のモデル/effort/配信を設定します（OpenAI公式・OpenAI互換割当は変更しません）。「割当を保存」で確定します。",
       apiKeysSection: "APIキー",
       apiKeysIntro: "すべての認証情報をここで確認・管理します。ここ、または「モデル接続設定」で設定され、利用可能になった接続だけを「用途ごとのモデル」で選べます。キーはwrite-onlyでmacOS Keychainに保管します。",
-      appStoreProviderNote: "Mac App Store版ではOpenAIまたはOpenAI互換HTTP接続を使います。Claude/Codexのコマンドライン連携は公式サイトから入手する直接配布版でのみ利用できます。",
       apiKeyTargetWith: (target) => `キーの送信先: ${target}`,
       apiKeyTargetRequired: "先に「モデル接続設定」でベースURLを保存してください。",
       apiKeyTransportBlocked: "APIキーを送信できるのはHTTPSまたはloopback HTTPだけです。この接続先はキーなしで利用できる場合があります。",
@@ -1290,7 +1278,6 @@ export const STR: Record<Lang, Strings> = {
       saveAssignments: "割当を保存",
       unsavedChanges: "未保存の変更があります",
       connectionSaveNote: "各providerのモデルと接続先を、保存済みのOpenAI公式・OpenAI互換・Codex用途が使う値も含めて保存します。認証・未保存の用途割当・ロール別チューニングは保存しません。",
-      appStoreConnectionSaveNote: "OpenAI公式とOpenAI互換のモデル・接続先を保存します。認証・未保存の用途割当・ロール別チューニングは保存しません。",
       rolesSaveNote: "用途ごとの割当とチューニングを保存します。別タブの接続変更はここでは保存しません。",
       presetSaveNote: "プリセットを選ぶと用途の割当を入力欄に準備します。「割当を保存」で反映します。",
       saveConnectionFirst: "用途の割当で保存済みの接続先・モデルを使うため、先に接続変更を保存してください。",

@@ -15,7 +15,7 @@ import {
   defaultTuning, applyRecommendedTuning,
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
   tierOptionsForCodexModel, codexDefaultEffortLabel, codexDefaultModelLabel, localModelSelectOptions, openAiModelSelectOptions, resolveEffective, clampClaudeEffort,
-  classifyOpenAiEndpoint, endpointAllowsCredentials, roleTargetAvailability, roleTargetsForAvailableProviders, CODEX_EFFORT_OPTIONS,
+  classifyOpenAiEndpoint, endpointAllowsCredentials, roleTargetAvailability, CODEX_EFFORT_OPTIONS,
   type RoleTarget, type RoleTargets, type Connection, type PresetId, type CloudTarget,
 } from "../lib/llm-assignments";
 import { loadPreferredCloud, savePreferredCloud } from "../lib/preferred-cloud";
@@ -105,7 +105,6 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
 
   function hydrateInitial(v: LlmSettingsView) {
     setView(v);
-    if (v.distribution === "app-store") setPreferredCloud("openai");
     const conn = hydrateConnection(v);
     setConnBaseUrl(conn.baseUrl);
     setConnModel(conn.model);
@@ -179,10 +178,6 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
         local: { available: false, reason: "connection" as const },
         codex: { available: false, reason: "authentication" as const },
       };
-  const visibleRoleTargets = roleTargetsForAvailableProviders(view?.availableProviders);
-  const visibleCloudTargets = visibleRoleTargets.filter(
-    (target): target is CloudTarget => target !== "local",
-  );
   const selectedTargetsAvailable = LLM_ROLES.every((role) => availability[targets[role]].available);
   const compatKeyTarget = savedConnection?.connection.baseUrl.trim() || null;
   const ttsKeyTarget = ttsView?.baseUrl?.trim() || "";
@@ -251,7 +246,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
       // 接続依存の保存済みロールだけを同じ接続で更新する。編集中の割当/tuningは送らない。
       const roles = buildSavedRoleConnectionPatch(view.roles, conn);
       const saved = await saveLlmRoleSettings({
-        global: buildGlobalConnectionPayload(conn, view.provider, view.availableProviders),
+        global: buildGlobalConnectionPayload(conn, view.provider),
         roles,
         tuning: { global: { claudeModel: globalClaudeModel.trim() || null } },
       });
@@ -450,7 +445,6 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
       {tab === "keys" && view && ttsView && secretsLoad.state.status === "ready" && secrets && (
         <ApiKeysTab
           lang={lang}
-          distribution={view.distribution ?? "direct"}
           disabled={settingsSaving || !view}
           secretsReady={secretsLoad.state.status === "ready"}
           secrets={effectiveSecretsView(secrets, Boolean(view.openAiKeyConfigured || ttsView.openAiKeyConfigured))}
@@ -479,8 +473,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
 
       {tab === "conn" && (
         <section className="support-panel stack">
-          {view?.distribution === "app-store" && <div className="info-pop">{s.settings.appStoreProviderNote}</div>}
-          {view?.distribution !== "app-store" && <><div className="llm-fields stack">
+          <div className="llm-fields stack">
             <h3 className="settings-section-title">{s.settings.targetClaude}</h3>
             <div className="text-sm text-muted">{s.settings.claudeNoSetup}</div>
             <label className="llm-field">
@@ -500,7 +493,6 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
             <div className="text-sm text-muted">{s.settings.claudeGlobalModelNote}</div>
           </div>
           <hr className="settings-divider" />
-          </>}
           <div className="llm-fields stack">
             <h3 className="settings-section-title">{s.settings.targetOpenAi}</h3>
             <div className="text-sm text-muted">{s.settings.openAiConnNote}</div>
@@ -547,7 +539,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
               })()}
             </label>
           </div>
-          {view?.distribution !== "app-store" && <><hr className="settings-divider" />
+          <hr className="settings-divider" />
           <div className="llm-fields stack">
             <h3 className="settings-section-title">{s.settings.codexConnTitle}</h3>
             <label className="llm-field">
@@ -573,11 +565,8 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
               })()}
             </label>
           </div>
-          </>}
-          <div className="text-sm text-muted">{view?.distribution === "app-store" ? s.llm.appStoreHelp : s.llm.help}</div>
-          <div className="text-sm text-muted">
-            {view?.distribution === "app-store" ? s.settings.appStoreConnectionSaveNote : s.settings.connectionSaveNote}
-          </div>
+          <div className="text-sm text-muted">{s.llm.help}</div>
+          <div className="text-sm text-muted">{s.settings.connectionSaveNote}</div>
           <Button variant="primary" loading={connectionSaving} onClick={() => void saveConnection()} disabled={settingsSaving || !view || !connectionDirty}>
             {connectionSaving ? s.llm.saving : s.settings.saveConnection}
           </Button>
@@ -624,15 +613,15 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
           {/* プリセット（現在の割当から逆引き表示。手動変更でカスタムに落ちる） */}
           <div className="stack">
             <div className="stat-title">{s.settings.presetSection}</div>
-            {visibleCloudTargets.length > 1 && <div className="llm-field">
+            <div className="llm-field">
               <span className="text-sm text-muted">{s.settings.preferredCloudLabel}</span>
               <div className="lang-toggle" role="group" aria-label={s.settings.preferredCloudLabel}>
-                {visibleCloudTargets.map((target) => (
-                  <button key={target} className={preferredCloud === target ? "is-active" : ""} aria-pressed={preferredCloud === target} disabled={settingsSaving || !availability[target].available} onClick={() => setPreferredCloud(target)}>{targetLabels[target]}</button>
-                ))}
+                <button className={preferredCloud === "claude" ? "is-active" : ""} aria-pressed={preferredCloud === "claude"} disabled={settingsSaving || !availability.claude.available} onClick={() => setPreferredCloud("claude")}>{s.settings.targetClaude}</button>
+                <button className={preferredCloud === "openai" ? "is-active" : ""} aria-pressed={preferredCloud === "openai"} disabled={settingsSaving || !availability.openai.available} onClick={() => setPreferredCloud("openai")}>{s.settings.targetOpenAi}</button>
+                <button className={preferredCloud === "codex" ? "is-active" : ""} aria-pressed={preferredCloud === "codex"} disabled={settingsSaving || !availability.codex.available} onClick={() => setPreferredCloud("codex")}>{s.settings.targetCodex}</button>
               </div>
               <span className="text-sm text-muted">{s.settings.preferredCloudNote}</span>
-            </div>}
+            </div>
             {(() => {
               // matchPreset は { id, cloud } | "custom" を返す（優先クラウド対応）。表示は一致したクラウドを反映する（優先設定ではない）。
               const m = matchPreset(targets);
@@ -702,7 +691,6 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
                   <div className="text-sm text-muted">{s.settings.roleReason[role]}</div>
                   <RoleTargetToggle
                     value={targets[role]}
-                    targets={visibleRoleTargets}
                     availability={availability}
                     labels={targetLabels}
                     unavailableNote={s.settings.targetUnavailableNote}

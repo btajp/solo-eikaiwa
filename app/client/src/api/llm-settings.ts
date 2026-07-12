@@ -32,9 +32,6 @@ export type RoleTuning = { claudeModel: string | null; effort: EffortOption | nu
 
 /** GET/PUT 応答。APIキー値は含まれない（有無のみ apiKeyConfigured）。 */
 export type LlmSettingsView = {
-  /** 配布経路と、そのbuildで実行可能なprovider。旧サーバでは省略される。 */
-  distribution?: "direct" | "app-store";
-  availableProviders?: LlmProvider[];
   provider: LlmProvider;
   baseUrl: string | null;
   model: string | null;

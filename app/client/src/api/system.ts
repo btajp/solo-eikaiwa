@@ -6,7 +6,6 @@ export type Health = {
   app: string; version: string;
   /** claude/codex/openai/openai-compatのいずれかの会話系ルートが実際に使えるかの集約判定。 */
   llmReady: boolean;
-  distribution: "direct" | "app-store";
 };
 
 export async function getHealth(): Promise<Health> {

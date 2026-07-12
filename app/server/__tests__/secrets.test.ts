@@ -37,60 +37,6 @@ describe("isValidSecretValue", () => {
 });
 
 describe("makeSecretsManager", () => {
-  test("Store版はSecurity framework helperを使い、値をargvへ含めない", async () => {
-    const { calls, spawn } = makeFakeSpawn(OK);
-    const mgr = makeSecretsManager({
-      spawn,
-      env: {
-        SOLO_EIKAIWA_DISTRIBUTION: "app-store",
-        SOLO_EIKAIWA_KEYCHAIN_HELPER: "/app/Contents/MacOS/solo-keychain",
-      },
-    });
-
-    await mgr.save("OPENAI_API_KEY", "sk-store-secret");
-    await mgr.remove("OPENAI_API_KEY");
-
-    expect(calls[0]).toEqual({
-      cmd: ["/app/Contents/MacOS/solo-keychain", "set", "OPENAI_API_KEY"],
-      stdin: "sk-store-secret",
-    });
-    expect(calls[0].cmd.join(" ")).not.toContain("sk-store-secret");
-    expect(calls[1]).toEqual({
-      cmd: ["/app/Contents/MacOS/solo-keychain", "delete", "OPENAI_API_KEY"],
-      stdin: undefined,
-    });
-  });
-
-  test("Store版のloadはSecurity framework helperのgetを使う", async () => {
-    const { calls, spawn } = makeFakeSpawn((cmd) =>
-      cmd.at(-1) === "OPENAI_API_KEY" ? { exitCode: 0, stdout: "sk-store\n" } : NOT_FOUND(),
-    );
-    const mgr = makeSecretsManager({
-      spawn,
-      env: {
-        SOLO_EIKAIWA_DISTRIBUTION: "app-store",
-        SOLO_EIKAIWA_KEYCHAIN_HELPER: "/app/Contents/MacOS/solo-keychain",
-      },
-    });
-
-    await mgr.load();
-
-    expect(calls[0].cmd.slice(0, 2)).toEqual(["/app/Contents/MacOS/solo-keychain", "get"]);
-    expect(mgr.get("OPENAI_API_KEY")).toBe("sk-store");
-  });
-
-  test("direct版ではhelper指定を無視して既存security経路を維持する", async () => {
-    const { calls, spawn } = makeFakeSpawn(OK);
-    const mgr = makeSecretsManager({
-      spawn,
-      env: { SOLO_EIKAIWA_KEYCHAIN_HELPER: "/tmp/untrusted-helper" },
-    });
-
-    await mgr.save("OPENAI_API_KEY", "sk-direct");
-
-    expect(calls[0].cmd).toEqual(["/usr/bin/security", "-i"]);
-  });
-
   test("save: 値は stdin にのみ現れ、argv には一切含まれない（ps 露出防止の機械検証）", async () => {
     const { calls, spawn } = makeFakeSpawn(OK);
     const env: Record<string, string | undefined> = {};

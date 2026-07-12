@@ -202,20 +202,10 @@ fn update_menu_text(lang: Lang, status: UpdateMenuStatus) -> String {
         (Lang::En, UpdateMenuStatus::Idle) => check_menu_label(Lang::En).to_string(),
         (Lang::Ja, UpdateMenuStatus::Checking) => "アップデートを確認中…".to_string(),
         (Lang::En, UpdateMenuStatus::Checking) => "Checking for Updates…".to_string(),
-        (
-            Lang::Ja,
-            UpdateMenuStatus::Downloading {
-                percent: Some(percent),
-            },
-        ) => {
+        (Lang::Ja, UpdateMenuStatus::Downloading { percent: Some(percent) }) => {
             format!("アップデートをダウンロード中… {percent}%")
         }
-        (
-            Lang::En,
-            UpdateMenuStatus::Downloading {
-                percent: Some(percent),
-            },
-        ) => {
+        (Lang::En, UpdateMenuStatus::Downloading { percent: Some(percent) }) => {
             format!("Downloading Update… {percent}%")
         }
         (Lang::Ja, UpdateMenuStatus::Downloading { percent: None }) => {
@@ -226,12 +216,18 @@ fn update_menu_text(lang: Lang, status: UpdateMenuStatus) -> String {
         }
         (Lang::Ja, UpdateMenuStatus::Installing) => "アップデートを適用中…".to_string(),
         (Lang::En, UpdateMenuStatus::Installing) => "Applying Update…".to_string(),
-        (Lang::Ja, UpdateMenuStatus::RestartPrompt) => "アップデートの再起動確認中…".to_string(),
+        (Lang::Ja, UpdateMenuStatus::RestartPrompt) => {
+            "アップデートの再起動確認中…".to_string()
+        }
         (Lang::En, UpdateMenuStatus::RestartPrompt) => {
             "Update Ready — Confirm Restart…".to_string()
         }
-        (Lang::Ja, UpdateMenuStatus::RestartReady) => "アップデートの準備完了 — 再起動".to_string(),
-        (Lang::En, UpdateMenuStatus::RestartReady) => "Update Ready — Restart".to_string(),
+        (Lang::Ja, UpdateMenuStatus::RestartReady) => {
+            "アップデートの準備完了 — 再起動".to_string()
+        }
+        (Lang::En, UpdateMenuStatus::RestartReady) => {
+            "Update Ready — Restart".to_string()
+        }
     }
 }
 
@@ -454,18 +450,12 @@ async fn check_and_prompt(app: AppHandle, manual: bool) -> tauri_plugin_updater:
         return Ok(());
     }
 
-    log::info!(
-        "updater: downloading and installing v{} ...",
-        update.version
-    );
+    log::info!("updater: downloading and installing v{} ...", update.version);
     update.timeout = Some(UPDATE_DOWNLOAD_MAX_TIMEOUT);
     set_menu_status(&app, UpdateMenuStatus::Downloading { percent: None });
     match download_and_install_with_watchdog(&update, &app).await {
         Ok(()) => {
-            log::info!(
-                "updater: installed v{}; waiting for restart choice",
-                update.version
-            );
+            log::info!("updater: installed v{}; waiting for restart choice", update.version);
             set_menu_status(&app, UpdateMenuStatus::RestartPrompt);
             if prompt_restart_after_install(&app, lang).await {
                 // 非メインスレッド（asyncタスク）からのrestart()はrequest_exit経由で
@@ -626,12 +616,8 @@ mod tests {
 
     #[test]
     fn manual_latest_text_mentions_current_version() {
-        assert!(manual_latest_text(Lang::Ja, "0.29.0")
-            .body
-            .contains("0.29.0"));
-        assert!(manual_latest_text(Lang::En, "0.29.0")
-            .body
-            .contains("0.29.0"));
+        assert!(manual_latest_text(Lang::Ja, "0.29.0").body.contains("0.29.0"));
+        assert!(manual_latest_text(Lang::En, "0.29.0").body.contains("0.29.0"));
     }
 
     #[test]
@@ -657,21 +643,14 @@ mod tests {
     #[test]
     fn manual_check_failed_text_mentions_releases_url() {
         // 手動チェックの通信失敗は「確認できなかった」事実のみ伝える（更新失敗とは別文言）
-        assert!(manual_check_failed_text(Lang::Ja)
-            .body
-            .contains(RELEASES_URL));
-        assert!(manual_check_failed_text(Lang::En)
-            .body
-            .contains(RELEASES_URL));
+        assert!(manual_check_failed_text(Lang::Ja).body.contains(RELEASES_URL));
+        assert!(manual_check_failed_text(Lang::En).body.contains(RELEASES_URL));
     }
 
     #[test]
     fn menu_status_shows_progress_and_disables_parallel_trigger() {
         assert_eq!(
-            update_menu_text(
-                Lang::Ja,
-                UpdateMenuStatus::Downloading { percent: Some(42) }
-            ),
+            update_menu_text(Lang::Ja, UpdateMenuStatus::Downloading { percent: Some(42) }),
             "アップデートをダウンロード中… 42%"
         );
         assert_eq!(

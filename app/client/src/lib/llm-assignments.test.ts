@@ -8,7 +8,7 @@ import {
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
   tierOptionsForCodexModel, codexDefaultEffortLabel, codexDefaultModelLabel, localModelSelectOptions, resolveEffective, clampClaudeEffort,
   hydrateAuthModes, hydrateAuthKeys, buildAuthPatch, CODEX_EFFORT_OPTIONS,
-  classifyOpenAiEndpoint, endpointAllowsCredentials, roleTargetAvailability, roleTargetsForAvailableProviders,
+  classifyOpenAiEndpoint, endpointAllowsCredentials, roleTargetAvailability,
   type RoleTargets,
 } from "./llm-assignments";
 
@@ -52,24 +52,6 @@ describe("classifyOpenAiEndpoint", () => {
 });
 
 describe("roleTargetAvailability", () => {
-  test("Store版の割当UIにはOpenAI公式とOpenAI互換だけを表示する", () => {
-    expect(roleTargetsForAvailableProviders(["openai", "openai-compat"]))
-      .toEqual(["openai", "local"]);
-    expect(roleTargetsForAvailableProviders())
-      .toEqual(["claude", "openai", "local", "codex"]);
-  });
-
-  test("Store版で公開されないClaude/Codexは認証状態に関係なく選択不可", () => {
-    const availability = roleTargetAvailability(mkView({
-      distribution: "app-store",
-      availableProviders: ["openai", "openai-compat"],
-      authModes: { claude: "subscription", codex: "subscription" },
-    }), LOCAL_CONN);
-
-    expect(availability.claude).toEqual({ available: false, reason: "distribution" });
-    expect(availability.codex).toEqual({ available: false, reason: "distribution" });
-  });
-
   test("OpenAI公式は専用キーと公式モデルが揃った場合だけ選択できる", () => {
     expect(roleTargetAvailability(mkView(), { ...EMPTY_CONN, openaiModel: "gpt-4.1-mini" }).openai)
       .toEqual({ available: false, reason: "authentication" });

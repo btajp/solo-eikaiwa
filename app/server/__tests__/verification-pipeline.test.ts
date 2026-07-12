@@ -110,21 +110,6 @@ describe("verification workflow contract", () => {
     expect(text).toContain("CI=true cargo tauri build");
   });
 
-  test("Mac App Store経路はSandbox専用設定・helper署名・自己更新無効化を検証する", () => {
-    const script = readFileSync(path.join(REPO_ROOT, "scripts", "build-app-store.sh"), "utf8");
-    const config = JSON.parse(readFileSync(path.join(REPO_ROOT, "desktop", "src-tauri", "tauri.appstore.conf.json"), "utf8"));
-    const baseConfig = JSON.parse(readFileSync(path.join(REPO_ROOT, "desktop", "src-tauri", "tauri.conf.json"), "utf8"));
-    expect(script).toContain("tauri.appstore.conf.json");
-    expect(script).toContain("AppStoreHelperEntitlements.plist");
-    expect(script).toContain("AppStoreRuntimeEntitlements.plist");
-    expect(script).toContain("--features app-store");
-    expect(script).toContain("productbuild");
-    expect(script).toContain("altool --validate-app");
-    expect(script).toContain("--p8-file-path");
-    expect(config.plugins.updater).toBeNull();
-    expect(baseConfig.bundle.resources["PrivacyInfo.xcprivacy"]).toBe("PrivacyInfo.xcprivacy");
-  });
-
   test("PR workflowはread-only pull_requestでcore/desktopを実行する", () => {
     const text = readFileSync(path.join(REPO_ROOT, ".github", "workflows", "verify.yml"), "utf8");
     expect(text).toContain("pull_request:");

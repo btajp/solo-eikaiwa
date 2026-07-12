@@ -92,14 +92,8 @@ verify_desktop() {
   log "cargo test --locked"
   (cd "$REPO_DIR/desktop/src-tauri" && cargo test --locked --lib) || test_status=$?
 
-  log "cargo test --locked --features app-store"
-  (cd "$REPO_DIR/desktop/src-tauri" && cargo test --locked --lib --features app-store) || test_status=$?
-
   log "cargo clippy --locked"
   (cd "$REPO_DIR/desktop/src-tauri" && cargo clippy --locked --all-targets -- -D warnings) || clippy_status=$?
-
-  log "cargo clippy --locked --features app-store"
-  (cd "$REPO_DIR/desktop/src-tauri" && cargo clippy --locked --all-targets --features app-store -- -D warnings) || clippy_status=$?
   cleanup_desktop_fixtures
 
   [[ "$test_status" -eq 0 ]] || return "$test_status"

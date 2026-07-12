@@ -20,25 +20,6 @@ beforeEach(() => {
 });
 
 describe("GET /api/llm-models", () => {
-  test("Store版はclaude/codexを起動せずunavailableとして返す", async () => {
-    const calls: string[] = [];
-    const { deps } = makeTestDeps({
-      getDistribution: () => "app-store",
-      getModelCatalog: async (provider) => {
-        calls.push(provider);
-        return { available: true, models: [], fetchedAt: "t" };
-      },
-    });
-
-    const res = await makeFetchHandler(deps)(getReq("/api/llm-models"));
-    const body = (await res.json()) as Record<string, CatalogResult>;
-
-    expect(calls.sort()).toEqual(["local", "openai"]);
-    expect(body.claude.available).toBe(false);
-    expect(body.codex.available).toBe(false);
-    expect(body.claude.reason).toContain("App Store");
-  });
-
   test("claude/openai/codex/localの4ソースをdeps.getModelCatalog経由で合成して返す", async () => {
     const calls: Array<{ provider: string; refresh: boolean }> = [];
     const RESULT: CatalogResult = { available: true, models: [], fetchedAt: "2026-07-08T00:00:00.000Z" };

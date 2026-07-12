@@ -6,13 +6,11 @@
 
 ### Added
 
-- Mac App Store向けに、App Sandbox、Store専用Bundle ID・ポート、署名済みhelper、provisioning profile、pkg検証・uploadを一括で扱うビルド経路を追加した
-- アプリ内から開けるプライバシーポリシーと、App Storeの問い合わせ先に使える公開サポートページを追加した
+- アプリ内から開けるプライバシーポリシーと公開サポートページを追加した
 
 ### Changed
 
-- Mac App Store版では、Sandbox外のClaude/Codex CLI連携とGitHub自動更新を無効化し、LLMをOpenAI公式またはOpenAI互換HTTP接続から選ぶ方式にした。GitHub Releases版・ソース版のClaude/Codex連携と自動更新は変更しない
-- Mac App Store版のKeychain操作を`security` CLIからSecurity frameworkを使う同梱helperへ切り替え、Store版とGitHub版を別ポート・別データ領域で同時利用できるようにした
+- ブラウザ版とデスクトップ版を同時利用するとき、既定ポートが使用中でも空いているポートへ切り替えて起動できるようにした
 
 ## [0.29.1] - 2026-07-12
 
