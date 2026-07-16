@@ -1,5 +1,10 @@
 import type { SttSegment } from "./stt";
 
+/**
+ * whisperのセグメント境界と簡易テキスト規則から算出する「推定値」。
+ * 同じ発話でもASRの区切り方で値が変わるため（__tests__/metrics.test.ts の回帰参照）、
+ * 表示側では能力の判定ではなく傾向を見るための参考値として扱う。
+ */
 export type UtteranceMetrics = {
   words: number;
   totalMs: number;
@@ -8,6 +13,10 @@ export type UtteranceMetrics = {
   speechRateWpm: number;
   /** 発話時間ベースの調音速度（ポーズ除外） */
   articulationRateWpm: number;
+  /**
+   * セグメント間ギャップ由来のポーズ合算。節内（文中の詰まり）と節末（文間の考えるポーズ）を
+   * 区別できない（Sun et al. 2023 で知覚熟達度を予測するのは節内ポーズのみ。限界はUIとdocs/metrics.mdに明記）。
+   */
   pauses: { count: number; totalMs: number; longestMs: number };
   /** 隣接同一語と反復bigramの割合 0..1（言い直し・詰まりの近似） */
   repetitionRatio: number;

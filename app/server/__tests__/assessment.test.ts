@@ -161,6 +161,21 @@ describe("assessment / generateMonthlyReport", () => {
     const fake: ClaudeRunner = async () => ({ text: "   \n ", sessionId: "s" });
     expect(await generateMonthlyReport({} as never, fake)).toBeNull();
   });
+
+  test("システムプロンプトが発話指標を推定値として扱い、ポーズ全削減へ誘導しない指示を含む", async () => {
+    // Issue #183/#217: 調音速度・ポーズ比率は文字起こしセグメント由来の近似値で、
+    // ポーズ比率は節内（文中の詰まり）と節末（考えるポーズ）を区別できない。
+    // 月次レビューがこれを能力値として断定したり、ポーズ全体を減らす助言をしないこと。
+    let systemPrompt = "";
+    const fake: ClaudeRunner = async (_prompt, _sessionId, opts) => {
+      systemPrompt = opts?.systemPrompt ?? "";
+      return { text: "ok", sessionId: "s" };
+    };
+    await generateMonthlyReport({} as never, fake);
+    expect(systemPrompt).toContain("推定値");
+    expect(systemPrompt).toContain("区別");
+    expect(systemPrompt).toContain("ポーズ全体を減らす");
+  });
 });
 
 describe("assessment / makeAssessmentStore", () => {

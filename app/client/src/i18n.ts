@@ -313,6 +313,7 @@ type ProgressStrings = {
     speakingTime: string; speakingMinUnit: string; speakingDay: (date: string, minutes: string) => string;
     articulation: string; articulationUnit: string; articulationDay: (date: string, wpm: number) => string;
     pauseCard: string; repetitionCard: string; weekOverWeek: string;
+    estimateNote: string; pauseNote: string; lowSample: string; noTrendData: string;
     levelHistory: string; currentLevel: (n: number) => string;
     empty: string;
     loading: string; retry: string;
@@ -801,8 +802,12 @@ export const STR: Record<Lang, Strings> = {
       actionError: "Couldn't apply. Refreshed the latest state.",
       title: "Progress",
       speakingTime: "Speaking time (last 14 days)", speakingMinUnit: "min", speakingDay: (date, minutes) => `${date}: ${minutes} minutes of speaking`,
-      articulation: "Articulation rate", articulationUnit: "wpm", articulationDay: (date, wpm) => `${date}: ${wpm} words per minute`,
-      pauseCard: "Pause ratio", repetitionCard: "Self-repetition", weekOverWeek: "vs last week",
+      articulation: "Articulation rate (estimate)", articulationUnit: "wpm", articulationDay: (date, wpm) => `${date}: ${wpm} words per minute`,
+      pauseCard: "Pause ratio (estimate)", repetitionCard: "Self-repetition (estimate)", weekOverWeek: "vs last week",
+      estimateNote: "Speed, pause, and repetition figures are estimated from how speech recognition splits your recordings, so they can wobble between sessions. Read them as rough trends, not exact measurements of ability.",
+      pauseNote: "This counts every silence, including thinking pauses between sentences — research suggests those are fine. The app can't yet tell them apart from mid-sentence hesitations, so there's no need to cut down all pauses.",
+      lowSample: "Not enough recordings this week for a stable figure yet.",
+      noTrendData: "Too few recordings last week to compare.",
       levelHistory: "Level history", currentLevel: (n) => `Now Lv ${n}`,
       empty: "Start speaking and your metrics will show up here.",
       loading: "Loading…", retry: "Retry",
@@ -1371,8 +1376,12 @@ export const STR: Record<Lang, Strings> = {
       actionError: "適用できませんでした。最新の状態に更新しました",
       title: "進捗",
       speakingTime: "話した時間（直近14日）", speakingMinUnit: "分", speakingDay: (date, minutes) => `${date}: ${minutes}分話しました`,
-      articulation: "調音速度", articulationUnit: "wpm", articulationDay: (date, wpm) => `${date}: ${wpm} wpm`,
-      pauseCard: "ポーズ比率", repetitionCard: "言い直し率", weekOverWeek: "前週比",
+      articulation: "調音速度（推定値）", articulationUnit: "wpm", articulationDay: (date, wpm) => `${date}: ${wpm} wpm`,
+      pauseCard: "ポーズ比率（推定値）", repetitionCard: "言い直し率（推定値）", weekOverWeek: "前週比",
+      estimateNote: "速度・ポーズ・言い直しの数値は、音声認識の区切りから推定した参考値です。区切り方によってセッションごとに揺れるため、能力の正確な測定ではなく、おおまかな傾向として見てください。",
+      pauseNote: "文と文の間の考えるポーズも含めた合算値です。研究上、問題になるのは文の途中の詰まりだけですが、アプリはまだ両者を区別できません。ポーズ全部を減らす必要はありません。",
+      lowSample: "今週はまだ録音が少なく、値が安定していません。",
+      noTrendData: "前週の録音が少ないため、比較は表示していません。",
       levelHistory: "レベル履歴", currentLevel: (n) => `現在 Lv ${n}`,
       empty: "話すと、ここに記録が貯まりはじめます。",
       loading: "読み込み中…", retry: "再試行",

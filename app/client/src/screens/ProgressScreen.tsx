@@ -7,6 +7,7 @@ import { STR, type Lang } from "../i18n";
 import { formatClientError } from "../lib/user-error";
 import { canGenerateMonthlyReview, formatYmdLong, formatYmdShort } from "../dates";
 import { monthlyReviewDisplay } from "../monthly-review-display";
+import { weeklyRateView, type WeeklyRateView } from "../metric-reliability";
 import { useLoad } from "../useLoad";
 import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
@@ -17,12 +18,35 @@ function fmtMin(sec: number): string {
 }
 
 /** 前週比の中立矢印（情報表示のみ — 良し悪しの色付けはしない） */
-function trendArrow(cur: number, prev: number): string {
-  if (prev === 0 || cur === 0) return "→";
-  const diff = (cur - prev) / prev;
-  if (diff > 0.05) return "↑";
-  if (diff < -0.05) return "↓";
-  return "→";
+const TREND_ARROW = { up: "↑", down: "↓", flat: "→" } as const;
+
+/**
+ * ポーズ比率・言い直し率の週次カード。ASR区切り由来の推定値なので、
+ * データが疎な週は率や前週比を確定値として見せず「まだ少ない」ことを表示する。
+ */
+function WeeklyRateCard({ title, ratio, view, note, weekOverWeek, lowSample, noTrendData }: {
+  title: string; ratio: number; view: WeeklyRateView; note?: string;
+  weekOverWeek: string; lowSample: string; noTrendData: string;
+}) {
+  return (
+    <Card>
+      <div className="stat-title">{title}</div>
+      {view.kind === "insufficient" ? (
+        <>
+          <div className="stat-main" aria-hidden="true">—</div>
+          <div className="stat-sub">{lowSample}</div>
+        </>
+      ) : (
+        <>
+          <div className="stat-main">{(ratio * 100).toFixed(1)}<span className="stat-unit">%</span></div>
+          <div className="stat-sub">
+            {view.trend === null ? noTrendData : `${TREND_ARROW[view.trend]} ${weekOverWeek}`}
+          </div>
+        </>
+      )}
+      {note && <p className="text-sm text-muted stat-note">{note}</p>}
+    </Card>
+  );
 }
 
 export function ProgressScreen({ lang }: { lang: Lang }) {
@@ -57,10 +81,9 @@ export function ProgressScreen({ lang }: { lang: Lang }) {
 
   const maxSec = Math.max(...days.map((d) => d.speakingSec), 1);
   const maxWpm = Math.max(...days.map((d) => d.avgArticulationWpm), 1);
-  const pauseCur = summary.weekly.current.avgPauseRatio;
-  const pausePrev = summary.weekly.previous.avgPauseRatio;
-  const repCur = summary.weekly.current.repetitionRatio;
-  const repPrev = summary.weekly.previous.repetitionRatio;
+  const { current: week, previous: prevWeek } = summary.weekly;
+  const pauseView = weeklyRateView(week, prevWeek, week.avgPauseRatio, prevWeek.avgPauseRatio);
+  const repView = weeklyRateView(week, prevWeek, week.repetitionRatio, prevWeek.repetitionRatio);
 
   return (
     <div className="stack">
@@ -102,17 +125,16 @@ export function ProgressScreen({ lang }: { lang: Lang }) {
       </Card>
 
       <div className="metric-cards">
-        <Card>
-          <div className="stat-title">{t.pauseCard}</div>
-          <div className="stat-main">{(pauseCur * 100).toFixed(1)}<span className="stat-unit">%</span></div>
-          <div className="stat-sub">{trendArrow(pauseCur, pausePrev)} {t.weekOverWeek}</div>
-        </Card>
-        <Card>
-          <div className="stat-title">{t.repetitionCard}</div>
-          <div className="stat-main">{(repCur * 100).toFixed(1)}<span className="stat-unit">%</span></div>
-          <div className="stat-sub">{trendArrow(repCur, repPrev)} {t.weekOverWeek}</div>
-        </Card>
+        <WeeklyRateCard
+          title={t.pauseCard} ratio={week.avgPauseRatio} view={pauseView} note={t.pauseNote}
+          weekOverWeek={t.weekOverWeek} lowSample={t.lowSample} noTrendData={t.noTrendData}
+        />
+        <WeeklyRateCard
+          title={t.repetitionCard} ratio={week.repetitionRatio} view={repView}
+          weekOverWeek={t.weekOverWeek} lowSample={t.lowSample} noTrendData={t.noTrendData}
+        />
       </div>
+      <p className="text-sm text-muted">{t.estimateNote}</p>
 
       <Card header={t.levelHistory}>
         <p className="text-sm text-muted">{t.currentLevel(summary.level.current)}</p>
