@@ -5,11 +5,14 @@ export async function converse(
   activitySessionId: string,
   sessionId?: string,
   scenarioId?: string,
+  /** 画面離脱・録り直し時に要求ごと中断する（サーバがLLM実行まで中断を伝播する・#189） */
+  signal?: AbortSignal,
 ): Promise<{ replyText: string; sessionId: string }> {
   const res = await fetch("/api/converse", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ userText, activitySessionId, sessionId, scenarioId }),
+    signal,
   });
   if (!res.ok) throw new Error(`converse failed: ${await extractErrorMessage(res)}`);
   return res.json();

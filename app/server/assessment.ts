@@ -120,9 +120,11 @@ Do not use any tools — reply directly with text only.`;
 export async function generateMonthlyReport(
   data: MonthData,
   runner: ClaudeRunner = defaultRunner,
+  /** HTTP要求の中断（req.signal）を runner まで伝播する（#189） */
+  signal?: AbortSignal,
 ): Promise<string | null> {
   const prompt = `学習データ(JSON):\n${JSON.stringify(data)}`;
-  const { text } = await runner(prompt, undefined, { systemPrompt: REPORT_SYSTEM });
+  const { text } = await runner(prompt, undefined, { systemPrompt: REPORT_SYSTEM, signal });
   const trimmed = text.trim();
   return trimmed ? trimmed : null;
 }

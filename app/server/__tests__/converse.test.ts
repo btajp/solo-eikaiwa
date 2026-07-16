@@ -59,6 +59,40 @@ describe("converse", () => {
     await converseTurn({ userText: "second turn", sessionId: "claude-sess-1", runner: fakeRunner, logFile });
     expect(calls[0].resumeId).toBe("claude-sess-1");
   });
+
+  test("signal を runner の opts.signal へ伝播する（systemPromptOverride 無し）", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "conv-"));
+    const logFile = path.join(dir, "log.jsonl");
+    const captured: Array<AbortSignal | undefined> = [];
+    const fakeRunner = async (_prompt: string, _resumeId?: string, opts?: { signal?: AbortSignal }) => {
+      captured.push(opts?.signal);
+      return { text: "ok", sessionId: "s1" };
+    };
+    const ac = new AbortController();
+
+    await converseTurn({ userText: "hi", activitySessionId: "a1", runner: fakeRunner, logFile, signal: ac.signal });
+    expect(captured[0]).toBe(ac.signal);
+  });
+
+  test("signal と systemPromptOverride を同時に runner opts へ渡す", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "conv-"));
+    const logFile = path.join(dir, "log.jsonl");
+    const captured: Array<{ signal?: AbortSignal; systemPrompt?: string }> = [];
+    const fakeRunner = async (
+      _prompt: string, _resumeId?: string, opts?: { signal?: AbortSignal; systemPrompt?: string },
+    ) => {
+      captured.push({ signal: opts?.signal, systemPrompt: opts?.systemPrompt });
+      return { text: "ok", sessionId: "s1" };
+    };
+    const ac = new AbortController();
+
+    await converseTurn({
+      userText: "hi", activitySessionId: "a1", runner: fakeRunner, logFile,
+      systemPromptOverride: "ROLEPLAY", signal: ac.signal,
+    });
+    expect(captured[0].signal).toBe(ac.signal);
+    expect(captured[0].systemPrompt).toBe("ROLEPLAY");
+  });
 });
 
 describe("makeClaudeRunner", () => {

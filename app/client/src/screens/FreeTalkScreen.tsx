@@ -62,9 +62,9 @@ export function FreeTalkScreen(props: {
   if (pipelineRef.current === null) {
     pipelineRef.current = new FreeTalkPipeline({
       transcribe: sttUpload,
-      requestReply: (text, sessionId) => {
+      requestReply: (text, sessionId, signal) => {
         const current = latestPropsRef.current;
-        return converse(text, current.activitySessionId, sessionId, current.scenarioId);
+        return converse(text, current.activitySessionId, sessionId, current.scenarioId, signal);
       },
       createAudio: ttsFetch,
       playAudio: playBlob,

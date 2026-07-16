@@ -44,6 +44,8 @@ async function handleConverse(req: Request, deps: ConverseRoutesDeps): Promise<R
     sessionId: body.sessionId,
     activitySessionId: body.activitySessionId,
     systemPromptOverride,
+    // 切断・タブクローズ等のHTTP中断をLLM runnerまで伝播する（#189）
+    signal: req.signal,
   });
   return json(r);
 }

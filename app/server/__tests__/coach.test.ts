@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  extractJson, generateAeFeedback, generateFixExplanation, generateModelTalk, generatePhraseHints, generatePrepPack, generateReflection, generateUtteranceTranslation, roleplayPrompt,
+  extractJson, generateAeFeedback, generateFixExplanation, generateModelTalk, generatePhraseHints, generatePrepPack, generateReflection, generateTalkExplanation, generateUtteranceTranslation, roleplayPrompt,
   type AeFeedback, type PrepPack,
 } from "../coach";
 import type { ClaudeRunner } from "../converse";
@@ -407,4 +407,29 @@ describe("roleplayPrompt", () => {
     expect(p).toContain("B1 level");
     expect(p).not.toContain("word families");
   });
+});
+
+describe("coach: AbortSignal を runner opts.signal へ伝播する（HTTP中断がLLM実行まで届く配線・#189）", () => {
+  const cases: Array<[string, (runner: ClaudeRunner, signal: AbortSignal) => Promise<unknown>]> = [
+    ["generateAeFeedback", (r, s) => generateAeFeedback({ transcript: "t", topicTitle: "x", stage: 2, signal: s }, r)],
+    ["generateModelTalk", (r, s) => generateModelTalk({ topicTitle: "x", hints: ["h"], stage: 2, signal: s }, r)],
+    ["generateReflection", (r, s) => generateReflection({ events: [], signal: s }, r)],
+    ["generatePrepPack", (r, s) => generatePrepPack({ topicTitle: "x", hints: ["h"], stage: 2, signal: s }, r)],
+    ["generatePhraseHints", (r, s) => generatePhraseHints({ jaText: "助けて", signal: s }, r)],
+    ["generateFixExplanation", (r, s) => generateFixExplanation({ original: "a", better: "b", signal: s }, r)],
+    ["generateUtteranceTranslation", (r, s) => generateUtteranceTranslation({ text: "hi", signal: s }, r)],
+    ["generateTalkExplanation", (r, s) => generateTalkExplanation({ text: "hi", signal: s }, r)],
+  ];
+  for (const [name, invoke] of cases) {
+    test(`${name} は args.signal を runner へ渡す`, async () => {
+      const captured: Array<AbortSignal | undefined> = [];
+      const runner: ClaudeRunner = async (_prompt, _resumeId, opts) => {
+        captured.push(opts?.signal);
+        return { text: "{}", sessionId: "s" };
+      };
+      const ac = new AbortController();
+      await invoke(runner, ac.signal);
+      expect(captured[0]).toBe(ac.signal);
+    });
+  }
 });

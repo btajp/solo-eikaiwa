@@ -47,6 +47,28 @@ describe("routes: converse", () => {
     expect(seen).toBe("practice-1");
   });
 
+  test("req.signal を deps.converse の signal へ渡し、要求中断が伝播する（#189）", async () => {
+    let captured: AbortSignal | undefined;
+    const { deps } = makeTestDeps({
+      converse: async (args) => {
+        captured = args.signal;
+        return { replyText: "ok", sessionId: "s1" };
+      },
+    });
+    const ac = new AbortController();
+    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/converse", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userText: "Hi", activitySessionId: "practice-1" }),
+      signal: ac.signal,
+    }));
+    expect(res.status).toBe(200);
+    expect(captured).toBeDefined();
+    expect(captured!.aborted).toBe(false);
+    ac.abort();
+    expect(captured!.aborted).toBe(true);
+  });
+
   test("不正なJSONボディは400（500にならない）", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);

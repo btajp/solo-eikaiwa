@@ -5,8 +5,8 @@ import { isIdempotencyKey } from "../idempotency-key";
 import { json, parseJsonBody, exact, bestEffort, type RouteEntry } from "./http";
 
 export type PlacementRoutesDeps = {
-  /** 3タスクの評価。LLM出力が不正なら null（ルートは502で再試行を促す） */
-  evaluatePlacement: (subs: PlacementSubmission[]) => Promise<PlacementEvaluation | null>;
+  /** 3タスクの評価。LLM出力が不正なら null（ルートは502で再試行を促す）。signal はHTTP中断の伝播（#189） */
+  evaluatePlacement: (subs: PlacementSubmission[], signal?: AbortSignal) => Promise<PlacementEvaluation | null>;
   /** プレースメント測定結果の保存と最新取得（実体は placement.ts、テストはフェイク） */
   placementStore: PlacementStore;
   progressStore: ProgressStore;
@@ -61,7 +61,7 @@ async function handlePlacementSubmit(req: Request, deps: PlacementRoutesDeps): P
     }
     return evaluationResponse(prior.evaluation);
   }
-  const ev = await deps.evaluatePlacement(subs);
+  const ev = await deps.evaluatePlacement(subs, req.signal);
   if (!ev) return json({ error: "evaluation failed — please try submitting again" }, 502);
   const outcome = deps.placementStore.recordSubmission({
     submissionId,

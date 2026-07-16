@@ -323,3 +323,88 @@ describe("routes: 訂正の詳しい解説（fix-explain）", () => {
     expect(receivedLen).toBe(500);
   });
 });
+
+describe("routes: coach + AbortSignal 伝播（#189）", () => {
+  /** signal付きJSON POSTリクエスト */
+  function postJsonWithSignal(path: string, body: unknown, signal: AbortSignal): Request {
+    return new Request(`http://localhost${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+  }
+
+  test("POST /api/feedback/ae は req.signal を deps.aeFeedback へ渡す", async () => {
+    let captured: AbortSignal | undefined;
+    const { deps } = makeTestDeps({
+      aeFeedback: async (args) => {
+        captured = args.signal;
+        return FAKE_AE;
+      },
+    });
+    const ac = new AbortController();
+    const res = await makeFetchHandler(deps)(
+      postJsonWithSignal("/api/feedback/ae", { transcript: "I go yesterday", topicTitle: "t" }, ac.signal),
+    );
+    expect(res.status).toBe(200);
+    expect(captured).toBeDefined();
+    ac.abort();
+    expect(captured!.aborted).toBe(true);
+  });
+
+  test("POST /api/coach/reflection は req.signal を deps.reflection へ渡す", async () => {
+    let captured: AbortSignal | undefined;
+    const { deps } = makeTestDeps({
+      reflection: async (_sessionId, signal) => {
+        captured = signal;
+        return FAKE_REFLECTION;
+      },
+    });
+    const ac = new AbortController();
+    const res = await makeFetchHandler(deps)(
+      postJsonWithSignal("/api/coach/reflection", { sessionId: "sess-1" }, ac.signal),
+    );
+    expect(res.status).toBe(200);
+    expect(captured).toBeDefined();
+    ac.abort();
+    expect(captured!.aborted).toBe(true);
+  });
+
+  test("POST /api/coach/translate は req.signal を deps.translate へ渡す（キャッシュmiss時）", async () => {
+    let captured: AbortSignal | undefined;
+    const { deps } = makeTestDeps({
+      translationCache: makeFakeTalkExplainCache(),
+      translate: async (_text, signal) => {
+        captured = signal;
+        return { text: "訳" };
+      },
+    });
+    const ac = new AbortController();
+    const res = await makeFetchHandler(deps)(
+      postJsonWithSignal("/api/coach/translate", { text: "hello" }, ac.signal),
+    );
+    expect(res.status).toBe(200);
+    expect(captured).toBeDefined();
+    ac.abort();
+    expect(captured!.aborted).toBe(true);
+  });
+
+  test("POST /api/coach/phrase-hint は req.signal を deps.phraseHint へ渡す", async () => {
+    let captured: AbortSignal | undefined;
+    const { deps } = makeTestDeps({
+      phraseHint: async (args) => {
+        captured = args.signal;
+        return { suggestions: [{ en: "One moment.", ja: "少し待って" }] };
+      },
+    });
+    const ac = new AbortController();
+    const res = await makeFetchHandler(deps)(
+      postJsonWithSignal("/api/coach/phrase-hint", { jaText: "少し待って" }, ac.signal),
+    );
+    expect(res.status).toBe(200);
+    expect(captured).toBeDefined();
+    ac.abort();
+    expect(captured!.aborted).toBe(true);
+  });
+});

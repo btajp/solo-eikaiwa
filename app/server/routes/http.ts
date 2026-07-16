@@ -4,6 +4,27 @@ export function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 }
 
+/**
+ * 全レスポンス共通のセキュリティヘッダ（#204・防御の深さ）。
+ * - frame-ancestors 'none' / X-Frame-Options: DENY: 外部サイトが http://127.0.0.1:<port>/ を iframe に
+ *   埋め込むクリックジャッキングを遮断する。Tauri デスクトップ版の webview はトップレベル navigation で
+ *   読み込む（desktop/src-tauri/src/attach.rs）ため framing 制限の影響を受けない。
+ * - X-Content-Type-Options: nosniff: 配信 MIME の推測実行を禁止する（static.ts は拡張子別に明示 MIME を返す）。
+ * script-src 等の CSP は付けない — 配信物は自前ビルドの dist だけで、loopback 専用・インライン資産を壊さない
+ * 保守的な範囲に留める。
+ */
+const SECURITY_HEADERS: ReadonlyArray<readonly [string, string]> = [
+  ["x-content-type-options", "nosniff"],
+  ["x-frame-options", "DENY"],
+  ["content-security-policy", "frame-ancestors 'none'"],
+];
+
+/** makeFetchHandler の出口で全レスポンスへセキュリティヘッダを付与する（既存ヘッダは変更しない）。 */
+export function withSecurityHeaders(res: Response): Response {
+  for (const [name, value] of SECURITY_HEADERS) res.headers.set(name, value);
+  return res;
+}
+
 export type ParsedBody<T> = { ok: true; body: T } | { ok: false; response: Response };
 
 export const JSON_BODY_MAX_BYTES = 64 * 1024;

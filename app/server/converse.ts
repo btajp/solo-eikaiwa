@@ -383,6 +383,8 @@ export async function converseTurn(args: {
   runner?: ClaudeRunner;
   logFile?: string;
   systemPromptOverride?: string;
+  /** HTTP要求の中断（req.signal）を runner まで伝播する（切断後にLLM実行が180秒続くのを防ぐ・#189） */
+  signal?: AbortSignal;
 }): Promise<{ replyText: string; sessionId: string }> {
   const runner = args.runner ?? defaultRunner;
   const logFile = args.logFile ?? sessionLogPath(new Date());
@@ -395,12 +397,14 @@ export async function converseTurn(args: {
 
   let text: string;
   let sessionId: string;
+  const runnerOpts = args.systemPromptOverride || args.signal
+    ? {
+        ...(args.systemPromptOverride ? { systemPrompt: args.systemPromptOverride } : {}),
+        ...(args.signal ? { signal: args.signal } : {}),
+      }
+    : undefined;
   try {
-    ({ text, sessionId } = await runner(
-      args.userText,
-      args.sessionId,
-      args.systemPromptOverride ? { systemPrompt: args.systemPromptOverride } : undefined,
-    ));
+    ({ text, sessionId } = await runner(args.userText, args.sessionId, runnerOpts));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     appendEvent(logFile, {

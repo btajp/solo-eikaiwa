@@ -164,3 +164,60 @@ test("処理中の再試行要求は、進行中の要求を無効化しない",
   expect(users).toEqual(["Hello"]);
   expect(pipeline.state.phase).toBe("idle");
 });
+
+test("cancel() は進行中の会話要求のAbortSignalを中断する（#189）", async () => {
+  const reply = deferred<{ replyText: string; sessionId: string }>();
+  const signals: Array<AbortSignal | undefined> = [];
+  const pipeline = new FreeTalkPipeline({
+    transcribe: async () => "Hello",
+    requestReply: (_text, _sessionId, signal) => {
+      signals.push(signal);
+      return reply.promise;
+    },
+    createAudio: async () => new Blob(["audio"]),
+    playAudio: async () => {},
+  });
+
+  const run = pipeline.submitRecording(new Blob(["recording"]));
+  await flush();
+  expect(pipeline.state.phase).toBe("thinking");
+  expect(signals[0]).toBeDefined();
+  expect(signals[0]!.aborted).toBe(false);
+
+  pipeline.cancel();
+  expect(signals[0]!.aborted).toBe(true);
+
+  reply.reject(new Error("aborted"));
+  await run;
+  // cancel後の失敗はUI状態へ反映しない（unmount済みの画面を触らない既存規約）
+  expect(pipeline.state.failure).toBeNull();
+});
+
+test("reset() も進行中の会話要求を中断し、再試行の新要求は新しいsignalを持つ", async () => {
+  const firstReply = deferred<{ replyText: string; sessionId: string }>();
+  const signals: AbortSignal[] = [];
+  let replyAttempt = 0;
+  const pipeline = new FreeTalkPipeline({
+    transcribe: async () => "Hello",
+    requestReply: (_text, _sessionId, signal) => {
+      signals.push(signal!);
+      return replyAttempt++ === 0 ? firstReply.promise : Promise.resolve({ replyText: "Hi!", sessionId: "s1" });
+    },
+    createAudio: async () => new Blob(["audio"]),
+    playAudio: async () => {},
+  });
+
+  const run = pipeline.submitRecording(new Blob(["recording"]));
+  await flush();
+  pipeline.reset();
+  expect(signals[0].aborted).toBe(true);
+  firstReply.reject(new Error("aborted"));
+  await run;
+
+  const second = pipeline.submitRecording(new Blob(["recording-2"]));
+  await flush();
+  expect(signals[1]).toBeDefined();
+  expect(signals[1].aborted).toBe(false);
+  await second;
+  expect(pipeline.state.phase).toBe("idle");
+});

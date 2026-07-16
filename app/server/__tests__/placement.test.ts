@@ -70,6 +70,17 @@ describe("placement: evaluatePlacement", () => {
     expect(seen).toContain("I work as an engineer");
     for (const t of PLACEMENT_TASKS) expect(seen).toContain(t.promptText);
   });
+
+  test("signal を runner の opts.signal へ伝播する（#189）", async () => {
+    const captured: Array<AbortSignal | undefined> = [];
+    const spy: ClaudeRunner = async (_prompt, _resumeId, opts) => {
+      captured.push(opts?.signal);
+      return { text: '{"stage":2,"rationaleJa":"x"}', sessionId: "s" };
+    };
+    const ac = new AbortController();
+    await evaluatePlacement(SUBS, spy, ac.signal);
+    expect(captured[0]).toBe(ac.signal);
+  });
 });
 
 describe("placement: store", () => {

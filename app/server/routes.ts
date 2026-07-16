@@ -1,5 +1,5 @@
 import { appendEvent, isErrorLogged } from "./session-log";
-import { json, type RouteEntry } from "./routes/http";
+import { json, withSecurityHeaders, type RouteEntry } from "./routes/http";
 import { serveStatic, type StaticRoutesDeps } from "./routes/static";
 import { makeDevRoutes, type DevRoutesDeps } from "./routes/dev";
 import { CLIENT_DIST_DIR } from "./paths";
@@ -63,7 +63,7 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
     ...makeSetupRoutes(deps),
     ...makeDevRoutes(deps),
   ];
-  return async function fetch(req: Request): Promise<Response> {
+  async function dispatch(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const violation = validateRequestBoundary(req, url);
     if (violation) return json({ error: violation.error }, violation.status);
@@ -95,5 +95,9 @@ export function makeFetchHandler(deps: RouteDeps): (req: Request) => Promise<Res
       }
       return json({ error: message }, 500);
     }
+  }
+  // 出口の1点で全レスポンス（静的配信・API・404・エラー・境界拒否）へセキュリティヘッダを付与する（#204）
+  return async function fetch(req: Request): Promise<Response> {
+    return withSecurityHeaders(await dispatch(req));
   };
 }

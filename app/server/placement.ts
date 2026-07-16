@@ -67,6 +67,8 @@ Do not use any tools — reply directly with text only.`;
 export async function evaluatePlacement(
   submissions: PlacementSubmission[],
   runner: ClaudeRunner = defaultRunner,
+  /** HTTP要求の中断（req.signal）を runner まで伝播する（#189） */
+  signal?: AbortSignal,
 ): Promise<PlacementEvaluation | null> {
   const sections = submissions.map((s) => {
     const def = PLACEMENT_TASKS.find((t) => t.id === s.taskId);
@@ -79,7 +81,7 @@ export async function evaluatePlacement(
       s.transcript,
     ].join("\n");
   });
-  const { text } = await runner(sections.join("\n\n"), undefined, { systemPrompt: EVAL_SYSTEM });
+  const { text } = await runner(sections.join("\n\n"), undefined, { systemPrompt: EVAL_SYSTEM, signal });
   const parsed = extractJson<{ stage?: unknown; rationaleJa?: unknown }>(text);
   if (!parsed) return null;
   const { stage, rationaleJa } = parsed;

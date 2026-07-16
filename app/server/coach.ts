@@ -40,11 +40,11 @@ Do not use any tools — reply directly with text only.`;
 }
 
 export async function generateAeFeedback(
-  args: { transcript: string; topicTitle: string; stage: number },
+  args: { transcript: string; topicTitle: string; stage: number; signal?: AbortSignal },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<AeFeedback> {
   const prompt = `Topic: ${args.topicTitle}\n\nLearner's transcript:\n${args.transcript}`;
-  const { text } = await runner(prompt, undefined, { systemPrompt: makeAeSystem(args.stage) });
+  const { text } = await runner(prompt, undefined, { systemPrompt: makeAeSystem(args.stage), signal: args.signal });
   const parsed = extractJson<AeFeedback>(text);
   if (parsed && Array.isArray(parsed.items)) return parsed;
   // パース失敗時のフォールバック: 素のテキストを1itemに包んでUIに出せる形にする
@@ -81,10 +81,10 @@ Do not use any tools — reply directly with text only.`;
 
 /** モデルトークの日本語訳＋表現ポイント解説（routes 側で本文ハッシュをキーにキャッシュされる） */
 export async function generateTalkExplanation(
-  args: { text: string },
+  args: { text: string; signal?: AbortSignal },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<{ text: string }> {
-  const { text } = await runner(args.text, undefined, { systemPrompt: TALK_EXPLAIN_SYSTEM });
+  const { text } = await runner(args.text, undefined, { systemPrompt: TALK_EXPLAIN_SYSTEM, signal: args.signal });
   return { text: text.trim() };
 }
 
@@ -95,10 +95,10 @@ Do not use any tools — reply directly with text only.`;
 
 /** AI発話の日本語訳のみを生成する（表現解説は付けない・routes 側で本文ハッシュをキーにキャッシュされる） */
 export async function generateUtteranceTranslation(
-  args: { text: string },
+  args: { text: string; signal?: AbortSignal },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<{ text: string }> {
-  const { text } = await runner(args.text, undefined, { systemPrompt: TRANSLATE_SYSTEM });
+  const { text } = await runner(args.text, undefined, { systemPrompt: TRANSLATE_SYSTEM, signal: args.signal });
   return { text: text.trim() };
 }
 
@@ -116,7 +116,7 @@ Do not use any tools — reply directly with text only.`;
 
 /** 言い方ヒント: 言いたい日本語＋直近履歴から英語表現を2〜3個提案する（キャッシュしない） */
 export async function generatePhraseHints(
-  args: { jaText: string; history?: Array<{ role: "you" | "ai"; text: string }> },
+  args: { jaText: string; history?: Array<{ role: "you" | "ai"; text: string }>; signal?: AbortSignal },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<{ suggestions: PhraseHint[] }> {
   const context = (args.history ?? [])
@@ -125,7 +125,7 @@ export async function generatePhraseHints(
   const prompt = context
     ? `Recent conversation:\n${context}\n\nThe learner wants to say (in Japanese):\n${args.jaText}`
     : `The learner wants to say (in Japanese):\n${args.jaText}`;
-  const { text } = await runner(prompt, undefined, { systemPrompt: PHRASE_HINT_SYSTEM });
+  const { text } = await runner(prompt, undefined, { systemPrompt: PHRASE_HINT_SYSTEM, signal: args.signal });
   const parsed = extractJson<{ suggestions: PhraseHint[] }>(text);
   if (parsed && Array.isArray(parsed.suggestions)) {
     const suggestions = parsed.suggestions
@@ -148,12 +148,12 @@ Do not use any tools — reply directly with text only.`;
 
 /** 訂正（original→better）の詳しい日本語解説を生成する（プレーンテキスト・キャッシュしない・ボタン起点） */
 export async function generateFixExplanation(
-  args: { original: string; better: string; note?: string },
+  args: { original: string; better: string; note?: string; signal?: AbortSignal },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<{ text: string }> {
   const noteLine = args.note?.trim() ? `\nIssue: ${args.note.trim()}` : "";
   const prompt = `Original: ${args.original}\nBetter: ${args.better}${noteLine}`;
-  const { text } = await runner(prompt, undefined, { systemPrompt: FIX_EXPLAIN_SYSTEM });
+  const { text } = await runner(prompt, undefined, { systemPrompt: FIX_EXPLAIN_SYSTEM, signal: args.signal });
   return { text: text.trim() };
 }
 
@@ -181,11 +181,11 @@ Do not use any tools — reply directly with text only.`;
 }
 
 export async function generateModelTalk(
-  args: { topicTitle: string; hints: string[]; stage: number },
+  args: { topicTitle: string; hints: string[]; stage: number; signal?: AbortSignal },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<{ text: string }> {
   const prompt = `Topic: ${args.topicTitle}\nCover these angles:\n${args.hints.map((h) => `- ${h}`).join("\n")}`;
-  const { text } = await runner(prompt, undefined, { systemPrompt: modelTalkSystem(args.stage) });
+  const { text } = await runner(prompt, undefined, { systemPrompt: modelTalkSystem(args.stage), signal: args.signal });
   return { text };
 }
 
@@ -197,7 +197,7 @@ Keep fixes to the 3 most useful items.
 Do not use any tools — reply directly with text only.`;
 
 export async function generateReflection(
-  args: { events: SessionEvent[] },
+  args: { events: SessionEvent[]; signal?: AbortSignal },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<Reflection> {
   const utterances = args.events
@@ -205,7 +205,7 @@ export async function generateReflection(
     .map((e) => `- ${e.text}`)
     .join("\n");
   const prompt = `This session's learner utterances:\n${utterances || "(none)"}`;
-  const { text } = await runner(prompt, undefined, { systemPrompt: REFLECTION_SYSTEM });
+  const { text } = await runner(prompt, undefined, { systemPrompt: REFLECTION_SYSTEM, signal: args.signal });
   const parsed = extractJson<Reflection>(text);
   if (parsed && Array.isArray(parsed.goodPhrases)) return parsed;
   return { goodPhrases: [], fixes: [], noteForTomorrow_ja: text };
@@ -239,14 +239,14 @@ Do not use any tools — reply directly with text only.`;
 }
 
 export async function generatePrepPack(
-  args: { topicTitle: string; hints: string[]; chunkCount?: number; hintLang?: HintLang; stage: number },
+  args: { topicTitle: string; hints: string[]; chunkCount?: number; hintLang?: HintLang; stage: number; signal?: AbortSignal },
   runner: ClaudeRunner = defaultRunner,
 ): Promise<PrepPack> {
   const chunkCount = args.chunkCount ?? 6;
   // hintLang は「表示既定の供給者」。ja のデータ自体は常に返し、表示するかはクライアントが決める。
   const hintDefault: HintLang = args.hintLang ?? "ja";
   const prompt = `Topic: ${args.topicTitle}\nHint angles:\n${args.hints.map((h) => `- ${h}`).join("\n")}`;
-  const { text } = await runner(prompt, undefined, { systemPrompt: prepSystem(chunkCount, args.stage) });
+  const { text } = await runner(prompt, undefined, { systemPrompt: prepSystem(chunkCount, args.stage), signal: args.signal });
   const parsed = extractJson<PrepPack>(text);
   if (parsed && Array.isArray(parsed.chunks) && Array.isArray(parsed.outline)) {
     // Sanitize chunks: keep only items where both en and ja are strings（ja は空にしない）

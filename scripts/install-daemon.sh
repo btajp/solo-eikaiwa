@@ -40,8 +40,17 @@ generate_plist() {
   <key>RunAtLoad</key>
   <true/>
 
+  <!-- クラッシュ（非ゼロ終了）時のみ再起動する。ポート占有時にサーバが exit 0 で自発退出しても
+       再起動ループに入らない（#208）。無条件 <true/> へ戻さないこと。 -->
   <key>KeepAlive</key>
-  <true/>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <!-- 連続クラッシュ時の再起動間隔（launchd既定の約10秒より長いバックオフ）。 -->
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
 
   <key>StandardOutPath</key>
   <string>${LOG_DIR}/server.stdout.log</string>

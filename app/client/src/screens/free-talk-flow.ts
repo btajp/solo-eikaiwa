@@ -27,7 +27,8 @@ export type ConversationReply = { replyText: string; sessionId: string };
 
 export type FreeTalkPipelineOptions = {
   transcribe: (recording: Blob) => Promise<string>;
-  requestReply: (userText: string, sessionId?: string) => Promise<ConversationReply>;
+  /** signal は cancel()/reset()/操作の乗り換え時に abort される（切断後もサーバ側LLM実行が続くのを防ぐ・#189） */
+  requestReply: (userText: string, sessionId?: string, signal?: AbortSignal) => Promise<ConversationReply>;
   createAudio: (text: string) => Promise<Blob>;
   playAudio: (audio: Blob) => Promise<unknown>;
   onUser?: (text: string) => void;
@@ -50,6 +51,8 @@ export class FreeTalkPipeline {
   private operation = 0;
   private conversationSessionId: string | undefined;
   private currentState = initialConversationPipelineState();
+  /** 進行中の会話要求（requestReply）を中断するためのAbortController（#189） */
+  private replyAbort: AbortController | null = null;
 
   constructor(private readonly options: FreeTalkPipelineOptions) {}
 
@@ -57,39 +60,46 @@ export class FreeTalkPipeline {
     return this.currentState;
   }
 
+  /** 進行中の要求を無効化して次の操作番号を発番する。遅延応答の破棄と同時に転送中のfetchも中断する。 */
+  private nextOperation(): number {
+    this.replyAbort?.abort();
+    this.replyAbort = null;
+    return ++this.operation;
+  }
+
   async submitRecording(recording: Blob): Promise<void> {
     if (this.currentState.phase !== "idle") return;
-    const operation = ++this.operation;
+    const operation = this.nextOperation();
     await this.transcribe(recording, operation);
   }
 
   async retry(): Promise<void> {
     const { phase, recording, userText, replyText, audioBlob } = this.currentState;
     if (phase === "stt-retry" && recording) {
-      const operation = ++this.operation;
+      const operation = this.nextOperation();
       await this.transcribe(recording, operation);
       return;
     }
     if (phase === "reply-retry" && userText) {
-      const operation = ++this.operation;
+      const operation = this.nextOperation();
       await this.requestReply(userText, operation);
       return;
     }
     if (phase === "audio-retry" && replyText) {
-      const operation = ++this.operation;
+      const operation = this.nextOperation();
       await this.playReply(replyText, audioBlob, operation);
     }
   }
 
   /** STT失敗の録り直し等で中間結果を破棄する。会話session自体は既存turnのため保持する。 */
   reset(): void {
-    this.operation++;
+    this.nextOperation();
     this.setState(initialConversationPipelineState());
   }
 
-  /** unmount時に遅延した応答を無効化する。UIへの通知はしない。 */
+  /** unmount時に遅延した応答を無効化し、進行中の会話要求も中断する。UIへの通知はしない。 */
   cancel(): void {
-    this.operation++;
+    this.nextOperation();
   }
 
   private isCurrent(operation: number): boolean {
@@ -136,8 +146,11 @@ export class FreeTalkPipeline {
       phase: "thinking", failure: null, error: null,
       recording: null, userText, replyText: null, audioBlob: null,
     });
+    const abort = new AbortController();
+    this.replyAbort = abort;
     try {
-      const reply = await this.options.requestReply(userText, this.conversationSessionId);
+      const reply = await this.options.requestReply(userText, this.conversationSessionId, abort.signal);
+      if (this.replyAbort === abort) this.replyAbort = null;
       if (!this.isCurrent(operation)) return;
       this.conversationSessionId = reply.sessionId;
       this.setState({
@@ -147,6 +160,7 @@ export class FreeTalkPipeline {
       this.options.onReply?.(reply.replyText, reply.sessionId);
       await this.playReply(reply.replyText, null, operation);
     } catch (error) {
+      if (this.replyAbort === abort) this.replyAbort = null;
       if (!this.isCurrent(operation)) return;
       this.setState({
         phase: "reply-retry", failure: "reply", error,

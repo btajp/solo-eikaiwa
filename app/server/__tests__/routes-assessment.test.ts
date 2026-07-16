@@ -72,3 +72,25 @@ describe("routes: assessment", () => {
     expect(await (await handler(getReq("/api/assessment/list"))).json()).toEqual({ reports: [{ ...row, preview: "本文" }] });
   });
 });
+
+describe("routes: assessment + AbortSignal 伝播（#189）", () => {
+  test("POST generate は req.signal を deps.generateMonthlyReport へ渡す", async () => {
+    let captured: AbortSignal | undefined;
+    const { deps } = makeTestDeps({
+      generateMonthlyReport: async (_data, signal) => {
+        captured = signal;
+        return "今月のレポート";
+      },
+    });
+    const ac = new AbortController();
+    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/assessment/generate", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+      signal: ac.signal,
+    }));
+    expect(res.status).toBe(200);
+    expect(captured).toBeDefined();
+    ac.abort();
+    expect(captured!.aborted).toBe(true);
+  });
+});

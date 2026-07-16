@@ -162,6 +162,17 @@ describe("assessment / generateMonthlyReport", () => {
     expect(await generateMonthlyReport({} as never, fake)).toBeNull();
   });
 
+  test("signal を runner の opts.signal へ伝播する（#189）", async () => {
+    const captured: Array<AbortSignal | undefined> = [];
+    const fake: ClaudeRunner = async (_prompt, _resumeId, opts) => {
+      captured.push(opts?.signal);
+      return { text: "レポート", sessionId: "s" };
+    };
+    const ac = new AbortController();
+    await generateMonthlyReport({} as never, fake, ac.signal);
+    expect(captured[0]).toBe(ac.signal);
+  });
+
   test("システムプロンプトが発話指標を推定値として扱い、ポーズ全削減へ誘導しない指示を含む", async () => {
     // Issue #183/#217: 調音速度・ポーズ比率は文字起こしセグメント由来の近似値で、
     // ポーズ比率は節内（文中の詰まり）と節末（考えるポーズ）を区別できない。

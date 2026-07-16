@@ -191,26 +191,26 @@ const realDeps: RouteDeps = {
   pocLogFile: POC_STT_LOG_FILE,
   buildMenu: (minutes) => buildTodayMenu(minutes, { level: progressStore.getLevel() }),
   aeFeedback: (args) => generateAeFeedback({ ...args, stage: stageOf(progressStore.getLevel()) }, runnerFor("coaching")),
-  modelTalk: async (topicId) => {
+  modelTalk: async (topicId, signal) => {
     const topic = findTopic(topicId);
     if (!topic) return null;
     const stage = stageOf(progressStore.getLevel());
     const talk = await resolveModelTalk(
       topicId, stage,
       { assetsDir: TOPIC_ASSETS_DIR, topicsDir: TOPICS_DIR, cache: topicAssetCacheStore },
-      () => generateModelTalk({ topicTitle: topic.title, hints: topic.hints, stage }, runnerFor("generation")),
+      () => generateModelTalk({ topicTitle: topic.title, hints: topic.hints, stage, signal }, runnerFor("generation")),
     );
     return { text: talk.text, topicTitle: topic.title, topicTitleJa: topic.titleJa };
   },
   libraryStore,
   libraryTopics,
-  reflection: (sessionId) => generateReflection({ events: readSessionEvents(sessionId) }, runnerFor("coaching")),
+  reflection: (sessionId, signal) => generateReflection({ events: readSessionEvents(sessionId), signal }, runnerFor("coaching")),
   scenarioPrompt: (scenarioId) => {
     const sc = findScenario(scenarioId);
     return sc ? roleplayPrompt(sc, stageOf(progressStore.getLevel())) : null;
   },
   conversationStage: () => stageOf(progressStore.getLevel()),
-  prepPack: async (topicId) => {
+  prepPack: async (topicId, signal) => {
     const topic = findTopic(topicId);
     if (!topic) return null;
     const stage = stageOf(progressStore.getLevel());
@@ -218,7 +218,7 @@ const realDeps: RouteDeps = {
     return resolvePrepPack(
       topicId, stage,
       { assetsDir: TOPIC_ASSETS_DIR, topicsDir: TOPICS_DIR, cache: topicAssetCacheStore },
-      () => generatePrepPack({ topicTitle: topic.title, hints: topic.hints, chunkCount: p.chunkCount, hintLang: p.hintLang, stage }, runnerFor("generation")),
+      () => generatePrepPack({ topicTitle: topic.title, hints: topic.hints, chunkCount: p.chunkCount, hintLang: p.hintLang, stage, signal }, runnerFor("generation")),
     );
   },
   buildQuick: (kind, domain) => buildQuickMenu(kind, { level: progressStore.getLevel(), domain }),
@@ -231,18 +231,18 @@ const realDeps: RouteDeps = {
   srsReviewStore,
   invalidateMenuCache: () => invalidateTodayMenuCache(),
   placementStore,
-  evaluatePlacement: (subs) => evaluatePlacement(subs, runnerFor("assessment")),
+  evaluatePlacement: (subs, signal) => evaluatePlacement(subs, runnerFor("assessment"), signal),
   explainSentence: (s) => generateSentenceExplanation(s, runnerFor("coaching")),
-  explainTalk: (text) => generateTalkExplanation({ text }, runnerFor("coaching")),
+  explainTalk: (text, signal) => generateTalkExplanation({ text, signal }, runnerFor("coaching")),
   talkExplainCache: makeTalkExplainCache(db),
-  translate: (text) => generateUtteranceTranslation({ text }, runnerFor("assist")),
+  translate: (text, signal) => generateUtteranceTranslation({ text, signal }, runnerFor("assist")),
   translationCache: makeTranslationCache(db),
   phraseHint: (args) => generatePhraseHints(args, runnerFor("assist")),
   fixExplain: (args) => generateFixExplanation(args, runnerFor("assist")),
   metricsSummary,
   assessmentStore,
   assembleMonthData: () => assembleMonthData(),
-  generateMonthlyReport: (data) => generateMonthlyReport(data, runnerFor("assessment")),
+  generateMonthlyReport: (data, signal) => generateMonthlyReport(data, runnerFor("assessment"), signal),
   listListening: () => loadListening(LISTENING_DIR),
   findListening: (id) => findListening(id),
   listeningStore,
@@ -386,7 +386,7 @@ if (savedLlm || hasRoleOverride || hasTuningOverride) {
   }
 }
 
-serveOrExit({
+await serveOrExit({
   port: PORT,
   hostname: HOSTNAME,
   idleTimeout: 120,

@@ -150,3 +150,31 @@ describe("placement API", () => {
     expect(await res2.json()).toEqual({ result: { id: 9, ts: "2026-07-06T00:00:00.000Z", stage: 3, startLevel: 23, rationale: "r" } });
   });
 });
+
+describe("placement API + AbortSignal 伝播（#189）", () => {
+  const VALID_TASKS = [
+    { taskId: "self-intro", transcript: "I am an engineer.", durationSec: 40, wordCount: 4 },
+    { taskId: "describe-situation", transcript: "My laptop restarted before the meeting.", durationSec: 60, wordCount: 6 },
+    { taskId: "give-opinion", transcript: "I agree because commuting takes time.", durationSec: 35, wordCount: 6 },
+  ];
+
+  test("POST submit は req.signal を deps.evaluatePlacement へ渡す", async () => {
+    let captured: AbortSignal | undefined;
+    const { deps } = makeTestDeps({
+      evaluatePlacement: async (_subs, signal) => {
+        captured = signal;
+        return { stage: 2, startLevel: 13, rationaleJa: "簡単な文は安定しています。" };
+      },
+    });
+    const ac = new AbortController();
+    const res = await makeFetchHandler(deps)(new Request("http://localhost/api/placement/submit", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tasks: VALID_TASKS, submissionId: "placement-signal-001" }),
+      signal: ac.signal,
+    }));
+    expect(res.status).toBe(200);
+    expect(captured).toBeDefined();
+    ac.abort();
+    expect(captured!.aborted).toBe(true);
+  });
+});
