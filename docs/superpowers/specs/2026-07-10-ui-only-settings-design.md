@@ -35,6 +35,8 @@
 - 解決（いずれも同梱音声ヒットは従来どおり最優先）: `say` = HTTP を試さず常に macOS say / `openai-compat` = 常に HTTP を試す（鍵・baseUrl の暗黙判定をスキップ）。ただし **HTTP 失敗時の say フォールバックは維持**する — 「固定」は試行順の固定であり、音声が出ないより劣化再生のほうが学習体験を壊さないため（フォールバック発生はログで判別可能にする）/ `auto`（既定）= 現行の暗黙決定と完全同一（回帰基準）
 - `PUT /api/tts-settings` の入力に provider を追加（別テーブルへ保存・既存フィールドと一括更新）
 
+> **2026-07-17 改訂注記（§2c）**: TTS プロバイダの `auto`（暗黙決定）と HTTP 失敗時の say フォールバックは v0.29.1 で廃止済み。現行は **`say` / `openai`（公式）/ `openai-compat` の明示3値選択（既定 `say`）**で、明示選択したプロバイダの HTTP 合成失敗時は別エンジンへ黙って切り替えず失敗をユーザーに提示する（旧 `auto`・行不在は移行 resolver で明示値へ正規化）。現行の正は `app/server/tts-provider-store.ts`・`app/server/tts.ts`。
+
 ### 2d. クライアント UI（`SettingsScreen.tsx` + `lib/llm-assignments.ts`）
 
 - 接続タブ: Claude セクションに**グローバルモデル select**（カタログ由来・先頭に「既定（sonnet）」・失敗時自由入力）/ TTS セクションに**プロバイダ select**（自動・macOS say・OpenAI 互換）
@@ -52,6 +54,8 @@
 
 - ヘッドレス CLI（`scripts/generate-content.ts` / `generate-topic-assets.ts` 等）は開発者ツールとして env/フラグ駆動のまま（`CLAUDE_MODEL`/`CODEX_*` は CLI 専用として存続・README の該当節にその旨明記）
 - API キーの UI 入力化はしない（ユーザー方針: キーは env のみ。配布 Tauri アプリが `app/.env` を読まない既知の構造も今回は据え置き）
+
+> **2026-07-17 改訂注記（§3）**: 「API キーの UI 入力化はしない」は同日の後続決定で改訂済み。v0.29.0 で API キーの UI 設定（macOS Keychain 保存・write-only）が導入された。現行の正は [2026-07-10-api-keys-keychain-design.md](2026-07-10-api-keys-keychain-design.md)（同spec §2 の改訂注記含む）と `app/server/secrets.ts`。
 - `POST /api/tts` のリクエスト単位 voice 上書きは現状維持（同梱音声のテキスト単位一致に必要）。優先順位は「リクエスト > DB > 既定」と仕様として明記
 - モデルカタログの取得機構自体の変更はしない（既存の 1h TTL キャッシュ・fail-quiet を踏襲）
 

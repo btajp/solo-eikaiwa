@@ -4,7 +4,7 @@
 - 手法: 6視点並列監査（初回体験・日々の意思決定・画面内ガイダンス・難易度カーブ・挫折ポイント・ステップアップ実感、全所見 file:line 根拠付き）→ major所見の敵対的検証（sonnet・誤指摘は棄却）→ 統合。30エージェント
 - 結果: 検証済み22件（major 11 / minor 11）+ 未検証minor 21件
 
-対象: `/Users/okash1n/ghq/github.com/okash1n/learn-english`（検証済み所見22件＝major 11 / minor 11、未検証minor 21件、視点別の良い点を統合）
+対象: `<repo-root>`（検証済み所見22件＝major 11 / minor 11、未検証minor 21件、視点別の良い点を統合）
 
 ---
 

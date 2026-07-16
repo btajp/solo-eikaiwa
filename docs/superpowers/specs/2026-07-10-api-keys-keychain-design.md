@@ -17,6 +17,11 @@
 - 起動時に env 由来の元値をスナップショットし、DELETE 時は「Keychain から削除 → スナップショット値へ復元」（env にあれば env に戻る）。source 追跡（keychain | env | null）は注入時に in-memory で記録
 - 起動時の Keychain 読み込み失敗（ロック等）は warn して env のみで継続（fail-open・起動をブロックしない）
 
+> **2026-07-17 改訂注記（§2）**: 本節は後続決定で2点改訂済み。現行の正は `app/server/secrets.ts`。
+>
+> 1. **「Keychain の値を `process.env` へ注入」は廃止**（v0.29.0・#132「APIキーの継承と送信先を制限」）。現行は Keychain 値をマネージャ内だけに保持して消費点へ解決し、`process.env` へは展開しない（子プロセスへの継承・送信先を制限するため。README「仕組みとプライバシー」節参照）
+> 2. **対象は4鍵 → 5鍵**（v0.29.1）。`OPENAI_API_KEY` を加え、OpenAI 公式（固定URL・専用キー）と OpenAI 互換（独自URL・接続先別キー）を別接続として分離し、APIキーと認証方式は専用タブへ集約された（`KEYCHAIN_SECRET_NAMES` 参照）
+
 ## 3. API（`routes/secrets.ts` 新設・write-only）
 
 - `GET /api/secrets` → `{ [name]: { configured: boolean, source: "keychain" | "env" | null } }`。**値はいかなる応答・ログ・エラーメッセージにも含めない**

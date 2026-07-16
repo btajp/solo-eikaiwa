@@ -791,7 +791,7 @@ const runner = defaultRunner;
 Run: `cd app && bun run typecheck`
 Expected: エラーなし。
 
-Run: `cd /Users/okash1n/ghq/github.com/okash1n/learn-english && bun scripts/generate-content.ts 2>&1 | head -3`
+Run: `cd <repo-root> && bun scripts/generate-content.ts 2>&1 | head -3`
 Expected: 使い方メッセージ（`使い方: bun scripts/generate-content.ts <sentences|topics|scenarios|listening> [--dry]`）が出て exit 1。import 解決と runner 構築が壊れていないことの確認（LLM は呼ばれない）。
 
 - [ ] **Step 7: 手動スモーク（任意・実行者が判断） — 各プロバイダ疎通**
@@ -900,7 +900,7 @@ CODEX_MODEL=
 
 - [ ] **Step 3: 追記の妥当性を目視確認する**
 
-Run: `cd /Users/okash1n/ghq/github.com/okash1n/learn-english && grep -n "LLM プロバイダの切替\|LLM_PROVIDER\|OPENAI_COMPAT_BASE_URL" README.md app/.env.example`
+Run: `cd <repo-root> && grep -n "LLM プロバイダの切替\|LLM_PROVIDER\|OPENAI_COMPAT_BASE_URL" README.md app/.env.example`
 Expected: 追記した見出し・env 名が両ファイルに出る。
 
 - [ ] **Step 4: Commit**

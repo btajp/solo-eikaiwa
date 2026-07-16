@@ -235,7 +235,7 @@ Expected: `tsc --noEmit && vite build` 成功（エラーなし）
 - [ ] **Step 8: コミット**
 
 ```bash
-cd /Users/okash1n/ghq/github.com/okash1n/learn-english
+cd <repo-root>
 git add app/client/src/screens/practicePhase.ts app/client/src/screens/practicePhase.test.ts app/client/src/screens/PracticeTab.tsx app/client/src/i18n.ts
 git commit -m "feat: 例文練習に音から始める listen フェーズを追加（既定オフ・回帰ゼロ）"
 ```
@@ -360,7 +360,7 @@ Run: `cd app && bun run dev`（別ターミナルで `cd app/client && bun run d
 - [ ] **Step 5: コミット**
 
 ```bash
-cd /Users/okash1n/ghq/github.com/okash1n/learn-english
+cd <repo-root>
 git add app/client/src/screens/SentencesScreen.tsx app/client/src/i18n.ts
 git commit -m "feat: 練習ツールバーに音から始めるトグルを追加し audio-first モードを起動"
 ```

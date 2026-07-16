@@ -1070,7 +1070,7 @@ git commit -m "feat: 設定の言語モデルを接続/用途ごとのモデル/
 
 - [ ] **Step 7: README 差分チェック（AGENTS.md リリース手順）**
 
-Run: `cd /Users/okash1n/ghq/github.com/okash1n/learn-english && grep -n "推奨構成\|すべて既定\|全体の接続先\|全体に従う\|既定（環境変数）\|OpenAI 互換 を選び" README.md`
+Run: `cd <repo-root> && grep -n "推奨構成\|すべて既定\|全体の接続先\|全体に従う\|既定（環境変数）\|OpenAI 互換 を選び" README.md`
 Expected: 出力なし（旧 UI 文言が README に残っていない。env 表〔166-173 行〕・env 直接運用の注意〔175-180 行〕は温存されていること・用途表〔153-158 行〕はそのままで可）。
 
 - [ ] **Step 8: 検証ゲート（全体最終）**

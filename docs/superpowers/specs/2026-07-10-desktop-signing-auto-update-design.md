@@ -15,6 +15,8 @@
 - **Phase A: Developer ID 署名 + 公証** — 単独でも問題 1・2 を解消する独立価値がある
 - **Phase B: tauri-plugin-updater 組み込み** — 問題 3 を解消。署名済み配布が前提
 
+> **2026-07-17 改訂注記（§2）**: 実際のリリース順序は本節の前提と逆になった。Apple 証明書の発行待ち（Account Holder 対応待ち — [docs/apple-account-holder-request.md](../../apple-account-holder-request.md) 参照）のため、**v0.29.0 は Phase B（updater）のみを ad-hoc 署名・未公証で先行リリース**し、**Phase A（Developer ID 署名・Apple 公証・staple）は v0.29.1 で完了**した。以後の GitHub Releases は署名・公証済み配布が標準経路（AGENTS.md「Apple・デスクトップ公開」・README「起動: デスクトップアプリ（Tauri）」参照）。ad-hoc 版 v0.29.0 から v0.29.1 へ更新した際のマイク許可再確認は README に注記済み。
+
 ## 3. Phase A: 署名・公証
 
 - **ユーザーにしか実施できない準備**（実装計画に手順を明記し、最初のタスクにする）:
