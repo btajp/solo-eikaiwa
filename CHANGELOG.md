@@ -46,8 +46,20 @@
 - 暗記例文とマイフレーズを英文・日本語・番号・カテゴリで検索できるようにし、390件の例文一覧は40件ずつ表示するようにした。次回復習日と学習段階も読みやすく表示する
 - 4/3/2と振り返りで自動収集したマイフレーズについて、実際に保存できた表現・追加なし・保存失敗を区別して表示し、保存後は一覧を直接開けるようにした
 
+**デスクトップ配布・更新**
+
+- **デスクトップアプリの自動アップデート（半自動）**: 起動時に新しいバージョンを自動チェックし、あればダイアログでお知らせするようになった。「更新する」を押すとダウンロード・適用・自動再起動まで完了する（「今回はしない」を選べば何も起きず、次回起動時にまた1回だけ案内される。強制更新はしない）。アプリメニューに「アップデートを確認…」も追加し、いつでも手動で確認できる。更新パッケージは署名検証（minisign）に合格したものだけが適用される
+- **リリース一括スクリプト**: `./scripts/release-desktop.sh <version>` で検証ゲート → ビルド → Developer ID 署名 → Apple 公証 → 更新アーティファクト生成 → GitHub Release（draft→publish の原子的公開）まで一括実行できるようになった（証明書・鍵・APIキーはすべてローカルの `~/.config/solo-eikaiwa/release.env` から注入。リポジトリには置かない）
+
+**設定の UI 一元化**
+
+- **Claude の既定モデルを UI で選べるように**: ⚙️ 設定 → モデル接続設定の Claude セクションに「既定モデル（全用途共通）」を追加した。選択肢はモデルカタログ（SDK から動的取得）由来で、特定バージョン ID も選べる（用途ごとのモデルタブのロール別設定が優先。ロール別の Claude モデルも従来の3択固定からカタログ駆動の選択式になった）
+- **API キーも UI から設定できるように（macOS Keychain 保存）**: ⚙️ 設定 → モデル接続設定の各セクション（Claude / ローカル LLM / Codex / TTS）にキー入力欄を追加した。キーは macOS Keychain に保存され（`app/.env` より優先・UI には「Keychain / .env から検出」とソースを表示）、保存・削除は再起動なしで反映される。**キーの値は UI にもサーバ応答にも一切表示されない**（置き換えと削除のみ可能）。これにより**配布版デスクトップアプリでも OpenAI TTS・API キーモードの Claude/Codex・鍵必須の OpenAI 互換エンドポイントが利用可能に**なった（従来は `app/.env` を読めない構造のため不可能だった）
+- **TTS のエンジンを UI で明示選択できるように**: 音声（TTS）セクションに「エンジン」（自動 / macOS say 固定 / OpenAI 互換固定）を追加した。従来はキーの有無等による暗黙決定のみで、say を強制する手段が無かった（OpenAI 互換固定でも通信失敗時は say で再生を継続する）
+
 ### Changed
 
+- **【Breaking】環境変数で設定できるのは API キーのみに**: `LLM_PROVIDER` / `OPENAI_COMPAT_BASE_URL` / `OPENAI_COMPAT_MODEL` / `CODEX_MODEL` / `TTS_BASE_URL` / `TTS_MODEL` / `TTS_VOICE` の env フォールバックを廃止した（設定の真実は UI/DB のみ）。**これらの env だけで運用していた場合、更新後は既定（Claude / 既定TTS）で動くため、⚙️ 設定から再設定が必要**。旧「環境変数に従う」選択肢も廃止（保存済みの場合は Claude として扱う）。教材生成 CLI（`scripts/generate-content.ts` 等）だけは従来どおり env 駆動
 - デスクトップ版の音声認識エンジンを、SHA-256で検証する固定sourceからstaticビルドする方式に変更した。ReleaseにはSBOM・第三者ライセンス・native依存manifest・依存監査結果・checksumを添付し、配布内容を確認できるようにした
 - 4/3/2の文字起こし表示の話者ラベルを画面言語に合わせ、使われなくなった練習ブロックと設定文言を整理した
 - READMEとLPで、デスクトップ版の入手・自動更新、ソース常駐版の日常更新、Keychainと`app/.env`のキー優先順位を実装に合わせて案内するようにした
@@ -57,6 +69,8 @@
 - 教材生成・検証スクリプトも通常のTypeScript型検査へ含め、サーバ変更によるCLI破損を事前検出するようにした
 - PR・ローカル・リリースで同じ検証スクリプトを使い、Bun/TypeScript/client buildに加えてShellCheck・教材品質・desktopのRust test/clippyを継続確認するようにした
 - Bun/Cargo依存監査を週次・手動・リリース前に追加し、脆弱性検出と監査サービス障害を区別して報告するようにした
+- **Developer ID 署名 + Apple 公証に対応する標準リリース経路を整備**: 証明書を利用できる公開では、初回起動時の Gatekeeper 回避手順なしで起動できるようにした。v0.29.0 の公開物は証明書準備を後回しにしたため、例外的に ad-hoc 署名・未公証で提供する
+- デスクトップアプリが release ビルドでもログを出力するようになった（`~/Library/Logs/com.local.solo-eikaiwa.desktop/`。更新・同梱サーバの不具合診断用）
 
 ### Fixed
 
@@ -129,24 +143,7 @@
 - Keychain値をプロセス環境へ展開せず、すべてのサーバ子プロセスを固定allowlist環境で起動するようにした。Claude/Codexのサブスクリプション認証では親環境のAPIキーを除去し、APIキーモードでは対象providerの鍵だけを渡す
 - OpenAI互換LLM・TTSの鍵を正規化済みoriginへ束縛し、別origin・非loopback HTTPへ送らないようにした。認証付き通信はredirectを追従せず、userinfo・非HTTP(S) scheme・曖昧なquery/fragmentを接続設定で拒否する
 
-### Added（デスクトップ配布・更新）
-
-- **デスクトップアプリの自動アップデート（半自動）**: 起動時に新しいバージョンを自動チェックし、あればダイアログでお知らせするようになった。「更新する」を押すとダウンロード・適用・自動再起動まで完了する（「今回はしない」を選べば何も起きず、次回起動時にまた1回だけ案内される。強制更新はしない）。アプリメニューに「アップデートを確認…」も追加し、いつでも手動で確認できる。更新パッケージは署名検証（minisign）に合格したものだけが適用される
-- **リリース一括スクリプト**: `./scripts/release-desktop.sh <version>` で検証ゲート → ビルド → Developer ID 署名 → Apple 公証 → 更新アーティファクト生成 → GitHub Release（draft→publish の原子的公開）まで一括実行できるようになった（証明書・鍵・APIキーはすべてローカルの `~/.config/solo-eikaiwa/release.env` から注入。リポジトリには置かない）
-
-### Added（設定の UI 一元化）
-
-- **Claude の既定モデルを UI で選べるように**: ⚙️ 設定 → モデル接続設定の Claude セクションに「既定モデル（全用途共通）」を追加した。選択肢はモデルカタログ（SDK から動的取得）由来で、特定バージョン ID も選べる（用途ごとのモデルタブのロール別設定が優先。ロール別の Claude モデルも従来の3択固定からカタログ駆動の選択式になった）
-- **API キーも UI から設定できるように（macOS Keychain 保存）**: ⚙️ 設定 → モデル接続設定の各セクション（Claude / ローカル LLM / Codex / TTS）にキー入力欄を追加した。キーは macOS Keychain に保存され（`app/.env` より優先・UI には「Keychain / .env から検出」とソースを表示）、保存・削除は再起動なしで反映される。**キーの値は UI にもサーバ応答にも一切表示されない**（置き換えと削除のみ可能）。これにより**配布版デスクトップアプリでも OpenAI TTS・API キーモードの Claude/Codex・鍵必須の OpenAI 互換エンドポイントが利用可能に**なった（従来は `app/.env` を読めない構造のため不可能だった）
-- **TTS のエンジンを UI で明示選択できるように**: 音声（TTS）セクションに「エンジン」（自動 / macOS say 固定 / OpenAI 互換固定）を追加した。従来はキーの有無等による暗黙決定のみで、say を強制する手段が無かった（OpenAI 互換固定でも通信失敗時は say で再生を継続する）
-
-### Changed
-
-- **【Breaking】環境変数で設定できるのは API キーのみに**: `LLM_PROVIDER` / `OPENAI_COMPAT_BASE_URL` / `OPENAI_COMPAT_MODEL` / `CODEX_MODEL` / `TTS_BASE_URL` / `TTS_MODEL` / `TTS_VOICE` の env フォールバックを廃止した（設定の真実は UI/DB のみ）。**これらの env だけで運用していた場合、更新後は既定（Claude / 既定TTS）で動くため、⚙️ 設定から再設定が必要**。旧「環境変数に従う」選択肢も廃止（保存済みの場合は Claude として扱う）。教材生成 CLI（`scripts/generate-content.ts` 等）だけは従来どおり env 駆動
-- **Developer ID 署名 + Apple 公証に対応する標準リリース経路を整備**: 証明書を利用できる公開では、初回起動時の Gatekeeper 回避手順なしで起動できるようにした。v0.29.0 の公開物は証明書準備を後回しにしたため、例外的に ad-hoc 署名・未公証で提供する
-- デスクトップアプリが release ビルドでもログを出力するようになった（`~/Library/Logs/com.local.solo-eikaiwa.desktop/`。更新・同梱サーバの不具合診断用）
-
-### 注意（v0.28.x 以前からの更新）
+**注意（v0.28.x 以前からの更新）**
 
 - 自動更新機構は v0.29.0 で導入されたため、**v0.28.x 以前からは今回のみ手動で dmg を入れ替える**必要がある（以後は自動）
 - v0.29.0 は ad-hoc 署名・未公証のため、初回起動時に macOS の「このまま開く」操作が必要。アプリを置き換えた後にマイク許可を再度求められる場合がある
@@ -545,7 +542,7 @@
 - **セッションログ**: 全イベントを JSONL に記録（将来のメトリクス分析用・ローカル専用）
 - **ドキュメント**: 設計スペック、実装計画、ディープリサーチレポート3本（流暢性・語彙/チャンク・継続/習慣化 — 主要クレームは原典まで検証済み）
 
-### Security / Privacy
+### Security
 
 - サーバは 127.0.0.1 バインドのみ（外部非公開）
 - 学習データ（録音・トランスクリプト・進捗・DB・キャッシュ）は `data/` のローカルファイルで、リポジトリにコミットされない
@@ -556,6 +553,14 @@
 [0.29.2]: https://github.com/btajp/solo-eikaiwa/compare/v0.29.1...v0.29.2
 [0.29.1]: https://github.com/btajp/solo-eikaiwa/compare/v0.29.0...v0.29.1
 [0.29.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.28.0...v0.29.0
+[0.28.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.27.1...v0.28.0
+[0.27.1]: https://github.com/btajp/solo-eikaiwa/compare/v0.27.0...v0.27.1
+[0.27.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.26.0...v0.27.0
+[0.26.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.25.0...v0.26.0
+[0.25.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.24.0...v0.25.0
+[0.24.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.23.0...v0.24.0
+[0.23.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.22.0...v0.23.0
+[0.22.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.21.0...v0.22.0
 [0.21.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.20.0...v0.21.0
 [0.20.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.19.0...v0.20.0
 [0.19.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.18.0...v0.19.0
