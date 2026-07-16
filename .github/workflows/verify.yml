@@ -32,6 +32,10 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE: "1"
         run: command -v shellcheck >/dev/null 2>&1 || brew install shellcheck
       - name: Verify core
+        env:
+          # Playwright検査は専用のaccessibilityジョブ（必須チェック）が実行するため、
+          # coreでは重複実行だけを省略する。ローカルの verify.sh pr は既定で実行する。
+          VERIFY_SKIP_A11Y: "1"
         run: ./scripts/verify.sh pr
 
   desktop:

@@ -246,6 +246,8 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 .stat-main { font-size: calc(var(--fs-xl) + 2px); font-weight: 750; letter-spacing: -0.02em; }
 .stat-unit { font-size: var(--fs-md); font-weight: 550; margin-left: 2px; }
 .stat-sub { font-size: var(--fs-sm); color: var(--text-muted); }
+/* 週次カード内の測定限界の注記（推定値・ポーズの節内/節末非区別など） */
+.stat-note { margin: var(--sp-2) 0 0; }
 .stat-level-wrap { margin-bottom: var(--sp-2); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--border); }
 .stat-level { font: inherit; font-size: 20px; font-weight: 750; background: none; border: none; padding: 0; cursor: pointer; color: var(--text); }
 .stat-level:hover { color: var(--accent); }

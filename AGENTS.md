@@ -9,8 +9,10 @@ macOS ローカルで完結する英会話練習アプリ。Bun + TypeScript サ
 ## 検証ゲート（変更の種類を問わず必須）
 
 ```bash
-./scripts/verify.sh pr  # client build → 型 → shellcheck → 全test → 教材検証
+./scripts/verify.sh pr  # client build(dist-verify) → 型 → shellcheck → 全test → 教材検証 → a11y(Playwright)
 ```
+
+検証用の client build は `app/client/dist-verify` へ出力し、常駐サーバが直配信する `app/client/dist` には書き込まない（検証ゲートの実行はデプロイにならない。配信 dist の更新は「デプロイ」節の明示手順のみ）。a11y 回帰テストは CI の accessibility ジョブと同じ Playwright 検査で、初回実行時に Chromium を自動ダウンロードする。
 
 デスクトップ変更は`./scripts/verify.sh desktop`も必須。リリースは`./scripts/verify.sh release`を使い、依存監査まで通す。リリース系の実行には Bun・Tauri CLI に加えて cargo-audit（`toolchain.json` のピン版・`./scripts/check-toolchain.sh audit` で確認）・CMake 3.25以上・gh CLI が必要（導入方法は `desktop/README.md` の「前提」節）。不足すると長い検証やビルドの途中で初めて失敗するため、実行前に存在を確認する。
 
@@ -51,7 +53,7 @@ macOS ローカルで完結する英会話練習アプリ。Bun + TypeScript サ
 
 ## デプロイ（LaunchAgent 常駐運用）
 
-- クライアントのみの変更: `cd app/client && bun run build`（dist 直配信のため即反映）。
+- クライアントのみの変更: `cd app/client && bun run build`（dist 直配信のため即反映）。配信 `dist` を更新するのはこの `bun run build` だけで、`./scripts/verify.sh pr` は `dist-verify` へビルドするため配信内容は変わらない。
 - サーバ変更あり: 上記 + `launchctl kickstart -k gui/$(id -u)/com.local.solo-eikaiwa.server`。
 - `scripts/install-daemon.sh` は初回導入用（稼働中は自分のデーモンを検出して拒否する）。
 

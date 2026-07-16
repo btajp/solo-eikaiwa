@@ -63,4 +63,38 @@ describe("metrics / computeUtteranceMetrics", () => {
     const m = computeUtteranceMetrics([{ fromMs: 0, toMs: 1000, text: "don't it's" }]);
     expect(m.words).toBe(2);
   });
+
+  test("回帰: 同じ10秒・7語でもASRのセグメント分割で調音速度・ポーズが変わる（推定値である根拠）", () => {
+    // Issue #183 の再現例。指標はWhisperの区切り方に依存する推定値であり、
+    // この分割依存性が変わる（＝真の測定になる）場合はUIの注記も見直すこと。
+    const single = computeUtteranceMetrics([
+      { fromMs: 0, toMs: 10_000, text: "I usually skip breakfast and grab coffee" },
+    ]);
+    const split = computeUtteranceMetrics([
+      { fromMs: 0, toMs: 4_000, text: "I usually skip breakfast" },
+      { fromMs: 6_000, toMs: 10_000, text: "and grab coffee" },
+    ]);
+    expect(single.words).toBe(7);
+    expect(split.words).toBe(7);
+    expect(single.totalMs).toBe(split.totalMs);
+    // 1セグメント: 発話=総時間 → 42wpm・ポーズ0 / 2セグメント: 発話8秒 → 52.5wpm・ポーズ2秒
+    expect(single.articulationRateWpm).toBe(42);
+    expect(single.pauses).toEqual({ count: 0, totalMs: 0, longestMs: 0 });
+    expect(split.articulationRateWpm).toBe(52.5);
+    expect(split.pauses).toEqual({ count: 1, totalMs: 2_000, longestMs: 2_000 });
+  });
+
+  test("回帰: ポーズはセグメント間ギャップの合算で、節内・節末（考えるポーズ）を区別しない", () => {
+    // Sun et al. 2023 では節内ポーズのみが知覚熟達度の負の予測子。現実装は区別できないため
+    // 文中の詰まりも文間の考えるポーズも同じ1件として数える（限界はUI・docs/metrics.mdに明記）。
+    const midClause = computeUtteranceMetrics([
+      { fromMs: 0, toMs: 2_000, text: "I want to" },          // 文の途中で詰まる
+      { fromMs: 3_000, toMs: 5_000, text: "say something" },
+    ]);
+    const clauseFinal = computeUtteranceMetrics([
+      { fromMs: 0, toMs: 2_000, text: "I like coffee." },      // 文が終わってから考える
+      { fromMs: 3_000, toMs: 5_000, text: "It helps me focus." },
+    ]);
+    expect(midClause.pauses).toEqual(clauseFinal.pauses);
+  });
 });
