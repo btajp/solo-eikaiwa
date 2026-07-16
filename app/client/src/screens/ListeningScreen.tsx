@@ -3,7 +3,7 @@ import {
   fetchListeningLibrary, fetchListeningItem, logListening, fetchProgressSummary, fetchTalkExplanation,
   playTtsCached, prefetchTts, type ListeningMeta, type ListeningDetail,
 } from "../api";
-import { stopPlayback } from "../audio";
+import { setCurrentPlaybackRate, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
 import { formatClientError } from "../lib/user-error";
 import { localizedTitle } from "../localized-title";
@@ -18,6 +18,9 @@ import { ExplainBox } from "../ui/ExplainBox";
 import { LevelChip } from "../ui/LevelChip";
 import { PlaybackButton } from "../ui/PlaybackButton";
 import { resolvePendingListeningLog, type PendingListeningLog } from "./listeningLogRequest";
+import {
+  DEFAULT_LISTENING_PLAYBACK_RATE, LISTENING_PLAYBACK_RATES, formatPlaybackRate, type ListeningPlaybackRate,
+} from "./listeningRate";
 
 type LibraryData = { items: ListeningMeta[]; weeklyCount: number; stage: number };
 
@@ -134,6 +137,10 @@ function ListeningPlayback({ item, lang, onListened }: {
   const aliveRef = useRef(true);
   const tokenRef = useRef(0);
   const pendingLogRef = useRef<PendingListeningLog | null>(null);
+  // 再生速度 (#194)。playAll のループが await の後に読むため ref を同期ミラーとして持ち、
+  // 再生途中の変更も「今の段落」と「次の段落以降」の両方へ即時反映する。
+  const [rate, setRate] = useState<ListeningPlaybackRate>(DEFAULT_LISTENING_PLAYBACK_RATE);
+  const rateRef = useRef<ListeningPlaybackRate>(rate);
   const explainer = useExplain(() => fetchTalkExplanation(item.paragraphs.join("\n\n")));
 
   useEffect(() => {
@@ -168,7 +175,7 @@ function ListeningPlayback({ item, lang, onListened }: {
       setPlayingIdx(i);
       try {
         if (i + 1 < item.paragraphs.length) prefetchTts(item.paragraphs[i + 1]);
-        await playTtsCached(item.paragraphs[i]);
+        await playTtsCached(item.paragraphs[i], { playbackRate: rateRef.current });
       } catch (err) {
         if (tokenRef.current !== my || !aliveRef.current) return;
         setErrorMsg(formatClientError(lang, err, "play"));
@@ -196,6 +203,13 @@ function ListeningPlayback({ item, lang, onListened }: {
     setPlayingIdx(null);
   }
 
+  function changeRate(next: ListeningPlaybackRate) {
+    rateRef.current = next;
+    setRate(next);
+    // 再生中の段落にも即時反映する（次の段落は playAll ループが rateRef から引き継ぐ）
+    setCurrentPlaybackRate(next);
+  }
+
   const isPlaying = playingIdx !== null;
   return (
     <div className="stack">
@@ -215,6 +229,16 @@ function ListeningPlayback({ item, lang, onListened }: {
         stopLabel={playback.stop}
         playVariant="primary"
       />
+      <div>
+        <p className="text-sm text-muted">{t.speedLabel}</p>
+        <div className="lang-toggle" role="group" aria-label={t.speedLabel}>
+          {LISTENING_PLAYBACK_RATES.map((r) => (
+            <button key={r} className={rate === r ? "is-active" : ""} aria-pressed={rate === r} onClick={() => changeRate(r)}>
+              {formatPlaybackRate(r)}
+            </button>
+          ))}
+        </div>
+      </div>
       {isPlaying && <p className="text-sm text-muted">{playback.playing}</p>}
       {!showScript && <Button variant="secondary" onClick={() => setShowScript(true)}>{t.showScript}</Button>}
       {showScript && (

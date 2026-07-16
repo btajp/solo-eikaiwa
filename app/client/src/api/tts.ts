@@ -1,4 +1,4 @@
-import { beginPlaybackRequest, isPlaybackRequestCurrent, playBlobForRequest, stopPlayback } from "../audio";
+import { beginPlaybackRequest, isPlaybackRequestCurrent, playBlobForRequest, stopPlayback, type PlaybackOptions } from "../audio";
 import { ttsFetch } from "./converse";
 import { fetchModelTalk } from "./coach";
 
@@ -84,11 +84,11 @@ export function ttsCacheStats(): { ttsEntries: number; modelTalkEntries: number 
   return { ttsEntries: ttsBlobCache.size, modelTalkEntries: modelTalkCache.size };
 }
 
-export async function playTtsCached(text: string): Promise<void> {
+export async function playTtsCached(text: string, options?: PlaybackOptions): Promise<void> {
   const generation = beginPlaybackRequest();
   const blob = await cachedTtsBlob(text);
   if (!isPlaybackRequestCurrent(generation)) return;
-  await playBlobForRequest(blob, generation);
+  await playBlobForRequest(blob, generation, options);
 }
 
 /**

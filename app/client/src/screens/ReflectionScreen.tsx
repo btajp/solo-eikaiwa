@@ -10,8 +10,8 @@ import { Card } from "../ui/Card";
 import { CollectedPhrasesNotice } from "../ui/CollectedPhrasesNotice";
 import { ExplainBox } from "../ui/ExplainBox";
 
-/** 直したい表現1件。「もっと詳しく」で fetchFixExplanation を呼び、解説を自分の state に保持する */
-function FixItem({ fix, lang }: { fix: { original: string; better: string }; lang: Lang }) {
+/** 直したい表現1件。「もっと詳しく」で fetchFixExplanation を呼び、解説を自分の state に保持する（DelayedReflection と共有） */
+export function FixItem({ fix, lang }: { fix: { original: string; better: string }; lang: Lang }) {
   const t = STR[lang].reflection;
   const { state, request } = useExplain(() => fetchFixExplanation(fix.original, fix.better));
   return (

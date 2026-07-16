@@ -11,6 +11,8 @@ import { Button } from "../ui/Button";
 import { FlowExitButton } from "../ui/FlowExitButton";
 import { ProgressDots, Screen } from "../ui/Screen";
 import { TimerChip } from "../ui/TimerChip";
+import { DelayedReflection } from "./DelayedReflection";
+import { shouldOfferQuickSessionReflection } from "./delayed-reflection";
 import { FourThreeTwoScreen } from "./FourThreeTwoScreen";
 import { ReflectionScreen } from "./ReflectionScreen";
 import { RoleplayScreen } from "./RoleplayScreen";
@@ -174,6 +176,13 @@ export function SessionRunner(props: {
         {exitButton}
         {completionNotice}
         <p className="text-muted">{t.doneSummary}</p>
+        {/* 任意の遅延訂正ループ (#179): クイック・ロールプレイの完了後にだけ導線を出す（未実施でも完了扱いは変わらない） */}
+        {shouldOfferQuickSessionReflection(props.source, done) && (
+          <DelayedReflection
+            sessionId={props.sessionId} lang={props.lang}
+            onOpenCollectedPhrases={props.onOpenCollectedPhrases}
+          />
+        )}
         <FeedbackRow context={{ blockKind: "session", refId: sourceSignature(props.source) }} lang={props.lang} />
         <div className="round-actions">
           <Button variant="primary" size="lg" onClick={props.onExit}>{t.doneExit}</Button>

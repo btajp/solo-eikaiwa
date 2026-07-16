@@ -10,6 +10,8 @@ import { FeedbackRow } from "../ui/FeedbackRow";
 import { LevelChip } from "../ui/LevelChip";
 import { RecordButton } from "../ui/RecordButton";
 import { canShowFreeTalkReaction } from "../practice-reaction";
+import { DelayedReflection } from "./DelayedReflection";
+import { canOfferDelayedReflection } from "./delayed-reflection";
 import { pipelineFailureAction } from "./free-talk-error";
 import { FreeTalkPipeline, initialConversationPipelineState, type ConversationPipelineState } from "./free-talk-flow";
 
@@ -23,6 +25,8 @@ export function FreeTalkScreen(props: {
   onBeforeRecord?: () => boolean;
   /** セッション内のロールプレイが、空でない発話を受け取ったことを親へ知らせる。 */
   onValidTurn?: () => void;
+  /** 振り返りで収集した表現の一覧（マイフレーズ）へ移動する導線。未指定ならボタンを出さない。 */
+  onOpenCollectedPhrases?: () => void;
   lang: Lang;
 }) {
   const t = STR[props.lang].freeTalkScreen;
@@ -296,6 +300,13 @@ export function FreeTalkScreen(props: {
         )}
         {props.scenarioId === undefined && canShowFreeTalkReaction(turns.length, practiceFinished) && (
           <div className="stack">
+            {/* 任意の遅延訂正ループ (#179): 終了の明示操作後にだけ導線を出し、押したときだけ振り返りを取得する */}
+            {canOfferDelayedReflection(practiceFinished, turns.filter((turn) => turn.role === "you").length) && (
+              <DelayedReflection
+                sessionId={props.activitySessionId} lang={props.lang}
+                onOpenCollectedPhrases={props.onOpenCollectedPhrases}
+              />
+            )}
             <FeedbackRow context={{ blockKind: "free-talk", refId: null }} lang={props.lang} />
             <Button variant="ghost" onClick={() => setPracticeFinished(false)}>{t.continuePractice}</Button>
           </div>

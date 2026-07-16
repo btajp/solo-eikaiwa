@@ -426,7 +426,12 @@ export function App() {
           onOpenCollectedPhrases={() => transitionTo({ kind: "sentences", tab: "browse" }, { replace: true })}
         />
       )}
-      {mode.kind === "free" && <FreeTalkScreen activitySessionId={sessionId} lang={lang} onBeforeRecord={requestRecordingStart} />}
+      {mode.kind === "free" && (
+        <FreeTalkScreen
+          activitySessionId={sessionId} lang={lang} onBeforeRecord={requestRecordingStart}
+          onOpenCollectedPhrases={() => requestNavigation({ kind: "sentences", tab: "browse" })}
+        />
+      )}
       {mode.kind === "library" && <LibraryScreen lang={lang} />}
       {mode.kind === "sentences" && (
         <SentencesScreen

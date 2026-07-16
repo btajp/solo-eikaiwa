@@ -22,6 +22,7 @@ import { RecordButton } from "../ui/RecordButton";
 import { TimerChip } from "../ui/TimerChip";
 import { canRevealJaFromHintDefault, getSupport, resolveSupport, useSupport } from "../support";
 import { isDisclosureOpen, splitBilingualHint, toggleDisclosure } from "../support-disclosure";
+import { canRetryAeFeedback } from "./aeFeedbackRetry";
 
 /** メニュー params に roundsSec が無い場合（当日分の古いキャッシュ等）のフォールバック */
 const DEFAULT_ROUNDS_SEC = [120, 90, 60];
@@ -321,17 +322,7 @@ export function FourThreeTwoScreen(props: {
           setAe(null);
         } else {
           setAeSkippedNoRecording(false);
-          setAeLoading(true);
-          try {
-            const feedback = await fetchAeFeedback(transcript, props.topic.title);
-            if (!aliveRef.current) return;
-            setAe(feedback);
-          } catch (err) {
-            if (!aliveRef.current) return;
-            setErrorMsg(formatClientError(props.lang, err, "request"));
-          } finally {
-            if (aliveRef.current) setAeLoading(false);
-          }
+          await requestAeFeedback(transcript);
         }
       } else if (index < roundsSec.length - 1) {
         startRound(index + 1);
@@ -340,6 +331,25 @@ export function FourThreeTwoScreen(props: {
       }
     } finally {
       finishInFlightRef.current = false;
+    }
+  }
+
+  /**
+   * Round 1 の transcript から AE フィードバックを要求する。失敗しても transcript は手元に
+   * 残っているため、ae フェーズの再試行ボタンから同じ経路で再要求できる (#200)。
+   */
+  async function requestAeFeedback(transcript: string) {
+    setErrorMsg("");
+    setAeLoading(true);
+    try {
+      const feedback = await fetchAeFeedback(transcript, props.topic.title);
+      if (!aliveRef.current) return;
+      setAe(feedback);
+    } catch (err) {
+      if (!aliveRef.current) return;
+      setErrorMsg(formatClientError(props.lang, err, "request"));
+    } finally {
+      if (aliveRef.current) setAeLoading(false);
     }
   }
 
@@ -458,7 +468,20 @@ export function FourThreeTwoScreen(props: {
             <CollectedPhrasesNotice summary={ae} lang={props.lang} onOpen={props.onOpenCollectedPhrases} />
           </div>
         )}
-        {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
+        {errorMsg && (
+          <Banner
+            kind="error"
+            action={
+              canRetryAeFeedback({ errorMsg, aeLoading, transcript: transcriptsRef.current[0] ?? "" }) ? (
+                <Button onClick={() => void requestAeFeedback(transcriptsRef.current[0])} disabled={aeLoading}>
+                  {t.aeRetry}
+                </Button>
+              ) : undefined
+            }
+          >
+            {errorMsg}
+          </Banner>
+        )}
         <Button variant="primary" onClick={() => startRound(1)} disabled={aeLoading}>
           {t.startRound2(formatMmSs(roundsSec[1]))}
         </Button>

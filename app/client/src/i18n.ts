@@ -438,7 +438,7 @@ type Ftt432Strings = { ftt432: {
   showJaHints: string; hideJaHints: string;
   modelIdle: string; modelScript: string; modelAudio: string; modelRetry: string;
   startRound1: (time: string) => string; modelTranscript: string;
-  aeTitle: string; aeLoading: string; aeNoRecording: string; startRound2: (time: string) => string;
+  aeTitle: string; aeLoading: string; aeNoRecording: string; aeRetry: string; startRound2: (time: string) => string;
   doneBody: (count: number) => string;
   roundHeading: (n: number, time: string, topic: string) => string;
   /** ラウンドごとの聞き手指示（4/3/2 の中核: 毎回別の聞き手に、同じ話をより速く・短く）。roundIndex % length で参照する */
@@ -453,6 +453,8 @@ type ReflectionStrings = { reflection: {
   loading: string; retry: string; goodPhrases: string; fixes: string; tomorrow: string;
   confirmReview: string; reviewed: string;
   explainMore: string; explainLoading: string; explainError: string;
+  /** 任意の遅延訂正ループ (#179): クイック・ロールプレイと自由会話の終了後にだけ出す明示導線 */
+  offerButton: string; offerNote: string;
 } };
 type ChunkListStrings = { chunkList: { playAria: (en: string) => string } };
 type PlaybackStrings = { playback: { stop: string; playing: string } };
@@ -489,6 +491,8 @@ type ListeningScreenStrings = { listeningScreen: {
   domain: { daily: string; business: string; it: string };
   open: string; back: string;
   play: string;
+  /** 再生速度トグルのラベル (#194)。倍率表記（0.7x等）は言語非依存のため辞書に置かない */
+  speedLabel: string;
   logSaving: string; logFailed: string; logRetry: string;
   showScript: string; scriptLoading: string;
   explainMore: string; explainLoading: string; explainError: string;
@@ -1016,7 +1020,8 @@ export const STR: Record<Lang, Strings> = {
       modelAudio: "🎙 Generating audio…", modelRetry: "🎧 Model talk (retry)",
       startRound1: (time) => `Start Round 1 (${time}) →`, modelTranscript: "Model talk script",
       aeTitle: "Coach notes (read them, then Round 2)", aeLoading: "Your coach is writing notes…",
-      aeNoRecording: "No recording, so there are no coach notes", startRound2: (time) => `Start Round 2 (${time})`,
+      aeNoRecording: "No recording, so there are no coach notes", aeRetry: "Get coach notes again",
+      startRound2: (time) => `Start Round 2 (${time})`,
       doneBody: (count) => `4/3/2 done! You told the same story ${count} times, a little faster each round.`,
       roundHeading: (n, time, topic) => `Round ${n} (${time}) — ${topic}`,
       listeners: [
@@ -1037,6 +1042,8 @@ export const STR: Record<Lang, Strings> = {
       goodPhrases: "👏 What went well", fixes: "✏️ Worth polishing", tomorrow: "📝 For tomorrow",
       confirmReview: "I've reviewed this", reviewed: "Reviewed",
       explainMore: "💡 Explain more", explainLoading: "Writing an explanation…", explainError: "Couldn't load the explanation.",
+      offerButton: "💡 Review this conversation (optional)",
+      offerNote: "If you like, your coach can pick up to 3 phrases from what you said and suggest more natural wording. Skipping this is completely fine.",
     },
     chunkList: { playAria: (en) => `Play "${en}"` },
     playback: { stop: "⏹ Stop", playing: "Playing…" },
@@ -1083,6 +1090,7 @@ export const STR: Record<Lang, Strings> = {
       domain: { daily: "Daily", business: "Business", it: "IT" },
       open: "Listen", back: "← Back to list",
       play: "▶ Play",
+      speedLabel: "Playback speed",
       logSaving: "Listening complete. Saving your listen…",
       logFailed: "Listening is complete, but we couldn't save the listen. Your practice is unaffected.",
       logRetry: "Retry saving",
@@ -1609,7 +1617,8 @@ export const STR: Record<Lang, Strings> = {
       modelAudio: "🎙 音声を生成中…", modelRetry: "🎧 モデルトーク（再試行）",
       startRound1: (time) => `Round 1 を始める（${time}）→`, modelTranscript: "モデルトークのスクリプト",
       aeTitle: "コーチからのヒント（読んでから Round 2 へ）", aeLoading: "コーチがヒントを書いています…",
-      aeNoRecording: "録音がなかったのでコーチからのヒントはありません", startRound2: (time) => `Round 2 を始める（${time}）`,
+      aeNoRecording: "録音がなかったのでコーチからのヒントはありません", aeRetry: "ヒントを再取得",
+      startRound2: (time) => `Round 2 を始める（${time}）`,
       doneBody: (count) => `4/3/2 完了！同じ話を${count}回、少しずつ速く話せました。`,
       roundHeading: (n, time, topic) => `Round ${n}（${time}） — ${topic}`,
       listeners: [
@@ -1630,6 +1639,8 @@ export const STR: Record<Lang, Strings> = {
       goodPhrases: "👏 良かった表現", fixes: "✏️ 直したい表現", tomorrow: "📝 明日へ",
       confirmReview: "振り返りを確認した", reviewed: "確認しました",
       explainMore: "💡 もっと詳しく", explainLoading: "解説を書いています…", explainError: "解説を取得できませんでした。",
+      offerButton: "💡 会話を振り返る（任意）",
+      offerNote: "希望するときだけ、今の会話からコーチが直したい表現を最大3件提案します。見なくても練習の記録には影響しません。",
     },
     chunkList: { playAria: (en) => `「${en}」を再生` },
     playback: { stop: "⏹ 停止", playing: "再生中…" },
@@ -1676,6 +1687,7 @@ export const STR: Record<Lang, Strings> = {
       domain: { daily: "日常", business: "ビジネス", it: "IT" },
       open: "聞く", back: "← 一覧に戻る",
       play: "▶ 再生",
+      speedLabel: "再生速度",
       logSaving: "聴取は完了しました。記録を保存しています…",
       logFailed: "聴取は完了しましたが、記録を保存できませんでした。練習内容には影響しません。",
       logRetry: "保存を再試行",

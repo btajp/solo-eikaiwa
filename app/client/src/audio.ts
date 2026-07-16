@@ -201,13 +201,32 @@ export function isPlaybackRequestCurrent(generation: number): boolean {
   return generation === playbackGeneration;
 }
 
+/** Blob再生の任意オプション。playbackRate はピッチを保ったままの再生速度（例: 0.7〜1.25） */
+export type PlaybackOptions = { playbackRate?: number };
+
+/**
+ * 再生中の音声があれば再生速度を即時変更する（リスニングの速度トグル用・#194）。
+ * 再生中でなければ何もしない（次の再生は呼び出し側が options で指定する）。
+ */
+export function setCurrentPlaybackRate(rate: number): void {
+  if (!current || !(rate > 0)) return;
+  current.audio.preservesPitch = true;
+  current.audio.playbackRate = rate;
+}
+
 /** 取得前に予約した世代がまだ最新の場合だけBlob再生を開始する。 */
-export async function playBlobForRequest(blob: Blob, generation: number): Promise<void> {
+export async function playBlobForRequest(blob: Blob, generation: number, options?: PlaybackOptions): Promise<void> {
   if (!isPlaybackRequestCurrent(generation)) return;
   stopCurrentPlayback();
   if (!isPlaybackRequestCurrent(generation)) return;
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
+  const rate = options?.playbackRate;
+  if (rate !== undefined && rate > 0) {
+    // 速度を変えても声の高さを保つ（現行ブラウザは既定 true だが、意図として明示する）
+    audio.preservesPitch = true;
+    audio.playbackRate = rate;
+  }
   try {
     await new Promise<void>((resolve, reject) => {
       current = { audio, url, resolve };
