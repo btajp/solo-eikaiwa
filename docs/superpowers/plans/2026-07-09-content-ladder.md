@@ -1,5 +1,7 @@
 # 教材ラダー拡充（v0.26）実装計画
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task.
 
 **Goal:** 各メニューの教材を全レベル帯で事前生成・同梱し、進級しても教材が途切れないラダーを作る（spec: `docs/superpowers/specs/2026-07-09-content-ladder-design.md` が設計の正）

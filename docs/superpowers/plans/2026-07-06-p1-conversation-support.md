@@ -1,5 +1,7 @@
 # P1: 会話系の日本語支援 Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 自由会話・ロールプレイ画面に、AI発話ごとの「訳」ボタン・「言い方ヒント」入力・ロールプレイ開始フレーズ提示を追加し、会話系の日本語支援ゼロ地帯を解消する。

@@ -1,5 +1,7 @@
 # アプリ内フィードバック収集 Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 練習の完了時に控えめな1タップの難易度フィードバック（キツい/ちょうどいい/簡単＋任意メモ）を溜め、サイドバーの専用画面で日付降順に閲覧・Markdownエクスポートできるようにし、次の開発サイクルの入力にする。

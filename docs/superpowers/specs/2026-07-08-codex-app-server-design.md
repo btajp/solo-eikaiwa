@@ -57,7 +57,7 @@
 
 ### 版固定と破壊的変更検出
 
-- `app/server/providers/codex-protocol.snapshot.json`: `codex app-server generate-json-schema` の出力をコミット。再生成 diff スクリプト `scripts/check-codex-protocol.ts`（手動/リリース前実行・CI 非依存）
+- `app/server/providers/codex-protocol.snapshot.json`: `codex app-server generate-json-schema` の出力をコミット。再生成 diff スクリプト `scripts/check-codex-protocol.sh`（手動/リリース前実行・CI 非依存）
 - アダプタに検証済みバージョン定数（`0.142.5`）を持ち、初回 spawn 時に `codex --version` 照合。不一致は warn ログのみ（動作は継続・壊れたら exec フォールバック）
 
 ## 4. B: 優先クラウド設定

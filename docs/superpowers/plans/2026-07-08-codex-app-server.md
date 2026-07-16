@@ -1,5 +1,7 @@
 # Codex App Server 統合 + 優先クラウド設定 Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Codex を app-server（常駐 JSON-RPC・ネイティブ thread 継続・再起動復元）で動かして Claude とのセッション永続化パリティを実現し、プリセットのクラウド枠を「優先クラウド（Claude/Codex）」で選べるようにする（v0.23.0・spec: `docs/superpowers/specs/2026-07-08-codex-app-server-design.md`）。

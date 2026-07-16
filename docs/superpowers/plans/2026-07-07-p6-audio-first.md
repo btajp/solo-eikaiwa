@@ -1,5 +1,7 @@
 # P6-3 聴覚起点リトリーバルモード（音から）Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 例文練習（PracticeTab）に、画面ローカルで切替できる「音から」モード（TTS を先に聞き、英文・日本語とも非表示のまま意味を想起 → 表示して答え合わせ → 既存の3段階自己評価）を追加する。

@@ -1,5 +1,7 @@
 # 例文300の学習体験強化（ヒント非表示・歯抜け文・i18n）実装計画
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 暗記例文300の練習フローに「ヒント（note）を隠す設定」「答えの前段の歯抜け文（cloze）ステップ」を追加し、画面のUI文言をi18n（EN/JA）対応する。

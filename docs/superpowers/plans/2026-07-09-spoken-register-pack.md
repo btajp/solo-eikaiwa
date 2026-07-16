@@ -1,5 +1,7 @@
 # v0.25 口語最適化パック 実装計画
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task.
 
 **Goal:** 生成プロンプトの口語レジスター統一と多聴6本の再生成（監査 spoken-register-audit の改善パック）

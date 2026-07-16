@@ -1,5 +1,7 @@
 # Tauri Phase 1（薄いシェル + 録音PoC）実装計画（v0.27 候補）
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task.
 
 **Goal:** アタッチ方式のデスクトップシェル（Tauri v2）を出荷し、WKWebView での録音→STT の E2E 互換を実証する（メモリ desktop-app-backlog の Phase 1）

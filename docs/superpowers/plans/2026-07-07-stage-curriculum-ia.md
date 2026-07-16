@@ -1,5 +1,7 @@
 # Stage別カリキュラム + 情報設計（IA）再設計 Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 日替わりメニューのブロック構成を stage 帯で変え（Four Strands の配分を stage 連動化）、サイドバーを目的別セクション + 「今のあなた向け」推奨マークに整理し、ホームに「今日はこれ→これ」のガイド付きパスを追加して、「どれがメインでどれがサブか・順番が分からない」を解消する。

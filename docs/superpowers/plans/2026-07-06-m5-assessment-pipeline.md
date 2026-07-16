@@ -1,5 +1,7 @@
 # M5: 月次アセスメント・コンテンツ生成パイプライン 実装計画
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 直近30日の学習データから月次レビュー（日本語の振り返りレポート）を生成・保存・表示し、実力データ（SRSの苦手カテゴリ・現在ステージ）駆動でオリジナル教材を追加生成するCLIを提供する。
