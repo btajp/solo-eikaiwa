@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { existsSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   cacheKeyFor, httpCacheKeyFor, synthesize, resolveTtsConfig, TtsTimeoutError,
-  DEFAULT_TTS_BASE_URL, DEFAULT_TTS_MODEL, DEFAULT_TTS_VOICE,
+  DEFAULT_TTS_BASE_URL, DEFAULT_TTS_MODEL, DEFAULT_TTS_VOICE, DEFAULT_TTS_CACHE_MAX_BYTES,
 } from "../tts";
 import { ensureTtsProviderSchema, makeTtsProviderStore } from "../tts-provider-store";
 
@@ -545,5 +545,88 @@ describe("tts provider config", () => {
     });
     expect(r.engine).toBe("say");
     expect(Array.from(r.audio)).toEqual([9, 9]);
+  });
+});
+
+describe("tts: HTTPキャッシュの容量上限・LRUエビクション（#207）", () => {
+  const OLD_A = new Date("2020-01-01T00:00:00Z");
+  const OLD_B = new Date("2020-01-02T00:00:00Z");
+
+  function mkAudioFetch(bytes: number) {
+    return (async () => new Response(new Uint8Array(bytes).fill(7), { status: 200 })) as unknown as typeof fetch;
+  }
+
+  /** runtime HTTPキャッシュの実パス（provider "openai"・既定接続の合成キー） */
+  function runtimeCachePath(cacheDir: string, text: string): string {
+    const key = httpCacheKeyFor(
+      "openai", { baseUrl: DEFAULT_TTS_BASE_URL, model: DEFAULT_TTS_MODEL, voice: DEFAULT_TTS_VOICE }, text,
+    );
+    return path.join(cacheDir, `${key}.mp3`);
+  }
+
+  function totalMp3Bytes(cacheDir: string): number {
+    return readdirSync(cacheDir)
+      .filter((name) => name.endsWith(".mp3"))
+      .reduce((sum, name) => sum + statSync(path.join(cacheDir, name)).size, 0);
+  }
+
+  test("既定の容量上限は正の有限値", () => {
+    expect(Number.isFinite(DEFAULT_TTS_CACHE_MAX_BYTES)).toBe(true);
+    expect(DEFAULT_TTS_CACHE_MAX_BYTES).toBeGreaterThan(0);
+  });
+
+  test("上限超過時はmtimeの古い順に削除され、総容量が上限内へ収まる", async () => {
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-lru-"));
+    const opts = {
+      apiKey: "sk-test", provider: "openai" as const, cacheDir,
+      fetchFn: mkAudioFetch(100), env: {}, cacheMaxBytes: 250,
+    };
+    await synthesize("evict text 1", opts);
+    utimesSync(runtimeCachePath(cacheDir, "evict text 1"), OLD_A, OLD_A);
+    await synthesize("evict text 2", opts);
+    utimesSync(runtimeCachePath(cacheDir, "evict text 2"), OLD_B, OLD_B);
+    await synthesize("evict text 3", opts); // 100+100+100=300 > 250 → 最古の1件を削除
+
+    expect(existsSync(runtimeCachePath(cacheDir, "evict text 1"))).toBe(false);
+    expect(existsSync(runtimeCachePath(cacheDir, "evict text 2"))).toBe(true);
+    expect(existsSync(runtimeCachePath(cacheDir, "evict text 3"))).toBe(true);
+    expect(totalMp3Bytes(cacheDir)).toBeLessThanOrEqual(250);
+  });
+
+  test("キャッシュヒットはLRU順位を更新する（直近に再生された音声より、長く再生されていない音声を先に削除）", async () => {
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-lru-hit-"));
+    const opts = {
+      apiKey: "sk-test", provider: "openai" as const, cacheDir,
+      fetchFn: mkAudioFetch(100), env: {}, cacheMaxBytes: 250,
+    };
+    await synthesize("lru A", opts);
+    utimesSync(runtimeCachePath(cacheDir, "lru A"), OLD_A, OLD_A); // Aの方が古い
+    await synthesize("lru B", opts);
+    utimesSync(runtimeCachePath(cacheDir, "lru B"), OLD_B, OLD_B);
+
+    // Aを再生: キャッシュヒット（無料再生の維持）+ LRU順位が最新になる
+    const throwingFetch = (async () => {
+      throw new Error("must not fetch on cache hit");
+    }) as unknown as typeof fetch;
+    const hit = await synthesize("lru A", { ...opts, fetchFn: throwingFetch });
+    expect(hit.engine).toBe("openai");
+    expect(Array.from(hit.audio)).toEqual(Array.from(new Uint8Array(100).fill(7)));
+
+    await synthesize("lru C", opts); // 1件evict → 最古はB（Aはヒットで更新済み）
+    expect(existsSync(runtimeCachePath(cacheDir, "lru B"))).toBe(false);
+    expect(existsSync(runtimeCachePath(cacheDir, "lru A"))).toBe(true);
+    expect(existsSync(runtimeCachePath(cacheDir, "lru C"))).toBe(true);
+  });
+
+  test("同梱生成mode（cacheTarget: bundled）は容量上限の対象外で何も削除されない", async () => {
+    const cacheDir = mkdtempSync(path.join(tmpdir(), "tts-lru-bundled-"));
+    const opts = {
+      apiKey: "sk-test", cacheDir, cacheTarget: "bundled" as const,
+      fetchFn: mkAudioFetch(100), env: {}, cacheMaxBytes: 150,
+    };
+    await synthesize("bundle 1", opts);
+    await synthesize("bundle 2", opts);
+    await synthesize("bundle 3", opts);
+    expect(readdirSync(cacheDir).filter((name) => name.endsWith(".mp3"))).toHaveLength(3);
   });
 });

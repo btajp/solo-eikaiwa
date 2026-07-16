@@ -12,8 +12,11 @@ log() { echo "== verify: $* =="; }
 verify_core() {
   "$INSTALL_BUN_DEPS" all
 
-  log "client build"
-  (cd "$REPO_DIR/app/client" && bun run build)
+  # 検証ビルドは配信用の app/client/dist と分離した dist-verify へ出力する。
+  # dist は常駐サーバが直配信しているため、検証ゲートの実行がデプロイにならないようにする
+  # （配信 dist を更新するのは AGENTS.md「デプロイ」節の明示手順だけ）。
+  log "client build (dist-verify)"
+  (cd "$REPO_DIR/app/client" && bun run build:verify)
 
   log "TypeScript"
   (cd "$REPO_DIR/app" && bun run typecheck)
@@ -40,6 +43,17 @@ verify_core() {
 
   log "spoken register"
   (cd "$REPO_DIR" && bun scripts/check-spoken-register.ts)
+
+  # CI の accessibility ジョブと同じ Playwright 検査（axe による a11y 回帰を含む）。
+  # CI の core ジョブは専用の accessibility ジョブが同一検査を必須チェックとして実行するため、
+  # VERIFY_SKIP_A11Y=1 で重複実行だけを省略する（ローカルと release では常に実行）。
+  log "client a11y (Playwright)"
+  if [[ "${VERIFY_SKIP_A11Y:-0}" == "1" ]]; then
+    echo "-- VERIFY_SKIP_A11Y=1: CIのaccessibilityジョブが同一検査を実行するため省略"
+  else
+    (cd "$REPO_DIR/app/client" && bunx playwright install chromium)
+    (cd "$REPO_DIR/app/client" && bun run test:a11y)
+  fi
 }
 
 remember_dir() {

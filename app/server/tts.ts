@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync, utimesSync } from "node:fs";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { BUNDLED_AUDIO_DIR, TTS_CACHE_DIR } from "./paths";
@@ -14,6 +14,12 @@ export const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
 /** 既定 voice。同梱バンドルの cacheKey もこの値で生成済み。 */
 export const DEFAULT_TTS_VOICE = "alloy";
 export const DEFAULT_TTS_TIMEOUT_MS = 60_000;
+/**
+ * runtime HTTPキャッシュ（data/tts-cache）の既定容量上限（#207）。会話応答のような再利用されない
+ * 音声も毎ターン書き込まれるため、無制限だと長期利用でGB級に増え続ける。超過分は「長く再生されて
+ * いない順（mtime昇順のLRU）」に削除する。同梱バンドル（BUNDLED_AUDIO_DIR）はこの対象外。
+ */
+export const DEFAULT_TTS_CACHE_MAX_BYTES = 256 * 1024 * 1024;
 const HTTP_CACHE_SCHEMA_VERSION = 2;
 const HTTP_RESPONSE_FORMAT = "mp3";
 const cleanedCacheDirs = new Set<string>();
@@ -68,6 +74,8 @@ export type SynthesizeOpts = {
   cacheRenameFn?: (from: string, to: string) => void;
   /** APIキー解決に使う env（省略時 Bun.env・TTS_API_KEY/OPENAI_API_KEY のみ読む）。テストで注入する。 */
   env?: Record<string, string | undefined>;
+  /** runtime HTTPキャッシュの容量上限（バイト・省略時 DEFAULT_TTS_CACHE_MAX_BYTES）。テスト用 seam。 */
+  cacheMaxBytes?: number;
 };
 
 export function cacheKeyFor(model: string, voice: string, text: string): string {
@@ -216,6 +224,41 @@ function cleanupStaleCacheTemps(cacheDir: string): void {
   cleanedCacheDirs.add(cacheDir);
 }
 
+/**
+ * runtime HTTPキャッシュのLRUエビクション（#207）。書き込み後に総容量が上限を超えていたら、
+ * mtimeの古い順（=長く再生されていない順。キャッシュヒット時にmtimeを更新している）に削除する。
+ * 直前に書いたエントリ（keepPath）は削除対象から除外し、返却直後の再再生を守る。
+ * 削除はベストエフォート: 失敗しても合成結果には影響させない。
+ */
+function evictHttpCacheOverLimit(cacheDir: string, maxBytes: number, keepPath: string): void {
+  try {
+    const entries: { path: string; size: number; mtimeMs: number }[] = [];
+    let total = 0;
+    for (const name of readdirSync(cacheDir)) {
+      if (!name.endsWith(".mp3")) continue; // .tmp-* 残骸は起動時掃除（cleanupStaleCacheTemps）の担当
+      const filePath = path.join(cacheDir, name);
+      try {
+        const stat = statSync(filePath);
+        if (!stat.isFile()) continue;
+        total += stat.size;
+        entries.push({ path: filePath, size: stat.size, mtimeMs: stat.mtimeMs });
+      } catch {
+        continue; // 並行削除等で消えた場合は対象外として続行
+      }
+    }
+    if (total <= maxBytes) return;
+    entries.sort((a, b) => a.mtimeMs - b.mtimeMs);
+    for (const entry of entries) {
+      if (total <= maxBytes) break;
+      if (entry.path === keepPath) continue;
+      rmSync(entry.path, { force: true });
+      total -= entry.size;
+    }
+  } catch (err) {
+    console.warn(`tts: cache eviction failed for ${cacheDir}: ${String(err)}`);
+  }
+}
+
 async function writeCacheAtomic(
   cachePath: string, audio: Uint8Array, opts: SynthesizeOpts, signal: AbortSignal,
 ): Promise<void> {
@@ -288,7 +331,16 @@ export async function synthesize(
         if (existsSync(cachePath)) {
           const audio = new Uint8Array(await Bun.file(cachePath).arrayBuffer());
           throwIfAborted(signal);
-          if (audio.length > 0) return { audio, mime: "audio/mpeg", engine: "openai" };
+          if (audio.length > 0) {
+            try {
+              // LRU: 再生されたエントリを最新扱いにして、エビクションの「長く再生されていない順」を保つ
+              const now = new Date();
+              utimesSync(cachePath, now, now);
+            } catch {
+              // mtime更新はLRU順位のためのベストエフォート。失敗しても再生には影響させない
+            }
+            return { audio, mime: "audio/mpeg", engine: "openai" };
+          }
           rmSync(cachePath, { force: true });
         }
       } catch (err) {
@@ -299,6 +351,10 @@ export async function synthesize(
         const audio = await synthesizeHttp(text, cfg, opts.fetchFn ?? fetch, signal);
         try {
           await writeCacheAtomic(cachePath, audio, opts, signal);
+          // 同梱音声の生成CLI（cacheTarget: "bundled"）は全件保持が前提なのでエビクションしない。
+          if (opts.cacheTarget !== "bundled") {
+            evictHttpCacheOverLimit(cacheDir, opts.cacheMaxBytes ?? DEFAULT_TTS_CACHE_MAX_BYTES, cachePath);
+          }
         } catch (err) {
           if (signal.aborted) throw abortReason(signal);
           console.warn(`tts: cache write failed for ${cachePath}: ${String(err)}`);

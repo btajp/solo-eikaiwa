@@ -4,6 +4,8 @@ models/
 .env.*
 !.env.example
 dist/
+# verify.sh の検証専用ビルド出力（配信用 dist とは分離・#196）
+dist-verify/
 /app/client/test-results/
 *.log
 .superpowers/

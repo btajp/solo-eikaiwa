@@ -5,7 +5,8 @@ export type SessionRoutesDeps = {
   logFile: () => string;
 };
 
-const BLOCK_EVENT_TYPES = ["block_start", "block_end", "round_start", "round_end"] as const;
+// block_activity: ブロック内の実施実態（例: シャドーイングの「聞いた」「声に出した」自己申告）を meta で区別して残す（#181）
+const BLOCK_EVENT_TYPES = ["block_start", "block_end", "round_start", "round_end", "block_activity"] as const;
 type BlockEventType = (typeof BLOCK_EVENT_TYPES)[number];
 const MAX_SESSION_ID_CHARS = 200;
 

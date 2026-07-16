@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
-  appendEvent, fttOutputSignals, listPracticeDays, readEvents, readSessionEvents, type SessionEvent,
+  appendEvent, fttOutputSignals, listPracticeDays, readEvents, readSessionEvents,
+  SESSION_INDEX_FILE, type SessionEvent,
 } from "../session-log";
 
 describe("session-log", () => {
@@ -100,6 +101,95 @@ describe("session-log: 日付形式の互換性", () => {
     writeFileSync(path.join(dir, "2026-07-06.jsonl"), activity);
     writeFileSync(path.join(dir, "not-a-log.txt"), "");
     expect(listPracticeDays(dir)).toEqual(["2026-07-05", "2026-07-06"]);
+  });
+});
+
+describe("session-log: 永続インデックス（#205 全履歴フルスキャン回避）", () => {
+  // サイズ・mtimeを保ったまま内容だけ差し替える観測手法:
+  // インデックスが使われていれば（=ファイルを読み直していなければ）結果は差し替え前のまま変わらない。
+  const FIXED_MTIME = new Date("2026-07-01T12:00:00Z"); // 秒単位に丸めた固定mtime（fsのmtime精度差の影響を避ける）
+
+  const practiceLine = JSON.stringify({
+    ts: "t", type: "user_utterance", sessionId: "s1", text: "practice practice practice",
+  }) + "\n";
+
+  /** practiceLine と同一バイト長の非practice行（session_start）を作る */
+  function sameLengthNonPracticeLine(): string {
+    const mk = (pad: string) => JSON.stringify({ ts: "t", type: "session_start", sessionId: "s1", text: pad }) + "\n";
+    const pad = "x".repeat(Buffer.byteLength(practiceLine, "utf8") - Buffer.byteLength(mk(""), "utf8"));
+    const line = mk(pad);
+    expect(Buffer.byteLength(line, "utf8")).toBe(Buffer.byteLength(practiceLine, "utf8"));
+    return line;
+  }
+
+  test("listPracticeDays: サイズ・mtime不変の既知ファイルは再読せずインデックスの判定を使う", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "idx-days-"));
+    const file = path.join(dir, "2026-07-01.jsonl");
+    writeFileSync(file, practiceLine);
+    utimesSync(file, FIXED_MTIME, FIXED_MTIME);
+    expect(listPracticeDays(dir)).toEqual(["2026-07-01"]);
+
+    // 内容だけ非practiceへ差し替え（サイズ・mtimeは同一）→ インデックス利用なら結果は変わらない
+    writeFileSync(file, sameLengthNonPracticeLine());
+    utimesSync(file, FIXED_MTIME, FIXED_MTIME);
+    expect(listPracticeDays(dir)).toEqual(["2026-07-01"]);
+  });
+
+  test("listPracticeDays: 追記でサイズが変わったファイルは再判定する（当日ファイルの追記を反映）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "idx-days-append-"));
+    const file = path.join(dir, "2026-07-02.jsonl");
+    writeFileSync(file, JSON.stringify({ ts: "t", type: "session_start", sessionId: "s1" }) + "\n");
+    expect(listPracticeDays(dir)).toEqual([]);
+    appendEvent(file, { ts: "t", type: "user_utterance", sessionId: "s1", text: "hi" });
+    expect(listPracticeDays(dir)).toEqual(["2026-07-02"]);
+  });
+
+  test("listPracticeDays: インデックス作成後に増えた新しい日のファイルも反映する", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "idx-days-new-"));
+    writeFileSync(path.join(dir, "2026-07-01.jsonl"), practiceLine);
+    expect(listPracticeDays(dir)).toEqual(["2026-07-01"]);
+    writeFileSync(path.join(dir, "2026-07-02.jsonl"), practiceLine);
+    expect(listPracticeDays(dir)).toEqual(["2026-07-01", "2026-07-02"]);
+  });
+
+  test("インデックスファイルが壊れていても全再走査で正しく動き、練習日一覧にも現れない", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "idx-broken-"));
+    writeFileSync(path.join(dir, "2026-07-01.jsonl"), practiceLine);
+    expect(listPracticeDays(dir)).toEqual(["2026-07-01"]);
+    writeFileSync(path.join(dir, SESSION_INDEX_FILE), "{broken json");
+    expect(listPracticeDays(dir)).toEqual(["2026-07-01"]);
+    expect(readSessionEvents("s1", dir)).toHaveLength(1);
+  });
+
+  test("readSessionEvents: 対象sessionを含まない不変ファイルはインデックスで読み飛ばす", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "idx-session-"));
+    const mkLine = (sessionId: string, text: string) =>
+      JSON.stringify({ ts: "2026-07-02T00:00:00.000Z", type: "user_utterance", sessionId, text }) + "\n";
+    writeFileSync(path.join(dir, "2026-07-01.jsonl"), mkLine("target", "mine"));
+    const day2 = path.join(dir, "2026-07-02.jsonl");
+    const otherLine = mkLine("other!", "aaaaaa");
+    writeFileSync(day2, otherLine);
+    utimesSync(day2, FIXED_MTIME, FIXED_MTIME);
+    expect(readSessionEvents("target", dir).map((e) => e.text)).toEqual(["mine"]);
+
+    // 同一バイト長で対象sessionのイベントへ差し替え（サイズ・mtime同一）→ 読み飛ばされていれば現れない
+    const injected = mkLine("target", "bbbbbb");
+    expect(Buffer.byteLength(injected, "utf8")).toBe(Buffer.byteLength(otherLine, "utf8"));
+    writeFileSync(day2, injected);
+    utimesSync(day2, FIXED_MTIME, FIXED_MTIME);
+    expect(readSessionEvents("target", dir).map((e) => e.text)).toEqual(["mine"]);
+  });
+
+  test("readSessionEvents: インデックス作成後の追記・新規日ファイルの対象イベントも反映する", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "idx-session-append-"));
+    const day1 = path.join(dir, "2026-07-01.jsonl");
+    appendEvent(day1, { ts: "2026-07-01T23:00:00.000Z", type: "user_utterance", sessionId: "target", text: "first" });
+    expect(readSessionEvents("target", dir).map((e) => e.text)).toEqual(["first"]);
+
+    appendEvent(day1, { ts: "2026-07-01T23:30:00.000Z", type: "assistant_reply", sessionId: "target", text: "second" });
+    const day2 = path.join(dir, "2026-07-02.jsonl");
+    appendEvent(day2, { ts: "2026-07-02T00:10:00.000Z", type: "user_utterance", sessionId: "target", text: "third" });
+    expect(readSessionEvents("target", dir).map((e) => e.text)).toEqual(["first", "second", "third"]);
   });
 });
 

@@ -28,7 +28,8 @@ export type TopicAssetFile = {
 /**
  * 同梱アセットの生成仕様バージョン。coach.ts の modelTalkSystem / prepSystem の出力仕様（語数・構造・
  * ルール文言）や progression.ts の PREP_TABLE（stage→chunkCount/hintLang）を変更した場合は必ずbumpする。
- * bumpすると既存の同梱JSONは全件stale判定になり、次回アクセス時にDBキャッシュ/実行時生成へフォールバックする
+ * bumpすると既存の同梱JSONは全件stale判定になり、DBキャッシュもキー不一致（topicAssetCacheKey に版を
+ * 組み込み済み・#206）で全件missになるため、次回アクセス時に実行時生成へフォールバックする
  * （scripts/generate-topic-assets.ts を再実行して同梱を作り直すまでの安全弁）。
  */
 export const TOPIC_ASSET_PROMPT_VERSION = "v1";
@@ -160,19 +161,42 @@ export function ensureTopicAssetCacheSchema(db: Database): void {
   )`);
 }
 
+/**
+ * DBキャッシュ（第2層）のルックアップキー。topicId に教材の sourceHash と生成仕様バージョンを組み込み、
+ * 教材再生成・TOPIC_ASSET_PROMPT_VERSION bump 後に旧生成物が二度と参照されないようにする（#206）。
+ * 「CREATE TABLE IF NOT EXISTS のみ・マイグレーション機構は作らない」規約のため、列追加ではなく
+ * topic_id 列へ格納するキー文字列そのものに組み込む（旧形式キーの行は残るが参照されず無害）。
+ * topic ファイルが読めない場合は sourceHash 不明を表す安定キーにする（ファイルが現れた時点で
+ * キーが変わり、その内容に基づいて再生成される）。
+ */
+export function topicAssetCacheKey(topicId: string, sourceHash: string | null): string {
+  return `${topicId}|${sourceHash ?? "missing-topic"}|${TOPIC_ASSET_PROMPT_VERSION}`;
+}
+
+function currentTopicSourceHash(topicsDir: string, topicId: string): string | null {
+  const topicFile = path.join(topicsDir, `${topicId}.md`);
+  try {
+    if (!existsSync(topicFile)) return null;
+    return computeSourceHash(readFileSync(topicFile, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+/** 第1引数は topicAssetCacheKey で合成したルックアップキー（素の topicId ではない）。 */
 export type TopicAssetCacheStore = {
-  getPrepPack(topicId: string, stage: number): PrepPack | null;
-  savePrepPack(topicId: string, stage: number, pack: PrepPack): void;
-  getModelTalk(topicId: string, stage: number): string | null;
-  saveModelTalk(topicId: string, stage: number, text: string): void;
+  getPrepPack(topicKey: string, stage: number): PrepPack | null;
+  savePrepPack(topicKey: string, stage: number, pack: PrepPack): void;
+  getModelTalk(topicKey: string, stage: number): string | null;
+  saveModelTalk(topicKey: string, stage: number, text: string): void;
 };
 
 export function makeTopicAssetCacheStore(db: Database): TopicAssetCacheStore {
   return {
-    getPrepPack(topicId, stage) {
+    getPrepPack(topicKey, stage) {
       const row = db.query<{ data: string }, [string, number]>(
         "SELECT data FROM prep_pack_cache WHERE topic_id = ? AND stage = ?",
-      ).get(topicId, stage);
+      ).get(topicKey, stage);
       if (!row) return null;
       try {
         const parsed = JSON.parse(row.data);
@@ -181,24 +205,24 @@ export function makeTopicAssetCacheStore(db: Database): TopicAssetCacheStore {
         return null;
       }
     },
-    savePrepPack(topicId, stage, pack) {
+    savePrepPack(topicKey, stage, pack) {
       db.run(
         `INSERT INTO prep_pack_cache (topic_id, stage, data, created_at) VALUES (?, ?, ?, ?)
          ON CONFLICT(topic_id, stage) DO UPDATE SET data = excluded.data, created_at = excluded.created_at`,
-        [topicId, stage, JSON.stringify(pack), new Date().toISOString()],
+        [topicKey, stage, JSON.stringify(pack), new Date().toISOString()],
       );
     },
-    getModelTalk(topicId, stage) {
+    getModelTalk(topicKey, stage) {
       const row = db.query<{ text: string }, [string, number]>(
         "SELECT text FROM model_talk_cache WHERE topic_id = ? AND stage = ?",
-      ).get(topicId, stage);
+      ).get(topicKey, stage);
       return row && isValidModelTalk(row) ? row.text : null;
     },
-    saveModelTalk(topicId, stage, text) {
+    saveModelTalk(topicKey, stage, text) {
       db.run(
         `INSERT INTO model_talk_cache (topic_id, stage, text, created_at) VALUES (?, ?, ?, ?)
          ON CONFLICT(topic_id, stage) DO UPDATE SET text = excluded.text, created_at = excluded.created_at`,
-        [topicId, stage, text, new Date().toISOString()],
+        [topicKey, stage, text, new Date().toISOString()],
       );
     },
   };
@@ -210,29 +234,31 @@ export type ResolveTopicAssetDeps = {
   cache: TopicAssetCacheStore;
 };
 
-/** 3層フォールバック（prepPack版）: 同梱 → DBキャッシュ → generate（成功時はDBへwrite-through）。 */
+/** 3層フォールバック（prepPack版）: 同梱 → DBキャッシュ（sourceHash/promptVersion一致時のみ）→ generate（成功時はDBへwrite-through）。 */
 export async function resolvePrepPack(
   topicId: string, stage: number, deps: ResolveTopicAssetDeps, generate: () => Promise<PrepPack>,
 ): Promise<PrepPack> {
   const bundled = lookupBundledTopicAsset(deps.assetsDir, deps.topicsDir, topicId, stage);
   if (bundled?.prepPack) return bundled.prepPack;
-  const cached = deps.cache.getPrepPack(topicId, stage);
+  const cacheKey = topicAssetCacheKey(topicId, currentTopicSourceHash(deps.topicsDir, topicId));
+  const cached = deps.cache.getPrepPack(cacheKey, stage);
   if (cached) return cached;
   const generated = await generate();
-  if (isValidPrepPack(generated)) deps.cache.savePrepPack(topicId, stage, generated);
+  if (isValidPrepPack(generated)) deps.cache.savePrepPack(cacheKey, stage, generated);
   return generated;
 }
 
-/** 3層フォールバック（model talk版）: 同梱 → DBキャッシュ → generate（成功時はDBへwrite-through）。 */
+/** 3層フォールバック（model talk版）: 同梱 → DBキャッシュ（sourceHash/promptVersion一致時のみ）→ generate（成功時はDBへwrite-through）。 */
 export async function resolveModelTalk(
   topicId: string, stage: number, deps: ResolveTopicAssetDeps, generate: () => Promise<TopicAssetModelTalk>,
 ): Promise<TopicAssetModelTalk> {
   const bundled = lookupBundledTopicAsset(deps.assetsDir, deps.topicsDir, topicId, stage);
   if (bundled?.modelTalk) return bundled.modelTalk;
-  const cached = deps.cache.getModelTalk(topicId, stage);
+  const cacheKey = topicAssetCacheKey(topicId, currentTopicSourceHash(deps.topicsDir, topicId));
+  const cached = deps.cache.getModelTalk(cacheKey, stage);
   if (cached !== null) return { text: cached };
   const generated = await generate();
-  if (isValidModelTalk(generated)) deps.cache.saveModelTalk(topicId, stage, generated.text);
+  if (isValidModelTalk(generated)) deps.cache.saveModelTalk(cacheKey, stage, generated.text);
   return generated;
 }
 

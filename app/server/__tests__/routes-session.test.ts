@@ -97,6 +97,36 @@ describe("routes: session/event", () => {
     ]);
   });
 
+  test("block_activity は「聞いた」「声に出した」の区別を meta ごとログできる（#181）", async () => {
+    const { deps, logFile } = makeTestDeps();
+    const handler = makeFetchHandler(deps);
+    const listened = await handler(postJson("/api/session/event", {
+      type: "block_activity",
+      sessionId: "app-uuid-1",
+      meta: { blockId: "b4", kind: "shadowing", activity: "listened" },
+    }));
+    expect(listened.status).toBe(200);
+    const spoken = await handler(postJson("/api/session/event", {
+      type: "block_activity",
+      sessionId: "app-uuid-1",
+      meta: { blockId: "b4", kind: "shadowing", activity: "spoken-self-report" },
+    }));
+    expect(spoken.status).toBe(200);
+    const events = readEvents(logFile);
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "block_activity",
+        sessionId: "app-uuid-1",
+        meta: { blockId: "b4", kind: "shadowing", activity: "listened" },
+      }),
+      expect.objectContaining({
+        type: "block_activity",
+        sessionId: "app-uuid-1",
+        meta: { blockId: "b4", kind: "shadowing", activity: "spoken-self-report" },
+      }),
+    ]);
+  });
+
   test("ホワイトリスト外のtypeは400", async () => {
     const { deps } = makeTestDeps();
     const handler = makeFetchHandler(deps);

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:verify": "tsc --noEmit && vite build --outDir dist-verify",
     "test:a11y": "playwright test --config playwright.config.ts"
   },
   "dependencies": {
