@@ -8,7 +8,7 @@ import {
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
   tierOptionsForCodexModel, codexDefaultEffortLabel, codexDefaultModelLabel, localModelSelectOptions, resolveEffective, clampClaudeEffort,
   hydrateAuthModes, hydrateAuthKeys, buildAuthPatch, CODEX_EFFORT_OPTIONS,
-  classifyOpenAiEndpoint, endpointAllowsCredentials, roleTargetAvailability,
+  classifyOpenAiEndpoint, endpointAllowsCredentials, isOfficialOpenAiBaseUrl, roleTargetAvailability,
   type RoleTargets,
 } from "./llm-assignments";
 
@@ -87,11 +87,33 @@ describe("roleTargetAvailability", () => {
   });
 
   test("remote OpenAI互換は接続先へ承認済みのキーがある場合だけ選択できる", () => {
-    const remote = { baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini", codexModel: "" };
+    const remote = { baseUrl: "https://models.github.ai/inference", model: "gpt-4.1-mini", codexModel: "" };
     expect(roleTargetAvailability(mkView({ apiKeyApproved: false }), remote).local).toEqual({
       available: false, reason: "authentication",
     });
     expect(roleTargetAvailability(mkView({ apiKeyApproved: true }), remote).local.available).toBe(true);
+  });
+
+  test("OpenAI公式URLは互換接続として選択できない（キー承認済みでも・サーバの400契約と一致）", () => {
+    const official = { baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini", codexModel: "" };
+    expect(roleTargetAvailability(mkView({ apiKeyApproved: true }), official).local).toEqual({
+      available: false, reason: "connection",
+    });
+  });
+});
+
+describe("isOfficialOpenAiBaseUrl", () => {
+  test("正規化後に公式URLへ一致する表記ゆれ（末尾スラッシュ・大文字ホスト）を公式と判定する", () => {
+    expect(isOfficialOpenAiBaseUrl("https://api.openai.com/v1")).toBe(true);
+    expect(isOfficialOpenAiBaseUrl("https://api.openai.com/v1/")).toBe(true);
+    expect(isOfficialOpenAiBaseUrl("HTTPS://API.OPENAI.COM/v1")).toBe(true);
+  });
+  test("公式以外のremote・ローカル・無効URLは公式と判定しない", () => {
+    expect(isOfficialOpenAiBaseUrl("https://models.github.ai/inference")).toBe(false);
+    expect(isOfficialOpenAiBaseUrl("https://api.openai.com")).toBe(false);
+    expect(isOfficialOpenAiBaseUrl("http://localhost:11434/v1")).toBe(false);
+    expect(isOfficialOpenAiBaseUrl("")).toBe(false);
+    expect(isOfficialOpenAiBaseUrl("not a url")).toBe(false);
   });
 });
 

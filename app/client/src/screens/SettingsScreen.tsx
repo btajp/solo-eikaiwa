@@ -15,7 +15,7 @@ import {
   defaultTuning, applyRecommendedTuning,
   claudeModelSelectOptions, effortOptionsForClaudeAlias, codexModelSelectOptions, effortOptionsForCodexModel,
   tierOptionsForCodexModel, codexDefaultEffortLabel, codexDefaultModelLabel, localModelSelectOptions, openAiModelSelectOptions, resolveEffective, clampClaudeEffort,
-  classifyOpenAiEndpoint, endpointAllowsCredentials, roleTargetAvailability, CODEX_EFFORT_OPTIONS,
+  classifyOpenAiEndpoint, endpointAllowsCredentials, isOfficialOpenAiBaseUrl, roleTargetAvailability, CODEX_EFFORT_OPTIONS,
   type RoleTarget, type RoleTargets, type Connection, type PresetId, type CloudTarget,
 } from "../lib/llm-assignments";
 import { loadPreferredCloud, savePreferredCloud } from "../lib/preferred-cloud";
@@ -235,6 +235,11 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
 
   async function saveConnection() {
     if (!view) return;
+    // サーバも同じ理由で400を返す（#178）。リクエスト前に同じ文言で弾き、往復を待たせない。
+    if (isOfficialOpenAiBaseUrl(conn.baseUrl)) {
+      setConnectionSave({ phase: "error", message: s.settings.officialOpenAiBaseUrlRejected });
+      return;
+    }
     if (!isLocalDefined(conn) && hasSavedLocalRole(view.roles)) {
       setConnectionSave({ phase: "error", message: s.settings.localRoleConnectionRequired });
       return;
@@ -520,6 +525,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
               <input className="llm-input" value={connBaseUrl} placeholder={s.llm.baseUrlPlaceholder} disabled={settingsSaving || !view} onChange={(e) => { setConnBaseUrl(e.target.value); markConnectionEdited(); }} />
             </label>
             <div className="text-sm text-muted">{s.settings.endpointLabel}: {endpointLine(lang, endpoint)}</div>
+            {isOfficialOpenAiBaseUrl(connBaseUrl) && <div className="info-pop">{s.settings.officialOpenAiBaseUrlRejected}</div>}
             {endpoint.location === "remote" && <div className="info-pop">{s.settings.endpointRemoteDisclosure}</div>}
             {endpoint.location === "lan" && <div className="text-sm text-muted">{s.settings.endpointLanDisclosure}</div>}
             {endpoint.location === "loopback" && <div className="text-sm text-muted">{s.settings.endpointLoopbackDisclosure}</div>}

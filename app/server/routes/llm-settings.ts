@@ -3,6 +3,7 @@ import { DEFAULT_LLM_SETTINGS, LLM_ROLES, type LlmSettings, type LlmProvider, ty
 import { EFFORTS, CODEX_EFFORTS, SERVICE_TIERS, type RoleTuning, type TuningScope } from "../llm-role-tuning-store";
 import { AUTH_MODES, type AuthMode, type LlmAuthModes, type LlmAuthProvider } from "../llm-auth-store";
 import { parseRemoteBaseUrl } from "../remote-endpoint";
+import { isOfficialOpenAiBaseUrl } from "../openai";
 
 export type LlmSettingsRoutesDeps = {
   getLlmSettings: () => LlmSettings | null;
@@ -97,6 +98,11 @@ function parseSettingsInput(
     if (!baseUrl) return { ok: false, error: "baseUrl must be a valid http(s) URL for openai-compat" };
     const parsedBase = parseRemoteBaseUrl(baseUrl);
     if (!parsedBase.ok) return { ok: false, error: parsedBase.error };
+    // 公式URLは互換ロールとして保存させない: 公式には専用の openai プロバイダ（専用キーバンク・固定URL）が
+    // あり、互換行に紛れると保存と読込の契約が二重解釈になるため、保存前に理由つきで拒否する（#178）。
+    if (isOfficialOpenAiBaseUrl(parsedBase.baseUrl)) {
+      return { ok: false, error: "baseUrl is the official OpenAI API; use the official OpenAI connection (provider \"openai\") instead of openai-compat" };
+    }
     const model = asOptionalStr(b.model, 200);
     if (!model) return { ok: false, error: "model is required for openai-compat" };
     return { ok: true, value: { provider: "openai-compat", baseUrl: parsedBase.baseUrl, model, openaiModel: null, codexModel: null } };

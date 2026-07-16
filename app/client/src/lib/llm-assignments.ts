@@ -82,6 +82,18 @@ export function classifyOpenAiEndpoint(raw: string): EndpointClassification {
   return { location: "remote", origin: url.origin };
 }
 
+/**
+ * サーバの isOfficialOpenAiBaseUrl と同じ判定（binding）: 正規化（末尾スラッシュ除去・origin 正規化）後に
+ * OpenAI 公式 Base URL へ一致するか。公式は互換接続ではなく専用の OpenAI 接続（専用キーバンク・固定URL）を
+ * 使う契約のため、互換 Base URL としては保存前に拒否する（#178）。
+ */
+export function isOfficialOpenAiBaseUrl(raw: string): boolean {
+  const endpoint = classifyOpenAiEndpoint(raw);
+  if (endpoint.location === "invalid" || endpoint.origin === null) return false;
+  const pathname = new URL(raw.trim()).pathname.replace(/\/+$/, "");
+  return `${endpoint.origin}${pathname}` === OPENAI_OFFICIAL_BASE_URL;
+}
+
 /** サーバの parseRemoteBaseUrl.credentialsAllowed と同じ、資格情報を送信可能な接続先判定。 */
 export function endpointAllowsCredentials(raw: string): boolean {
   const endpoint = classifyOpenAiEndpoint(raw);
@@ -115,6 +127,7 @@ export function isLocalDefined(conn: Connection): boolean {
  * 用途タブで選択できる接続だけを返す。
  * Claude/Codex の subscription はキー不要、api-key は対応キーが必須。OpenAI互換は
  * loopback/LANなら接続定義だけでよいが、remoteはorigin承認済みキーを必要とする。
+ * OpenAI 公式URLは互換接続として扱わない（サーバが保存を400で拒否する契約・#178）。
  * 既存割当は呼び出し側で表示を残し、この結果によって黙って書き換えない。
  */
 export function roleTargetAvailability(
@@ -129,7 +142,7 @@ export function roleTargetAvailability(
 
   let local: RoleTargetAvailability["local"];
   const endpoint = classifyOpenAiEndpoint(conn.baseUrl);
-  if (!isLocalDefined(conn) || endpoint.location === "invalid") {
+  if (!isLocalDefined(conn) || endpoint.location === "invalid" || isOfficialOpenAiBaseUrl(conn.baseUrl)) {
     local = { available: false, reason: "connection" };
   } else if (endpoint.location !== "remote" || view.apiKeyApproved === true) {
     local = { available: true };

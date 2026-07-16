@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { Database } from "bun:sqlite";
 import { makeFetchHandler } from "../routes";
 import { makeTestDeps } from "./helpers/route-deps";
 import { getReq, putJson } from "./helpers/http";
-import type { LlmSettings, LlmRole } from "../llm-provider";
+import { ensureLlmRoleSettingsSchema, makeLlmRoleSettingsStore } from "../llm-role-settings-store";
+import { settingsToEnv, roleSettingToSettings, type LlmSettings, type LlmRole } from "../llm-provider";
 import type { RoleTuning } from "../llm-role-tuning-store";
 import type { AuthMode, LlmAuthModes, LlmAuthProvider } from "../llm-auth-store";
 
@@ -281,6 +283,72 @@ describe("llm-settings roles API", () => {
     expect((await h(putJson("/api/llm-settings/roles", { roles: { coaching: { provider: "env" } } }))).status).toBe(400); // env はロール不可
     expect((await h(putJson("/api/llm-settings/roles", { roles: { coaching: { provider: "openai-compat", model: "m" } } }))).status).toBe(400);
     expect(saved).toHaveLength(0);
+  });
+
+  test("PUT /roles 400: openai-compat に OpenAI 公式URLを指定したら理由つきで拒否する（保存しない）", async () => {
+    const saved: string[] = [];
+    const { deps } = makeTestDeps({
+      saveLlmRoleSettings: (role) => saved.push(role), getLlmSettings: () => null,
+      llmEnv: () => ({ apiKeyConfigured: false }),
+    });
+    const h = makeFetchHandler(deps);
+    // 正規化後に公式URLへ一致する表記ゆれ（大文字ホスト・末尾スラッシュ）も同じ理由で拒否する
+    for (const baseUrl of ["https://api.openai.com/v1", "https://api.openai.com/v1/", "HTTPS://API.OPENAI.COM/v1"]) {
+      const res = await h(putJson("/api/llm-settings/roles", {
+        roles: { conversation: { provider: "openai-compat", baseUrl, model: "gpt-4.1-mini" } },
+      }));
+      expect(res.status, baseUrl).toBe(400);
+      expect((await res.json()).error, baseUrl).toContain("official OpenAI");
+    }
+    expect(saved).toHaveLength(0);
+  });
+
+  test("PUT /roles: 公式URL以外のリモート互換URLは従来どおり保存できる（往復一致）", async () => {
+    const savedRoles: Array<{ role: string; s: unknown }> = [];
+    const { deps } = makeTestDeps({
+      saveLlmRoleSettings: (role, s) => savedRoles.push({ role, s }), getLlmSettings: () => null,
+      llmEnv: () => ({ apiKeyConfigured: false }),
+    });
+    const res = await makeFetchHandler(deps)(putJson("/api/llm-settings/roles", {
+      roles: { conversation: { provider: "openai-compat", baseUrl: "https://models.github.ai/inference", model: "gpt-4.1-mini" } },
+    }));
+    expect(res.status).toBe(200);
+    expect(savedRoles).toEqual([{
+      role: "conversation",
+      s: { provider: "openai-compat", baseUrl: "https://models.github.ai/inference", model: "gpt-4.1-mini", codexModel: null },
+    }]);
+  });
+
+  test("PUT→GET 実行時往復: 実DBストア配線で互換ロールが保存値のまま返り、キーバンクも互換側のまま", async () => {
+    const db = new Database(":memory:");
+    ensureLlmRoleSettingsSchema(db);
+    const store = makeLlmRoleSettingsStore(db);
+    const { deps } = makeTestDeps({
+      getLlmSettings: () => null,
+      getLlmRoleSettings: () => store.getAll(),
+      saveLlmRoleSettings: (role, s) => store.save(role, s),
+      llmEnv: () => ({ apiKeyConfigured: false }),
+    });
+    const h = makeFetchHandler(deps);
+    const put = await h(putJson("/api/llm-settings/roles", {
+      roles: { conversation: { provider: "openai-compat", baseUrl: "https://models.github.ai/inference", model: "gpt-4.1-mini" } },
+    }));
+    expect(put.status).toBe(200);
+    const view = await (await h(getReq("/api/llm-settings"))).json();
+    expect(view.roles.conversation).toEqual({
+      provider: "openai-compat", baseUrl: "https://models.github.ai/inference", model: "gpt-4.1-mini", codexModel: null,
+    });
+    // 再読込後も openai へ再解釈されないため、runner env は互換キーバンク（承認済みorigin resolver）を
+    // 参照し続け、OpenAI 公式キーへ切り替わらない（#178 の実害: 意図しないキー参照の防止）。
+    const roleEnv = settingsToEnv(
+      roleSettingToSettings(store.getAll().conversation),
+      {},
+      (baseUrl) => (baseUrl === "https://models.github.ai/inference" ? "compat-key" : undefined),
+      "official-openai-key",
+    );
+    expect(roleEnv.LLM_PROVIDER).toBe("openai-compat");
+    expect(roleEnv.OPENAI_COMPAT_API_KEY).toBe("compat-key");
+    expect(roleEnv.OPENAI_API_KEY).toBeUndefined();
   });
 
   test("PUT /roles 400: global+複数ロール一括で一部が不正なら何も保存しない（部分適用防止）", async () => {

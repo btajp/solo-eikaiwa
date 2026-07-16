@@ -192,6 +192,7 @@ type SettingsStrings = {
     endpointLanDisclosure: string;
     endpointRemoteDisclosure: string;
     endpointInvalidDisclosure: string;
+    officialOpenAiBaseUrlRejected: string;
     codexConnTitle: string;
     authModeLabel: string;
     authSubscription: string;
@@ -667,6 +668,7 @@ export const STR: Record<Lang, Strings> = {
       endpointLanDisclosure: "Requests are sent to another device on your local network. API-key credentials are not sent over non-loopback HTTP.",
       endpointRemoteDisclosure: "Prompts and transcribed speech assigned here leave your Mac. Authentication, data handling, and billing depend on the endpoint operator.",
       endpointInvalidDisclosure: "Enter an absolute HTTP(S) URL without user info, a query, or a fragment.",
+      officialOpenAiBaseUrlRejected: "This Base URL is the official OpenAI API. Use the official OpenAI connection (its API key and model fields) instead — the compatible endpoint is for local or other OpenAI-compatible servers.",
       codexConnTitle: "Codex (optional)",
       authModeLabel: "Authentication",
       authSubscription: "Subscription (default)",
@@ -1237,6 +1239,7 @@ export const STR: Record<Lang, Strings> = {
       endpointLanDisclosure: "リクエストはLAN上の別端末へ送信されます。loopback以外のHTTP接続にはAPIキーを送信しません。",
       endpointRemoteDisclosure: "ここへ割り当てた用途のプロンプトと文字起こしはMacの外へ送信されます。認証・データ取扱い・課金は接続先の運営者に従います。",
       endpointInvalidDisclosure: "userinfo・query・fragmentを含まない絶対HTTP(S) URLを入力してください。",
+      officialOpenAiBaseUrlRejected: "このBase URLはOpenAI公式APIです。互換接続先はローカルや他のOpenAI互換サーバ用のため、公式にはOpenAI公式接続（専用のAPIキーとモデル欄）を使ってください。",
       codexConnTitle: "Codex（任意）",
       authModeLabel: "認証",
       authSubscription: "サブスクリプション（既定）",

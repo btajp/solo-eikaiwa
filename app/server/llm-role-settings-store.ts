@@ -16,6 +16,22 @@ export function ensureLlmRoleSettingsSchema(db: Database): void {
     codex_model TEXT,
     updated_at TEXT NOT NULL
   )`);
+  // 旧データの一度きり書き戻し（マイグレーション機構ではない・冪等）: OpenAI 公式プロバイダ導入前に
+  // 保存された「公式URLを指す openai-compat 行」を openai 行へ移行する。route が同組合せの新規保存を
+  // 400 で拒否するため、この書き戻しが新規行に適用されることはない。getAll は読み取り時の再解釈を
+  // 行わない（保存値をそのまま返す＝往復一致）。
+  const compatRows = db
+    .query<{ role: string; base_url: string | null }, []>(
+      "SELECT role, base_url FROM llm_role_settings WHERE provider = 'openai-compat'",
+    )
+    .all();
+  for (const row of compatRows) {
+    if (!isOfficialOpenAiBaseUrl(row.base_url)) continue;
+    db.run(
+      "UPDATE llm_role_settings SET provider = 'openai', base_url = NULL, updated_at = ? WHERE role = ?",
+      [new Date().toISOString(), row.role],
+    );
+  }
 }
 
 export type LlmRoleSettingsStore = {
@@ -37,11 +53,10 @@ export function makeLlmRoleSettingsStore(db: Database): LlmRoleSettingsStore {
       const out = {} as Record<LlmRole, LlmRoleSetting>;
       for (const role of LLM_ROLES) {
         const r = byRole.get(role);
-        const legacyOfficial = r?.provider === "openai-compat" && isOfficialOpenAiBaseUrl(r.base_url);
         out[role] = r
           ? {
-              provider: (legacyOfficial ? "openai" : r.provider) as LlmRoleProvider,
-              baseUrl: legacyOfficial ? null : r.base_url,
+              provider: r.provider as LlmRoleProvider,
+              baseUrl: r.base_url,
               model: r.model,
               codexModel: r.codex_model,
             }
