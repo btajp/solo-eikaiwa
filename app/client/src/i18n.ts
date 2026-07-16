@@ -365,6 +365,7 @@ type SentencesStrings = {
     playAgain: string; audioPlaybackError: string;
     explainMore: string; explainLoading: string; explainError: string;
     gradeGood: string; gradeSoso: string; gradeBad: string;
+    firstGradeKept: string;
     doneTitle: (n: number) => string;
     dueTomorrow: (n: number) => string;
     doneBody: string;
@@ -881,6 +882,7 @@ export const STR: Record<Lang, Strings> = {
       explainLoading: "Writing a deeper explanation…",
       explainError: "Couldn't load the explanation. Try again on the next card.",
       gradeGood: "✅ Got it", gradeSoso: "😕 Shaky", gradeBad: "❌ Didn't come out",
+      firstGradeKept: "Your first rating had already been saved, so it was kept and we moved on.",
       doneTitle: (n) => `Done for today (${n} sentences)`,
       dueTomorrow: (n) => `Due tomorrow: ${n} items. `,
       doneBody: "Recalling out loud is the shortest path to retention. See you tomorrow.",
@@ -1445,6 +1447,7 @@ export const STR: Record<Lang, Strings> = {
       explainLoading: "詳しい解説を書いています…",
       explainError: "解説を取得できませんでした。次のカードで再度お試しください。",
       gradeGood: "✅ 言えた", gradeSoso: "😕 あいまい", gradeBad: "❌ 出てこない",
+      firstGradeKept: "最初に選んだ評価がすでに記録されていたため、その内容のまま次へ進みました。",
       doneTitle: (n) => `今日の分は完了です（${n}文）`,
       dueTomorrow: (n) => `明日の復習予定: ${n}件。`,
       doneBody: "思い出して声に出すことが定着の近道です。また明日。",

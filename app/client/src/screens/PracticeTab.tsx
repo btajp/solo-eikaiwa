@@ -16,7 +16,7 @@ import { PlaybackButton } from "../ui/PlaybackButton";
 import { localYmd } from "../dates";
 import { countDueByYmd } from "../lib/practice-summary";
 import { initialPhase, type Phase } from "./practicePhase";
-import { resolvePendingAnswer, type PendingAnswer } from "./answerRequest";
+import { isAnswerConflict, resolvePendingAnswer, type PendingAnswer } from "./answerRequest";
 
 const SET_SIZE = 20;
 
@@ -35,11 +35,12 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
   const [continuedSets, setContinuedSets] = useState(0);
   const [dueTomorrow, setDueTomorrow] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [noticeMsg, setNoticeMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const aliveRef = useRef(true);
   const gradingRef = useRef(false);
   const audio = usePlayRow<string>();
-  // response消失後の再評価でも同じanswerIdを再送し、SRSとXPを二重更新しない。
+  // response消失後の再評価でも同じanswerIdを再送してSRSとXPを二重更新せず、gradeは最新の選択を送る。
   const pendingAnswerRef = useRef<PendingAnswer | null>(null);
 
   useEffect(() => {
@@ -85,6 +86,13 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
     await audio.play(audioKeyOf(current), current.en);
   }
 
+  function advance() {
+    pendingAnswerRef.current = null;
+    setGradedCount((n) => n + 1);
+    setIdx((i) => i + 1);
+    setPhase(initialPhase(audioFirst, clozeDefault));
+  }
+
   async function grade(g: "good" | "soso" | "bad") {
     if (gradingRef.current) return;
     gradingRef.current = true;
@@ -92,6 +100,7 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
     audio.stop();
     setBusy(true);
     setErrorMsg("");
+    setNoticeMsg("");
     try {
       const itemKey = current.kind === "chunk" ? `chunk:${current.id}` : `sentence:${current.no}`;
       const pending = resolvePendingAnswer(pendingAnswerRef.current, itemKey, g);
@@ -99,18 +108,23 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
       if (current.kind === "chunk") await gradeChunk(current.id, pending.grade, pending.answerId);
       else await gradeSentence(current.no, pending.grade, pending.answerId);
       if (!aliveRef.current) return;
-      pendingAnswerRef.current = null;
-      setGradedCount((n) => n + 1);
-      setIdx((i) => i + 1);
-      setPhase(initialPhase(audioFirst, clozeDefault));
+      advance();
     } catch (err) {
       if (!aliveRef.current) return;
+      if (isAnswerConflict(err)) {
+        // 初回の評価は届いていてresponseだけ消失していた。記録済みの内容を明示して先へ進む。
+        setNoticeMsg(t.firstGradeKept);
+        advance();
+        return;
+      }
       setErrorMsg(formatClientError(lang, err, "submit"));
     } finally {
       gradingRef.current = false;
       if (aliveRef.current) setBusy(false);
     }
   }
+
+  const noticeBanner = noticeMsg ? <Banner kind="info">{noticeMsg}</Banner> : null;
 
   if (load.state.status === "loading") return <p className="text-muted">{t.loading}</p>;
   if (load.state.status === "error") {
@@ -119,6 +133,7 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
   if (atSetBoundary) {
     return (
       <Card>
+        {noticeBanner}
         <p className="sentence-done">{t.setDone(queue.length - idx)}</p>
         <p className="text-muted">{t.setNote}</p>
         <Button variant="primary" size="lg" onClick={() => setContinuedSets(idx / SET_SIZE)}>
@@ -130,6 +145,7 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
   if (done) {
     return (
       <Card>
+        {noticeBanner}
         <p className="sentence-done">{t.doneTitle(gradedCount)}</p>
         <p className="text-muted">
           {dueTomorrow === null ? "" : t.dueTomorrow(dueTomorrow)}
@@ -211,6 +227,7 @@ export function PracticeTab({ lang, hideNote, clozeDefault, audioFirst = false, 
             </div>
           </>
         )}
+        {noticeBanner}
         {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
       </Card>
     </div>
