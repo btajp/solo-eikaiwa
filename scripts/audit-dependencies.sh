@@ -18,12 +18,17 @@ record_status() {
 audit_bun() {
   local source="$1"
   local dir="$2"
-  local result status
+  local status tmp
+  tmp="$(mktemp -d)"
   set +e
-  result="$(cd "$dir" && bun audit --json 2>&1)"
+  (cd "$dir" && bun audit --json >"$tmp/out" 2>"$tmp/err")
   status=$?
   set -e
-  [[ -z "$result" ]] || printf '%s\n' "$result"
+  # stdout（監査結果JSON）とstderr（bunの通知・バナー等）を分離し、公開アセットへは
+  # 整形済みstdoutのみが入るようにする（#243）。stderrは診断用に端末側へそのまま流す。
+  [[ ! -s "$tmp/out" ]] || cat "$tmp/out"
+  [[ ! -s "$tmp/err" ]] || cat "$tmp/err" >&2
+  rm -rf "$tmp"
   case "$status" in
     0) echo "AUDIT_OK source=$source" ;;
     1)

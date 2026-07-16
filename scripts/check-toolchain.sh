@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# toolchain.json にpinしたexact versionと実環境のツールの一致を検査する。
+# 使い方: ./scripts/check-toolchain.sh [bun|tauri|audit|all]
+# モードごとの検査対象:
+#   bun   … Bun のみ
+#   tauri … Tauri CLI（cargo tauri）のみ
+#   audit … Bun + cargo-audit（verify.sh audit と release-desktop.sh の preflight が使用）
+#   all   … Bun + Tauri CLI（cargo-audit と cmake は含まない。リリース前提の一括確認は
+#           release-desktop.sh 冒頭の preflight = audit モード + cmake/gh 存在確認で行う）
 set -euo pipefail
 
 REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd -P)"

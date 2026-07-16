@@ -17,6 +17,8 @@
 - URL は `https://okash1n.github.io/solo-eikaiwa/`（決定済み・org 移行しない）
 - ブランチ: `feat/lp-favicon`。`site/**` は main への push で自動デプロイされる（`.github/workflows/pages.yml`）ため、**マージ = LP 公開**
 
+> **2026-07-17 改訂注記**: 「URL は `https://okash1n.github.io/solo-eikaiwa/`（決定済み・org 移行しない）」は btajp org への移行（2026-07）で改訂済み。現行 URL は `https://btajp.github.io/solo-eikaiwa/`。本計画内の URL 記載（Task 3 の canonical / OGP 例・Task 4 の事後確認）も同様に読み替える（現行の正は `site/index.html`）。
+
 ---
 
 ### Task 1: 新ファビコン SVG（アプリ + LP）

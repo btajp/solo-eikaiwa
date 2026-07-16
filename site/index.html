@@ -149,7 +149,7 @@
   <div class="flow-scroll"><div class="flow">ブラウザ録音 → <b>whisper.cpp</b>（ローカルSTT） → <b>選択したLLM</b>（既定Claude） → <b>選択したTTS</b>（キーなしはmacOS say）</div></div>
   <ul class="plain">
     <li><b>録音・文字起こし・練習履歴はMacに保存。</b>マイク音声はローカルSTTで処理し、クラウドへ送信しません</li>
-    <li><b>既定LLMはClaude。</b>発話テキスト・プロンプト・必要な会話文脈を、用途ごとに選んだClaude / Codex / OpenAI互換接続先へ送信します</li>
+    <li><b>既定LLMはClaude。</b>発話テキスト・プロンプト・必要な会話文脈を、用途ごとに選んだClaude / Codex / OpenAI公式 / OpenAI互換接続先へ送信します</li>
     <li><b>完全ローカルは選択可能な構成。</b>LLMをloopbackのOllama等、TTSをmacOS sayやloopbackへ向ければ、音声もテキストもMac外へ出ません</li>
   </ul>
 </section>
@@ -176,6 +176,7 @@
       <tbody>
         <tr><td>Claude（既定）</td><td>発話テキスト、プロンプト、必要な会話文脈</td><td>録音・文字起こし・履歴・進捗</td><td>Claude CLIのPro/Max、または選択時のみAnthropic API</td></tr>
         <tr><td>Codex</td><td>同じテキスト</td><td>同上</td><td>Codex CLIのChatGPTログイン、または選択時のみOpenAI API</td></tr>
+        <tr><td>OpenAI公式</td><td>同じテキストをOpenAIのAPIへ送信</td><td>同上</td><td>OpenAI APIキー</td></tr>
         <tr><td>OpenAI互換</td><td>loopbackはMac外送信なし。LAN/remoteは画面に表示したoriginへ同じテキストを送信</td><td>同上</td><td>接続先の運営者。remoteではその認証・課金規約に従う</td></tr>
         <tr><td>TTS</td><td>クラウド利用時は読み上げるテキストのみ。マイク録音は送らない</td><td>音声キャッシュ</td><td>接続先。キーなし既定はmacOS sayで追加課金なし</td></tr>
         <tr><td>完全ローカル構成</td><td>外部送信なし</td><td>すべてMac内</td><td>クラウド認証・従量課金なし</td></tr>
@@ -213,7 +214,7 @@
       <p>macOS + <code class="inline">Bun</code> + Homebrew を用意し、初回だけ <code class="inline">./scripts/setup.sh</code>、続けて <code class="inline">./scripts/install-daemon.sh</code> を実行します。以後の更新は再登録せず、READMEのビルド・再起動手順に従います。</p>
     </div>
   </div>
-  <p class="note">既定の AI は Claude（Claude Pro/Max サブスクで動作）。Ollama / Codex / OpenAI 互換への切替は設定画面から行えます。</p>
+  <p class="note">既定の AI は Claude（Claude Pro/Max サブスクで動作）。Ollama / Codex / OpenAI公式 / OpenAI互換への切替は設定画面から行えます。</p>
   <div class="cta-left">
     <a class="btn btn-primary" href="https://github.com/btajp/solo-eikaiwa/releases">デスクトップ版を入手</a>
     <a class="btn btn-ghost" href="https://github.com/btajp/solo-eikaiwa#はじめる">ソース版の手順へ</a>

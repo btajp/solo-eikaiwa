@@ -2,9 +2,16 @@
 # solo-eikaiwa デスクトップアプリのリリース（署名・公証・updaterアーティファクト・GitHub Release）。
 # 使い方: ./scripts/release-desktop.sh 0.29.1 [--allow-pubkey-rotation]
 # 前提: ~/.config/solo-eikaiwa/release.env（無ければテンプレートを生成して終了する）
+# 前提ツール: Bun / Tauri CLI / cargo-audit（pin版は toolchain.json が正本）・
+#   cmake（desktop/native-deps.lock.json の cmakeMinimumVersion 以上）・gh（GitHub CLI）・
+#   ShellCheck（verify.sh が使用）。導入方法は desktop/README.md の「前提」節を参照。
+# 実行条件: push済み・cleanな main からのみ実行できる（下記 1. で強制する）。
 #
 # やること（順に・失敗したら即中断）:
-#   1. バージョン・toolchain・frozen lockfile整合チェック
+#   0. release.env読込 + preflight（check-toolchain.sh audit と cmake/gh の存在確認。
+#      不足なら長い検証が走る前にツール名と導入方法を出して即中断）
+#   1. Git前提（push済み・cleanな main のみ）・updater鍵の継続性チェック・
+#      バージョン・toolchain・frozen lockfile整合チェック
 #   2. 共通release検証（Bun/Rust/content/shellcheck/依存監査）
 #   3. build-sidecar.sh（サーバcompile・固定native source・SBOM/NOTICE生成）
 #   4. whisper-bin の Mach-O プレ署名 + native manifest/SBOMの最終hash更新
@@ -104,6 +111,22 @@ export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
 # Apple ID 方式（APPLE_ID/APPLE_PASSWORD/APPLE_TEAM_ID）が API キー方式より先に評価される
 # （tauri-cli 実装）ため、環境に混入していたら外して API キー方式に固定する。
 unset APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD 2>/dev/null || true
+
+# 0b. preflight: 前提ツールの不足は長い検証が走る前に検知して即中断する。
+#     cargo-audit は verify.sh release の最終盤、cmake は build-sidecar の whisper build まで
+#     検知されず、数分の検証完走後に落ちるため（v0.29.3 リリースで実際に2回中断・#232）。
+"$REPO_DIR/scripts/check-toolchain.sh" audit || {
+  echo "ERROR: 前提ツールのpreflightに失敗しました。導入方法は desktop/README.md の「前提」節を参照してください" >&2
+  exit 1
+}
+command -v cmake >/dev/null 2>&1 || {
+  echo "ERROR: cmake が見つかりません（whisper.cpp のbuildに必須）。導入: brew install cmake" >&2
+  exit 1
+}
+command -v gh >/dev/null 2>&1 || {
+  echo "ERROR: gh (GitHub CLI) が見つかりません（GitHub Release の作成に必須）。導入: brew install gh" >&2
+  exit 1
+}
 
 echo "== solo-eikaiwa desktop release v$VERSION =="
 

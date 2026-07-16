@@ -5,6 +5,8 @@
 - 決定事項: URL は現状維持（`https://okash1n.github.io/solo-eikaiwa/`）。ファビコン案の事前選択は省略し、実装後の完了報告で代替案を提示（差し替えはファイル1枚）
 - リリース: v0.22.0 に同梱。LP は `site/**` の main push で自動デプロイ（`pages.yml` 確認済み・ビルド工程なしの直配信）
 
+> **2026-07-17 改訂注記**: 決定事項の「URL は現状維持（`https://okash1n.github.io/solo-eikaiwa/`）」は btajp org への移行（2026-07）で改訂済み。現行 URL は `https://btajp.github.io/solo-eikaiwa/`（canonical / OGP も同 URL・`site/index.html` 参照）。
+
 ## B-1. LP の修正・刷新（`site/index.html`）
 
 ### バグ修正（原因確定済み）
@@ -23,6 +25,8 @@
 - `<link rel="icon" href="favicon.svg">` + `apple-touch-icon.png`
 - OGP: `og:title` / `og:description` / `og:url`（`https://okash1n.github.io/solo-eikaiwa/`）/ `og:image`（`site/og.png` 1200×630 新規作成）+ `twitter:card=summary_large_image`
 - `canonical` / `theme-color`（ライト・ダーク両方、アプリの `app/client/index.html` と同値に統一）
+
+> **2026-07-17 改訂注記**: 上記 OGP / canonical の URL は btajp org 移行により現行では `https://btajp.github.io/solo-eikaiwa/`（冒頭の注記参照）。
 
 ### デザイン刷新（アプリと同じ世界観へ）
 

@@ -1,0 +1,51 @@
+name: 不具合報告
+description: solo-eikaiwa の不具合を報告する
+body:
+  - type: markdown
+    attributes:
+      value: |
+        これは公開Issueです。**APIキー・個人情報・録音データ・非公開の会話内容を本文やスクリーンショットに含めないでください。**
+        公開できないセキュリティ上の問題は [Securityページ](https://github.com/btajp/solo-eikaiwa/security) の非公開報告手段を利用してください。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 何が起きたか
+      description: 期待した動作と、実際に起きたことを書いてください
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: アプリのversion
+      description: デスクトップ版はアプリメニュー、ソース版は設定画面で確認できます
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOSのversion
+    validations:
+      required: true
+  - type: input
+    id: reference-id
+    attributes:
+      label: 画面に表示された参照番号（あれば）
+    validations:
+      required: false
+  - type: checkboxes
+    id: privacy-check
+    attributes:
+      label: 添付内容の確認
+      options:
+        - label: APIキー・個人情報・録音データ・非公開の会話内容を含めていません
+          required: true

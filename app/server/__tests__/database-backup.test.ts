@@ -21,6 +21,7 @@ import {
   verifyDatabaseBackup,
 } from "../database-backup";
 import { openDb } from "../db";
+import { SERVER_CHECK_PORTS, assertLocalServerStopped } from "../../../scripts/data-backup";
 
 const tempDirs: string[] = [];
 
@@ -244,5 +245,31 @@ describe("data-backup CLI", () => {
     });
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr.toString()).toContain("--confirm-stoppedが必要");
+  });
+
+  test("稼働検知portはdesktopのCANDIDATE_PORTSと同じ3111〜3114を同じ並びで確認する", () => {
+    // desktop/src-tauri/src/sidecar.rs の CANDIDATE_PORTS と揃える（v0.29.2の自動fallback対応）
+    expect([...SERVER_CHECK_PORTS]).toEqual([3111, 3112, 3113, 3114]);
+  });
+
+  test("3113/3114だけで稼働中のサーバも検知してrestoreの停止確認を拒否する", async () => {
+    for (const runningPort of [3113, 3114]) {
+      const probedPorts: number[] = [];
+      const fetchLike = async (url: string) => {
+        const port = Number(new URL(url).port);
+        probedPorts.push(port);
+        if (port === runningPort) return new Response("ok");
+        throw new Error("connection refused");
+      };
+      await expect(assertLocalServerStopped(fetchLike)).rejects.toThrow("3111〜3114");
+      expect(probedPorts).toContain(runningPort);
+    }
+  });
+
+  test("全candidate portが停止していればrestoreの停止確認を通過する", async () => {
+    const fetchLike = async () => {
+      throw new Error("connection refused");
+    };
+    await expect(assertLocalServerStopped(fetchLike)).resolves.toBeUndefined();
   });
 });

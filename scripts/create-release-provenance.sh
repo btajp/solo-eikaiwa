@@ -102,7 +102,9 @@ PROVENANCE="$OUTPUT_DIR/$PREFIX.provenance.json"
 
 cp "$APP_PROVENANCE_DIR/sbom.spdx.json" "$SBOM"
 cp "$APP_PROVENANCE_DIR/THIRD_PARTY_NOTICES.md" "$NOTICE"
-tar -czf "$LICENSE_ARCHIVE" -C "$APP_PROVENANCE_DIR" licenses
+# owner正規化: tarヘッダへビルド機のローカルアカウント名を転写しない（#242）。
+# COPYFILE_DISABLE=1 でAppleDouble（._*）エントリの同梱も抑止する。
+COPYFILE_DISABLE=1 tar -czf "$LICENSE_ARCHIVE" --uid 0 --gid 0 --uname '' --gname '' -C "$APP_PROVENANCE_DIR" licenses
 cp "$REPO_DIR/desktop/native-deps.lock.json" "$NATIVE_LOCK"
 cp "$APP_NATIVE_MANIFEST" "$NATIVE_MANIFEST"
 
@@ -126,7 +128,9 @@ PY
   exit 1
 }
 
-"$REPO_DIR/scripts/audit-dependencies.sh" >"$AUDIT" 2>&1
+# 公開アセットにはstdout（整形済みの監査結果）だけを入れる。stderrの診断出力は
+# アセットへ混入させず端末側へ流す（#243）。
+"$REPO_DIR/scripts/audit-dependencies.sh" >"$AUDIT"
 
 VERSION="$VERSION" \
 APP="$APP" \

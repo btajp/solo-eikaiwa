@@ -20,10 +20,16 @@ function defaultSnapshotDir(): string {
   return path.join(DATA_DIR, "backups", `backup-${stamp}`);
 }
 
-async function localServerIsRunning(): Promise<boolean> {
-  for (const port of [3111, 3112]) {
+// desktop/src-tauri/src/sidecar.rs の CANDIDATE_PORTS と同一の並び。デスクトップ版は
+// 既定port使用中に3112〜3114へ自動fallbackするため（v0.29.2）、全候補を確認する。
+export const SERVER_CHECK_PORTS = [3111, 3112, 3113, 3114] as const;
+
+type FetchLike = (url: string, init: { signal: AbortSignal }) => Promise<unknown>;
+
+export async function localServerIsRunning(fetchImpl: FetchLike = fetch): Promise<boolean> {
+  for (const port of SERVER_CHECK_PORTS) {
     try {
-      await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(500) });
+      await fetchImpl(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(500) });
       return true;
     } catch {
       // 接続不能なら停止済み。次のportも確認する。
@@ -32,10 +38,10 @@ async function localServerIsRunning(): Promise<boolean> {
   return false;
 }
 
-async function assertLocalServerStopped(): Promise<void> {
+export async function assertLocalServerStopped(fetchImpl: FetchLike = fetch): Promise<void> {
   for (let attempt = 0; attempt < 3; attempt++) {
-    if (await localServerIsRunning()) {
-      throw new Error("127.0.0.1:3111/3112でサーバが応答しています。アプリと常駐サーバを停止してください。");
+    if (await localServerIsRunning(fetchImpl)) {
+      throw new Error("127.0.0.1:3111〜3114でサーバが応答しています。アプリと常駐サーバを停止してください。");
     }
     if (attempt < 2) await Bun.sleep(250);
   }
@@ -75,7 +81,7 @@ async function main(args: string[]): Promise<void> {
       snapshotDir: positional[0],
       targetDbPath: DEFAULT_DB_PATH,
       rollbackRoot: path.join(DATA_DIR, "backups"),
-    }, { assertStopped: assertLocalServerStopped });
+    }, { assertStopped: () => assertLocalServerStopped() });
     console.log(`restoreが完了しました: ${restored.targetDbPath}`);
     if (restored.rollbackSnapshotDir) {
       console.log(`restore前のデータは退避済みです: ${restored.rollbackSnapshotDir}`);
@@ -86,7 +92,10 @@ async function main(args: string[]): Promise<void> {
   throw new Error(USAGE);
 }
 
-main(Bun.argv.slice(2)).catch((error) => {
-  console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
-  process.exitCode = 1;
-});
+// テストからexportをimportした際にCLI本体が走らないよう、直接実行時のみmainを起動する。
+if (import.meta.main) {
+  main(Bun.argv.slice(2)).catch((error) => {
+    console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 1;
+  });
+}

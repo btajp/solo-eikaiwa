@@ -13,3 +13,11 @@ dist/
 
 # bun build --compile が中断時に残す一時ファイル（63MB級・PUBLIC履歴に入れない）
 *.bun-build
+
+# 鍵・リリースsecretsの誤コミット防止（最終防衛線・#243）。追跡済みの該当ファイルが
+# 無いことを git ls-files で確認済み（2026-07-17）
+*.p8
+*.p12
+*.pem
+*.key
+release.env

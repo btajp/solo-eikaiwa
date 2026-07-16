@@ -89,11 +89,15 @@ CREATE TABLE IF NOT EXISTS llm_role_tuning (
 - モード切替時: codex app-server の常駐プロセスは kill して次回 lazy spawn（認証環境が変わるため）。認証状態の表示は `codex login status`（exit code）/ app-server v2 `account/read` を将来候補とし、v0.24 では env キー検出 + モード表示に留める
 - ドキュメント明記: APIキー = api.openai.com / Anthropic API の**従量課金**（サブスク枠と別）・Codex はモデル一覧配信が無くなる等の可用性差
 
+> **2026-07-17 改訂注記**: 本節の「キーは UI/DB に保存しない（`app/.env` のみ・UI は env のキー検出状態表示のみ）」は改訂済み。v0.29.0 で API キーの UI 設定（macOS Keychain 保存・write-only・値は UI にもサーバ応答にも返さない）が導入され、v0.29.1 で専用タブへ集約・対象5鍵（`ANTHROPIC_API_KEY` / `CODEX_API_KEY` / `OPENAI_API_KEY` / `OPENAI_COMPAT_API_KEY` / `TTS_API_KEY`）となった。現行は `app/server/secrets.ts` と [2026-07-10-api-keys-keychain-design.md](2026-07-10-api-keys-keychain-design.md) を参照。
+
 ## 6. env 最小化
 
 - UI 化されていない非 secret 設定は CODEX_REASONING_EFFORT / CODEX_SERVICE_TIER の2つだけ（棚卸し確定）→ §3 で UI 化され、**サーバはチューニング系 env（CLAUDE_MODEL/CLAUDE_EFFORT/CODEX_REASONING_EFFORT/CODEX_SERVICE_TIER）を読まない**（2026-07-08 ユーザー指示: UI に見えない裏設定の禁止）。env の役割は **secrets（OPENAI_API_KEY / OPENAI_COMPAT_API_KEY / TTS_API_KEY / ANTHROPIC_API_KEY / CODEX_API_KEY）+ ヘッドレス/CLI ブートストラップ（LLM_PROVIDER・OPENAI_COMPAT_*・TTS_*、チューニング系4変数は CLI エントリポイントのみが解釈）** に純化
 - README の env 表を「UI で設定（サーバの唯一の真実 = DB）/ env のみ（secrets・CLI 専用）」の2区分で再編。優先順位（tuning > コード既定・env 中間層なし）を明文化
 - **UI 真実性の原則（binding）**: 画面に見える設定と実際の挙動は常に一致する。UI が「既定」と表示するものの実体はコード定数であり、env や隠れた設定で変わらない。§7 の実効モデル可視化もこの原則の適用
+
+> **2026-07-17 改訂注記**: 「secrets は env のみ」という本節の前提は v0.29.0〜v0.29.1（API キーの UI 設定・Keychain 保存）で改訂済み。現行の解決優先順位は **Keychain > `app/.env`**（env は Keychain 未設定時のフォールバック兼ヘッドレス/CLI ブートストラップ）。詳細は `app/server/secrets.ts` と [2026-07-10-api-keys-keychain-design.md](2026-07-10-api-keys-keychain-design.md) を参照。
 
 ## 7. 実効モデルの可視化・選択（2026-07-08 ユーザー要件追加）
 
