@@ -91,3 +91,17 @@ describe("習慣アンカー設定フォーム（#184）", () => {
     expect(saved.saved).toBe("");
   });
 });
+
+describe("anchorLoaded の入力正規化", () => {
+  test("設定応答にanchorが無い(undefined)場合も空文字として扱い、後続の判定が落ちない", () => {
+    const form = anchorLoaded(initialHabitAnchorForm(), undefined);
+    expect(form.load).toBe("ready");
+    expect(savedAnchorText(form)).toBe("");
+    expect(anchorDraftTooLong(form)).toBe(false);
+  });
+
+  test("anchorがnullでも同様に空文字として扱う", () => {
+    const form = anchorLoaded(initialHabitAnchorForm(), null);
+    expect(savedAnchorText(form)).toBe("");
+  });
+});

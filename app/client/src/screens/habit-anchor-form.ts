@@ -21,8 +21,10 @@ export function initialHabitAnchorForm(): HabitAnchorForm {
   return { load: "loading", saved: "", draft: "", save: "idle" };
 }
 
-export function anchorLoaded(form: HabitAnchorForm, anchor: string): HabitAnchorForm {
-  return { ...form, load: "ready", saved: anchor, draft: anchor, save: "idle" };
+export function anchorLoaded(form: HabitAnchorForm, anchor: string | null | undefined): HabitAnchorForm {
+  // 旧DBや異常応答では anchor フィールド自体が無いことがある。未設定(空文字)として扱う。
+  const saved = typeof anchor === "string" ? anchor : "";
+  return { ...form, load: "ready", saved, draft: saved, save: "idle" };
 }
 
 export function anchorLoadFailed(form: HabitAnchorForm): HabitAnchorForm {
