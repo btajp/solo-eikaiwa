@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchTalkExplanation, prefetchModelTalkAudio, type ContentItem } from "../api";
+import { fetchTalkExplanation, prefetchModelTalkAudio, sendSessionEvent, type ContentItem } from "../api";
 import { playBlob, stopPlayback } from "../audio";
 import { STR, type Lang } from "../i18n";
 import { formatClientError } from "../lib/user-error";
@@ -10,13 +10,20 @@ import { Card } from "../ui/Card";
 import { ExplainBox } from "../ui/ExplainBox";
 import { LevelChip } from "../ui/LevelChip";
 import { PlaybackButton } from "../ui/PlaybackButton";
-import { resolveShadowingPlaybackOutcome, type ShadowingPlaybackOutcome } from "./shadowingPlayback";
+import {
+  confirmSpoken,
+  initialShadowingProgress,
+  markListened,
+  resolveShadowingPlaybackOutcome,
+  type ShadowingPlaybackOutcome,
+} from "./shadowingPlayback";
 
 type State = "script" | "audio" | "ready" | "playing" | "error";
 
 /** モデルトークをTTSで聞きながら重ねて音読するシャドーイングブロック（知覚ドリル）。既定はスクリプトを隠して聞く */
 export function ShadowingScreen(props: {
-  topic: ContentItem; lang: Lang; onReady?: () => void; onValidAttempt?: () => void;
+  topic: ContentItem; lang: Lang; sessionId?: string; blockId?: string;
+  onReady?: () => void; onValidAttempt?: () => void;
 }) {
   const t = STR[props.lang].shadowing;
   const playback = STR[props.lang].playback;
@@ -25,6 +32,8 @@ export function ShadowingScreen(props: {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [playbackFailed, setPlaybackFailed] = useState(false);
+  // 「聞いた」と「声に出した」を区別する（#181）。全編再生で listened、自己申告で spokenConfirmed。
+  const [progress, setProgress] = useState(initialShadowingProgress);
   // スクリプト表示の既定は常に非表示（隠して聞く）。ユーザーは「スクリプトを表示」ボタンでいつでも開ける。
   const [showScript, setShowScript] = useState(false);
   const explainer = useExplain(() => fetchTalkExplanation(text));
@@ -89,12 +98,29 @@ export function ShadowingScreen(props: {
     }
     if (!aliveRef.current || playbackGenerationRef.current !== generation) return;
     const resolution = resolveShadowingPlaybackOutcome(outcome);
-    if (resolution.validAttempt) props.onValidAttempt?.();
+    if (resolution.listened) {
+      // 全編再生は「聞いた」の記録。有効試行（XP・完了条件）は声に出した自己申告で別に扱う（#181）
+      setProgress(markListened);
+      sendSessionEvent("block_activity", props.sessionId, {
+        blockId: props.blockId, kind: "shadowing", activity: "listened",
+      });
+    }
     if (resolution.showRetry && playbackError !== null) {
       setErrorMsg(formatClientError(props.lang, playbackError, "play"));
     }
     setPlaybackFailed(resolution.showRetry);
     setState(resolution.nextState);
+  }
+
+  /** 声に出して重ねられたことの自己申告（マイク不要）。初回だけ有効試行として通知する。 */
+  function confirmSpokenPractice() {
+    const { progress: next, firstConfirmation } = confirmSpoken(progress);
+    setProgress(next);
+    if (!firstConfirmation) return;
+    props.onValidAttempt?.();
+    sendSessionEvent("block_activity", props.sessionId, {
+      blockId: props.blockId, kind: "shadowing", activity: "spoken-self-report",
+    });
   }
 
   function stop() {
@@ -132,6 +158,15 @@ export function ShadowingScreen(props: {
             stopLabel={playback.stop}
             playVariant="primary"
           />
+          {/* 全編再生後の任意自己確認（#181）。マイクは使わず自己申告で「声に出した」を記録する */}
+          {progress.listened && (
+            <div className="stack">
+              <p className="text-sm text-muted">{t.spokenPrompt}</p>
+              <Button variant="secondary" onClick={confirmSpokenPractice} disabled={progress.spokenConfirmed}>
+                {progress.spokenConfirmed ? t.spokenConfirmed : t.confirmSpoken}
+              </Button>
+            </div>
+          )}
           {!showScript && (
             <Button variant="secondary" onClick={() => setShowScript(true)}>{t.showScript}</Button>
           )}

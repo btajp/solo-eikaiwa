@@ -9,7 +9,9 @@ export type SessionEvent = {
   type:
     | "session_start" | "session_end"
     | "user_utterance" | "stt_result" | "assistant_reply" | "error"
-    | "block_start" | "block_end" | "round_start" | "round_end";
+    | "block_start" | "block_end" | "round_start" | "round_end"
+    // ブロック内の実施実態（例: シャドーイングの listened / spoken-self-report）。練習日判定には使わない（#181）
+    | "block_activity";
   sessionId: string;
   text?: string;
   meta?: Record<string, unknown>;

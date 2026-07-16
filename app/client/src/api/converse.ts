@@ -59,7 +59,7 @@ export function sessionEndKeepalive(sessionId: string): void {
 }
 
 export function sendSessionEvent(
-  type: "block_start" | "block_end" | "round_start" | "round_end",
+  type: "block_start" | "block_end" | "round_start" | "round_end" | "block_activity",
   sessionId: string | undefined,
   meta?: Record<string, unknown>,
 ): void {
