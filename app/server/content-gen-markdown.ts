@@ -1,7 +1,7 @@
 import { existsSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parseContentFile } from "./content";
-import { parseListeningFile } from "./listening";
+import { parseListeningFile, type ListeningTurn } from "./listening";
 
 export type GeneratedContentCandidate = {
   id: string;
@@ -24,6 +24,18 @@ export type GeneratedListeningCandidate = {
   domain: string;
   level: [number, number];
   paragraphs: string[];
+};
+
+/** #220: 2話者対話形式の多聴候補。本文は「話者名: 発話」のラベル付き段落としてシリアライズする。 */
+export type GeneratedDialogueListeningCandidate = {
+  id: string;
+  title: string;
+  titleJa: string;
+  domain: string;
+  level: [number, number];
+  /** ターンの初出順（validateDialogueListeningCandidate が正規化済み） */
+  speakers: string[];
+  turns: ListeningTurn[];
 };
 
 export function contentToMarkdown(candidate: GeneratedContentCandidate): string {
@@ -60,6 +72,23 @@ export function listeningToMarkdown(candidate: GeneratedListeningCandidate): str
     "---",
     "",
     candidate.paragraphs.join("\n\n"),
+    "",
+  ].join("\n");
+}
+
+export function dialogueListeningToMarkdown(candidate: GeneratedDialogueListeningCandidate): string {
+  return [
+    "---",
+    `id: ${candidate.id}`,
+    `title: "${candidate.title}"`,
+    `title_ja: "${candidate.titleJa}"`,
+    `domain: ${candidate.domain}`,
+    `level: [${candidate.level[0]}, ${candidate.level[1]}]`,
+    "format: dialogue",
+    `speakers: "${candidate.speakers.join(", ")}"`,
+    "---",
+    "",
+    candidate.turns.map((turn) => `${turn.speaker}: ${turn.text}`).join("\n\n"),
     "",
   ].join("\n");
 }
@@ -138,6 +167,40 @@ export function writeContentCandidates(
       throw new Error(`エラー: ${candidate.id} のMarkdownラウンドトリップ検証に失敗しました。何も書き込みません。`);
     }
     return { file: path.join(directoryFor(candidate), `${candidate.id}.md`), markdown };
+  });
+  return writePrepared(entries);
+}
+
+function turnsEqual(left: readonly ListeningTurn[], right: readonly ListeningTurn[]): boolean {
+  return left.length === right.length
+    && left.every((turn, index) => turn.speaker === right[index].speaker && turn.text === right[index].text);
+}
+
+function dialogueListeningRoundTrips(candidate: GeneratedDialogueListeningCandidate, markdown: string): boolean {
+  const parsed = parseListeningFile(markdown);
+  return parsed !== null
+    && parsed.format === "dialogue"
+    && parsed.id === candidate.id
+    && parsed.title === candidate.title
+    && parsed.titleJa === candidate.titleJa
+    && parsed.domain === candidate.domain
+    && parsed.level[0] === candidate.level[0]
+    && parsed.level[1] === candidate.level[1]
+    && arraysEqual(parsed.speakers, candidate.speakers)
+    && turnsEqual(parsed.turns, candidate.turns);
+}
+
+/** dialogue listening候補をserialize→parseして完全一致した場合だけ、一括書き込みする（#220）。 */
+export function writeDialogueListeningCandidates(
+  candidates: readonly GeneratedDialogueListeningCandidate[],
+  directory: string,
+): string[] {
+  const entries = candidates.map((candidate) => {
+    const markdown = dialogueListeningToMarkdown(candidate);
+    if (!dialogueListeningRoundTrips(candidate, markdown)) {
+      throw new Error(`エラー: ${candidate.id} のMarkdownラウンドトリップ検証に失敗しました。何も書き込みません。`);
+    }
+    return { file: path.join(directory, `${candidate.id}.md`), markdown };
   });
   return writePrepared(entries);
 }

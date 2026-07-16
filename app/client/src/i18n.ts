@@ -487,6 +487,7 @@ type ListeningScreenStrings = { listeningScreen: {
   weekCount: (n: number) => string;
   filterFit: string; filterAll: string;
   domain: { daily: string; business: string; it: string };
+  dialogueBadge: string;
   open: string; back: string;
   play: string;
   logSaving: string; logFailed: string; logRetry: string;
@@ -1081,6 +1082,7 @@ export const STR: Record<Lang, Strings> = {
       weekCount: (n) => `${n} listens this week`,
       filterFit: "Your level", filterAll: "All",
       domain: { daily: "Daily", business: "Business", it: "IT" },
+      dialogueBadge: "Dialogue",
       open: "Listen", back: "← Back to list",
       play: "▶ Play",
       logSaving: "Listening complete. Saving your listen…",
@@ -1674,6 +1676,7 @@ export const STR: Record<Lang, Strings> = {
       weekCount: (n) => `今週 ${n} 本`,
       filterFit: "自分のレベル", filterAll: "すべて",
       domain: { daily: "日常", business: "ビジネス", it: "IT" },
+      dialogueBadge: "対話",
       open: "聞く", back: "← 一覧に戻る",
       play: "▶ 再生",
       logSaving: "聴取は完了しました。記録を保存しています…",

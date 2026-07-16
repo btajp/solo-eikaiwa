@@ -6,7 +6,7 @@ import { normalizeEn } from "./chunks";
 import { extractJson, generateSentenceExplanation } from "./coach";
 import type { ClaudeRunner } from "./converse";
 import { loadContent, type Domain } from "./content";
-import { loadListening } from "./listening";
+import { dialogueScriptText, loadListening, type ListeningTurn } from "./listening";
 import { loadBundledExplanations, loadSentences, type Sentence } from "./sentences";
 import { vocabConstraint } from "./progression";
 import { categoryBadRates, pickWorstCategories } from "./srs-analytics";
@@ -19,8 +19,10 @@ import {
 } from "./spoken-register-check";
 import {
   writeContentCandidates,
+  writeDialogueListeningCandidates,
   writeListeningCandidates,
   type GeneratedContentCandidate,
+  type GeneratedDialogueListeningCandidate,
   type GeneratedListeningCandidate,
 } from "./content-gen-markdown";
 
@@ -648,6 +650,135 @@ Do not use any tools — reply directly with text only.`;
   mkdirSync(deps.listeningDir, { recursive: true });
   const written = writeListeningCandidates(candidates, deps.listeningDir);
   log(`完了: ${written.length} 本の ${deps.domain}/${deps.band} listening を追加しました。`);
+}
+
+// ============ #220: 2話者対話形式の多聴生成 ============
+
+export type NewDialogueListeningCandidate = {
+  id: string; title: string; titleJa: string; speakers: string[]; turns: ListeningTurn[];
+};
+
+/** 対話の最小ターン数（8未満は話者交替の聞き取り練習として短すぎる） */
+export const DIALOGUE_MIN_TURNS = 8;
+/** 各話者の最小発話回数（片方が相槌1回だけの「実質モノローグ」を弾く） */
+export const DIALOGUE_MIN_TURNS_PER_SPEAKER = 3;
+/** 質問（?）を含む最小ターン数（質問応答の聞き取りが #220 の目的のため） */
+export const DIALOGUE_MIN_QUESTION_TURNS = 2;
+
+/** 話者名: 1語・大文字始まりの英名のみ（parseListeningFile のラベル行 regex と同期した安全形式） */
+const DIALOGUE_SPEAKER_NAME_RE = /^[A-Z][A-Za-z]*$/;
+
+/**
+ * AI 生成 dialogue listening 候補の厳格バリデーション（#220）。validateListeningCandidate（monologue）と
+ * 同じ外枠（id/title/titleJa/talk-explain 上限）に、対話固有の構造検証を加える:
+ * ①話者はちょうど2人・1語の大文字始まり英名・重複なし ②turns は8件以上・全ターンが宣言話者のもの・
+ * 改行なし ③両話者とも3ターン以上発話 ④質問（?）を含むターンが2件以上（話者交替+質問応答の担保）
+ * ⑤ラベル込み本文が talk-explain 上限内。
+ * speakers はターンの初出順へ正規化して返す（listeningToMarkdown → parseListeningFile の round-trip 一致条件）。
+ */
+export function validateDialogueListeningCandidate(
+  parsed: unknown, existingIds: Set<string>, dir: string,
+): NewDialogueListeningCandidate | null {
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const c = parsed as Partial<NewDialogueListeningCandidate>;
+  if (typeof c.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.id)) return null;
+  if (c.id === "log") return null;
+  if (existingIds.has(c.id) || existsSync(path.join(dir, `${c.id}.md`))) return null;
+  if (typeof c.title !== "string" || !c.title.trim() || /[\r\n"]/.test(c.title)) return null;
+  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\r\n"]/.test(c.titleJa)) return null;
+
+  if (!Array.isArray(c.speakers) || c.speakers.length !== 2) return null;
+  if (!c.speakers.every((s) => typeof s === "string" && DIALOGUE_SPEAKER_NAME_RE.test(s))) return null;
+  if (new Set(c.speakers).size !== 2) return null;
+
+  if (!Array.isArray(c.turns) || c.turns.length < DIALOGUE_MIN_TURNS) return null;
+  const turns: ListeningTurn[] = [];
+  for (const raw of c.turns) {
+    const t = raw as Partial<ListeningTurn>;
+    if (typeof t?.speaker !== "string" || !(c.speakers as string[]).includes(t.speaker)) return null;
+    if (typeof t?.text !== "string" || !t.text.trim() || /[\r\n]/.test(t.text)) return null;
+    turns.push({ speaker: t.speaker, text: t.text.trim() });
+  }
+  // 初出順へ正規化（frontmatter speakers とターンから導出される話者順の round-trip を保証する）
+  const speakersInOrder = [...new Set(turns.map((t) => t.speaker))];
+  if (speakersInOrder.length !== 2) return null;
+  for (const speaker of speakersInOrder) {
+    if (turns.filter((t) => t.speaker === speaker).length < DIALOGUE_MIN_TURNS_PER_SPEAKER) return null;
+  }
+  if (turns.filter((t) => t.text.includes("?")).length < DIALOGUE_MIN_QUESTION_TURNS) return null;
+  const labeledBody = turns.map((t) => `${t.speaker}: ${t.text}`).join("\n\n");
+  if (labeledBody.length > LISTENING_BODY_MAX_CHARS) return null;
+
+  return { id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(), speakers: speakersInOrder, turns };
+}
+
+export type GenDialogueListeningForTargetDeps = GenListeningForTargetDeps;
+
+/**
+ * 対話型多聴の生成本体（#220）。genListeningForTarget（monologue）と同じ3ラウンド規律・同じ質ゲート構造で、
+ * 検証はラベル抜きの発話本文（dialogueScriptText）に対して行う: 構造（validateDialogueListeningCandidate）
+ * + 総語数レンジ（checkListeningWordCount・#218 のゲートを対話にも適用）+ 口語レジスター3指標
+ * （checkSpokenRegister・帯別閾値）。全アイテム検証済み後に一括書き込み（all-or-nothing）。
+ * 音声は scripts/generate-dialogue-audio.ts が話者別 voice で別途生成する（テキスト生成とは独立）。
+ */
+export async function genDialogueListeningForTarget(deps: GenDialogueListeningForTargetDeps): Promise<void> {
+  const log = deps.log ?? console.log;
+  const existingIds = new Set(loadListening(deps.listeningDir).map((it) => it.id));
+  const [lo, hi] = BAND_STAGE_RANGE[deps.band];
+  const vocab = vocabConstraint(lo);
+  const vocabLine = vocab ? `${vocab}\n` : "";
+  const domainDesc = DOMAIN_DESC[deps.domain];
+  const spokenBand = SPOKEN_BAND_FOR_BAND[deps.band];
+  const candidates: GeneratedDialogueListeningCandidate[] = [];
+
+  for (let i = 0; i < deps.count; i++) {
+    const system = `You write an original two-speaker DIALOGUE listening script for a Japanese learner of English.
+HARD length requirement: the total spoken text across all turns MUST be ${LISTENING_WORD_RANGE.min}-${LISTENING_WORD_RANGE.max} words — scripts under ${LISTENING_WORD_RANGE.min} words are rejected. With short turns of about 8-12 words that means roughly 30-40 turns, so write a long, complete conversation (the situation can evolve: a small problem, a follow-up question, a digression, a resolution).
+Topic domain: ${domainDesc}. Difficulty: aim at CEFR level band for learner stage ${lo}-${hi} of 6.
+Two speakers with common English first names (one word each, e.g. "Ken", "Emma") talk naturally: real turn-taking, including questions and answers (at least ${DIALOGUE_MIN_QUESTION_TURNS} turns must contain a question), short reactions, and both speakers talking a similar amount (each speaker at least ${DIALOGUE_MIN_TURNS_PER_SPEAKER} turns).
+Each turn is one short utterance of 1-3 sentences with NO line breaks inside.
+${spokenStyleFor(spokenBand)}
+${vocabLine}${ORIGINALITY}
+Do NOT reuse these existing ids: ${[...existingIds].join(", ") || "(none)"}
+Reply with STRICT JSON only — no markdown fences:
+{"id":"kebab-case-id","title":"English title","titleJa":"日本語タイトル","speakers":["Name1","Name2"],"turns":[{"speaker":"Name1","text":"..."},{"speaker":"Name2","text":"..."}, "..."]}
+Do not use any tools — reply directly with text only.`;
+    let cand: NewDialogueListeningCandidate | null = null;
+    for (let attempt = 1; attempt <= 3 && !cand; attempt++) {
+      let text: string | undefined;
+      try {
+        ({ text } = await deps.runner(
+          `Write the ${deps.domain} dialogue listening script (band ${deps.band}, item ${i + 1}/${deps.count}) now.`, undefined, { systemPrompt: system },
+        ));
+      } catch (err) {
+        // SDK呼び出し自体の一過性エラーも検証NGと同様に再試行する。実エラーは必ずログに残す
+        console.warn("[content-gen] runner error:", err instanceof Error ? err.message : String(err));
+      }
+      if (text !== undefined) {
+        const parsed = extractJson<NewDialogueListeningCandidate>(text);
+        const base = validateDialogueListeningCandidate(parsed, existingIds, deps.listeningDir);
+        // 質ゲートはラベル抜きの発話本文で計測する（"Ken:" 等のラベルは語数・文長の雑音になるため）
+        const script = base ? dialogueScriptText(base.turns) : "";
+        cand = base && checkListeningWordCount(script).pass && checkSpokenRegister(script, spokenBand).pass ? base : null;
+      }
+      if (!cand && attempt < 3) log(`  ${deps.domain}/${deps.band}(dialogue): 検証NG — 再生成します(${attempt}/3)`);
+    }
+    if (!cand) {
+      throw new Error(`エラー: ${deps.domain}/${deps.band} の dialogue listening (${i + 1}/${deps.count}) が3回とも検証を通りませんでした。何も書き込みません。`);
+    }
+    existingIds.add(cand.id);
+    candidates.push({ ...cand, domain: deps.domain, level: [lo, hi] });
+    log(`  + dialogue listening: ${cand.id} [${deps.domain}/${lo}-${hi}] ${cand.title}（${cand.turns.length}ターン）`);
+  }
+
+  if (deps.dry) {
+    log("--dry のため書き込みません");
+    return;
+  }
+
+  mkdirSync(deps.listeningDir, { recursive: true });
+  const written = writeDialogueListeningCandidates(candidates, deps.listeningDir);
+  log(`完了: ${written.length} 本の ${deps.domain}/${deps.band} dialogue listening を追加しました。`);
 }
 
 export type GenListeningDeps = {

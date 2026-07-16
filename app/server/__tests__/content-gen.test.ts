@@ -14,7 +14,8 @@ import {
 } from "../content-gen";
 import { loadListening, parseListeningFile } from "../listening";
 import {
-  genListening, genListeningForTarget, listeningToMarkdown, validateListeningCandidate,
+  genDialogueListeningForTarget, genListening, genListeningForTarget, listeningToMarkdown,
+  validateDialogueListeningCandidate, validateListeningCandidate,
 } from "../content-gen";
 import {
   SPOKEN_FUNCTIONS, SPOKEN_FUNCTION_CATEGORY_NO, SPOKEN_FUNCTION_CATEGORY_JA,
@@ -1651,5 +1652,215 @@ describe("content-gen / spoken function 例文", () => {
       expect(existsSync(explanationsFile)).toBe(false);
       rmSync(dir, { recursive: true, force: true });
     });
+  });
+});
+
+// #220: 多聴42本が全て一人称モノローグで対話型聴解素材ゼロだったため、2話者対話形式の生成経路を追加。
+// 質ゲートは monologue と同じ構造（構造検証 + 語数レンジ + 口語レジスター）に、対話固有の構造要件
+// （2話者・双方が十分な回数発話・質問応答を含む）を加える。
+describe("content-gen / validateDialogueListeningCandidate（#220 対話型多聴）", () => {
+  const BASE = {
+    id: "printer-help",
+    title: "Printer Help",
+    titleJa: "プリンターを直す",
+    speakers: ["Ken", "Emma"],
+    turns: [
+      { speaker: "Ken", text: "Hey Emma, do you have a minute?" },
+      { speaker: "Emma", text: "Sure, what's up?" },
+      { speaker: "Ken", text: "The printer's stuck again. Can you help?" },
+      { speaker: "Emma", text: "Don't worry, it's usually the tray." },
+      { speaker: "Ken", text: "I checked it, and it's full." },
+      { speaker: "Emma", text: "Then let's restart it together." },
+      { speaker: "Ken", text: "That's a good idea, thanks." },
+      { speaker: "Emma", text: "No problem, it happens a lot." },
+    ],
+  };
+
+  test("正常系: speakers を初出順へ正規化した候補を返す", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dlg-valid-"));
+    const cand = validateDialogueListeningCandidate({ ...BASE, speakers: ["Emma", "Ken"] }, new Set(), dir);
+    expect(cand?.id).toBe("printer-help");
+    expect(cand?.speakers).toEqual(["Ken", "Emma"]); // ターンの初出順
+    expect(cand?.turns).toHaveLength(8);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("id不正・予約語log・既存衝突・title改行はmonologueと同じ理由でnull", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dlg-bad-"));
+    expect(validateDialogueListeningCandidate({ ...BASE, id: "Not_Kebab" }, new Set(), dir)).toBeNull();
+    expect(validateDialogueListeningCandidate({ ...BASE, id: "log" }, new Set(), dir)).toBeNull();
+    expect(validateDialogueListeningCandidate(BASE, new Set(["printer-help"]), dir)).toBeNull();
+    expect(validateDialogueListeningCandidate({ ...BASE, title: "A\nB" }, new Set(), dir)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("話者が2人ちょうどでない・宣言と登場話者の不一致はnull", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dlg-speakers-"));
+    expect(validateDialogueListeningCandidate({ ...BASE, speakers: ["Ken"] }, new Set(), dir)).toBeNull();
+    expect(validateDialogueListeningCandidate({ ...BASE, speakers: ["Ken", "Emma", "Bob"] }, new Set(), dir)).toBeNull();
+    expect(validateDialogueListeningCandidate({ ...BASE, speakers: ["Ken", "Bob"] }, new Set(), dir)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("話者名が段落ラベルとして安全でない（複数語・小文字始まり・記号）はnull", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dlg-name-"));
+    const withName = (name: string) => ({
+      ...BASE,
+      speakers: [name, "Emma"],
+      turns: BASE.turns.map((t) => (t.speaker === "Ken" ? { ...t, speaker: name } : t)),
+    });
+    expect(validateDialogueListeningCandidate(withName("ken"), new Set(), dir)).toBeNull();
+    expect(validateDialogueListeningCandidate(withName("Ken Tanaka"), new Set(), dir)).toBeNull();
+    expect(validateDialogueListeningCandidate(withName("K:en"), new Set(), dir)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("ターン数8未満・片方の話者が3ターン未満・改行入りターンはnull", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dlg-turns-"));
+    expect(validateDialogueListeningCandidate({ ...BASE, turns: BASE.turns.slice(0, 7) }, new Set(), dir)).toBeNull();
+    const kenHeavy = BASE.turns.map((t, i) => (i === 0 ? t : { ...t, speaker: "Ken" }));
+    // Emma が1ターンでは対話にならない（このケースでは speakers 不一致にならないよう Emma を1ターン残す）
+    expect(validateDialogueListeningCandidate({ ...BASE, turns: [{ speaker: "Emma", text: "Hi." }, ...kenHeavy.slice(1)] }, new Set(), dir)).toBeNull();
+    expect(
+      validateDialogueListeningCandidate(
+        { ...BASE, turns: BASE.turns.map((t, i) => (i === 0 ? { ...t, text: "line one\nline two" } : t)) },
+        new Set(), dir,
+      ),
+    ).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("質問（?）を含むターンが2未満はnull（話者交替・質問応答の聞き取りが#220の目的のため）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dlg-questions-"));
+    const noQuestions = BASE.turns.map((t) => ({ ...t, text: t.text.replace(/\?/g, ".") }));
+    expect(validateDialogueListeningCandidate({ ...BASE, turns: noQuestions }, new Set(), dir)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("ラベル込み本文が2800字を超えるとnull（talk-explainの3000字上限対策・monologueと同じ外枠）", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dlg-toolong-"));
+    const longTurns = BASE.turns.map((t, i) => (i < 2 ? t : { ...t, text: `${t.text} ${"a".repeat(500)}` }));
+    expect(validateDialogueListeningCandidate({ ...BASE, turns: longTurns }, new Set(), dir)).toBeNull();
+    rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("content-gen / genDialogueListeningForTarget（#220 帯×domain×countの対話生成本体）", () => {
+  /**
+   * 語数レンジ(250-450)・口語レジスター(短文+短縮形)・質問応答をすべて満たす合成対話。
+   * 4ターン1組（質問→応答→質問→応答・計35語/組）を9組=36ターン・約315語で構成する。
+   */
+  function passingDialogueTurns(): Array<{ speaker: string; text: string }> {
+    const cycle = [
+      { speaker: "Ken", text: "Don't you think it's going well today?" },
+      { speaker: "Emma", text: "Yeah, I'm sure it's fine, so let's keep going." },
+      { speaker: "Ken", text: "That's great, and I'm glad we're on track." },
+      { speaker: "Emma", text: "What's next on our little list, then?" },
+    ];
+    return Array.from({ length: 9 }, () => cycle).flat();
+  }
+
+  function dialogueTargetJson(id: string, overrides: Record<string, unknown> = {}) {
+    return JSON.stringify({
+      id, title: `Title ${id}`, titleJa: `タイトル${id}`,
+      speakers: ["Ken", "Emma"],
+      turns: passingDialogueTurns(),
+      ...overrides,
+    });
+  }
+
+  test("正常系: count本がlevel=帯範囲・domain固定のdialogue形式で書かれloadListeningで読める", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dt-"));
+    const logs: string[] = [];
+    await genDialogueListeningForTarget({
+      runner: makeRunner([dialogueTargetJson("printer-a"), dialogueTargetJson("printer-b")]),
+      listeningDir: dir, domain: "business", band: "foundation", count: 2, dry: false, log: (s) => logs.push(s),
+    });
+    const items = loadListening(dir);
+    expect(items).toHaveLength(2);
+    expect(items.every((i) => i.format === "dialogue" && i.domain === "business" && i.level[0] === 1 && i.level[1] === 2)).toBe(true);
+    expect(items[0].speakers).toEqual(["Ken", "Emma"]);
+    expect(items[0].turns.length).toBeGreaterThanOrEqual(8);
+    expect(logs.some((l) => l.startsWith("完了:"))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("dry=trueは一切書かない", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dt-dry-"));
+    await genDialogueListeningForTarget({
+      runner: makeRunner([dialogueTargetJson("printer-a")]),
+      listeningDir: dir, domain: "daily", band: "development", count: 1, dry: true, log: () => {},
+    });
+    expect(loadListening(dir)).toHaveLength(0);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("語数がLISTENING_WORD_RANGE未達（ラベル抜き本文で計測）の候補は検証NGとして再生成される", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dt-words-"));
+    const tooShort = dialogueTargetJson("too-short", { turns: passingDialogueTurns().slice(0, 8) });
+    const good = dialogueTargetJson("long-enough");
+    const logs: string[] = [];
+    await genDialogueListeningForTarget({
+      runner: makeRunner([tooShort, good]),
+      listeningDir: dir, domain: "daily", band: "foundation", count: 1, dry: false, log: (s) => logs.push(s),
+    });
+    const items = loadListening(dir);
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("long-enough");
+    expect(logs.some((l) => l.includes("検証NG"))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("短縮形率0%の教科書調はcheckSpokenRegisterで再生成される（ラベル抜き本文で計測）", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dt-register-"));
+    const textbook = dialogueTargetJson("textbook", {
+      turns: passingDialogueTurns().map((t) => ({
+        ...t,
+        text: t.text
+          .replace(/Don't/g, "Do you not").replace(/it's/g, "it is").replace(/I'm/g, "I am")
+          .replace(/let's/g, "let us").replace(/That's/g, "That is").replace(/we're/g, "we are").replace(/What's/g, "What is"),
+      })),
+    });
+    const good = dialogueTargetJson("natural-one");
+    const logs: string[] = [];
+    await genDialogueListeningForTarget({
+      runner: makeRunner([textbook, good]),
+      listeningDir: dir, domain: "daily", band: "foundation", count: 1, dry: false, log: (s) => logs.push(s),
+    });
+    const items = loadListening(dir);
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe("natural-one");
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("3回とも検証NGなら書き込みゼロでthrow（3ラウンド規律）", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dt-3fail-"));
+    const bad = dialogueTargetJson("bad", { turns: passingDialogueTurns().slice(0, 4) });
+    await expect(
+      genDialogueListeningForTarget({
+        runner: makeRunner([bad, bad, bad]),
+        listeningDir: dir, domain: "daily", band: "fluency", count: 1, dry: false,
+      }),
+    ).rejects.toThrow();
+    expect(loadListening(dir)).toHaveLength(0);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("帯別のspoken-styleガイド・語数指示・対話固有の指示がsystemPromptに入る", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-dt-prompt-"));
+    const seen: Array<{ systemPrompt?: string }> = [];
+    const runner: ClaudeRunner = async (_p, _r, opts) => {
+      seen.push({ systemPrompt: opts?.systemPrompt });
+      return { text: dialogueTargetJson(`t-${seen.length}`), sessionId: "fake" };
+    };
+    await genDialogueListeningForTarget({ runner, listeningDir: dir, domain: "business", band: "foundation", count: 1, dry: true });
+    await genDialogueListeningForTarget({ runner, listeningDir: dir, domain: "business", band: "fluency", count: 1, dry: true });
+    expect(seen[0].systemPrompt).toContain(spokenStyleFor("beginner"));
+    expect(seen[1].systemPrompt).toContain(spokenStyleFor("advanced"));
+    expect(seen[0].systemPrompt).toContain(`${LISTENING_WORD_RANGE.min}-${LISTENING_WORD_RANGE.max} words`);
+    expect(seen[0].systemPrompt).toContain("DIALOGUE");
+    expect(seen[0].systemPrompt).toContain("word families"); // foundation帯の語彙制約
+    expect(seen[1].systemPrompt).not.toContain("word families");
+    rmSync(dir, { recursive: true, force: true });
   });
 });

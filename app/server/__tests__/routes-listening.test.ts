@@ -17,6 +17,8 @@ describe("listening API", () => {
     expect(body.items).toHaveLength(1);
     expect(body.items[0].id).toBe("morning-routine");
     expect(body.items[0]).not.toHaveProperty("paragraphs"); // 一覧は本文を含めない
+    expect(body.items[0]).not.toHaveProperty("turns"); // dialogueの本文（ターン）も一覧には含めない（#220）
+    expect(body.items[0].format).toBe("monologue"); // 一覧の「対話」バッジ用にformatは残す
   });
 
   test("GET /api/listening は countSince が投げても weeklyCount 0 で一覧を返す（bestEffort）", async () => {

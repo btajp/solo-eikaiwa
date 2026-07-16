@@ -17,10 +17,15 @@ import { parseTopicAssetFile } from "./topic-assets";
 
 export type AudioTarget = { text: string; source: string };
 
-/** listening 全素材の段落テキストを収集する（ListeningScreen が逐次TTS再生する単位そのもの）。 */
+/**
+ * listening 全素材の段落テキストを収集する（ListeningScreen が逐次TTS再生する単位そのもの）。
+ * dialogue 素材（#220）はスキップする: 話者別 voice のターン結合音声を scripts/generate-dialogue-audio.ts が
+ * 同梱キーへ書くため、単一 voice の一括生成がここで同じキーを先取り（=単一声質の対話音声で確定）してはいけない。
+ */
 export function collectListeningAudioTargets(listeningDir: string): AudioTarget[] {
   const out: AudioTarget[] = [];
   for (const item of loadListening(listeningDir)) {
+    if (item.format === "dialogue") continue;
     item.paragraphs.forEach((text, i) => out.push({ text, source: `listening:${item.id}#${i}` }));
   }
   return out;

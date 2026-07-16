@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { parseFrontmatter } from "../content";
-import { parseListeningFile } from "../listening";
+import { dialogueScriptText, parseListeningFile } from "../listening";
 
 const VALID = `---
 id: morning-routine
@@ -61,5 +61,63 @@ describe("parseListeningFile", () => {
     const it = parseListeningFile(bad)!;
     expect(it.domain).toBe("it");
     expect(it.level).toEqual([1, 6]);
+  });
+
+  test("モノローグ（format無し）は format=monologue・speakers/turns 空", () => {
+    const it = parseListeningFile(VALID)!;
+    expect(it.format).toBe("monologue");
+    expect(it.speakers).toEqual([]);
+    expect(it.turns).toEqual([]);
+  });
+});
+
+const VALID_DIALOGUE = `---
+id: asking-for-help
+title: "Asking for Help"
+title_ja: "助けを求める"
+domain: business
+level: [1, 2]
+format: dialogue
+speakers: "Ken, Emma"
+---
+
+Ken: Hey Emma, do you have a minute?
+
+Emma: Sure, what's up?
+
+Ken: I can't open the shared folder.
+
+Emma: Don't worry, it's a common problem.`;
+
+describe("parseListeningFile / dialogue（#220 対話型多聴）", () => {
+  test("正常系: format=dialogue で話者と発話ターンを段落から復元する", () => {
+    const it = parseListeningFile(VALID_DIALOGUE)!;
+    expect(it.format).toBe("dialogue");
+    expect(it.speakers).toEqual(["Ken", "Emma"]); // 初出順
+    expect(it.turns).toEqual([
+      { speaker: "Ken", text: "Hey Emma, do you have a minute?" },
+      { speaker: "Emma", text: "Sure, what's up?" },
+      { speaker: "Ken", text: "I can't open the shared folder." },
+      { speaker: "Emma", text: "Don't worry, it's a common problem." },
+    ]);
+    // paragraphs は話者ラベル付きの生の段落のまま（talk-explain 等の既存経路が使う）
+    expect(it.paragraphs[0]).toBe("Ken: Hey Emma, do you have a minute?");
+  });
+
+  test("話者ラベルの無い段落が混じる dialogue は null（壊れたファイルとして除外）", () => {
+    const broken = VALID_DIALOGUE + "\n\nJust prose without a label.";
+    expect(parseListeningFile(broken)).toBeNull();
+  });
+
+  test("話者が1人しか登場しない dialogue は null", () => {
+    const solo = `---\nid: x\ntitle: "T"\ndomain: daily\nlevel: [1, 2]\nformat: dialogue\n---\n\nKen: Hello there.\n\nKen: Anyone here?`;
+    expect(parseListeningFile(solo)).toBeNull();
+  });
+
+  test("dialogueScriptText はラベル抜きの発話本文だけを空行区切りで結合する（TTS/検証の単位）", () => {
+    const it = parseListeningFile(VALID_DIALOGUE)!;
+    expect(dialogueScriptText(it.turns)).toBe(
+      "Hey Emma, do you have a minute?\n\nSure, what's up?\n\nI can't open the shared folder.\n\nDon't worry, it's a common problem.",
+    );
   });
 });

@@ -12,6 +12,9 @@
  *                                                          # 同上（scenario・starter口語検証必須）
  *   bun scripts/generate-content.ts listening-target --band <...> --domain <...> --count <n> [--dry]
  *                                                          # 同上（listening・特定セルだけ狙い撃ちで再生成したい時用）
+ *   bun scripts/generate-content.ts dialogue-target  --band <...> --domain <...> --count <n> [--dry]
+ *                                                          # 2話者対話形式のlistening（#220）。音声は
+ *                                                          # scripts/generate-dialogue-audio.ts で別途生成する
  *   bun scripts/generate-content.ts --fill-coverage [--dry]
  *                                                          # content-coverageの不足セル（帯×domain×topics/scenarios/listening）を
  *                                                          # 優先順（bridge込みでもカバレッジゼロのセルを先頭）に全自動で埋める
@@ -26,7 +29,7 @@
 import { openDb } from "../app/server/db";
 import {
   deprecatedContentCommandMessage, genSentences, genListening,
-  genTopicsForTarget, genScenariosForTarget, genListeningForTarget,
+  genTopicsForTarget, genScenariosForTarget, genListeningForTarget, genDialogueListeningForTarget,
   genSpokenFunctionSentences, genMissingSentenceExplanations,
 } from "../app/server/content-gen";
 import { resolveCliRunner } from "../app/server/converse";
@@ -171,6 +174,12 @@ async function main(): Promise<void> {
     });
     return;
   }
+  if (sub === "dialogue-target") {
+    await genDialogueListeningForTarget({
+      runner, listeningDir: LISTENING_DIR, domain: parseDomainArg(), band: parseBandArg(), count: parseCountArg(), dry, log: console.log,
+    });
+    return;
+  }
 
   const deprecation = deprecatedContentCommandMessage(sub);
   if (deprecation) {
@@ -190,7 +199,7 @@ async function main(): Promise<void> {
     await genMissingSentenceExplanations({ runner, sentencesFile: SENTENCES_FILE, explanationsFile: EXPLANATIONS_FILE, dry, log: console.log });
   } else {
     console.error(
-      "使い方: bun scripts/generate-content.ts <sentences|listening|spoken-functions|topics-target|scenarios-target|listening-target> [--dry]\n" +
+      "使い方: bun scripts/generate-content.ts <sentences|listening|spoken-functions|topics-target|scenarios-target|listening-target|dialogue-target> [--dry]\n" +
       "       bun scripts/generate-content.ts --fill-coverage [--dry]",
     );
     process.exit(1);

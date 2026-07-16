@@ -18,8 +18,9 @@ function weekStartYmd(now: Date): string {
 }
 
 function handleList(deps: ListeningRoutesDeps): Response {
-  // 一覧は本文（paragraphs）を含めない（本文は GET /api/listening/:id で取る）
-  const items = deps.listListening().map(({ paragraphs, ...meta }) => meta);
+  // 一覧は本文（paragraphs・dialogueのturns）を含めない（本文は GET /api/listening/:id で取る）。
+  // format/speakers はメタとして残す（一覧の「対話」バッジ表示・#220）。
+  const items = deps.listListening().map(({ paragraphs, turns, ...meta }) => meta);
   let weeklyCount = 0;
   bestEffort("[listening] countSince failed, returning 0:", () => {
     weeklyCount = deps.listeningStore.countSince(weekStartYmd(new Date()));
