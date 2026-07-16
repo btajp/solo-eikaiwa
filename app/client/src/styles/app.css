@@ -15,6 +15,9 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 
 /* アプリシェル */
 .app { max-width: 920px; margin: 0 auto; padding: var(--sp-5) var(--sp-5) var(--sp-7); flex: 1; min-width: 0; }
+/* SPA遷移完了時に tabIndex=-1 でプログラム的にフォーカスを移す先（#210）。
+   キーボード操作の到達点ではないため、画面全体を囲うリングは描かない */
+.app:focus { outline: none; }
 /* セッション系（Screenラッパ）は読みやすさ優先で幅を絞る */
 .screen { max-width: 700px; margin: 0 auto; }
 .app-topbar {

@@ -44,6 +44,8 @@ type SessionStrings = {
 type NavStrings = {
   nav: {
     home: string; placement: string; free: string; library: string; sentences: string; listening: string; progress: string; feedback: string; settings: string;
+    /** サイドバー項目ではないが、進行中セッション画面のタブ名・遷移読み上げに使う画面名 */
+    session: string;
     sectionToday: string; sectionSelf: string; sectionRecords: string; selfStudyHint: string; navigationLabel: string;
   };
 };
@@ -54,6 +56,8 @@ type RouteStrings = { routes: {
   leaveSession: string;
   stay: string;
   leave: string;
+  /** SPA遷移をスクリーンリーダーへ伝える live region 文言（#210） */
+  moved: (screen: string) => string;
 } };
 /**
  * Tauri Phase 2: Claude/Codex/ローカルLLMがいずれも未導入のときの一度きりの案内バナー文言（情報的トーン・研究制約）。
@@ -522,6 +526,7 @@ export const STR: Record<Lang, Strings> = {
   en: {
     nav: {
       home: "Home", placement: "Level Check", free: "Free Talk", library: "Model Talks", sentences: "390 Sentences", listening: "Listening", progress: "Progress", feedback: "Practice reactions", settings: "Settings",
+      session: "Practice session",
       sectionToday: "Today's practice", sectionSelf: "Self-study", sectionRecords: "Records, level & settings", navigationLabel: "Main navigation",
       selfStudyHint: "Your main path is Today's practice. Self-study fits spare moments — a good order: listen (Listening) → memorize (Sentences) → speak (Free talk).",
     },
@@ -532,6 +537,7 @@ export const STR: Record<Lang, Strings> = {
       leaveSession: "Leave the current practice and open the selected screen?",
       stay: "Keep practicing",
       leave: "Leave practice",
+      moved: (screen) => `Moved to ${screen}.`,
     },
     llmNotice: {
       body: "Claude, Codex, or a local LLM isn't set up. Conversation, corrections, and explanations won't work, but example sentences, listening, shadowing, and recording transcripts still work as-is.",
@@ -1111,6 +1117,7 @@ export const STR: Record<Lang, Strings> = {
   ja: {
     nav: {
       home: "ホーム", placement: "レベル測定", free: "自由会話", library: "モデルトーク", sentences: "暗記例文390", listening: "リスニング（多聴）", progress: "進捗", feedback: "練習の感想", settings: "設定",
+      session: "練習セッション",
       sectionToday: "今日の練習", sectionSelf: "自主練", sectionRecords: "記録・測定・設定", navigationLabel: "メインナビゲーション",
       selfStudyHint: "メインは「今日の練習」。自主練はすきま時間に。目安の順番: リスニング → 暗記例文 → 自由会話。",
     },
@@ -1121,6 +1128,7 @@ export const STR: Record<Lang, Strings> = {
       leaveSession: "現在の練習を離れて、選んだ画面を開きますか？",
       stay: "練習を続ける",
       leave: "練習を離れる",
+      moved: (screen) => `${screen}に移動しました。`,
     },
     llmNotice: {
       body: "Claude/Codex/ローカルLLMが未導入の場合、会話・添削・解説は使えません。例文・リスニング・シャドーイング・録音の文字起こしはそのまま使えます。",

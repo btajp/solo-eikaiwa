@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   fetchLlmSettings, saveLlmRoleSettings, LLM_ROLES,
   fetchTtsSettings, saveTtsSettings,
@@ -24,6 +24,8 @@ import {
   rolesDraftChanged, ttsDraftChanged, type ConnectionDraft,
 } from "../lib/settings-save-scopes";
 import { makeSerialLatestOps } from "../lib/serial-latest-ops";
+import { rovingTargetIndex } from "../lib/roving-focus";
+import { DEFAULT_SETTINGS_TAB, type SettingsTab } from "../route-state";
 import { STR, type Lang } from "../i18n";
 import { formatClientError } from "../lib/user-error";
 import { Button } from "../ui/Button";
@@ -42,12 +44,19 @@ type Props = {
   setUiScale: (s: UiScale) => void;
   switchLang: (l: Lang) => void;
   onHealthChanged: () => void;
+  /** URL（#/settings?tab=…）から復元するタブ。未指定は学習者向けの表示タブ（#185）。 */
+  initialTab?: SettingsTab;
+  /** ユーザー操作でタブが変わったときにURLへ反映する（deep link 維持・#185）。 */
+  onTabChange?: (tab: SettingsTab) => void;
 };
 
 type SaveState = { phase: "idle" | "saving" | "saved" | "error"; message: string | null };
 const IDLE_SAVE: SaveState = { phase: "idle", message: null };
-type SettingsTab = "keys" | "conn" | "roles" | "display";
-export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealthChanged }: Props) {
+/** tablist の表示順。roving tabindex の移動順もこの配列に従う。 */
+const SETTINGS_TABS: readonly SettingsTab[] = ["keys", "conn", "roles", "display"];
+export function SettingsScreen({
+  lang, uiScale, setUiScale, switchLang, onHealthChanged, initialTab = DEFAULT_SETTINGS_TAB, onTabChange,
+}: Props) {
   const s = STR[lang];
   const llmSettingsLoad = useLoad(fetchLlmSettings);
   const ttsSettingsLoad = useLoad(fetchTtsSettings);
@@ -57,7 +66,13 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
   const [connectionSave, setConnectionSave] = useState<SaveState>(IDLE_SAVE);
   const [rolesSave, setRolesSave] = useState<SaveState>(IDLE_SAVE);
   const [ttsSave, setTtsSave] = useState<SaveState>(IDLE_SAVE);
-  const [tab, setTab] = useState<SettingsTab>("keys");
+  const [tab, setTab] = useState<SettingsTab>(initialTab);
+  // ブラウザの戻る/進む・deep link でURL側のタブが変わったときに表示へ追従する（保存状態は消さない）
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
+  // roving tabindex: 矢印キーでの移動先タブへフォーカスを移すために各タブボタンを参照する
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const saveGenerationRef = useRef(makeSaveGenerationTracker());
   // 複数のAPIキー欄は並行に操作できるため、secret操作は全フィールド共通で直列化し、
   // 応答（保存/削除の結果と後続のsettings再取得）は最後に開始した操作の系列だけを反映する。
@@ -226,11 +241,21 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
 
   function switchSettingsTab(next: SettingsTab) {
     if (settingsSaving) return;
+    if (next !== tab) onTabChange?.(next);
     setTab(next);
     setAuthSave(IDLE_SAVE);
     setConnectionSave(IDLE_SAVE);
     setRolesSave(IDLE_SAVE);
     setTtsSave(IDLE_SAVE);
+  }
+
+  /** WAI-ARIA APG のタブ操作: ←/→/Home/End でフォーカスを移し、選択もフォーカスに追従させる（表示切替は即時）。 */
+  function onTablistKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    const target = rovingTargetIndex(e.key, SETTINGS_TABS.indexOf(tab), SETTINGS_TABS.length, "horizontal");
+    if (target === null || settingsSaving) return;
+    e.preventDefault();
+    switchSettingsTab(SETTINGS_TABS[target]);
+    tabRefs.current[target]?.focus();
   }
 
   async function saveConnection() {
@@ -422,20 +447,15 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
     fast: s.settings.tuningTierFast, standard: s.settings.tuningTierStandard,
   };
   const apiKeysLoading = llmSettingsLoad.state.status === "loading" || ttsSettingsLoad.state.status === "loading" || secretsLoad.state.status === "loading";
+  const tabLabels: Record<SettingsTab, string> = {
+    keys: s.settings.apiKeysSection, conn: s.settings.connectionSection,
+    roles: s.settings.roleAssignSection, display: s.settings.displaySection,
+  };
 
-  return (
-    <div className="stack">
-      <div className="hero">
-        <h2 className="hero-title">{s.settings.title}</h2>
-      </div>
-
-      <div className="lang-toggle settings-tabs" role="tablist" aria-label={s.settings.title}>
-        <button role="tab" aria-selected={tab === "keys"} className={tab === "keys" ? "is-active" : ""} disabled={settingsSaving} onClick={() => switchSettingsTab("keys")}>{s.settings.apiKeysSection}</button>
-        <button role="tab" aria-selected={tab === "conn"} className={tab === "conn" ? "is-active" : ""} disabled={settingsSaving} onClick={() => switchSettingsTab("conn")}>{s.settings.connectionSection}</button>
-        <button role="tab" aria-selected={tab === "roles"} className={tab === "roles" ? "is-active" : ""} disabled={settingsSaving} onClick={() => switchSettingsTab("roles")}>{s.settings.roleAssignSection}</button>
-        <button role="tab" aria-selected={tab === "display"} className={tab === "display" ? "is-active" : ""} disabled={settingsSaving} onClick={() => switchSettingsTab("display")}>{s.settings.displaySection}</button>
-      </div>
-
+  /** 選択中タブのパネル内容。loading/errorも該当パネル内に置き、tab/tabpanel の関連へ含める（#185）。 */
+  function renderPanel(key: SettingsTab) {
+    return (
+      <>
       <SettingsLoadErrors
         lang={lang}
         llmError={llmSettingsLoad.state.status === "error" ? llmSettingsLoad.state.error : null}
@@ -446,11 +466,11 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
         reloadSecrets={secretsLoad.reload}
       />
 
-      {tab === "keys" && apiKeysLoading && (
+      {key === "keys" && apiKeysLoading && (
         <section className="support-panel stack"><div className="text-sm text-muted">{s.settings.loading}</div></section>
       )}
 
-      {tab === "keys" && view && ttsView && secretsLoad.state.status === "ready" && secrets && (
+      {key === "keys" && view && ttsView && secretsLoad.state.status === "ready" && secrets && (
         <ApiKeysTab
           lang={lang}
           disabled={settingsSaving || !view}
@@ -479,7 +499,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
         />
       )}
 
-      {tab === "conn" && (
+      {key === "conn" && (
         <section className="support-panel stack">
           <div className="llm-fields stack">
             <h3 className="settings-section-title">{s.settings.targetClaude}</h3>
@@ -607,7 +627,7 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
         </section>
       )}
 
-      {tab === "roles" && (
+      {key === "roles" && (
         <section className="support-panel stack">
           <div className="info-pop">{s.settings.roleQualityNote}</div>
 
@@ -794,9 +814,54 @@ export function SettingsScreen({ lang, uiScale, setUiScale, switchLang, onHealth
         </section>
       )}
 
-      {tab === "display" && (
+      {key === "display" && (
         <DisplaySettingsTab lang={lang} uiScale={uiScale} setUiScale={setUiScale} switchLang={switchLang} />
       )}
+      </>
+    );
+  }
+
+  return (
+    <div className="stack">
+      <div className="hero">
+        <h2 className="hero-title">{s.settings.title}</h2>
+      </div>
+
+      {/* WAI-ARIA APG準拠のタブ（#185/#211）: tab/tabpanel をIDで関連づけ、選択タブだけを tab stop にし、
+          ←/→/Home/End で移動する（選択はフォーカスに追従・表示切替は即時） */}
+      <div className="lang-toggle settings-tabs" role="tablist" aria-label={s.settings.title} onKeyDown={onTablistKeyDown}>
+        {SETTINGS_TABS.map((key, i) => (
+          <button
+            key={key}
+            id={`settings-tab-${key}`}
+            role="tab"
+            aria-selected={tab === key}
+            aria-controls={`settings-panel-${key}`}
+            tabIndex={tab === key ? 0 : -1}
+            ref={(el) => { tabRefs.current[i] = el; }}
+            className={tab === key ? "is-active" : ""}
+            disabled={settingsSaving}
+            onClick={() => switchSettingsTab(key)}
+          >
+            {tabLabels[key]}
+          </button>
+        ))}
+      </div>
+
+      {/* 全タブの tabpanel を常に置き、非選択タブは hidden の空パネルにする
+          （各 tab の aria-controls 参照先を常に存在させ、非選択タブの内容は今までどおり mount しない） */}
+      {SETTINGS_TABS.map((key) => (
+        <div
+          key={key}
+          id={`settings-panel-${key}`}
+          role="tabpanel"
+          aria-labelledby={`settings-tab-${key}`}
+          hidden={tab !== key}
+          className={tab === key ? "stack" : undefined}
+        >
+          {tab === key && renderPanel(key)}
+        </div>
+      ))}
     </div>
   );
 }

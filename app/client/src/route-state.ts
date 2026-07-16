@@ -1,3 +1,7 @@
+/** 設定画面のタブ。既定は学習者向けの「表示」（#185）。APIキー等は ?tab= の deep link で直接開ける。 */
+export type SettingsTab = "keys" | "conn" | "roles" | "display";
+export const DEFAULT_SETTINGS_TAB: SettingsTab = "display";
+
 /** 再読込しても復元できる、セッション以外の画面状態。進行中セッションは意図的に含めない。 */
 export type RouteMode =
   | { kind: "start" }
@@ -8,7 +12,7 @@ export type RouteMode =
   | { kind: "placement" }
   | { kind: "progress" }
   | { kind: "feedback" }
-  | { kind: "settings" };
+  | { kind: "settings"; tab?: SettingsTab };
 
 export type RouteNotice = "unknown" | "session-not-restored";
 
@@ -39,11 +43,16 @@ export function parseRouteHash(hash: string): ParsedRoute {
     case "/placement": return { mode: { kind: "placement" }, notice: null };
     case "/progress": return { mode: { kind: "progress" }, notice: null };
     case "/feedback": return { mode: { kind: "feedback" }, notice: null };
-    case "/settings": return { mode: { kind: "settings" }, notice: null };
+    case "/settings": return { mode: { kind: "settings", tab: parseSettingsTab(url.searchParams.get("tab")) }, notice: null };
     // セッションIDや途中状態をURLに置かない。再読込で安全に復元できないためHomeへ戻す。
     case "/session": return { mode: HOME, notice: "session-not-restored" };
     default: return { mode: HOME, notice: "unknown" };
   }
+}
+
+/** 不明・未指定のタブ指定は既定タブへ丸める（例文タブの不明値の扱いと同じ方針）。 */
+function parseSettingsTab(value: string | null): SettingsTab {
+  return value === "keys" || value === "conn" || value === "roles" || value === "display" ? value : DEFAULT_SETTINGS_TAB;
 }
 
 export function routeHash(mode: RouteMode): string {
@@ -56,6 +65,6 @@ export function routeHash(mode: RouteMode): string {
     case "placement": return "#/placement";
     case "progress": return "#/progress";
     case "feedback": return "#/feedback";
-    case "settings": return "#/settings";
+    case "settings": return mode.tab && mode.tab !== DEFAULT_SETTINGS_TAB ? `#/settings?tab=${mode.tab}` : "#/settings";
   }
 }

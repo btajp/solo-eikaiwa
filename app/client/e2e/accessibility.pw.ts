@@ -18,6 +18,18 @@ const metricsDay = (ymd: string, speakingSec: number, avgArticulationWpm: number
 });
 const metrics = [metricsDay("2026-07-09", 480, 90), metricsDay("2026-07-10", 720, 110)];
 
+const inheritRole = { provider: "inherit", baseUrl: null, model: null, codexModel: null };
+const noTuning = { claudeModel: null, effort: null, serviceTier: null };
+const llmSettings = {
+  provider: "claude", baseUrl: null, model: null, openaiModel: null, codexModel: null,
+  apiKeyConfigured: false, apiKeyApproved: false, openAiKeyConfigured: false,
+  roles: { conversation: inheritRole, assist: inheritRole, coaching: inheritRole, generation: inheritRole, assessment: inheritRole },
+  globalTuning: noTuning,
+  tuning: { conversation: noTuning, assist: noTuning, coaching: noTuning, generation: noTuning, assessment: noTuning },
+  authModes: { claude: "subscription", codex: "subscription" },
+  authKeys: { anthropic: true, codex: false },
+};
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.clear();
@@ -46,6 +58,23 @@ test.beforeEach(async ({ page }) => {
     }
     if (pathname === "/api/assessment/latest") return json({ report: null });
     if (pathname === "/api/assessment/list") return json({ reports: [] });
+    if (pathname === "/api/llm-settings") return json(llmSettings);
+    if (pathname === "/api/tts-settings") {
+      return json({
+        provider: "say", baseUrl: null, model: null, voice: null, openaiModel: null, openaiVoice: null,
+        apiKeyConfigured: false, apiKeyApproved: false,
+        defaults: { baseUrl: "http://127.0.0.1:8880/v1", model: "gpt-4o-mini-tts", voice: "alloy" },
+      });
+    }
+    if (pathname === "/api/secrets") {
+      return json({
+        ANTHROPIC_API_KEY: { configured: false, source: null },
+        CODEX_API_KEY: { configured: false, source: null },
+        OPENAI_API_KEY: { configured: false, source: null },
+        OPENAI_COMPAT_API_KEY: { configured: false, source: null },
+        TTS_API_KEY: { configured: false, source: null },
+      });
+    }
     return json({});
   });
 });
@@ -92,7 +121,119 @@ test("言語・状態・代替テキストを支援技術へ伝える", async ({
 
   await page.getByRole("button", { name: "Progress" }).click();
   await expect(page.getByText("July 9, 2026: 8.0 minutes of speaking", { exact: true })).toBeAttached();
-  await expect(page.locator(".visually-hidden").nth(1)).toContainText("July 10, 2026: 110 words per minute");
+  // 遷移通知の live region（.shell 直下）が加わったため、進捗画面内の代替テキストは main 配下で数える
+  await expect(page.locator("main .visually-hidden").nth(1)).toContainText("July 10, 2026: 110 words per minute");
+  await expectNoSeriousViolations(page);
+});
+
+// #210: SPA遷移の通知（タイトル・フォーカス移動・live region）
+test("SPA遷移でタイトルが変わり、フォーカス移動とlive region通知が行われる", async ({ page }) => {
+  const liveRegion = page.locator(".shell > .visually-hidden[role=\"status\"]");
+  await page.goto("/");
+  await expect(page).toHaveTitle("Home — solo-eikaiwa");
+  await expect(liveRegion).toHaveText(""); // 初回表示では読み上げない
+
+  await page.getByRole("button", { name: "Progress", exact: true }).click();
+  await expect(page).toHaveTitle("Progress — solo-eikaiwa");
+  await expect(page.locator("main.app")).toBeFocused();
+  await expect(liveRegion).toHaveText("Moved to Progress.");
+
+  await page.goBack();
+  await expect(page).toHaveTitle("Home — solo-eikaiwa");
+  await expect(page.locator("main.app")).toBeFocused();
+  await expect(liveRegion).toHaveText("Moved to Home.");
+
+  await page.goForward();
+  await expect(page).toHaveTitle("Progress — solo-eikaiwa");
+  await expect(liveRegion).toHaveText("Moved to Progress.");
+
+  await page.getByRole("button", { name: "日本語", exact: true }).click();
+  await expect(page).toHaveTitle("進捗 — solo-eikaiwa"); // タイトルはUI言語に追従する
+});
+
+// #185/#211: 設定タブのARIA準拠（roving tabindex・矢印/Home/End・tab/tabpanel関連・deep link）
+test("設定タブは矢印キーで操作でき、学習者向けの表示タブが既定になる", async ({ page }) => {
+  await page.goto("/#/settings");
+  const tablist = page.getByRole("tablist", { name: "Settings" });
+  const keysTab = tablist.getByRole("tab", { name: "API keys" });
+  const connTab = tablist.getByRole("tab", { name: "Model connections" });
+  const rolesTab = tablist.getByRole("tab", { name: "Model per role" });
+  const displayTab = tablist.getByRole("tab", { name: "Display" });
+
+  // 既定は学習者向けの表示タブ。tab/tabpanel がIDで関連づく
+  await expect(displayTab).toHaveAttribute("aria-selected", "true");
+  await expect(displayTab).toHaveAttribute("aria-controls", "settings-panel-display");
+  const displayPanel = page.locator("#settings-panel-display");
+  await expect(displayPanel).toHaveAttribute("role", "tabpanel");
+  await expect(displayPanel).toHaveAttribute("aria-labelledby", "settings-tab-display");
+  await expect(displayPanel.getByRole("group", { name: "Text size" })).toBeVisible();
+
+  // roving tabindex: 選択タブだけが tab stop
+  await expect(displayTab).toHaveAttribute("tabindex", "0");
+  for (const inactive of [keysTab, connTab, rolesTab]) {
+    await expect(inactive).toHaveAttribute("tabindex", "-1");
+  }
+
+  // 右矢印は末尾から先頭へ折り返し、選択がフォーカスに追従する（URLも deep link 可能な形で更新）
+  await displayTab.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(keysTab).toBeFocused();
+  await expect(keysTab).toHaveAttribute("aria-selected", "true");
+  await expect(page).toHaveURL(/#\/settings\?tab=keys$/);
+  await expect(page.locator("#settings-panel-keys")).toBeVisible();
+
+  await page.keyboard.press("End");
+  await expect(displayTab).toBeFocused();
+  await expect(displayTab).toHaveAttribute("aria-selected", "true");
+
+  await page.keyboard.press("ArrowLeft");
+  await expect(rolesTab).toBeFocused();
+  await expect(rolesTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#settings-panel-roles")).toBeVisible();
+
+  await page.keyboard.press("Home");
+  await expect(keysTab).toBeFocused();
+  await expect(keysTab).toHaveAttribute("aria-selected", "true");
+  await expectNoSeriousViolations(page);
+
+  // APIキー等への直接導線（deep link）は維持される
+  await page.goto("/#/settings?tab=conn");
+  await expect(connTab).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#settings-panel-conn")).toBeVisible();
+  await expectNoSeriousViolations(page);
+});
+
+// #211: whisperセットアップのモデル選択（radiogroup）も宣言どおり矢印キーで動く
+test("whisperセットアップのモデル選択は矢印キーで切り替えられる", async ({ page }) => {
+  await page.route("**/api/health", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, whisper: true, ffmpeg: true, claude: true, ttsKey: true, modelFile: false, app: "solo-eikaiwa", version: "test", llmReady: true }),
+  }));
+  await page.route("**/api/setup/status", (route) => route.fulfill({
+    contentType: "application/json",
+    body: JSON.stringify({
+      status: "idle", model: null, receivedBytes: 0, totalBytes: 0, error: null,
+      resumable: false, diskFreeBytes: 100_000_000_000, models: { "large-v3-turbo": false, small: false },
+    }),
+  }));
+  await page.goto("/");
+
+  const group = page.getByRole("radiogroup", { name: "Model" });
+  const large = group.getByRole("radio", { name: "Recommended (1.6 GB)" });
+  const small = group.getByRole("radio", { name: "Lightweight (0.5 GB)" });
+  await expect(large).toHaveAttribute("aria-checked", "true");
+  await expect(large).toHaveAttribute("tabindex", "0");
+  await expect(small).toHaveAttribute("tabindex", "-1");
+
+  await large.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(small).toBeFocused();
+  await expect(small).toHaveAttribute("aria-checked", "true");
+  await expect(large).toHaveAttribute("tabindex", "-1");
+
+  await page.keyboard.press("ArrowDown"); // 端では折り返す
+  await expect(large).toBeFocused();
+  await expect(large).toHaveAttribute("aria-checked", "true");
   await expectNoSeriousViolations(page);
 });
 

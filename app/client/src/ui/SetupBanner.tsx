@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { cancelWhisperModelDownload, getSetupStatus, startWhisperModelDownload, type SetupStatus, type WhisperModelId } from "../api/setup";
 import { STR, type Lang } from "../i18n";
 import { formatClientError } from "../lib/user-error";
+import { rovingTargetIndex } from "../lib/roving-focus";
 import { SetupStatusPoller } from "../lib/setup-status-poller";
 import { formatBytes, isDownloadActive, progressPercent } from "../lib/whisper-setup";
 import { Banner } from "./Banner";
@@ -83,6 +84,16 @@ export function SetupBanner({
   const showChoice = st === "idle" || st === "error";
   const pct = status ? progressPercent(status.receivedBytes, status.totalBytes) : 0;
 
+  // WAI-ARIA APG準拠の radiogroup（#211）: 矢印キーで選択を移し、選択中の radio だけを tab stop にする
+  const radioRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  function onRadioKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    const target = rovingTargetIndex(e.key, MODEL_CHOICES.indexOf(selected), MODEL_CHOICES.length, "both");
+    if (target === null) return;
+    e.preventDefault();
+    setSelected(MODEL_CHOICES[target]);
+    radioRefs.current[target]?.focus();
+  }
+
   return (
     <Banner
       kind={st === "error" ? "warn" : "info"}
@@ -93,12 +104,14 @@ export function SetupBanner({
 
         {showChoice && (
           <>
-            <div className="lang-toggle" role="radiogroup" aria-label={t.modelChoiceLabel}>
-              {MODEL_CHOICES.map((m) => (
+            <div className="lang-toggle" role="radiogroup" aria-label={t.modelChoiceLabel} onKeyDown={onRadioKeyDown}>
+              {MODEL_CHOICES.map((m, i) => (
                 <button
                   key={m}
                   role="radio"
                   aria-checked={selected === m}
+                  tabIndex={selected === m ? 0 : -1}
+                  ref={(el) => { radioRefs.current[i] = el; }}
                   className={selected === m ? "is-active" : ""}
                   onClick={() => setSelected(m)}
                 >

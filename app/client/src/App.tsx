@@ -6,6 +6,7 @@ import {
 } from "./api";
 import { isDesktopContext } from "./audio";
 import { isHomeNavigationActive } from "./navigation-state";
+import { documentTitleFor, routeAnnouncement, shouldAnnounceRoute, type ScreenKind } from "./route-announcer";
 import { parseRouteHash, routeHash, type ParsedRoute, type RouteMode } from "./route-state";
 import { loadLang, saveLang, STR, type Lang } from "./i18n";
 import { FeedbackScreen } from "./screens/FeedbackScreen";
@@ -87,6 +88,21 @@ export function App() {
     document.documentElement.dataset.uiScale = uiScale;
     localStorage.setItem("ui.scale", uiScale);
   }, [uiScale]);
+  // SPA遷移を支援技術へ伝える（#210）: 遷移完了時に main へフォーカスを移し、live region で新画面名を読み上げ、
+  // document.title を「画面名 — solo-eikaiwa」に保つ（履歴一覧・タブ名でも画面を区別できる）。
+  const mainRef = useRef<HTMLElement | null>(null);
+  const previousScreenRef = useRef<ScreenKind | null>(null);
+  const [screenAnnouncement, setScreenAnnouncement] = useState("");
+  useEffect(() => {
+    document.title = documentTitleFor(mode.kind, lang);
+  }, [mode.kind, lang]);
+  useEffect(() => {
+    const previous = previousScreenRef.current;
+    previousScreenRef.current = mode.kind;
+    if (!shouldAnnounceRoute(previous, mode.kind)) return;
+    setScreenAnnouncement(routeAnnouncement(mode.kind, lang));
+    mainRef.current?.focus();
+  }, [mode.kind, lang]);
   // このタブのライフサイクルを識別するUUID。単独の自由会話にも使う。
   // 通し・クイック練習は開始ごとに別IDを発行し、振り返りとblock/roundイベントをその練習へ束縛する。
   const [sessionId] = useState(() => crypto.randomUUID());
@@ -332,7 +348,9 @@ export function App() {
         <PracticeStat lang={lang} />
         <SidebarFooter {...t.footer} />
       </aside>
-      <main className="app">
+      {/* SPA遷移の読み上げ用 live region（#210）。常設し、遷移完了時だけ文言を書き換える */}
+      <div className="visually-hidden" role="status">{screenAnnouncement}</div>
+      <main className="app" tabIndex={-1} ref={mainRef}>
       {routeNotice && (
         <Banner kind="info">{routeNotice === "unknown" ? t.routes.unknown : t.routes.sessionNotRestored}</Banner>
       )}
@@ -397,7 +415,7 @@ export function App() {
           lang={lang}
           missing={missingPracticeCapabilities(health, blockedCapabilities)}
           onOpenSetup={reopenSetup}
-          onOpenSettings={() => requestNavigation({ kind: "settings" })}
+          onOpenSettings={() => requestNavigation({ kind: "settings", tab: "keys" })}
         />
       )}
       {mode.kind === "start" && <StartScreen onSelect={onSelect} lang={lang} />}
@@ -424,7 +442,11 @@ export function App() {
       {mode.kind === "progress" && <ProgressScreen lang={lang} />}
       {mode.kind === "feedback" && <FeedbackScreen lang={lang} />}
       {mode.kind === "settings" && (
-        <SettingsScreen lang={lang} uiScale={uiScale} setUiScale={setUiScale} switchLang={switchLang} onHealthChanged={refetchHealth} />
+        <SettingsScreen
+          lang={lang} uiScale={uiScale} setUiScale={setUiScale} switchLang={switchLang} onHealthChanged={refetchHealth}
+          initialTab={mode.tab}
+          onTabChange={(tab) => transitionTo({ kind: "settings", tab })}
+        />
       )}
       </main>
     </div>
