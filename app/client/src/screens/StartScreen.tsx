@@ -10,6 +10,7 @@ import { Banner } from "../ui/Banner";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { type MenuSource } from "./SessionRunner";
+import { HabitAnchorCard, HabitAnchorReminder, useHabitAnchor } from "./HabitAnchorCard";
 import { calendarLevel } from "../lib/calendar-level";
 import {
   placementCalloutKind,
@@ -145,6 +146,8 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
   const t = STR[props.lang];
   const tp = STR[props.lang].placement;
   const practiceDays = useLoad(fetchPracticeDays);
+  // 習慣アンカー（#184）: 設定済みならホーム上部に控えめに再提示し、カレンダー下のカードで設定する
+  const habitAnchor = useHabitAnchor();
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
   const [proposalError, setProposalError] = useState(false);
   const [placementLatest, setPlacementLatest] = useState<PlacementLatestState>("loading");
@@ -185,6 +188,8 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
         <p className="hero-greet">👋 {dateLabel}</p>
         <h2 className="hero-title">{t.hero.title}</h2>
       </div>
+
+      <HabitAnchorReminder anchor={habitAnchor} lang={props.lang} />
 
       {showBedtime && <p className="hero-bedtime text-sm text-muted">{t.hero.bedtime}</p>}
 
@@ -285,6 +290,8 @@ export function StartScreen(props: { onSelect: (sel: StartSelection) => void; la
       )}
 
       <PracticeCalendar state={practiceDays.state} lang={props.lang} onRetry={practiceDays.reload} />
+
+      <HabitAnchorCard anchor={habitAnchor} lang={props.lang} />
     </div>
   );
 }

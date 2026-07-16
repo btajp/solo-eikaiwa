@@ -98,6 +98,26 @@ describe("画面導線と学習素材の呼称", () => {
     expect(STR.ja.drills["roleplay-daily"].requires).toContain("マイク");
   });
 
+  test("習慣アンカーは任意・控えめ・個人差を日英で明示する（#184）", () => {
+    expect(STR.en.habitAnchor.title.toLowerCase()).toContain("optional");
+    expect(STR.en.habitAnchor.desc.toLowerCase()).toContain("no notifications");
+    expect(STR.en.habitAnchor.individualNote.toLowerCase()).toContain("person to person");
+    expect(STR.ja.habitAnchor.title).toContain("任意");
+    expect(STR.ja.habitAnchor.desc).toContain("通知");
+    expect(STR.ja.habitAnchor.individualNote).toContain("個人差");
+    // 保存文言と入力上限はサーバ制限200文字に沿った案内になる
+    expect(STR.en.habitAnchor.tooLong(200)).toContain("200");
+    expect(STR.ja.habitAnchor.tooLong(200)).toContain("200");
+  });
+
+  test("シャドーイングの自己確認はマイク不要の自己申告だと日英で示す（#181）", () => {
+    expect(STR.en.shadowing.spokenPrompt.toLowerCase()).toContain("no microphone");
+    expect(STR.ja.shadowing.spokenPrompt).toContain("マイクは使わず");
+    // 確認前後でボタンの文言が変わり、記録済みであることが分かる
+    expect(STR.en.shadowing.confirmSpoken).not.toBe(STR.en.shadowing.spokenConfirmed);
+    expect(STR.ja.shadowing.confirmSpoken).not.toBe(STR.ja.shadowing.spokenConfirmed);
+  });
+
   test("収集フレーズと準備フレーズを概念ごとに一貫して呼ぶ", () => {
     expect(STR.en.sentences.chunkLabel).toBe("Your phrase");
     expect(STR.en.sentences.myChunks).toContain("My phrases");

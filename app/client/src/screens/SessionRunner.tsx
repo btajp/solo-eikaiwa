@@ -307,7 +307,7 @@ function BlockBody({
           />
         : <p>{STR[lang].session.noScenario}</p>;
     case "shadowing":
-      return block.params.topic ? <ShadowingScreen topic={block.params.topic} lang={lang} onReady={onReady} onValidAttempt={onValidAttempt} /> : <p>{STR[lang].session.noTopic}</p>;
+      return block.params.topic ? <ShadowingScreen topic={block.params.topic} lang={lang} sessionId={sessionId} blockId={block.id} onReady={onReady} onValidAttempt={onValidAttempt} /> : <p>{STR[lang].session.noTopic}</p>;
     case "reflection":
       return <ReflectionScreen sessionId={sessionId} lang={lang} onReady={onReady} onValidAttempt={onValidAttempt} onOpenCollectedPhrases={onOpenCollectedPhrases} />;
     default:

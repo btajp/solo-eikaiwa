@@ -275,6 +275,19 @@ type SettingsStrings = {
 };
 type StatStrings = { stat: { title: string; thisWeekUnit: string; total: (n: number) => string } };
 type HeroStrings = { hero: { title: string; date: (d: Date) => string; bedtime: string } };
+/**
+ * 習慣アンカー（#184）: 学習開始を既存習慣に結びつける任意の if-then 一文。
+ * v0.2.0 で撤去された旧UIの反省を踏まえ、意図の説明と効果の個人差を正直に明記し、
+ * 通知・ストリーク・警告は持たない（情報的フィードバックのみ）。
+ */
+type HabitAnchorStrings = { habitAnchor: {
+  title: string; desc: string; individualNote: string;
+  loading: string; retry: string;
+  inputLabel: string; placeholder: string;
+  save: string; saving: string; saved: string;
+  tooLong: (max: number) => string;
+  reminderLabel: string;
+} };
 type QuickStrings = { quick: {
   label: string; note: string; oneEnough: string;
   suggestionLabel: string; suggestionReason: string;
@@ -437,10 +450,12 @@ type ReflectionStrings = { reflection: {
 } };
 type ChunkListStrings = { chunkList: { playAria: (en: string) => string } };
 type PlaybackStrings = { playback: { stop: string; playing: string } };
-/** 生成教材の原文は script と呼び、録音由来の transcript / 文字起こしとは区別する。 */
+/** 生成教材の原文は script と呼び、録音由来の transcript / 文字起こしとは区別する。
+ * spokenPrompt/confirmSpoken/spokenConfirmed は「聞いた」と「声に出した」を区別する任意の自己確認（#181・マイク不要・判定/警告なし）。 */
 type ShadowingStrings = { shadowing: {
   intro: string; writingScript: string; generatingAudio: string; retry: string;
   play: string; showScript: string; playbackError: string; playbackRetry: string;
+  spokenPrompt: string; confirmSpoken: string; spokenConfirmed: string;
   explainMore: string; explainLoading: string; explainError: string;
 } };
 type LibraryStrings = { library: {
@@ -488,7 +503,7 @@ type FeedbackScreenStrings = { feedbackScreen: {
 type FooterStrings = { footer: { linksLabel: string; githubLabel: string; websiteLabel: string; privacyLabel: string; copyright: string } };
 
 type Strings =
-  & NavStrings & UiScaleStrings & AppShellStrings & RouteStrings & SupportStrings & StatStrings & HeroStrings
+  & NavStrings & UiScaleStrings & AppShellStrings & RouteStrings & SupportStrings & StatStrings & HeroStrings & HabitAnchorStrings
   & QuickStrings & IntensiveStrings & DrillsStrings & SessionCardStrings
   & CalendarStrings & FreeTalkHeaderStrings & ProgressStrings & PlacementStrings & SentencesStrings & CollectedPhrasesStrings
   & MenuTitleStrings & SessionStrings
@@ -757,6 +772,17 @@ export const STR: Record<Lang, Strings> = {
       date: (d) => `${WEEKDAYS_EN[d.getDay()]}, ${MONTHS_EN[d.getMonth()]} ${d.getDate()}`,
       bedtime: "A little review before bed helps it stick.",
     },
+    habitAnchor: {
+      title: "Habit anchor (optional)",
+      desc: "One if-then line that ties practice to a routine you already have — for example, “After I pour my morning coffee, I start English practice.” It only shows up quietly here on Home: no notifications, no streaks, no reminders.",
+      individualNote: "Research finds the average effect of plans like this is small, and it varies from person to person. Use it only if it helps you.",
+      loading: "Loading…", retry: "Retry",
+      inputLabel: "Your one-line plan",
+      placeholder: "After I ..., I start English practice",
+      save: "Save", saving: "Saving…", saved: "Saved. When set, it appears quietly at the top of Home.",
+      tooLong: (max) => `Please keep it within ${max} characters.`,
+      reminderLabel: "Your cue:",
+    },
     quick: {
       label: "Quick drills (5–10 min)", note: "Choose any one that fits today",
       oneEnough: "One practice is enough for today. You can stop whenever it feels right.",
@@ -1004,6 +1030,9 @@ export const STR: Record<Lang, Strings> = {
       writingScript: "✍ Preparing the model talk script…", generatingAudio: "🎙 Generating audio…", retry: "Retry",
       play: "▶ Play (as many times as you like)", showScript: "📄 Show script",
       playbackError: "Couldn't play the audio. Try playback again.", playbackRetry: "Try playback again",
+      spokenPrompt: "If you spoke along aloud, you can log it as speaking practice below — no microphone needed, your own word is enough.",
+      confirmSpoken: "🗣 I shadowed it aloud",
+      spokenConfirmed: "Logged as speaking practice",
       explainMore: "💡 Translation & notes", explainLoading: "Writing the translation and notes…",
       explainError: "Couldn't load the explanation. Please try again.",
     },
@@ -1327,6 +1356,17 @@ export const STR: Record<Lang, Strings> = {
       date: (d) => `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS_JA[d.getDay()]}）`,
       bedtime: "寝る前の復習は、記憶の定着に少し有利です。",
     },
+    habitAnchor: {
+      title: "習慣アンカー（任意）",
+      desc: "いつもの習慣に練習を結びつける「もし〜したら、その直後に英会話を始める」の一文です（例: 朝コーヒーを淹れたら、その直後に英会話を始める）。ホームに控えめに表示するだけで、通知・連続記録・リマインダーはありません。",
+      individualNote: "研究では、この種の計画の平均的な効果は小さく、個人差があるとされています。役立つと感じる場合だけお使いください。",
+      loading: "読み込み中…", retry: "再試行",
+      inputLabel: "自分の一文",
+      placeholder: "もし朝コーヒーを淹れたら、その直後に英会話を始める",
+      save: "保存", saving: "保存中…", saved: "保存しました。設定した一文はホーム上部に控えめに表示されます。",
+      tooLong: (max) => `${max}文字以内で入力してください。`,
+      reminderLabel: "きっかけ:",
+    },
     quick: {
       label: "クイックドリル（5〜10分）", note: "今日は気になるものを1つ",
       oneEnough: "今日は1つで十分です。やりたいところで終えてかまいません。",
@@ -1574,6 +1614,9 @@ export const STR: Record<Lang, Strings> = {
       writingScript: "✍ コーチがモデルトークのスクリプトを作成中…", generatingAudio: "🎙 音声を生成しています…", retry: "再試行",
       play: "▶ 再生（何度でも）", showScript: "📄 スクリプトを表示",
       playbackError: "音声を再生できませんでした。もう一度再生できます。", playbackRetry: "もう一度再生する",
+      spokenPrompt: "声に出して重ねられたら、下のボタンで発話練習として記録できます。マイクは使わず、自己申告でOKです。",
+      confirmSpoken: "🗣 声に出して重ねた",
+      spokenConfirmed: "発話練習として記録しました",
       explainMore: "💡 日本語訳と解説", explainLoading: "日本語訳と解説を書いています…",
       explainError: "解説を取得できませんでした。もう一度お試しください。",
     },
