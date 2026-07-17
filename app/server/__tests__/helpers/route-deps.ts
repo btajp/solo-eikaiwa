@@ -142,6 +142,7 @@ export function makeFakeAssessmentStore(overrides: Partial<AssessmentStore> = {}
 export const FAKE_LISTENING_ITEM: ListeningItem = {
   id: "morning-routine", title: "My morning routine", titleJa: "朝のルーティン",
   domain: "daily", level: [1, 3], paragraphs: ["I wake up at seven.", "Then I make coffee."],
+  format: "monologue", speakers: [], turns: [],
 };
 
 export function makeFakeListeningStore(overrides: Partial<ListeningStore> = {}): ListeningStore {

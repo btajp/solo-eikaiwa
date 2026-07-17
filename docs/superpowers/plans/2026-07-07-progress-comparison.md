@@ -1,5 +1,7 @@
 # 進歩の見える化・比較 実装計画
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 月次レビューに前月の実測値を渡して「先月比」を事実として書ける／見せられるようにし、レベル測定の結果画面に前回測定（日付・ステージ）と現在レベル・CEFR目安を中立に併記して、「進歩を感じる瞬間」を情報的に提供する。

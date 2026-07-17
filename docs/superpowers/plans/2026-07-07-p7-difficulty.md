@@ -1,5 +1,7 @@
 # P7 出だしの負荷とステップアップの実効化（難易度フォーカス）Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 学習の「出だしの負荷」を下げ（既定 Lv・秒数カーブ・ラウンド中の足場）、SRS 負荷を自己調整可能にし、難易度カーブの下方向を実効化する（降格アンカー＋実測シグナル）。素材面では stage1 帯のロールプレイ枯渇を補う。

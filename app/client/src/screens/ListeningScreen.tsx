@@ -81,7 +81,13 @@ function ListeningList({ data, lang, weekCount, onOpen }: {
       {shown.map((it) => (
         <Card
           key={it.id}
-          header={<>{localizedTitle(it, lang)} <span className="text-sm text-muted">{t.domain[it.domain]}</span></>}
+          header={
+            <>
+              {localizedTitle(it, lang)} <span className="text-sm text-muted">{t.domain[it.domain]}</span>
+              {/* #220: 2話者対話素材のバッジ（情報表示のみ） */}
+              {it.format === "dialogue" && <span className="text-sm text-muted"> · {t.dialogueBadge}</span>}
+            </>
+          }
         >
           <Button variant="primary" onClick={() => onOpen(it)}>{t.open}</Button>
         </Card>
@@ -135,6 +141,11 @@ function ListeningPlayback({ item, lang, onListened }: {
   const tokenRef = useRef(0);
   const pendingLogRef = useRef<PendingListeningLog | null>(null);
   const explainer = useExplain(() => fetchTalkExplanation(item.paragraphs.join("\n\n")));
+  // #220: dialogue はラベル抜きの発話本文を結合した1テキストで再生する（同梱の話者別voice結合音声の
+  // ルックアップキーがこの文字列と一致する契約 — server/dialogue-audio.ts dialogueBundledCacheKey）。
+  // monologue は従来どおり段落単位の逐次再生。
+  const dialogueTurns = item.format === "dialogue" && item.turns && item.turns.length > 0 ? item.turns : null;
+  const playUnits = dialogueTurns ? [dialogueTurns.map((turn) => turn.text).join("\n\n")] : item.paragraphs;
 
   useEffect(() => {
     aliveRef.current = true;
@@ -163,12 +174,12 @@ function ListeningPlayback({ item, lang, onListened }: {
   async function playAll() {
     setErrorMsg("");
     const my = ++tokenRef.current;
-    for (let i = 0; i < item.paragraphs.length; i++) {
+    for (let i = 0; i < playUnits.length; i++) {
       if (tokenRef.current !== my || !aliveRef.current) return;
       setPlayingIdx(i);
       try {
-        if (i + 1 < item.paragraphs.length) prefetchTts(item.paragraphs[i + 1]);
-        await playTtsCached(item.paragraphs[i]);
+        if (i + 1 < playUnits.length) prefetchTts(playUnits[i + 1]);
+        await playTtsCached(playUnits[i]);
       } catch (err) {
         if (tokenRef.current !== my || !aliveRef.current) return;
         setErrorMsg(formatClientError(lang, err, "play"));
@@ -219,11 +230,18 @@ function ListeningPlayback({ item, lang, onListened }: {
       {!showScript && <Button variant="secondary" onClick={() => setShowScript(true)}>{t.showScript}</Button>}
       {showScript && (
         <>
-          {/* 1本の地続きのスクリプト。段落は TTS 再生単位であって別々の文章ではないため、1枚のカードに通常の段落として流す */}
+          {/* 1本の地続きのスクリプト。段落は TTS 再生単位であって別々の文章ではないため、1枚のカードに通常の段落として流す。
+              dialogue（#220）は話者ラベル付きでターンを表示する（再生は結合1本のため段落ハイライトは行わない） */}
           <Card className="reading-text">
-            {item.paragraphs.map((p, i) => (
-              <p key={i} className={`listening-para${playingIdx === i ? " is-playing" : ""}`}>{p}</p>
-            ))}
+            {dialogueTurns
+              ? dialogueTurns.map((turn, i) => (
+                <p key={i} className="listening-para">
+                  <strong className="listening-speaker">{turn.speaker}:</strong> {turn.text}
+                </p>
+              ))
+              : item.paragraphs.map((p, i) => (
+                <p key={i} className={`listening-para${playingIdx === i ? " is-playing" : ""}`}>{p}</p>
+              ))}
           </Card>
           <ExplainBox
             state={explainer.state} request={explainer.request}

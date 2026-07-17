@@ -1,5 +1,7 @@
 # マルチプロバイダ LLM runner Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** コーチ・会話・コンテンツ生成など全ドメインが使う唯一の LLM 実行器（`ClaudeRunner`）のバックエンドを、環境変数だけで Anthropic Claude Agent SDK / OpenAI 互換 API（Ollama・LM Studio・OpenAI・GitHub Models）/ OpenAI Codex CLI に切り替え可能にする。既定（未設定）は現行と完全に同一挙動。

@@ -1,13 +1,16 @@
 ---
 id: tech-selection
 kind: topic
-title: "How I choose tools and technologies"
-title_ja: "技術・ツール選定の考え方"
+title: "How I pick the tools I use for work"
+title_ja: "仕事で使うツールの選び方"
 domain: it
 level: [3, 6]
+experience_anchor: "誰でも普段の仕事でエディタやチャットアプリや検索方法など何かしらのツールを自分で選んで使っているため、その体験から話せる。"
+memory_cue: "新しいアプリを入れるか迷って、結局いつものツールに戻したり同僚に勧めたりした場面を思い出す。"
+common_objects_or_actions: "a code editor, a chat app, a free trial, a laptop, asking a coworker"
 ---
 Talk about:
-- Your criteria: cost, security, lock-in, team fit? — 選定基準: コスト・セキュリティ・ロックイン・チーム適合？
-- A recent selection you made and the trade-offs — 最近の選定とトレードオフ
-- When you say no to a shiny new tool — 流行りのツールを断るとき
-- How you get buy-in from the team or management — チームや経営の合意をどう取るか
+- What matters to me: is it easy, fast, or free? — 私が気にする点: 使いやすさ・速さ・無料かどうか
+- A tool I picked lately and why — 最近選んだツールとその理由
+- When I say no to a popular new app — 流行りの新しいアプリを使わないと決めるとき
+- How I get my team to try it too — チームにも使ってもらうための工夫

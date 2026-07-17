@@ -1,5 +1,7 @@
 # 設定の UI 一元化（env は API キーのみ）実装計画（v0.29 追補）
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** API キー5種（`ANTHROPIC_API_KEY`/`CODEX_API_KEY`/`OPENAI_API_KEY`/`OPENAI_COMPAT_API_KEY`/`TTS_API_KEY`）とインフラ系 `SOLO_EIKAIWA_*` 以外の env 読み取りを全廃し、Claude グローバルモデル・TTS プロバイダ選択を含む全設定を UI で完結させる

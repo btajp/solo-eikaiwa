@@ -1,5 +1,7 @@
 # API キーの UI 設定（Keychain 保存）実装計画（v0.29 追補）
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** API キー4種（ANTHROPIC/CODEX/OPENAI_COMPAT/TTS）を設定 UI から macOS Keychain へ保存・削除でき、再起動なしで反映される（Keychain > env の優先・write-only）
