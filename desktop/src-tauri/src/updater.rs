@@ -459,8 +459,10 @@ async fn check_and_prompt(app: AppHandle, manual: bool) -> tauri_plugin_updater:
             set_menu_status(&app, UpdateMenuStatus::RestartPrompt);
             if prompt_restart_after_install(&app, lang).await {
                 // 非メインスレッド（asyncタスク）からのrestart()はrequest_exit経由で
-                // RunEvent::Exitをコールバックへ配送してから再起動する。既存の
-                // sidecar::kill_on_exitがそこで走るため、旧sidecarの孤児化は起きない。
+                // RunEvent::Exitをコールバックへ配送してから再起動する。自前spawnした子は
+                // sidecar::kill_on_exitがそこで終了させる。attach再利用中（子を持たない）の
+                // sidecarはこの経路では終了しないが、再起動後のspawn_and_attachが
+                // 自分の旧sidecarとして回収する（#270）。
                 app.restart();
             } else {
                 log::info!("updater: restart deferred by user");

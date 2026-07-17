@@ -98,6 +98,28 @@ pub(crate) enum IdentityStatus {
     Unavailable,
 }
 
+/// 分類（[`IdentityStatus`]）に加えて、Stale応答が自分のdata_root_id・instance_idを名乗る
+/// 「自分が過去に起動した旧sidecar」かどうかを添えた判定結果。
+///
+/// 自動更新はアプリ本体（.appバンドル）を差し替えるだけで走行中のsidecarを差し替えないため、
+/// attach再利用中（子プロセスとして持っていない）の旧sidecarは更新後もattach拒否（Stale）される
+/// だけで生き残り、既定ポートで旧バージョンの/api/healthを返し続ける（#270で実測）。
+/// 呼び出し元（`sidecar::spawn_and_attach`）が自分の過去プロセスに限って回収できるよう、
+/// 判定材料をここで渡す。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct IdentityReport {
+    pub(crate) status: IdentityStatus,
+    /// `status == Stale` かつ data_root_id・instance_id の両方が自分のものと一致する場合のみtrue。
+    /// Foreign・Match・sidecarフィールド無し（開発サーバ等）では必ずfalse。
+    pub(crate) stale_own_sidecar: bool,
+}
+
+impl IdentityReport {
+    fn plain(status: IdentityStatus) -> Self {
+        Self { status, stale_own_sidecar: false }
+    }
+}
+
 /// health応答のJSONボディが取得できればそのまま返す（内容は問わず、生死確認のみだったPhase1の
 /// 挙動から拡張し、身元確認のためにボディを呼び出し元へ渡す）。
 fn fetch_health_body(url: &str) -> Option<String> {
@@ -107,29 +129,42 @@ fn fetch_health_body(url: &str) -> Option<String> {
 
 /// health応答を、正規sidecar・旧版/別データ領域・無関係な応答へ分類する純粋関数。
 /// solo-eikaiwaを名乗る旧healthも安全側に倒してStaleとし、app不一致・壊れたJSONはForeignとする。
-fn identity_status(body: &str, expected: &ExpectedSidecarIdentity) -> IdentityStatus {
+/// Staleのうち自分のdata_root_id・instance_idを名乗るもの（=自分の過去sidecar）は
+/// `stale_own_sidecar` として区別する（#270の回収対象の判定材料）。
+fn identity_report(body: &str, expected: &ExpectedSidecarIdentity) -> IdentityReport {
     let Ok(health) = serde_json::from_str::<HealthIdentity>(body) else {
-        return IdentityStatus::Foreign;
+        return IdentityReport::plain(IdentityStatus::Foreign);
     };
     if health.app.as_deref() != Some(EXPECTED_APP_ID) {
-        return IdentityStatus::Foreign;
+        return IdentityReport::plain(IdentityStatus::Foreign);
     }
     let Some(sidecar) = health.sidecar else {
-        return IdentityStatus::Stale;
+        return IdentityReport::plain(IdentityStatus::Stale);
     };
+    let same_data_root_and_instance = sidecar.data_root_id.as_deref()
+        == Some(expected.data_root_id.as_str())
+        && sidecar.instance_id.as_deref() == Some(expected.instance_id.as_str());
     let matches = health.version.as_deref() == Some(expected.app_version.as_str())
         && sidecar.protocol == Some(expected.protocol)
         && sidecar.build_id.as_deref() == Some(expected.build_id.as_str())
-        && sidecar.data_root_id.as_deref() == Some(expected.data_root_id.as_str())
-        && sidecar.instance_id.as_deref() == Some(expected.instance_id.as_str());
-    if matches { IdentityStatus::Match } else { IdentityStatus::Stale }
+        && same_data_root_and_instance;
+    if matches {
+        IdentityReport::plain(IdentityStatus::Match)
+    } else {
+        IdentityReport { status: IdentityStatus::Stale, stale_own_sidecar: same_data_root_and_instance }
+    }
+}
+
+/// 指定ポートを1回だけ調べ、接続不能も含めて分類する（回収判定つき）。
+pub(crate) fn probe_identity_report(port: u16, expected: &ExpectedSidecarIdentity) -> IdentityReport {
+    fetch_health_body(&health_url(port))
+        .map(|body| identity_report(&body, expected))
+        .unwrap_or_else(|| IdentityReport::plain(IdentityStatus::Unavailable))
 }
 
 /// 指定ポートを1回だけ調べ、接続不能も含めて分類する。
 pub(crate) fn probe_identity(port: u16, expected: &ExpectedSidecarIdentity) -> IdentityStatus {
-    fetch_health_body(&health_url(port))
-        .map(|body| identity_status(&body, expected))
-        .unwrap_or(IdentityStatus::Unavailable)
+    probe_identity_report(port, expected).status
 }
 
 /// 指定ポートが期待する正規sidecarか。
@@ -248,12 +283,17 @@ pub fn startup_status(app: AppHandle) -> sidecar::StartupStatus {
 #[cfg(test)]
 mod tests {
     use super::{
-        args_have_poc_stt_flag, identity_status, is_identified, probe_identity, target_url,
-        ExpectedSidecarIdentity, IdentityStatus,
+        args_have_poc_stt_flag, identity_report, is_identified, probe_identity,
+        probe_identity_report, target_url, ExpectedSidecarIdentity, IdentityStatus,
     };
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::time::{Duration, Instant};
+
+    /// 分類のみを見る既存テスト向けの薄いラッパ（本体は`identity_report`に一本化済み）。
+    fn identity_status(body: &str, expected: &ExpectedSidecarIdentity) -> IdentityStatus {
+        identity_report(body, expected).status
+    }
 
     /// `retry_attach`が`async fn`+`spawn_blocking`で実装されている理由そのものを検証する
     /// 回帰テスト: 同期コマンド（tauri-macrosの`body_blocking`）は`$path(...)`を
@@ -334,6 +374,38 @@ mod tests {
     }
 
     #[test]
+    fn identity_report_marks_own_stale_sidecar_for_matching_data_root_and_instance() {
+        // 旧バージョン（version・buildId不一致）だがdata_root_id・instance_idは自分
+        // = 自分が過去に起動した旧sidecar。回収候補（stale_own_sidecar）として報告する。
+        let old_own = r#"{"app":"solo-eikaiwa","version":"0.28.0","sidecar":{"protocol":1,"buildId":"old-build","dataRootId":"root-a","instanceId":"instance-a"}}"#;
+        let report = identity_report(old_own, &expected_identity());
+        assert_eq!(report.status, IdentityStatus::Stale);
+        assert!(report.stale_own_sidecar);
+    }
+
+    #[test]
+    fn identity_report_never_marks_other_data_roots_instances_or_foreign_as_own() {
+        for body in [
+            // data_root_idが別（別データ領域のsidecar）
+            r#"{"app":"solo-eikaiwa","version":"0.28.0","sidecar":{"protocol":1,"buildId":"old-build","dataRootId":"root-b","instanceId":"instance-a"}}"#,
+            // instance_idが別（別インストールのsidecar）
+            r#"{"app":"solo-eikaiwa","version":"0.28.0","sidecar":{"protocol":1,"buildId":"old-build","dataRootId":"root-a","instanceId":"instance-b"}}"#,
+            // sidecarフィールド無し（開発サーバ・旧health）
+            r#"{"app":"solo-eikaiwa","version":"0.28.0"}"#,
+        ] {
+            let report = identity_report(body, &expected_identity());
+            assert_eq!(report.status, IdentityStatus::Stale, "body: {body}");
+            assert!(!report.stale_own_sidecar, "body: {body}");
+        }
+        // Foreign・Matchはそもそも回収対象ではない。
+        assert!(!identity_report(r#"{"app":"other-app"}"#, &expected_identity()).stale_own_sidecar);
+        let matching = r#"{"app":"solo-eikaiwa","version":"0.29.0","sidecar":{"protocol":1,"buildId":"com.local.solo-eikaiwa.desktop@0.29.0","dataRootId":"root-a","instanceId":"instance-a"}}"#;
+        let report = identity_report(matching, &expected_identity());
+        assert_eq!(report.status, IdentityStatus::Match);
+        assert!(!report.stale_own_sidecar);
+    }
+
+    #[test]
     fn identity_status_distinguishes_foreign_or_fake_health() {
         assert_eq!(identity_status(r#"{"app":"some-other-app"}"#, &expected_identity()), IdentityStatus::Foreign);
         assert_eq!(identity_status(r#"{"ok":true}"#, &expected_identity()), IdentityStatus::Foreign);
@@ -388,6 +460,22 @@ mod tests {
         );
         let port = spawn_response_server(Box::leak(response.into_boxed_str()));
         assert_eq!(probe_identity(port, &expected_identity()), IdentityStatus::Stale);
+    }
+
+    #[test]
+    fn probe_identity_report_flags_old_own_sidecar_over_real_http() {
+        // 自動更新後に残った自分の旧sidecar（#270の実測パターン）: attachはStale拒否しつつ、
+        // 回収候補であることをsidecar側へ伝える。
+        let body = r#"{"app":"solo-eikaiwa","version":"0.28.0","sidecar":{"protocol":1,"buildId":"com.local.solo-eikaiwa.desktop@0.28.0","dataRootId":"root-a","instanceId":"instance-a"}}"#;
+        let response = format!(
+            "HTTP/1.1 200 OK\r\ncontent-length: {}\r\n\r\n{}",
+            body.len(),
+            body,
+        );
+        let port = spawn_response_server(Box::leak(response.into_boxed_str()));
+        let report = probe_identity_report(port, &expected_identity());
+        assert_eq!(report.status, IdentityStatus::Stale);
+        assert!(report.stale_own_sidecar);
     }
 
     #[test]

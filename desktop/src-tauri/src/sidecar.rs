@@ -1,6 +1,7 @@
 //! Tauri Phase 2: サーバをexternalBin（sidecar）として同梱し、自前で起動する経路。
 //! [`crate::attach`] の「検証済みorphan再利用」が成立しなかった場合に
-//! ここへ落ちる: サーババイナリをspawn → env注入 → ヘルスポーリング（身元確認つき）→ navigate。
+//! ここへ落ちる: 自分の旧バージョンsidecar（自動更新後のorphan・#270）を回収 →
+//! サーババイナリをspawn → env注入 → ヘルスポーリング（身元確認つき）→ navigate。
 //! ポート競合はサーバ側が`process.exit(1)`する設計（Task 1）に乗って検知し、
 //! 複数の予約済み候補へ順番にフォールバックする。アプリ終了時は起動した子プロセスをkillする。
 
@@ -33,6 +34,11 @@ const OWN_SIDECAR_POLL_ATTEMPTS: u32 = 20;
 const OWN_SIDECAR_POLL_INTERVAL: Duration = Duration::from_millis(500);
 /// ログインシェルでの`$PATH`解決を待つ上限（壊れた.zshrc等で無限に待たないための保険）。
 const LOGIN_SHELL_PATH_TIMEOUT: Duration = Duration::from_secs(3);
+/// 旧own-sidecar回収（#270）: lsofによるpid解決のハング保険。
+const RECLAIM_LSOF_TIMEOUT: Duration = Duration::from_secs(3);
+/// 旧own-sidecar回収（#270）: SIGTERM後にポートが空くまで待つ回数・間隔（計2秒）。
+const RECLAIM_WAIT_ATTEMPTS: u32 = 20;
+const RECLAIM_WAIT_INTERVAL: Duration = Duration::from_millis(100);
 const SIDECAR_PROTOCOL: u8 = 1;
 const INSTANCE_ID_FILE: &str = ".sidecar-instance-id";
 
@@ -163,6 +169,130 @@ pub(crate) fn expected_identity(app: &AppHandle) -> Result<attach::ExpectedSidec
 fn port_is_open(port: u16) -> bool {
     let address = SocketAddr::from(([127, 0, 0, 1], port));
     TcpStream::connect_timeout(&address, Duration::from_millis(100)).is_ok()
+}
+
+/// 回収対象かの判定（純粋ロジック）。attach拒否（Stale）かつidentityのdata_root_id・
+/// instance_idが自分のものと一致する=「自分が過去に起動した旧バージョンのsidecar」に限る。
+/// `SOLO_EIKAIWA_NO_ATTACH`時は「既存プロセスに触れず常に自前sidecarを使う」契約を
+/// 維持するため回収もしない（devの検証用途で他の稼働インスタンスを壊さない）。
+pub(crate) fn should_reclaim_stale_sidecar(no_attach: bool, report: attach::IdentityReport) -> bool {
+    !no_attach && report.status == attach::IdentityStatus::Stale && report.stale_own_sidecar
+}
+
+/// `lsof -t`の出力からpid一覧を取り出す（純粋関数）。誤killの安全弁として、
+/// 自プロセスとpid 0/1（カーネル・launchd）は決して含めない。
+pub(crate) fn parse_listener_pids(output: &str, own_pid: u32) -> Vec<u32> {
+    output
+        .lines()
+        .filter_map(|line| line.trim().parse::<u32>().ok())
+        .filter(|&pid| pid > 1 && pid != own_pid)
+        .collect()
+}
+
+/// macOS標準の`/usr/sbin/lsof`で、指定ポートをLISTENしているプロセスのpidを調べる。
+/// `-sTCP:LISTEN`で確立済みコネクションのクライアント側（例: 旧sidecarへ接続中のブラウザ）を
+/// 誤って拾わない。GUI起動の最小PATHに依存しないよう絶対パスで起動し、ハング保険として
+/// タイムアウトでkillする。lsofは該当なしのとき非ゼロ終了するため、終了コードではなく
+/// stdoutを解析する。
+fn lsof_listener_output(port: u16) -> Option<String> {
+    let target = format!("-iTCP:{port}");
+    let mut child = match std::process::Command::new("/usr/sbin/lsof")
+        .args(["-nP", "-t", &target, "-sTCP:LISTEN"])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            log::warn!("sidecar: failed to spawn lsof for port {port}: {e}");
+            return None;
+        }
+    };
+    let deadline = std::time::Instant::now() + RECLAIM_LSOF_TIMEOUT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_status)) => break,
+            Ok(None) => {
+                if std::time::Instant::now() >= deadline {
+                    log::warn!("sidecar: lsof for port {port} timed out; giving up pid resolution");
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return None;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(e) => {
+                log::warn!("sidecar: lsof wait for port {port} failed: {e}");
+                return None;
+            }
+        }
+    }
+    match child.wait_with_output() {
+        Ok(output) => Some(String::from_utf8_lossy(&output.stdout).into_owned()),
+        Err(e) => {
+            log::warn!("sidecar: failed to collect lsof output for port {port}: {e}");
+            None
+        }
+    }
+}
+
+/// SIGTERMで穏当に終了を求める（応じない場合は回収を諦め、spawn側が次の候補ポートへ進む）。
+fn terminate_pid(pid: u32) {
+    match std::process::Command::new("/bin/kill").args(["-TERM", &pid.to_string()]).status() {
+        Ok(status) if status.success() => {}
+        Ok(status) => log::warn!("sidecar: kill -TERM {pid} exited non-zero (code {:?})", status.code()),
+        Err(e) => log::warn!("sidecar: failed to send SIGTERM to pid {pid}: {e}"),
+    }
+}
+
+/// 自動更新後に残った「自分の旧sidecar」を回収する（#270）。
+///
+/// 自動更新は.appバンドルを差し替えるだけで走行中のsidecarを差し替えない。attach再利用中の
+/// sidecarは子プロセスとして持っていないため`kill_on_exit`の対象外で、更新→再起動後も生き残り、
+/// attach拒否（Stale）されるだけで既定ポート3111を占有して旧バージョンの/api/healthを
+/// 返し続ける（ブラウザ併用時は旧サーバを使い続けてしまう）。identity照合で
+/// 「自分のdata_root_id・instance_idを名乗るStale」と確認できたポートに限り、LISTENしている
+/// pidをlsofで解決してSIGTERM→ポート解放を待つ。他人のプロセス・開発サーバ・別データ領域の
+/// sidecarには決して触れない。
+fn reclaim_stale_own_sidecars(no_attach: bool, identity: &attach::ExpectedSidecarIdentity) {
+    if no_attach {
+        return;
+    }
+    for &port in CANDIDATE_PORTS.iter() {
+        let report = attach::probe_identity_report(port, identity);
+        if !should_reclaim_stale_sidecar(no_attach, report) {
+            continue;
+        }
+        let pids = match lsof_listener_output(port) {
+            Some(output) => parse_listener_pids(&output, std::process::id()),
+            None => Vec::new(),
+        };
+        if pids.is_empty() {
+            log::warn!(
+                "sidecar: stale own sidecar answers on port {port} but its pid could not be resolved; leaving it",
+            );
+            continue;
+        }
+        for &pid in &pids {
+            log::warn!("sidecar: reclaiming stale own sidecar on port {port} (pid {pid}); sending SIGTERM");
+            terminate_pid(pid);
+        }
+        let mut freed = false;
+        for _ in 0..RECLAIM_WAIT_ATTEMPTS {
+            if !port_is_open(port) {
+                freed = true;
+                break;
+            }
+            std::thread::sleep(RECLAIM_WAIT_INTERVAL);
+        }
+        if freed {
+            log::info!("sidecar: reclaimed port {port} from stale own sidecar");
+        } else {
+            log::warn!(
+                "sidecar: stale own sidecar on port {port} did not exit after SIGTERM; spawn will fall back to another port",
+            );
+        }
+    }
 }
 
 /// `spawn_and_attach`の多重実行防止ガード。`starting`をCASで確保し、Dropで必ず解放する
@@ -432,6 +562,11 @@ pub fn spawn_and_attach(app: &AppHandle) -> bool {
 
     let no_attach = attach::no_attach_forced();
 
+    // 自動更新後、旧バージョンの自前sidecarはattach拒否（Stale）されるだけでは終了せず、
+    // 既定ポートを占有して旧バージョンの/api/healthを返し続ける（#270）。自分の過去プロセスと
+    // identityで確認できたものに限り、spawn前に回収して既定ポートを新しいsidecarで使い直す。
+    reclaim_stale_own_sidecars(no_attach, &identity);
+
     for &port in CANDIDATE_PORTS.iter() {
         let existing = attach::probe_identity(port, &identity);
         match existing {
@@ -511,9 +646,12 @@ pub fn spawn_and_attach(app: &AppHandle) -> bool {
 mod tests {
     use super::{
         data_root_id, effective_path, expected_identity_for_data_dir, extract_marked_path,
-        format_command_event, load_or_create_instance_id, should_skip_spawn_due_to_existing_identity,
-        should_try_next_port, status_priority, StartupStatus, CANDIDATE_PORTS, INSTANCE_ID_FILE,
+        format_command_event, load_or_create_instance_id, lsof_listener_output,
+        parse_listener_pids, should_reclaim_stale_sidecar,
+        should_skip_spawn_due_to_existing_identity, should_try_next_port, status_priority,
+        StartupStatus, CANDIDATE_PORTS, INSTANCE_ID_FILE,
     };
+    use crate::attach::{IdentityReport, IdentityStatus};
     use std::fs;
     use std::sync::atomic::{AtomicBool, Ordering};
     use tauri_plugin_shell::process::{CommandEvent, TerminatedPayload};
@@ -591,6 +729,47 @@ mod tests {
         // 既に応答があってもfalse（=spawnする）を返す。
         assert!(!should_skip_spawn_due_to_existing_identity(false, true));
         assert!(!should_skip_spawn_due_to_existing_identity(false, false));
+    }
+
+    fn report(status: IdentityStatus, stale_own_sidecar: bool) -> IdentityReport {
+        IdentityReport { status, stale_own_sidecar }
+    }
+
+    #[test]
+    fn should_reclaim_only_own_stale_sidecar_and_never_under_no_attach() {
+        // 回収対象は「attach拒否（Stale）かつ自分のdata_root_id・instance_idを名乗る」ものだけ。
+        assert!(should_reclaim_stale_sidecar(false, report(IdentityStatus::Stale, true)));
+        // SOLO_EIKAIWA_NO_ATTACH時は既存プロセスへ一切触れない契約を維持する（回収もしない）。
+        assert!(!should_reclaim_stale_sidecar(true, report(IdentityStatus::Stale, true)));
+        // 他人のsidecar・開発サーバ（own=false）は決して回収しない。
+        assert!(!should_reclaim_stale_sidecar(false, report(IdentityStatus::Stale, false)));
+        // Stale以外（Match/Foreign/Unavailable）は回収対象ではない。
+        assert!(!should_reclaim_stale_sidecar(false, report(IdentityStatus::Match, false)));
+        assert!(!should_reclaim_stale_sidecar(false, report(IdentityStatus::Foreign, false)));
+        assert!(!should_reclaim_stale_sidecar(false, report(IdentityStatus::Unavailable, false)));
+    }
+
+    #[test]
+    fn parse_listener_pids_extracts_pids_and_excludes_self_and_system() {
+        assert_eq!(parse_listener_pids("123\n456\n", 999), vec![123, 456]);
+        // 自プロセスは決して対象にしない（誤kill防止の安全弁）。
+        assert_eq!(parse_listener_pids("123\n456\n", 456), vec![123]);
+        // pid 0/1（カーネル・launchd）と数値以外の雑音は無視する。
+        assert_eq!(parse_listener_pids("0\n1\nabc\n\n  789  \n", 999), vec![789]);
+        assert!(parse_listener_pids("", 999).is_empty());
+    }
+
+    #[test]
+    fn lsof_resolves_the_pid_of_a_listener_on_the_given_port() {
+        // 実lsofで「このポートをLISTENしているpid」を解決できること（回収経路のpid特定手段）。
+        // kill自体はテストしない（自プロセスのlistenerを殺すことになるため）。
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port");
+        let port = listener.local_addr().expect("local_addr").port();
+        let output = lsof_listener_output(port).expect("lsof output");
+        let unfiltered = parse_listener_pids(&output, 0);
+        assert!(unfiltered.contains(&std::process::id()), "lsof output: {output:?}");
+        // 実際の回収経路（own_pid=自分）では自プロセスは必ず除外される。
+        assert!(!parse_listener_pids(&output, std::process::id()).contains(&std::process::id()));
     }
 
     #[test]
