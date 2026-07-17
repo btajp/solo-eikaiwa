@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  BOUNDARY_LEVELS, DEFAULT_LEVEL, demotionTargetLevel, fttMiniRoundsSec, fttRoundsSec,
+  BOUNDARY_LEVELS, cefrBandLabel, DEFAULT_LEVEL, demotionTargetLevel, fttMiniRoundsSec, fttRoundsSec,
   needXp, PLACEMENT_XP, prepParams, stageAnchorLevel, stageOf, syntaxConstraint, vocabConstraint, xpForGrade,
 } from "../progression";
 
@@ -91,10 +91,20 @@ describe("progression: vocabConstraint", () => {
     }
   });
 
-  test("stage 4+ は null（制約なし。各呼び出し点が自サイトの旧文言をそのまま使う）", () => {
-    for (const s of [4, 5, 6]) {
-      expect(vocabConstraint(s)).toBeNull();
-    }
+  // #195: stage>=4 の null（=呼び出し点がB1固定文言へフォールバック）を廃止し、B1-B2→B2→B2-C1 の勾配を返す
+  test("stage 4/5/6 は B1-B2 / B2 / B2-C1 の語彙勾配文字列を返す（B1頭打ちの廃止）", () => {
+    expect(vocabConstraint(4)).toContain("B1-B2");
+    expect(vocabConstraint(5)).toContain("CEFR B2");
+    expect(vocabConstraint(5)).not.toContain("B1");
+    expect(vocabConstraint(6)).toContain("B2-C1");
+    expect(new Set([vocabConstraint(4), vocabConstraint(5), vocabConstraint(6)]).size).toBe(3);
+  });
+
+  test("stage 5/6 は慣用表現・句動詞を許容する（語彙面の i+1 を上級帯にも作る）", () => {
+    expect(vocabConstraint(5)).toContain("idioms");
+    expect(vocabConstraint(6)).toContain("idioms");
+    // 4 は従来のB1像を保ち、レアな慣用表現は禁止のまま
+    expect(vocabConstraint(4)).toContain("No rare idioms");
   });
 });
 
@@ -111,9 +121,36 @@ describe("progression: syntaxConstraint", () => {
     expect(syntaxConstraint(3)).toContain("8-12 words");
   });
 
-  test("stage 4+ は null（制約なし。各呼び出し点が自サイトの旧文言をそのまま使う）", () => {
-    for (const s of [4, 5, 6]) {
-      expect(syntaxConstraint(s)).toBeNull();
-    }
+  // #195: stage>=4 の構文・文長も勾配化。文長帯は stage3(8-12) から単調に上がり、
+  // spoken-register 閾値（intermediate: 平均14語/文・advanced: 16語/文）の内側に収まる値にする
+  test("stage 4/5/6 は B1-B2/B2/B2-C1 と単調増加の文長帯（9-13/10-14/11-15語）を返す", () => {
+    expect(syntaxConstraint(4)).toContain("CEFR B1-B2");
+    expect(syntaxConstraint(4)).toContain("9-13 words");
+    expect(syntaxConstraint(5)).toContain("CEFR B2");
+    expect(syntaxConstraint(5)).toContain("10-14 words");
+    expect(syntaxConstraint(6)).toContain("CEFR B2-C1");
+    expect(syntaxConstraint(6)).toContain("11-15 words");
+  });
+
+  test("stage 5/6 は複文・条件文などの構文複雑度を明示的に許容する", () => {
+    expect(syntaxConstraint(5)).toContain("conditionals");
+    expect(syntaxConstraint(6)).toContain("conditionals");
+    expect(syntaxConstraint(4)).toContain("subordinate");
+  });
+});
+
+describe("progression: cefrBandLabel", () => {
+  test("stage 1..6 → A2 / A2 / A2-B1 / B1-B2 / B2 / B2-C1（プロンプト難度表記の一元定義）", () => {
+    expect(cefrBandLabel(1)).toBe("A2");
+    expect(cefrBandLabel(2)).toBe("A2");
+    expect(cefrBandLabel(3)).toBe("A2-B1");
+    expect(cefrBandLabel(4)).toBe("B1-B2");
+    expect(cefrBandLabel(5)).toBe("B2");
+    expect(cefrBandLabel(6)).toBe("B2-C1");
+  });
+
+  test("範囲外は端にクランプ（Lv61+のstage6張り付きと同じ思想）", () => {
+    expect(cefrBandLabel(0)).toBe("A2");
+    expect(cefrBandLabel(7)).toBe("B2-C1");
   });
 });

@@ -1,83 +1,82 @@
 {
   "topicId": "daily-standup-update",
   "sourceHash": "7fe098d95ce280a27f57f20f137d5f4a25760fad84abfe0933d9ff9ebe51823f",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "3": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Good morning everyone, here's my quick standup update for today.",
-            "ja": "みなさんおはようございます、今日の私の短いスタンドアップ報告です。"
+            "en": "Good morning everyone, here is my quick standup update for today.",
+            "ja": "みなさんおはようございます、今日の私の手短なスタンドアップ報告です。"
           },
           {
-            "en": "Yesterday I finished the login page and fixed two small bugs.",
-            "ja": "昨日はログインページを終わらせて、小さなバグを二つ直しました。"
+            "en": "Yesterday I finished the login bug fix and pushed my code.",
+            "ja": "昨日はログインのバグ修正を終えて、コードをプッシュしました。"
           },
           {
-            "en": "Today I plan to write tests for the new API code.",
-            "ja": "今日は新しいAPIコードのテストを書く予定です。"
+            "en": "Today I plan to write tests for the new search feature.",
+            "ja": "今日は新しい検索機能のテストを書く予定です。"
           },
           {
-            "en": "The main problem I'm stuck on is a slow database query.",
-            "ja": "今詰まっている一番の問題は、データベースの検索が遅いことです。"
+            "en": "The problem I'm stuck on is a slow database query.",
+            "ja": "私が詰まっている問題は、データベースのクエリが遅いことです。"
           },
           {
-            "en": "I might need some help from the backend team this afternoon.",
-            "ja": "今日の午後、バックエンドチームの助けが少し必要かもしれません。"
+            "en": "I might ask Kenji for help with this query later today.",
+            "ja": "この件について、今日あとでケンジさんに助けを求めるかもしれません。"
           },
           {
-            "en": "Our standup usually takes about ten minutes, so let's keep going.",
-            "ja": "私たちのスタンドアップはだいたい10分くらいなので、続けましょう。"
+            "en": "Our standup usually takes about ten minutes, so that's all from me.",
+            "ja": "私たちのスタンドアップはたいてい10分くらいなので、私からは以上です。"
           }
         ],
         "outline": [
-          "Opening: quick standup update",
-          "Finished yesterday: login page and bug fixes",
-          "Plan today: write API tests",
-          "Blocker: slow query, need help",
-          "Wrap-up: standup takes ten minutes"
+          "Opening: greet and start the standup",
+          "Point 1: finished login bug fix yesterday",
+          "Point 2: today write tests, but stuck on slow query",
+          "Wrap-up: ask for help, standup is short"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "Hi everyone. Here's my quick update for today.\n\nYesterday I finished the login page for our app. I fixed two small bugs too. I also wrote some tests, and they all passed. So that part feels done now.\n\nToday I want to start the new search feature. First I'll plan the design. Then I'll write the main code. I hope to finish most of it by tonight.\n\nBut I'm stuck on one thing. My code can't connect to the database. I tried a few times, but I got the same error. Maybe someone can help me later.\n\nOur standup is usually short. It only takes about ten minutes. Everyone talks for one or two minutes. That's quick and easy for me.\n\nThat's all from me. Thanks for listening, and let's have a good day."
+        "text": "Hi everyone, here's my quick update. Yesterday I finished the login page for our app. I fixed two bugs, and I tested it many times. It works well now, so I feel happy about that. Today I want to start the new home screen. I'll also write some notes for my teammate. Plus, I need to answer a few emails. There's one problem I'm stuck on. My code is slow when it loads the user list. I don't know why yet, so I need some help. Maybe someone here can look at it with me later. Our standup is usually short. It takes about ten or fifteen minutes. We each talk for one or two minutes, and then we're done. I like it because it's quick and clear. That's all from me today. Thanks for listening, and let's have a good day!"
       }
     },
     "4": {
       "prepPack": {
         "chunks": [
           {
-            "en": "In my standup update, yesterday I finished fixing the login bug on our mobile app.",
-            "ja": "私のスタンドアップ報告では、昨日モバイルアプリのログインのバグ修正を終わらせました。"
+            "en": "In my standup update, I want to share what I did yesterday.",
+            "ja": "スタンドアップの報告では、昨日やったことを共有したいと思います。"
           },
           {
-            "en": "Today I plan to write unit tests for the new payment API.",
-            "ja": "今日は新しい決済APIのユニットテストを書く予定です。"
+            "en": "Yesterday I finished fixing the login bug that kept crashing the app.",
+            "ja": "昨日は、アプリを落とし続けていたログインのバグを直し終えました。"
           },
           {
-            "en": "One problem I'm stuck on is a slow database query that keeps timing out.",
-            "ja": "詰まっている点は、タイムアウトし続ける遅いデータベースのクエリです。"
+            "en": "Today I plan to write tests for the new payment feature.",
+            "ja": "今日は、新しい決済機能のテストを書く予定です。"
           },
           {
-            "en": "So I'd like to ask Kenji for help with the query later today.",
-            "ja": "なので今日この後、そのクエリについてケンジさんに助けを求めたいです。"
+            "en": "The problem I'm stuck on is a slow database query that times out.",
+            "ja": "詰まっているのは、タイムアウトしてしまう遅いデータベースのクエリです。"
           },
           {
-            "en": "Our standup usually takes about ten minutes, so I'll keep my update short.",
-            "ja": "私たちのスタンドアップはたいてい10分くらいなので、報告は短くまとめます。"
+            "en": "Our standup usually takes about ten minutes, so I'll keep it short.",
+            "ja": "うちのスタンドアップはだいたい10分くらいなので、手短にします。"
           }
         ],
         "outline": [
-          "Open: yesterday's finished work",
-          "Point 1: today's planned tasks",
-          "Point 2: the problem I'm stuck on + who to ask",
-          "Wrap-up: keep it short, standup is ~10 min"
+          "Opening: today's standup update",
+          "Point 1: finished the login bug fix yesterday",
+          "Point 2: today's plan and the slow query I'm stuck on",
+          "Wrap-up: standup is short, around ten minutes"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "Hi everyone, here's my quick update for today. Yesterday I finished the login page, and I fixed two small bugs. I also wrote some tests, so that part feels solid now. Today I want to start the new search feature. I'll build the basic layout first, then connect it to the data. I think I can get most of it done by tonight. But I'm stuck on one thing. The search results load really slowly, and I don't know why yet. So I might ask for some help after this call. If anyone knows this part well, please ping me later. Our standup usually takes about ten minutes, sometimes a bit less. We keep it short and simple, which I really like. That's everything from me for now. Thanks for listening, and I'll share more updates tomorrow. Okay, back to work!"
+        "text": "Hi everyone, here's my quick update for today. Yesterday I finished the login page, and I fixed two small bugs that kept coming back. I also wrote some tests, so I feel pretty good about that part. Today I want to start on the new settings screen, and I'll clean up the code we talked about last week. After lunch, I'll try to write the notes for it too. There's one thing I'm still stuck on. My test keeps failing, and I can't figure out why. Maybe someone can look at it with me later. Oh, and about our standup, it usually takes around ten or fifteen minutes. We try to keep it short, so we don't waste time. If it runs long, we just move the details to a chat. That's all from me, thanks for listening!"
       }
     }
   }

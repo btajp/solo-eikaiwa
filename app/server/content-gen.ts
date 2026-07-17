@@ -182,9 +182,8 @@ export async function genSentences(deps: GenSentencesDeps): Promise<void> {
   let all = [...sentences];
   for (const w of worst) {
     const inCategory = sentences.filter((s) => s.category_no === w.categoryNo);
-    const vocab = vocabConstraint(deps.stage);
-    // stage>=4（vocab===null）は行自体を挿入しない（元々この行は無かった＝上級者の挙動不変）
-    const vocabLine = vocab ? `${vocab}\n` : "";
+    // #195: 全stageで語彙勾配を注入する（旧実装は stage>=4 が行なし=B1相当で頭打ちだった）
+    const vocabLine = `${vocabConstraint(deps.stage)}\n`;
     const system = `You write original English example sentences for a Japanese learner (CEFR B1-B2).
 Write exactly 4 spoken-register sentences practicing the grammar category "${w.category}".
 Domains: one "daily", one "business", one "it", and one of your choice. 6-14 words each. Contractions welcome.
@@ -265,9 +264,8 @@ export async function genTopics(deps: GenTopicsDeps): Promise<void> {
   const candidates: NewContentCandidate[] = [];
   for (const p of plans) {
     const existing = (p.kind === "topic" ? topics : scenarios).map((c) => c.id).join(", ");
-    const vocab = vocabConstraint(deps.stage);
-    // stage>=4（vocab===null）は行自体を挿入しない（元々この行は無かった＝上級者の挙動不変）
-    const vocabLine = vocab ? `${vocab}\n` : "";
+    // #195: 全stageで語彙勾配を注入する（旧実装は stage>=4 が行なし=B1相当で頭打ちだった）
+    const vocabLine = `${vocabConstraint(deps.stage)}\n`;
     // scenario は genScenarios と同じナラティブ+スターター仕様（coach.ts roleplayPrompt の Setup 欄が
     // 前提とする形式）。topic 側のプロンプトは従来どおり一切変更しない。domain/level は genTopics 従来仕様
     // のままモデルが決める（genScenarios の固定プランとは異なる）。
@@ -392,8 +390,7 @@ export async function genScenarios(deps: GenScenariosDeps): Promise<void> {
   const candidates: NewContentCandidate[] = [];
 
   for (const p of SCENARIO_BAND_PLAN) {
-    const vocab = vocabConstraint(p.vocabStage);
-    const vocabLine = vocab ? `${vocab}\n` : "";
+    const vocabLine = `${vocabConstraint(p.vocabStage)}\n`;
     const domainDesc = p.domain === "daily" ? "everyday life" : p.domain === "business" ? "the workplace" : "software/IT work";
     const system = `You create one original roleplay SCENARIO for an English speaking practice app (Japanese learner, beginner difficulty stage ${p.level[0]}-${p.level[1]} of 6).
 Domain: ${domainDesc}. A scenario sets up a roleplay that an AI coach will run with the learner by voice.
@@ -484,8 +481,7 @@ export async function genTopicsBand(deps: GenTopicsBandDeps): Promise<void> {
   const candidates: NewContentCandidate[] = [];
 
   for (const p of TOPIC_BAND_PLAN) {
-    const vocab = vocabConstraint(p.vocabStage);
-    const vocabLine = vocab ? `${vocab}\n` : "";
+    const vocabLine = `${vocabConstraint(p.vocabStage)}\n`;
     const domainDesc = p.domain === "business" ? "the workplace" : "software/IT work";
     const system = `You create one original topic for an English speaking practice app (Japanese learner, beginner difficulty stage ${p.level[0]}-${p.level[1]} of 6).
 Domain: ${domainDesc}. A topic gives 4 talking-point hints for a monologue: a near-beginner can talk about it from their own daily work life (e.g., describing a workday, tools they use, asking for help — pick your own original angle).
@@ -595,8 +591,8 @@ export async function genListeningForTarget(deps: GenListeningForTargetDeps): Pr
   const log = deps.log ?? console.log;
   const existingIds = new Set(loadListening(deps.listeningDir).map((it) => it.id));
   const [lo, hi] = BAND_STAGE_RANGE[deps.band];
-  const vocab = vocabConstraint(lo);
-  const vocabLine = vocab ? `${vocab}\n` : "";
+  // #195: 帯開始stageの語彙勾配を全帯で注入する（旧実装は fluency 帯が行なし=B1相当で頭打ちだった）
+  const vocabLine = `${vocabConstraint(lo)}\n`;
   const domainDesc = DOMAIN_DESC[deps.domain];
   const spokenBand = SPOKEN_BAND_FOR_BAND[deps.band];
   // it ドメインのみマニュアル調回避の指示を追加する（daily/businessは従来どおり不変・全帯対象）
@@ -901,8 +897,8 @@ export async function genTopicsForTarget(deps: GenTopicsForTargetDeps): Promise<
   const log = deps.log ?? console.log;
   const existingIds = new Set(loadContent(deps.topicsDir).map((c) => c.id));
   const [lo, hi] = BAND_STAGE_RANGE[deps.band];
-  const vocab = vocabConstraint(lo);
-  const vocabLine = vocab ? `${vocab}\n` : "";
+  // #195: 帯開始stageの語彙勾配を全帯で注入する（旧実装は fluency 帯が行なし=B1相当で頭打ちだった）
+  const vocabLine = `${vocabConstraint(lo)}\n`;
   const domainDesc = DOMAIN_DESC[deps.domain];
   const candidates: NewContentCandidate[] = [];
 
@@ -995,8 +991,8 @@ export async function genScenariosForTarget(deps: GenScenariosForTargetDeps): Pr
   const log = deps.log ?? console.log;
   const existingIds = new Set(loadContent(deps.scenariosDir).map((c) => c.id));
   const [lo, hi] = BAND_STAGE_RANGE[deps.band];
-  const vocab = vocabConstraint(lo);
-  const vocabLine = vocab ? `${vocab}\n` : "";
+  // #195: 帯開始stageの語彙勾配を全帯で注入する（旧実装は fluency 帯が行なし=B1相当で頭打ちだった）
+  const vocabLine = `${vocabConstraint(lo)}\n`;
   const domainDesc = DOMAIN_DESC[deps.domain];
   const candidates: NewContentCandidate[] = [];
 
@@ -1152,8 +1148,8 @@ export async function genSpokenFunctionSentencesForTarget(deps: GenSpokenFunctio
   const sentences = loadSentences(deps.sentencesFile);
   const [lo] = BAND_STAGE_RANGE[deps.band];
   const spokenBand = SPOKEN_BAND_FOR_CONTENT_BAND[deps.band];
-  const vocab = vocabConstraint(lo);
-  const vocabLine = vocab ? `${vocab}\n` : "";
+  // #195: 帯開始stageの語彙勾配を全帯で注入する（旧実装は fluency 帯が行なし=B1相当で頭打ちだった）
+  const vocabLine = `${vocabConstraint(lo)}\n`;
 
   let all = [...sentences];
   const bandAdded: Sentence[] = [];

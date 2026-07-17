@@ -1,70 +1,70 @@
 {
   "topicId": "grocery-shopping-routine",
   "sourceHash": "2dce00edb278ea72a0e22ea3b2b57e99851633b8631474c16365b217f8b1aa23",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "5": {
       "prepPack": {
         "chunks": [
           {
             "en": "I usually do my grocery shopping at the supermarket near my station about twice a week.",
-            "ja": "私はたいてい、週に2回くらい駅の近くのスーパーで食料品の買い物をします。"
+            "ja": "私はたいてい週2回くらい、駅の近くのスーパーで食料品の買い物をします。"
           },
           {
-            "en": "Before I go, I always check my fridge and make a quick list on my phone.",
-            "ja": "出かける前に、いつも冷蔵庫を確認して、スマホでさっとリストを作ります。"
+            "en": "I decide what to buy by checking my fridge first and jotting down a quick list.",
+            "ja": "何を買うかは、まず冷蔵庫をチェックして、さっとリストを書いて決めます。"
           },
           {
-            "en": "At the checkout, I pay with my smartphone and bag everything myself at the packing table.",
-            "ja": "レジではスマホで支払って、袋詰め用のテーブルで自分で全部袋に詰めます。"
+            "en": "At the checkout, I pay with my phone and bag everything up myself pretty fast.",
+            "ja": "レジではスマホで支払いをして、自分でわりと手早く袋詰めをします。"
           },
           {
-            "en": "One handy thing is the self-checkout, but the long line at busy times is really annoying.",
-            "ja": "便利な点はセルフレジですが、混んでいる時間帯の長い列は本当に面倒です。"
+            "en": "The handiest thing is the self-checkout, but the long queues at weekends really drive me crazy.",
+            "ja": "一番便利なのはセルフレジですが、週末の長い行列には本当にうんざりします。"
           }
         ],
         "outline": [
           "Opening: where and how often I shop",
-          "Point 1: check the fridge and make a list",
-          "Point 2: paying and bagging at the checkout",
-          "Wrap-up: one handy and one annoying thing"
-        ],
-        "hintDefault": "en"
-      },
-      "modelTalk": {
-        "text": "I do my grocery shopping at a small supermarket near my house. I go there twice a week, usually after work. Before I leave, I always check my fridge. I look for things I've run out of, like milk or eggs. Then I make a short list on my phone. It helps me not to forget. At the store, I try to stick to my list. But sometimes I grab a snack too! At the checkout, I pay with my card. It's quick and easy. Then I bag everything myself. I put the heavy things at the bottom. The handy thing is the self-checkout. When the line is long, I just scan my own stuff. But sometimes the machine can't read a barcode. That's a bit annoying. Still, shopping is easy for me now."
-      }
-    },
-    "6": {
-      "prepPack": {
-        "chunks": [
-          {
-            "en": "I usually do my grocery shopping at the supermarket near my station about twice a week.",
-            "ja": "私はたいてい、週に2回くらい駅の近くのスーパーで食料品の買い物をします。"
-          },
-          {
-            "en": "I decide what to buy by checking my fridge and making a short list on my phone.",
-            "ja": "私は冷蔵庫をチェックして、スマホに短いリストを作って何を買うか決めます。"
-          },
-          {
-            "en": "At the checkout, I pay with my phone and bag everything myself at the side counter.",
-            "ja": "レジでは、スマホで支払いをして、横の台で全部自分で袋詰めします。"
-          },
-          {
-            "en": "The handy thing is that self-checkout is fast, but I always forget my own shopping bag.",
-            "ja": "便利な点はセルフレジが速いことですが、私はいつも自分のエコバッグを忘れてしまいます。"
-          }
-        ],
-        "outline": [
-          "Opening: where and how often I shop",
-          "Point 1: deciding what to buy with a list",
+          "Point 1: how I plan what to buy",
           "Point 2: paying and bagging at checkout",
           "Wrap-up: one handy and one annoying thing"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "I do my grocery shopping every week, usually on Saturday morning. I go to a small supermarket near my home. It's close, so I can walk there. Before I go, I check my fridge. I look for what's missing, like milk, eggs, or vegetables. Then I write a short list on my phone. The list really helps me. I don't forget things, and I don't buy too much. At the checkout, I put my items on the belt. I pay with my card most of the time. Then I bag my food myself. I try to put heavy things at the bottom. One handy thing is the self-checkout machine. It's fast when the shop is busy. But one annoying thing is the long line on weekends. So sometimes I go early to skip the crowd."
+        "text": "Let me tell you how I usually handle my grocery shopping. I pop into the supermarket near my flat about twice a week. Before I head out, I always check the fridge to see what's running low. Then I jot down a quick list on my phone, so I don't forget the basics. Honestly, if I shopped without a list, I'd end up buying loads of junk. At the checkout, I tap my card because it's faster than fumbling for cash. I bring my own bags now, and I bag everything myself while the cashier scans. The handy thing is the self-checkout, which saves me from long queues. What really drives me up the wall, though, is when they run out of something I need. When that happens, I either grab a substitute or pop back the next day. All in all, a little planning keeps the whole thing painless."
+      }
+    },
+    "6": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "To be honest, I usually do my grocery shopping at the same supermarket near my station about twice a week.",
+            "ja": "正直に言うと、私はたいてい駅の近くの同じスーパーで週に2回ほど食料品の買い物をしています。"
+          },
+          {
+            "en": "When it comes to deciding what to buy, I quickly check the fridge and jot down what's running low.",
+            "ja": "何を買うか決めるときは、冷蔵庫をさっと確認して、切れかけているものをメモします。"
+          },
+          {
+            "en": "At the checkout, I usually pay with my phone and bag everything myself at the packing counter.",
+            "ja": "レジでは、たいていスマホで支払って、袋詰めカウンターで自分で全部詰めています。"
+          },
+          {
+            "en": "The one thing that really bugs me is queuing for ages when only one register is open.",
+            "ja": "一つ本当に面倒なのは、レジが一つしか開いていなくて長時間並ばされることです。"
+          }
+        ],
+        "outline": [
+          "Opening: where and how often I shop",
+          "Point 1: how I decide what to buy",
+          "Point 2: paying and bagging at checkout",
+          "Wrap-up: the annoying part about it"
+        ],
+        "hintDefault": "en"
+      },
+      "modelTalk": {
+        "text": "So, when it comes to groceries, I usually pop into the same supermarket just around the corner. I go maybe twice a week, mostly on my way home. To be honest, I hate doing one massive shop. Before I head out, I always peek in the fridge to see what's running low. Then I jot down a quick list on my phone, so I don't forget the basics. That said, I still end up grabbing bits I don't really need.\n\nAt the checkout, I usually tap my card — it's quicker than fumbling for cash. The annoying part? I've got to bag everything myself, and there's this pressure to be fast. So I try to pack the heavy stuff first, then the fragile things on top.\n\nWhat I actually love is the self-checkout. When the queues are massive, it's a real lifesaver. Plus, nobody's watching what I buy, which, honestly, suits me just fine."
       }
     }
   }

@@ -31,8 +31,9 @@ export type TopicAssetFile = {
  * bumpすると既存の同梱JSONは全件stale判定になり、DBキャッシュもキー不一致（topicAssetCacheKey に版を
  * 組み込み済み・#206）で全件missになるため、次回アクセス時に実行時生成へフォールバックする
  * （scripts/generate-topic-assets.ts を再実行して同梱を作り直すまでの安全弁）。
+ * v2 (#195): stage4-6 の modelTalkSystem/prepSystem に難度勾配（B1-B2/B2/B2-C1・語数/文長帯）を導入。
  */
-export const TOPIC_ASSET_PROMPT_VERSION = "v1";
+export const TOPIC_ASSET_PROMPT_VERSION = "v2";
 
 /**
  * sourceHash: topicファイルの「正本」= ディスク上の生ファイル内容そのもののsha256 hex。
@@ -325,10 +326,12 @@ export async function genTopicAssetSlot(deps: GenTopicAssetSlotDeps): Promise<To
     if (!modelTalk) {
       try {
         const candidate = await generateModelTalk({ topicTitle: topic.title, hints: topic.hints, stage }, deps.runner);
-        if (checkModelTalk(candidate.text, band).pass) {
+        const check = checkModelTalk(candidate.text, band);
+        if (check.pass) {
           modelTalk = candidate;
         } else if (attempt < 3) {
-          log(`  ${topic.id}/stage${stage} modelTalk: 検証NG — 再生成します(${attempt}/3)`);
+          // FAIL理由を含める（#195再生成の運用で理由なしログでは原因特定できず盲目的な再実行しかできなかった）
+          log(`  ${topic.id}/stage${stage} modelTalk: 検証NG（${check.reasons.join(" / ")}）— 再生成します(${attempt}/3)`);
         }
       } catch (error) {
         console.warn("[topic-assets] modelTalk runner error:", error instanceof Error ? error.message : String(error));

@@ -1,82 +1,82 @@
 {
   "topicId": "packing-a-bag",
   "sourceHash": "0ed3fd59ac877ae9c65079638076981c2d471ffe37e269dcb7430cd46f4f86d0",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "3": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Before I go out, I always put my wallet and phone in my bag.",
+            "en": "Before I go out, I always put my wallet and my phone in my bag.",
             "ja": "出かける前に、私はいつも財布とスマホをかばんに入れます。"
           },
           {
-            "en": "I always check the weather, and if it looks like rain, I bring my umbrella.",
-            "ja": "私はいつも天気を確認して、雨が降りそうなら傘を持っていきます。"
+            "en": "Before I go out, I also check the weather to decide about my umbrella.",
+            "ja": "出かける前に、傘をどうするか決めるために天気も確認します。"
           },
           {
-            "en": "One time I forgot my house key, and I couldn't get back inside.",
-            "ja": "あるとき家の鍵を忘れて、家の中に戻れませんでした。"
+            "en": "When it looks like rain, I put a small umbrella and a light jacket in my bag.",
+            "ja": "雨が降りそうなときは、小さい傘と薄い上着をかばんに入れます。"
           },
           {
-            "en": "That was really stressful, so now I'm more careful about my things.",
-            "ja": "それは本当に大変だったので、今はもっと持ち物に気をつけています。"
+            "en": "One time I forgot my house key, and I couldn't get inside after work.",
+            "ja": "あるとき家の鍵を忘れて、仕事の後に家に入れませんでした。"
+          },
+          {
+            "en": "Another time I forgot my train pass, so I had to buy a ticket.",
+            "ja": "別のときは定期券を忘れて、切符を買わなければなりませんでした。"
           },
           {
             "en": "Now I always check my bag at the door before I leave home.",
-            "ja": "今は家を出る前に、玄関でいつもかばんの中を確認します。"
-          },
-          {
-            "en": "So a small habit like this really helps me not forget important things.",
-            "ja": "だからこんな小さな習慣が、大事な物を忘れないのに本当に役立っています。"
+            "ja": "今は家を出る前に、いつも玄関でかばんの中を確認します。"
           }
         ],
         "outline": [
-          "Opening: what I always pack (wallet, phone)",
+          "Opening: what I pack every day",
           "Point 1: choosing items by the weather",
-          "Point 2: a time I forgot my key",
-          "Wrap-up: my checking habit at the door"
+          "Point 2: a time I forgot something important",
+          "Wrap-up: my habit of checking at the door"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "Before I go out, I always put a few things in my bag. My wallet and phone come first, every time. I put my keys and my train pass in too. Then I look at the weather on my phone. If it looks like rain, I bring a small umbrella. When it's cold, I add a light jacket. One morning I forgot my keys at home. I came back late, and I couldn't open my door. I felt so silly, and I waited outside for my mum. Another time I forgot my train pass, so I paid extra money. Now I try to be more careful. At the door, I stop and check my bag. I say \"phone, wallet, keys\" out loud, like a little song. It's a simple habit, but it really helps me a lot."
+        "text": "Before I go out, I always put a few things in my bag. My wallet, my phone, and my keys come first. I check them every time. I also bring my train pass and a small water bottle. Then I look at the weather. If it looks like rain, I take a small umbrella. If it's cold, I put a light jacket in my bag too. One day, I forgot my house keys. I came home at night, but I couldn't open the door. I waited outside for an hour, and it was so cold. Now I'm more careful. Before I leave, I stop at the front door. I open my bag and check inside. I say my things out loud, like keys, phone, wallet. It's a small habit, but it really helps me a lot every day."
       }
     },
     "4": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Before I go out, I always put my wallet, phone, and IC card in my bag.",
-            "ja": "出かける前に、私はいつも財布とスマホとICカードをかばんに入れます。"
+            "en": "Before I go out, I always put my wallet, phone, and keys in my bag.",
+            "ja": "出かける前に、私はいつも財布とスマホと鍵をかばんに入れます。"
           },
           {
-            "en": "I check the weather first, so I can decide whether to bring an umbrella or a jacket.",
-            "ja": "まず天気を確認して、傘や上着を持っていくかどうか決めます。"
+            "en": "I usually check the weather app, and if it might rain, I bring a small umbrella.",
+            "ja": "たいてい天気アプリを確認して、雨が降りそうなら折りたたみ傘を持っていきます。"
           },
           {
-            "en": "One time, I forgot my house key, and I couldn't get back inside for hours.",
-            "ja": "あるとき家の鍵を忘れてしまい、何時間も家に入れませんでした。"
+            "en": "One time I forgot my train pass, so I had to buy a ticket at the station.",
+            "ja": "あるとき定期券を忘れて、駅で切符を買わなければなりませんでした。"
           },
           {
-            "en": "Now I try not to forget things by checking my bag at the front door.",
-            "ja": "今は玄関でかばんの中を確認して、物を忘れないようにしています。"
+            "en": "Now I always stop at the front door and check inside my bag one more time.",
+            "ja": "今は必ず玄関で立ち止まって、かばんの中をもう一度確認します。"
           },
           {
-            "en": "That's my simple routine, and it helps me start my day without stress.",
-            "ja": "これが私の簡単な習慣で、ストレスなく一日を始めるのに役立っています。"
+            "en": "In the end, a quick check saves me a lot of stress during the day.",
+            "ja": "結局のところ、ちょっとした確認が一日の大きなストレスを減らしてくれます。"
           }
         ],
         "outline": [
-          "Opening: what I always pack",
-          "Point 1: deciding by the weather",
-          "Point 2: a time I forgot my key",
-          "Wrap-up: my checking habit now"
+          "Opening: what I always pack before leaving",
+          "Point 1: choosing items by the weather",
+          "Point 2: a time I forgot my train pass",
+          "Wrap-up: my door-check habit now"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "Before I go out, I always put a few things in my bag. My wallet, my phone, and my keys come first. I add my earphones and a small water bottle too. Then I check the weather on my phone. If it looks like rain, I pack a small umbrella. If it's cold, I bring a light jacket. One morning I was in a hurry, and I forgot my train pass. I couldn't get through the gate, so I felt really silly. Another time I left my house keys inside. I had to wait outside for a while. Now I have a simple habit. Before I open the front door, I stop and check my bag. I say the words \"phone, wallet, keys\" out loud. It's a small thing, but it really helps me a lot."
+        "text": "Before I go out, I always put a few things in my bag. My wallet and my phone come first, and then my keys. I check the weather on my phone too. If it looks like rain, I pack a small umbrella. When it's cold, I bring a light jacket, just in case. One morning I was in a hurry, and I left my house keys at home. I couldn't get back in, so I had to wait for my family. It was really annoying, and I felt so silly. Since then, I've tried to build a good habit. Before I open the front door, I stop and check my bag. I look for my wallet, my phone, and my keys. It only takes a few seconds, but it really saves me a lot of trouble."
       }
     }
   }

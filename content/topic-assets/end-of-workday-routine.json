@@ -1,54 +1,54 @@
 {
   "topicId": "end-of-workday-routine",
   "sourceHash": "da09124d1c86e85b5b90aad95c089b9791912b0571725f191f14ff3cf9feb9e5",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "1": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about leaving work.",
-            "ja": "今日は仕事を終えて帰ることについて話したいです。"
+            "en": "I usually finish work at six in the evening.",
+            "ja": "私はたいてい夕方6時に仕事を終えます。"
           },
           {
-            "en": "I usually finish work around six in the evening.",
-            "ja": "私はたいてい夕方6時ごろに仕事が終わります。"
+            "en": "I usually check my email one last time.",
+            "ja": "私はたいてい最後にもう一度メールを確認します。"
           },
           {
             "en": "Before I leave, I turn off my computer.",
             "ja": "帰る前に、私はパソコンの電源を切ります。"
           },
           {
-            "en": "I also check my email one last time.",
-            "ja": "それから最後にもう一度メールを確認します。"
+            "en": "Before I leave, I clean up my desk a little.",
+            "ja": "帰る前に、私は少しだけ机を片付けます。"
           },
           {
             "en": "When I go home, I say goodbye to my coworkers.",
-            "ja": "帰るとき、私は同僚にさようならと言います。"
+            "ja": "帰るとき、私は同僚にさよならと言います。"
           },
           {
-            "en": "Sometimes I say, see you tomorrow, to my team.",
-            "ja": "ときどきチームに「また明日」と言います。"
+            "en": "When I go home, I tell them to take care.",
+            "ja": "帰るとき、私は彼らに気をつけてねと言います。"
           },
           {
             "en": "After a long day, I feel tired but happy.",
             "ja": "長い一日のあと、私は疲れているけれど幸せな気持ちです。"
           },
           {
-            "en": "So that's how I finish my work day.",
-            "ja": "というわけで、これが私の一日の仕事の終え方です。"
+            "en": "After a long day, I just want to relax at home.",
+            "ja": "長い一日のあと、私はただ家でくつろぎたいです。"
           }
         ],
         "outline": [
-          "Opening: talk about leaving work",
-          "Point: finish time and things I do before leaving",
-          "Point: what I say to coworkers and how I feel",
-          "Wrap-up: sum up my end-of-day routine"
+          "Opening: what time I finish work",
+          "Point 1: what I do before I leave",
+          "Point 2: what I say to coworkers",
+          "Wrap-up: how I feel after the day"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I usually finish work around six o'clock. Sometimes it's a little later. First, I save my files. Then I turn off my computer. I put my papers in the drawer. I take my cup to the kitchen. I put on my coat and grab my bag. I say \"Bye, see you tomorrow\" to my coworkers. They smile and say bye to me. Then I walk to the door and leave. After a long day, I feel tired. But I'm happy too. I like going home. On the way, I listen to music. It's nice to relax. I can't wait to have dinner."
+        "text": "I usually finish work around six o'clock. Sometimes I stay a little late. First, I save my files. Then I turn off my computer. I put my papers away. I clean my desk a bit. I grab my bag and my coat. I say goodbye to my coworkers. I tell them, \"See you tomorrow!\" They smile and wave at me. Then I walk out the door. After a long day, I'm tired. But I'm happy too. I've done my work. It's a good feeling. I like going home now. I can finally rest. That's the best part of my day."
       }
     },
     "2": {
@@ -60,39 +60,39 @@
           },
           {
             "en": "I usually finish my work around six o'clock.",
-            "ja": "私はたいてい6時ごろに仕事を終えます。"
+            "ja": "私はいつも六時ごろに仕事を終えます。"
           },
           {
             "en": "Before I leave, I turn off my computer.",
             "ja": "帰る前に、私はパソコンの電源を切ります。"
           },
           {
-            "en": "I also check my emails one last time.",
+            "en": "I also check my email one last time.",
             "ja": "最後にもう一度メールも確認します。"
           },
           {
-            "en": "When I go home, I say goodbye to everyone.",
-            "ja": "帰るとき、私はみんなにさよならと言います。"
+            "en": "When I go home, I say goodbye to my coworkers.",
+            "ja": "帰るとき、私は同僚にさようならと言います。"
           },
           {
-            "en": "After a long day, I feel tired but happy.",
-            "ja": "長い一日のあと、私は疲れているけれど満足しています。"
+            "en": "After a long day, I feel very tired.",
+            "ja": "長い一日のあと、私はとても疲れを感じます。"
           },
           {
-            "en": "So that's how I finish my work day.",
-            "ja": "というわけで、これが私の一日の仕事の終え方です。"
+            "en": "But I feel happy because my work is done.",
+            "ja": "でも仕事が終わったので、私は幸せな気持ちです。"
           }
         ],
         "outline": [
           "Opening: talk about leaving work",
-          "Point 1: finish time and things I do before leaving",
-          "Point 2: what I say to coworkers",
+          "Point 1: finish time and turning off computer",
+          "Point 2: saying goodbye to coworkers",
           "Wrap-up: how I feel after a long day"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I usually finish work at six o'clock. Sometimes I stay a little longer. But most days I leave on time. Before I go, I turn off my computer. I clean up my desk too. I put my papers away. Then I check my bag for my keys and phone. I say goodbye to my coworkers. I tell them, \"See you tomorrow!\" They smile and wave at me. It's a nice moment. After a long day, I'm really tired. My feet hurt sometimes. But I'm happy too. I did my work well. Now I can go home and rest. I can't wait for dinner!"
+        "text": "I usually finish work at six o'clock. Sometimes I stay a little longer. But most days I leave on time. Before I go, I turn off my computer. I put my papers in the drawer. I check my desk and clean it up. Then I take my bag and my coat. I say goodbye to my coworkers. I tell them, \"See you tomorrow!\" They smile and wave at me. After a long day, I'm really tired. My feet hurt and I want to rest. But I'm happy too. I did my work well today. Now it's time to go home and relax."
       }
     }
   }

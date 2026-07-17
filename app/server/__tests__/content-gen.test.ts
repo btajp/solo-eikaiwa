@@ -24,6 +24,7 @@ import {
 } from "../content-gen";
 import { loadBundledExplanations } from "../sentences";
 import { pickWorstCategories, type CategoryRate } from "../srs-analytics";
+import { vocabConstraint } from "../progression";
 import { LISTENING_WORD_RANGE } from "../spoken-register-check";
 import { SPOKEN_STYLE_BLOCK, spokenStyleFor } from "../spoken-style";
 
@@ -949,7 +950,7 @@ describe("content-gen / genListeningForTarget（帯×domain×count・--fill-cove
     rmSync(dir, { recursive: true, force: true });
   });
 
-  test("foundation帯はsystemPromptにword families制約が入り、fluency帯には入らない", async () => {
+  test("foundation帯はword families制約・fluency帯はB2語彙勾配がsystemPromptに入る（#195）", async () => {
     const dir = mkdtempSync(path.join(tmpdir(), "gen-lt-vocab-"));
     const seen: Array<{ systemPrompt?: string }> = [];
     const runner: ClaudeRunner = async (_p, _r, opts) => {
@@ -960,6 +961,8 @@ describe("content-gen / genListeningForTarget（帯×domain×count・--fill-cove
     await genListeningForTarget({ runner, listeningDir: dir, domain: "business", band: "fluency", count: 1, dry: true });
     expect(seen[0].systemPrompt).toContain("word families");
     expect(seen[1].systemPrompt).not.toContain("word families");
+    // #195: 旧実装は fluency 帯に語彙指定が無く B1 相当で頭打ちだった。帯開始stage(5)の勾配を注入する
+    expect(seen[1].systemPrompt).toContain(vocabConstraint(5));
     expect(seen[1].systemPrompt).not.toMatch(/\bnull\b/);
     rmSync(dir, { recursive: true, force: true });
   });
@@ -1136,6 +1139,21 @@ describe("genTopicsForTarget（帯×domain×count・experienceAnchor必須）", 
     expect(items[0].experienceAnchor).toBe("誰もが経験する日常のルーティンに接地している");
     expect(items[0].commonObjectsOrActions).toEqual(["coffee mug", "toothbrush", "alarm clock"]);
     expect(logs.some((l) => l.startsWith("完了:"))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("fluency帯はB2語彙勾配・foundation帯はword families制約がsystemPromptに入る（#195）", async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "gen-tt-vocab-"));
+    const seen: Array<{ systemPrompt?: string }> = [];
+    const runner: ClaudeRunner = async (_p, _r, opts) => {
+      seen.push({ systemPrompt: opts?.systemPrompt });
+      return { text: topicTargetJson(`t-${seen.length}`), sessionId: "fake" };
+    };
+    await genTopicsForTarget({ runner, topicsDir: dir, domain: "daily", band: "foundation", count: 1, dry: true });
+    await genTopicsForTarget({ runner, topicsDir: dir, domain: "daily", band: "fluency", count: 1, dry: true });
+    expect(seen[0].systemPrompt).toContain("word families");
+    expect(seen[1].systemPrompt).toContain(vocabConstraint(5));
+    expect(seen[1].systemPrompt).not.toContain("word families");
     rmSync(dir, { recursive: true, force: true });
   });
 

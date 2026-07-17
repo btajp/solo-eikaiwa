@@ -1,70 +1,70 @@
 {
   "topicId": "reviewing-a-pull-request",
   "sourceHash": "cc7ae7c511f42d41edc31bafe1e39e75ea42621b97b555501d0f3e6acc55f46e",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "5": {
       "prepPack": {
         "chunks": [
           {
-            "en": "I usually pick up a review right after my morning stand-up, when my head is still fresh.",
-            "ja": "私はたいてい、朝のスタンドアップが終わってすぐ、頭がまだすっきりしているうちにレビューに取りかかります。"
+            "en": "I usually pick up a pull request review right after my morning standup, when my head's still clear.",
+            "ja": "私はたいてい、頭がまだすっきりしている朝会の直後にプルリクのレビューに取りかかります。"
           },
           {
-            "en": "The first thing I check in the diff is whether the tests cover the new logic.",
-            "ja": "差分で最初に確認するのは、新しいロジックをテストがちゃんとカバーしているかどうかです。"
+            "en": "The first thing I check in the diff is whether the tests actually cover the new logic.",
+            "ja": "差分を見るとき最初に確認するのは、テストが新しいロジックをちゃんとカバーしているかどうかです。"
           },
           {
-            "en": "To keep my comments from sounding harsh, I ask questions instead of giving orders.",
-            "ja": "コメントがきつく聞こえないように、私は命令する代わりに質問する形にしています。"
+            "en": "To avoid sounding harsh, I frame my comments as questions like \"What do you think about renaming this?\"",
+            "ja": "きつく聞こえないように、「これをリネームするのはどう思う?」のように質問の形でコメントを書くようにしています。"
           },
           {
-            "en": "I approve it when the code is clear and safe, but ask for changes if something could break.",
-            "ja": "コードが分かりやすくて安全なら承認しますが、何か壊れそうなときは修正をお願いします。"
+            "en": "I only approve it once the code is clean and there are no blocking issues left.",
+            "ja": "コードがきれいで、ブロックするような問題が残っていないと確認できたときだけ、私はapproveします。"
           }
         ],
         "outline": [
           "Opening: when and how I start a review",
           "Point 1: what I check first in the diff",
-          "Point 2: writing kind, non-harsh comments",
-          "Wrap-up: how I decide approve vs. request changes"
+          "Point 2: writing gentle, non-harsh comments",
+          "Wrap-up: what makes me approve or request changes"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "I usually pick up a review in the morning. That's when my mind is fresh. I open the pull request and read the description first. I want to know what my coworker was trying to do.\n\nThen I look at the diff. First, I check the big changes, not the small ones. I ask myself, \"Does this make sense? Is anything missing?\" I also look for tests.\n\nWhen I leave comments, I try to be kind. I don't say \"This is wrong.\" I say \"What do you think about this?\" or \"Maybe we can try this.\" I add a smile or a \"thanks\" too.\n\nSo when do I approve it? If the code works and it's easy to read, I say yes. But if something feels risky, I ask for changes. It's not personal. We just want good code together."
+        "text": "Honestly, I usually pick up a review first thing in the morning, before I dive into my own coding. If I leave it too long, it just piles up and blocks my teammate. When I open the diff, I check the overall structure first, not the tiny details. I want to grasp what problem they're solving before I nitpick anything. Then I look at edge cases and whether the tests actually cover them. When I leave comments, I try to sound curious, not bossy. Instead of \"this is wrong,\" I'll ask, \"what do you think about handling it this way?\" I always add a positive note too, because nobody likes only criticism. If it's clean and does the job, I'll approve it straight away. But if something might break in production, I'd ask for changes, even if it slows us down. At the end of the day, we're all on the same side."
       }
     },
     "6": {
       "prepPack": {
         "chunks": [
           {
-            "en": "I usually pick up a pull request review right after I finish my own morning tasks.",
-            "ja": "私はたいてい、自分の午前中の作業を終えた直後にプルリクエストのレビューに取りかかります。"
+            "en": "I usually pick up a pull request first thing in the morning, before I dive into my own coding.",
+            "ja": "私はたいてい、自分のコーディングに取りかかる前の朝一番にプルリクエストに手をつけます。"
           },
           {
-            "en": "The first thing I check in the diff is whether the change matches the ticket's goal.",
-            "ja": "差分で最初に確認するのは、その変更がチケットの目的に合っているかどうかです。"
+            "en": "The first thing I check in the diff is whether the change actually matches what the ticket asked for.",
+            "ja": "差分で最初に確認するのは、その変更が本当にチケットの要求どおりになっているかどうかです。"
           },
           {
-            "en": "To leave comments without sounding harsh, I ask questions instead of giving orders.",
-            "ja": "きつく聞こえないコメントにするために、私は命令する代わりに質問する形にしています。"
+            "en": "To avoid sounding harsh, I usually frame my comments as questions like \"What do you think about extracting this?\"",
+            "ja": "きつく聞こえないように、私はたいていコメントを「これを切り出すのはどう思う？」のような質問の形にしています。"
           },
           {
-            "en": "What makes me approve it is clean code with passing tests and no big risks.",
-            "ja": "私がapproveする決め手は、テストが通っていて大きなリスクのないきれいなコードであることです。"
+            "en": "What makes me approve it is clean, tested code, but I'll ask for changes if the logic feels risky.",
+            "ja": "approveする決め手はきれいでテスト済みのコードですが、ロジックが危うそうなら修正をお願いします。"
           }
         ],
         "outline": [
           "Opening: when and how I start a review",
           "Point 1: what I check first in the diff",
-          "Point 2: writing gentle, question-style comments",
-          "Wrap-up: what makes me approve or ask for changes"
+          "Point 2: writing kind, question-style comments",
+          "Wrap-up: my approve vs. request-changes criteria"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "I usually pick up a review in the morning. My mind's fresh, so I read the code slowly. I don't jump in right after lunch. First, I check what the pull request is trying to do. I read the title and the description. Then I look at the diff. I check the main logic first, not small style stuff. I ask myself, \"Does this really solve the problem?\" I try to write kind comments. I use \"we\" instead of \"you\". I ask questions like, \"What do you think about this?\" I don't say \"This is wrong.\" I say \"Maybe we can try this.\" If the code works and it's clear, I just approve it. But if I'm confused, or it might break something, I ask for changes. Small things? I still approve, and leave a note. That's my way."
+        "text": "To be honest, I usually don't dive into a review the second it lands. I'll finish whatever I'm on, then pick it up when my head's clear. Rushing it never does anyone any favours.\n\nWhen I open the diff, I check the overall shape first — is the change actually solving the right problem? After that, I zoom into the tricky bits, like edge cases and error handling.\n\nLeaving comments is where I really watch my tone. Instead of \"this is wrong\", I'll ask something like, \"What do you reckon about handling it this way?\" It softens things and keeps it collaborative.\n\nAs for approving — if it works, it's readable, and the tests pass, I'll happily sign off. Small nitpicks? I'll flag them but won't block the merge.\n\nI only ask for changes when something could genuinely break, or the logic's hard to follow. That said, I always try to explain why, not just say no."
       }
     }
   }

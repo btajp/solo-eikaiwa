@@ -1,54 +1,54 @@
 {
   "topicId": "asking-a-coworker-for-help",
   "sourceHash": "24ed87ce73c8fc70ff60c040f34d32f499bdfbaa5e8fa25c9c245b3ccf1afe9a",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "1": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about asking a coworker for help.",
-            "ja": "今日は同僚に助けを求めることについて話したいです。"
+            "en": "Today I want to talk about asking for help.",
+            "ja": "今日は助けを求めることについて話したいです。"
           },
           {
             "en": "When I need help, I go and ask someone near me.",
-            "ja": "助けが必要なとき、私は近くの人のところへ聞きに行きます。"
+            "ja": "困ったとき、近くの人に聞きに行きます。"
           },
           {
             "en": "I usually ask a person who knows the work well.",
-            "ja": "たいてい、仕事をよく知っている人に頼みます。"
+            "ja": "たいてい仕事をよく知っている人に頼みます。"
           },
           {
             "en": "I try to say what I need in a short way.",
-            "ja": "必要なことを短く伝えるようにしています。"
+            "ja": "必要なことを短く伝えるようにします。"
           },
           {
-            "en": "For example, I say my problem and the error clearly.",
-            "ja": "例えば、自分の問題とエラーをはっきり言います。"
-          },
-          {
-            "en": "This way, my coworker can help me very fast.",
-            "ja": "こうすると、同僚がとても早く助けてくれます。"
+            "en": "For example, I ask about a bug in my code.",
+            "ja": "たとえば、自分のコードのバグについて聞きます。"
           },
           {
             "en": "After they help me, I always say thank you.",
-            "ja": "助けてもらったら、私はいつもお礼を言います。"
+            "ja": "助けてもらったら必ずお礼を言います。"
           },
           {
-            "en": "So asking for help makes my work much easier.",
-            "ja": "だから、助けを求めることは仕事をずっと楽にしてくれます。"
+            "en": "Asking for help makes my work easier and faster.",
+            "ja": "助けを求めると仕事が楽で速くなります。"
+          },
+          {
+            "en": "So don't be afraid to ask your coworkers.",
+            "ja": "だから同僚に聞くことを怖がらないでください。"
           }
         ],
         "outline": [
-          "Opening: talking about asking a coworker for help",
-          "Point 1: go to someone near me who knows the work",
-          "Point 2: say my need in a short, clear way",
-          "Wrap-up: always say thank you and work gets easier"
+          "Opening: talk about asking for help",
+          "Point 1: go ask someone who knows the work",
+          "Point 2: say your need clearly, then say thank you",
+          "Wrap-up: asking makes work easier, so don't be afraid"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "Sometimes I need help at work. When I'm stuck, I go and ask someone near me. I don't wait too long. I usually ask a person who knows the work well. That person can help me fast. First, I think about my problem. Then I try to say what I need. I keep it short and clear. I don't talk too much. I just ask one simple question. My coworker listens and then shows me. It's easy when I ask the right way. After they help me, I always say thank you. I think that's important. A small thank you feels good. So I try to be kind too."
+        "text": "Sometimes I get stuck at work. When I need help, I go and ask someone near me. I don't wait too long. I usually ask a person who knows the work well. They can help me fast. I try to say what I need in a short way. I keep it clear and simple. I don't talk too much. I just tell them the problem. Then I listen and I take notes. After they help me, I always say thank you. It's polite, and it feels good. I'm happy to learn something new. Next time, maybe I can help them too. That's how we work well together."
       }
     },
     "2": {
@@ -64,35 +64,35 @@
           },
           {
             "en": "I usually ask a person who knows the work well.",
-            "ja": "たいてい、仕事をよく知っている人に頼みます。"
+            "ja": "たいてい仕事をよく知っている人に頼みます。"
           },
           {
             "en": "I try to say what I need in a short way.",
             "ja": "必要なことを短く伝えるようにしています。"
           },
           {
-            "en": "For example, I say I have a small server problem.",
-            "ja": "例えば、小さなサーバーの問題があると言います。"
+            "en": "For example, I ask about a bug in my code.",
+            "ja": "例えば、コードのバグについて聞きます。"
           },
           {
             "en": "After they help me, I always say thank you.",
-            "ja": "助けてもらったら、私はいつもお礼を言います。"
+            "ja": "助けてもらったら、必ずお礼を言います。"
           },
           {
             "en": "So asking for help makes my work much easier.",
-            "ja": "だから助けを求めることで、私の仕事はずっと楽になります。"
+            "ja": "だから助けを求めることで、仕事がずっと楽になります。"
           }
         ],
         "outline": [
           "Opening: asking a coworker for help",
-          "Point 1: who I ask and how I ask",
-          "Point 2: give a short, clear example and say thanks",
-          "Wrap-up: help makes work easier"
+          "Point 1: I ask someone near me who knows the work",
+          "Point 2: I say my need clearly, like a code bug",
+          "Wrap-up: I say thanks and work gets easier"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "Sometimes work is hard for me. When I need help, I don't just sit there. I get up and I go to someone near me. I usually ask a person who knows the work well. That's the fastest way for me. I try to stay calm. I say what I need in a short, clear way. I don't talk too much. I just tell them the problem. Most people are kind, and they help me. After they help me, I always say thank you. It's a small thing, but it matters a lot. Next time, maybe I can help them too. We work better together."
+        "text": "Sometimes I need help at work. When that happens, I go to someone near me. I don't wait too long. I usually ask a person who knows the work well. That person can help me fast. I try to say what I need. I keep it short and clear. I don't talk for too long. So the other person understands me quickly. When they help me, I say thank you. I always do this. It's kind and it feels good. Asking for help isn't a bad thing. We all need help sometimes. So I ask, and I'm thankful. That's how I work with my coworkers."
       }
     }
   }

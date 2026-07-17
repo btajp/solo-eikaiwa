@@ -1,98 +1,98 @@
 {
   "topicId": "my-lunch-break-work",
   "sourceHash": "774a844886a14743ded780f4089860dffce06cb9bcb16ef31988855c58250e65",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "1": {
       "prepPack": {
         "chunks": [
           {
             "en": "I usually take my lunch break at noon.",
-            "ja": "私はたいてい正午にお昼休みを取ります。"
+            "ja": "私はたいてい正午にお昼休憩を取ります。"
           },
           {
             "en": "I take my break after a long morning meeting.",
-            "ja": "長い午前中の会議のあとに休憩を取ります。"
+            "ja": "長い午前の会議のあとに休憩を取ります。"
           },
           {
-            "en": "For lunch, I often eat a rice ball and salad.",
-            "ja": "お昼にはよくおにぎりとサラダを食べます。"
+            "en": "For lunch, I often eat rice and chicken.",
+            "ja": "お昼には、よくご飯とチキンを食べます。"
           },
           {
-            "en": "Sometimes I buy a warm lunch box from the store.",
-            "ja": "ときどきお店で温かいお弁当を買います。"
+            "en": "For lunch, I sometimes buy a sandwich nearby.",
+            "ja": "お昼には、近くでサンドイッチを買うこともあります。"
           },
           {
-            "en": "I usually eat at my desk while I check email.",
-            "ja": "私はたいていメールを見ながらデスクで食べます。"
+            "en": "I usually eat at my desk near my computer.",
+            "ja": "私はたいていパソコンの近くの自分の席で食べます。"
           },
           {
-            "en": "On sunny days, I eat outside in the park.",
-            "ja": "晴れた日には公園の外で食べます。"
+            "en": "Sometimes I eat in the break room with friends.",
+            "ja": "時々、友達と休憩室で食べます。"
           },
           {
             "en": "After eating, I like to take a short walk.",
-            "ja": "食べたあとは短い散歩をするのが好きです。"
+            "ja": "食べたあとは、少し散歩するのが好きです。"
           },
           {
-            "en": "After lunch, I often drink coffee and feel ready.",
-            "ja": "昼食後はよくコーヒーを飲んで、準備が整った気分になります。"
+            "en": "After my walk, I feel ready to work again.",
+            "ja": "散歩のあとは、また仕事をする準備ができた気分になります。"
           }
         ],
         "outline": [
-          "Opening: when I take my lunch break",
-          "Point 1: what I eat and where I eat",
-          "Point 2: what I do after eating",
-          "Wrap-up: feeling ready to work again"
+          "Opening: when I take my break",
+          "Point 1: what I eat for lunch",
+          "Point 2: where I eat it",
+          "Wrap-up: what I do after eating"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I usually take my lunch break at noon. Sometimes I wait until one o'clock. It's my favorite time of the day. For lunch, I often eat a sandwich. I like rice and chicken too. Sometimes I bring food from home. On busy days, I eat at my desk. But I don't really like that. I prefer the break room with my friends. We talk and laugh together. After I eat, I go for a short walk. Fresh air helps me feel good. Sometimes I drink coffee and check my phone. Then I'm ready to work again. My lunch break isn't long, but it's nice. I feel happy after it."
+        "text": "I usually take my lunch break at noon. Sometimes I take it a bit later. It depends on my work. I often bring food from home. Today I've got rice and some chicken. I like simple food. It's easy and cheap. I usually eat in the break room. My friends eat there too. We talk and laugh a lot. Sometimes I go outside and buy a sandwich. The fresh air feels nice. After I eat, I drink some coffee. Then I take a short walk. It helps me wake up. Sometimes I check my phone for a bit. My break isn't long, but I like it. Then I'm ready for work again."
       }
     },
     "2": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I'll talk about my lunch break at work.",
-            "ja": "今日は職場でのお昼休みについて話します。"
+            "en": "I usually take my lunch break at noon.",
+            "ja": "私はたいてい正午にお昼休憩を取ります。"
           },
           {
-            "en": "I usually take my break around noon.",
-            "ja": "私はたいていお昼ごろに休憩を取ります。"
+            "en": "I take my break after a long morning meeting.",
+            "ja": "長い午前中の会議のあとに休憩を取ります。"
           },
           {
-            "en": "For lunch, I often eat rice balls and a salad.",
-            "ja": "お昼には、よくおにぎりとサラダを食べます。"
+            "en": "For lunch, I often eat a rice ball and soup.",
+            "ja": "お昼にはよくおにぎりとスープを食べます。"
           },
           {
-            "en": "I eat lunch at my desk most days.",
-            "ja": "ほとんどの日は自分のデスクでお昼を食べます。"
+            "en": "Sometimes I buy a bento from the store near my office.",
+            "ja": "時々、会社の近くの店でお弁当を買います。"
           },
           {
-            "en": "Sometimes I go outside to buy a sandwich.",
-            "ja": "ときどき外にサンドイッチを買いに行きます。"
+            "en": "I usually eat at my desk while I check email.",
+            "ja": "私はたいていメールを見ながら自分の席で食べます。"
           },
           {
-            "en": "After eating, I take a short walk to relax.",
-            "ja": "食べた後は、リラックスするために少し散歩をします。"
+            "en": "Sometimes I eat in the break room with my team.",
+            "ja": "時々、休憩室でチームの仲間と食べます。"
           },
           {
-            "en": "So that's how I spend my lunch break.",
-            "ja": "そんなふうに私はお昼休みを過ごしています。"
+            "en": "After eating, I take a short walk to feel fresh.",
+            "ja": "食べたあとは、気分をすっきりさせるために少し散歩します。"
           }
         ],
         "outline": [
-          "Opening: introduce my lunch break",
-          "When and what I eat",
-          "Where I eat and what I do after",
-          "Wrap-up: my simple lunch routine"
+          "Opening: when I take my break",
+          "Point 1: what I eat for lunch",
+          "Point 2: where I eat",
+          "Wrap-up: what I do after eating"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I usually take my lunch break around noon. Sometimes I wait until one o'clock. It depends on my work. I'm often hungry by then. For lunch, I like a simple sandwich. I eat some fruit too. I drink water or tea with it. Most days I eat at my desk. But I don't like that much. So sometimes I go to the break room. It's nicer to sit with my friends. We talk and we laugh together. After I eat, I take a short walk. Fresh air helps me feel better. Then I check my phone for a bit. Soon I'm ready to work again."
+        "text": "I usually take my break around noon. I feel hungry by then. So I stop my work and relax. Most days I bring my own lunch. I like rice, chicken, and some vegetables. Sometimes I buy a sandwich from the shop. I don't eat at my desk. I go to the break room with my friends. It's nice to sit and talk there. We eat slowly and we laugh a lot. After I eat, I make a cup of coffee. Then I go outside for a short walk. The fresh air helps me feel awake. After that, I'm ready to work again."
       }
     }
   }

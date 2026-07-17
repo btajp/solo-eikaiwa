@@ -1,26 +1,26 @@
 {
   "topicId": "my-commute",
   "sourceHash": "a5be0694a5219e427b37d83fcd32a397f18a72322f92f1cb8206829f97d16d3a",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "1": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I'll talk about how I get to work.",
-            "ja": "今日は職場までの行き方について話します。"
+            "en": "Today I want to talk about how I get to work.",
+            "ja": "今日は私がどうやって仕事に行くかについて話したいです。"
           },
           {
             "en": "I usually leave home at eight in the morning.",
             "ja": "私はたいてい朝8時に家を出ます。"
           },
           {
-            "en": "I walk to the station for ten minutes.",
-            "ja": "私は駅まで10分歩きます。"
+            "en": "I take the train to the office every day.",
+            "ja": "私は毎日電車でオフィスに行きます。"
           },
           {
-            "en": "Then I take the train to my office.",
-            "ja": "それから電車に乗って会社まで行きます。"
+            "en": "I walk to the station for about ten minutes.",
+            "ja": "駅までは10分ほど歩きます。"
           },
           {
             "en": "On the way I listen to music on my phone.",
@@ -28,71 +28,71 @@
           },
           {
             "en": "Sometimes I read the news on my phone too.",
-            "ja": "ときどきスマホでニュースも読みます。"
+            "ja": "時々スマホでニュースも読みます。"
           },
           {
             "en": "It takes about thirty minutes to get there.",
             "ja": "そこに着くまで約30分かかります。"
           },
           {
-            "en": "The morning train is often very crowded.",
-            "ja": "朝の電車はよくとても混んでいます。"
+            "en": "The train is often crowded in the morning.",
+            "ja": "電車は朝よくとても混んでいます。"
           }
         ],
         "outline": [
           "Opening: how I get to work",
-          "Point 1: leave home, walk and train",
-          "Point 2: music and news on the way",
-          "Wrap-up: about thirty minutes, crowded train"
+          "Point 1: when I leave and which train I take",
+          "Point 2: what I do on the way",
+          "Wrap-up: travel time and crowding"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I usually leave home at eight in the morning. I don't like to rush, so I get up early. First I walk to the station. It takes about five minutes. Then I take the train. The train is often crowded in the morning. Sometimes I can't find a seat. But that's okay for me. On the way I listen to music. I love pop songs a lot. Sometimes I look at my phone too. I read the news or check messages. The whole trip takes about thirty minutes. Then I walk a little more to work. I'm not tired when I arrive. It's a nice start to my day."
+        "text": "I usually leave home at half past seven. I don't like to rush in the morning. Most days I take the train to work. The station is close to my home. So I just walk there. It's about five minutes. On the way I listen to music. Sometimes I look at my phone too. I read the news or send messages. The trip takes about thirty minutes. In the morning the train is really full. It's hard to find a seat. But I don't mind much. I like this quiet time before work. When it's warm, I walk part of the way. That's how I get to work."
       }
     },
     "2": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about how I get to work.",
-            "ja": "今日は、私がどうやって仕事に行くかについて話したいです。"
+            "en": "I usually leave home at eight in the morning.",
+            "ja": "私はいつも朝8時に家を出ます。"
           },
           {
-            "en": "I usually leave home at seven thirty in the morning.",
-            "ja": "私はいつも朝の7時半に家を出ます。"
+            "en": "I take the train to my office every day.",
+            "ja": "私は毎日電車で会社に行きます。"
           },
           {
-            "en": "I take the train and then I walk a little.",
-            "ja": "私は電車に乗って、それから少し歩きます。"
+            "en": "The train is very crowded in the morning.",
+            "ja": "電車は朝とても混んでいます。"
           },
           {
             "en": "On the way I listen to music on my phone.",
-            "ja": "移動中は、スマホで音楽を聞きます。"
+            "ja": "移動中は携帯で音楽を聴きます。"
           },
           {
-            "en": "It takes about thirty minutes from my home.",
-            "ja": "家から30分くらいかかります。"
+            "en": "Sometimes I read the news on my phone too.",
+            "ja": "ときどき携帯でニュースも読みます。"
           },
           {
-            "en": "The train is often crowded in the morning.",
-            "ja": "電車は朝、よく混んでいます。"
+            "en": "It takes about thirty minutes to get there.",
+            "ja": "そこに着くまで約30分かかります。"
           },
           {
-            "en": "So that's how I get to work every day.",
-            "ja": "というわけで、これが毎日私が仕事に行く方法です。"
+            "en": "So my trip to work is easy and simple.",
+            "ja": "だから私の通勤は楽で簡単です。"
           }
         ],
         "outline": [
-          "Opening: how I get to work",
-          "Time I leave and my route",
-          "What I do on the way and how long it takes",
-          "Wrap-up: my daily commute"
+          "Opening: when I leave home",
+          "Point 1: train and how crowded it is",
+          "Point 2: what I do on the way",
+          "Wrap-up: total time and how easy it is"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I usually leave home at eight in the morning. I don't have a car, so I take the train. First, I walk to the station. It's about ten minutes from my house. Then I get on the train. It's usually full of people. On the way, I listen to music. Sometimes I look at my phone too. I read the news or check my messages. The train ride is short and easy. I get off and walk again. The whole trip takes about thirty minutes. In the morning, it's really crowded. But I don't mind. I like this quiet time before my day starts."
+        "text": "I usually leave home at eight o'clock. I don't like to be late. I walk to the train station first. It's about ten minutes on foot. Then I take the train to work. The train is often crowded in the morning. Sometimes I can't find a seat. On the way, I listen to music. I like slow songs in the morning. Sometimes I look at my phone too. I read the news or check messages. The whole trip takes about thirty minutes. It's not too long, so I'm okay. When I get there, I feel ready. That's how I start my day."
       }
     }
   }

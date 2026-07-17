@@ -1,38 +1,82 @@
 {
   "topicId": "morning-drink-routine",
   "sourceHash": "1426535e1b23b31299c5f1a250046c41292054cfb07cfaabd61654ae0cb6698a",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "1": {
       "prepPack": {
         "chunks": [
           {
-            "en": "I want to talk about my morning drink.",
-            "ja": "私の朝の飲み物について話したいと思います。"
+            "en": "Every morning, I drink a cup of coffee.",
+            "ja": "毎朝、私はコーヒーを一杯飲みます。"
           },
           {
-            "en": "In the morning, I usually drink hot coffee.",
-            "ja": "朝はたいてい温かいコーヒーを飲みます。"
-          },
-          {
-            "en": "I drink it right after I wake up.",
+            "en": "I have it right after I wake up.",
             "ja": "起きてすぐにそれを飲みます。"
           },
           {
-            "en": "I make my coffee in the kitchen.",
-            "ja": "台所でコーヒーを用意します。"
+            "en": "I usually drink it in the kitchen.",
+            "ja": "たいてい台所でそれを飲みます。"
+          },
+          {
+            "en": "I like my coffee hot, not cold.",
+            "ja": "私はコーヒーを冷たくなく、温かいのが好きです。"
+          },
+          {
+            "en": "I make it with hot water and instant coffee.",
+            "ja": "お湯とインスタントコーヒーで作ります。"
+          },
+          {
+            "en": "After I drink it, I feel more awake.",
+            "ja": "それを飲んだ後、私はもっと目が覚めます。"
+          },
+          {
+            "en": "The warm drink helps me start my work.",
+            "ja": "温かい飲み物は仕事を始めるのに役立ちます。"
+          },
+          {
+            "en": "So coffee is a happy part of my morning.",
+            "ja": "だからコーヒーは私の朝の楽しい一部です。"
+          }
+        ],
+        "outline": [
+          "Opening: what I drink in the morning",
+          "Point 1: when and where I have it",
+          "Point 2: hot coffee and how I make it",
+          "Wrap-up: how it makes me feel"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I love my morning drink. I drink coffee every day. It's my favorite thing. I make it right after I wake up. I go to the kitchen first. The house is still quiet then. I like my coffee hot. I boil some water in a pot. Then I add coffee and a little milk. I don't use much sugar. Sometimes I drink tea, but not often. I hold my warm cup with both hands. It feels so nice and calm. After I drink it, I feel awake. My head is clear now. I'm ready for my day. It's a small thing, but I love it."
+      }
+    },
+    "2": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "Every morning I drink a cup of hot coffee.",
+            "ja": "毎朝、私は温かいコーヒーを一杯飲みます。"
+          },
+          {
+            "en": "I have it right after I wake up.",
+            "ja": "私は起きてすぐにそれを飲みます。"
+          },
+          {
+            "en": "I make it in my small kitchen.",
+            "ja": "私は自分の小さな台所でそれを作ります。"
           },
           {
             "en": "I like it hot, not cold.",
-            "ja": "冷たいのではなく温かいのが好きです。"
+            "ja": "私は冷たいのではなく、温かいのが好きです。"
           },
           {
-            "en": "It's easy because I just add hot water.",
-            "ja": "お湯を注ぐだけなので簡単です。"
+            "en": "I use hot water and instant coffee.",
+            "ja": "私はお湯とインスタントコーヒーを使います。"
           },
           {
             "en": "After I drink it, I feel awake and calm.",
-            "ja": "飲んだ後は、目が覚めて落ち着いた気分になります。"
+            "ja": "それを飲んだ後、私は目が覚めて落ち着いた気分になります。"
           },
           {
             "en": "So coffee is a nice start to my day.",
@@ -40,59 +84,15 @@
           }
         ],
         "outline": [
-          "Opening: introduce my morning drink",
-          "Point 1: what I drink and when",
-          "Point 2: hot coffee, how I make it",
-          "Wrap-up: how it helps me start the day"
+          "Opening: I drink hot coffee every morning",
+          "Point 1: When and where I make it",
+          "Point 2: Hot coffee, how I prepare it",
+          "Wrap-up: How it makes me feel"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I love my morning drink. I always drink coffee first. It's my favorite way to start the day. I wake up early. Then I go to the kitchen. I make my coffee there. I like it hot, not cold. I boil some water first. Then I add the coffee and a little milk. I don't use much sugar. I sit down and hold my cup. It smells really nice. I drink it slowly. After a few minutes, I feel awake. I feel happy and calm too. My morning coffee makes me ready. Then I'm set for a busy day. I can't skip it. It's a small, happy habit."
-      }
-    },
-    "2": {
-      "prepPack": {
-        "chunks": [
-          {
-            "en": "Today I want to talk about my morning drink.",
-            "ja": "今日は朝に飲む飲み物について話したいです。"
-          },
-          {
-            "en": "In the morning I drink hot black coffee.",
-            "ja": "朝は温かいブラックコーヒーを飲みます。"
-          },
-          {
-            "en": "I have it in the kitchen right after I wake up.",
-            "ja": "起きてすぐに台所で飲みます。"
-          },
-          {
-            "en": "I make it with hot water and a coffee machine.",
-            "ja": "お湯とコーヒーマシンで作ります。"
-          },
-          {
-            "en": "I like it hot, not cold, every day.",
-            "ja": "毎日、冷たいのではなく温かいのが好きです。"
-          },
-          {
-            "en": "After I drink it, I feel awake and happy.",
-            "ja": "飲んだ後は、目が覚めて幸せな気分になります。"
-          },
-          {
-            "en": "So a good coffee helps me start my day.",
-            "ja": "だから、おいしいコーヒーは一日を始める助けになります。"
-          }
-        ],
-        "outline": [
-          "Opening: my morning drink",
-          "What and where I drink it",
-          "Hot coffee and how I make it",
-          "Wrap-up: how it helps my day"
-        ],
-        "hintDefault": "ja"
-      },
-      "modelTalk": {
-        "text": "I love my mornings. I always drink coffee first. I make it right after I wake up. I go to the kitchen. It's quiet there. I like it hot, not cold. I use a small cup. I add a little milk. Sometimes I put in some sugar. I don't like it too sweet. I hold the warm cup in my hands. It feels nice. I drink it slowly by the window. I look outside for a while. After the coffee, I feel awake. I'm ready for my day now. My head feels clear and happy. It's a small thing, but I love it. That's my morning drink."
+        "text": "I love my morning drink. I drink coffee every day. I make it hot and strong. First, I get up and I go to the kitchen. My kitchen is small, but it's warm. I boil some water in a pot. Then I put coffee in my cup. I add a little milk too. I don't like too much sugar. Sometimes I drink tea, but not often. I sit by the window and I look outside. The coffee smells really nice. I drink it slowly. After that, I feel happy and awake. I'm ready to start my day now. It's my favorite time."
       }
     }
   }

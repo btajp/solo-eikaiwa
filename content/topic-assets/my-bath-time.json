@@ -1,7 +1,7 @@
 {
   "topicId": "my-bath-time",
   "sourceHash": "78089a3e59f21481a98f38a1fcc5cff0b9abb76298e751722e90e7523aff76f3",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "1": {
       "prepPack": {
@@ -11,88 +11,88 @@
             "ja": "私はたいてい夜にお風呂に入ります。"
           },
           {
-            "en": "I take a bath after I finish work.",
-            "ja": "仕事を終えたあとにお風呂に入ります。"
+            "en": "I take a bath after a long day of work.",
+            "ja": "長い仕事の一日のあとにお風呂に入ります。"
           },
           {
-            "en": "I use soap and shampoo every day.",
-            "ja": "毎日、石けんとシャンプーを使います。"
+            "en": "I use soap and shampoo in the bath.",
+            "ja": "お風呂で石けんとシャンプーを使います。"
           },
           {
-            "en": "I wash my hair and my body.",
-            "ja": "髪と体を洗います。"
+            "en": "I wash my hair and my body well.",
+            "ja": "髪と体をしっかり洗います。"
           },
           {
             "en": "The warm water makes me feel relaxed.",
-            "ja": "温かいお湯が私をリラックスさせてくれます。"
+            "ja": "温かいお湯は私をリラックスさせてくれます。"
           },
           {
-            "en": "I stay in the bath for twenty minutes.",
-            "ja": "私は20分ほどお風呂に入っています。"
+            "en": "The warm water helps me forget my stress.",
+            "ja": "温かいお湯はストレスを忘れる助けになります。"
           },
           {
-            "en": "After the bath, I drink some cold water.",
-            "ja": "お風呂のあとは、冷たい水を飲みます。"
+            "en": "After my bath, I drink a glass of water.",
+            "ja": "お風呂のあと、コップ一杯の水を飲みます。"
           },
           {
-            "en": "So a bath helps me sleep well.",
-            "ja": "だからお風呂はよく眠るのに役立ちます。"
+            "en": "After my bath, I sleep very well.",
+            "ja": "お風呂のあと、私はとてもよく眠れます。"
           }
         ],
         "outline": [
           "Opening: when I take a bath",
-          "Point 1: what I use, soap and shampoo",
+          "Point 1: what I use to wash",
           "Point 2: how warm and relaxed I feel",
           "Wrap-up: what I do after the bath"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I love my bath time. I take a bath at night. It's the end of my day. First, I turn on the warm water. I get in slowly. Then I wash my body with soap. I also use shampoo for my hair. The water feels so nice and warm. My body gets warm too. I close my eyes and relax. I don't think about work now. I just feel calm and happy. After my bath, I dry my body. I put on my soft clothes. Then I drink a big glass of water. I'm thirsty after the warm bath. It's a good way to end my day."
+        "text": "It's night now. I'm ready for my bath. I take it after dinner. Sometimes I take a shower in the morning too. I really like warm water. First, I wash my hair. I use shampoo for that. Then I wash my body with soap. It smells nice. The warm water feels so good. My body's warm now. I'm calm and relaxed. That's a nice feeling. I stay in for ten minutes. After my bath, I'm thirsty. So I drink some water. Then I put on clean clothes. I don't stay up late. I sleep well. It's my favorite time."
       }
     },
     "2": {
       "prepPack": {
         "chunks": [
           {
-            "en": "I usually take a bath at night before bed.",
-            "ja": "私はたいてい夜、寝る前にお風呂に入ります。"
+            "en": "Today I want to talk about my bath time.",
+            "ja": "今日は私のお風呂の時間について話したいです。"
           },
           {
-            "en": "I use soap and shampoo to wash my body.",
-            "ja": "私は体を洗うのに石けんとシャンプーを使います。"
+            "en": "I usually take a bath at night after work.",
+            "ja": "私はたいてい仕事のあと夜にお風呂に入ります。"
           },
           {
-            "en": "I like to sit in warm water for ten minutes.",
-            "ja": "私は温かいお湯に10分ほど浸かるのが好きです。"
+            "en": "I use soap and shampoo to get clean.",
+            "ja": "私は体をきれいにするために石けんとシャンプーを使います。"
           },
           {
-            "en": "The warm water helps me feel calm and relaxed.",
-            "ja": "温かいお湯は私を穏やかでリラックスした気分にしてくれます。"
+            "en": "The warm water helps me feel very relaxed.",
+            "ja": "温かいお湯は私をとてもリラックスさせてくれます。"
           },
           {
-            "en": "After my bath, I always drink a glass of water.",
-            "ja": "お風呂のあと、私はいつもコップ一杯の水を飲みます。"
+            "en": "I like to sit in the hot water quietly.",
+            "ja": "私は熱いお湯の中で静かに座るのが好きです。"
           },
           {
-            "en": "Then I dry my hair and put on soft clothes.",
-            "ja": "それから私は髪を乾かして、柔らかい服を着ます。"
+            "en": "After my bath I drink a glass of water.",
+            "ja": "お風呂のあと、私はコップ一杯の水を飲みます。"
           },
           {
-            "en": "My bath time is the best part of my day.",
-            "ja": "お風呂の時間は私の一日で一番良い時間です。"
+            "en": "So my bath time is the best part of my day.",
+            "ja": "だからお風呂の時間は私の一日で一番いい時間です。"
           }
         ],
         "outline": [
-          "Opening: when I take my bath",
-          "Point 1: what I use to wash",
-          "Point 2: feeling warm and relaxed",
-          "Wrap-up: what I do after the bath"
+          "Opening: introduce my bath time",
+          "Point 1: when I bathe and what I use",
+          "Point 2: how warm water relaxes me",
+          "Wrap-up: what I do after and why I love it"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I love my bath time. I take a bath at night. It's the best time for me. First, I wash my hair. I use shampoo and soap. The water is warm and nice. I sit in the bath for ten minutes. My body feels warm and soft. I close my eyes and relax. I don't think about work. It's so quiet and calm. After my bath, I feel clean and happy. I dry my hair with a towel. Then I drink a big glass of water. I'm thirsty after a warm bath. Then I go to bed. I sleep very well."
+        "text": "I love my bath time. I take a shower every night. I do this after dinner. First, I turn on the warm water. I use soap for my body. Then I wash my hair with shampoo. It smells nice and fresh. The warm water feels so good. I'm tired after a long day. But the bath helps me relax. My body gets warm and soft. I feel happy and calm. After my bath, I dry my hair. Then I drink a glass of water. I'm thirsty, so it's really nice. I put on my soft pajamas. Then I'm ready for bed. I sleep well after a bath."
       }
     }
   }
