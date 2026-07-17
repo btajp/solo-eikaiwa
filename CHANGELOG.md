@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [0.31.1] - 2026-07-17
+
+### Fixed
+
+- デスクトップ: 自動更新後も既定ポート3111に残って旧バージョンの応答を返し続けていた古い同梱サーバを、次回起動時に自動で回収するようにした（自分が過去に起動したものだけを対象とし、開発サーバや別データのサーバには影響しない）
+
 ## [0.31.0] - 2026-07-17
 
 ### Added
@@ -611,7 +617,8 @@
 - 学習データ（録音・トランスクリプト・進捗・DB・キャッシュ）は `data/` のローカルファイルで、リポジトリにコミットされない
 - 音声データはマシン外に出ない（外部送信はテキストのみ: Claude への発話テキスト、OpenAI TTS への応答テキスト）
 
-[Unreleased]: https://github.com/btajp/solo-eikaiwa/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/btajp/solo-eikaiwa/compare/v0.31.1...HEAD
+[0.31.1]: https://github.com/btajp/solo-eikaiwa/compare/v0.31.0...v0.31.1
 [0.31.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.30.1...v0.31.0
 [0.30.1]: https://github.com/btajp/solo-eikaiwa/compare/v0.30.0...v0.30.1
 [0.30.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.29.3...v0.30.0
