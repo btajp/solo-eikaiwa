@@ -1,70 +1,70 @@
 {
   "topicId": "trash-sorting-routine",
   "sourceHash": "27ada543d3240bd03b709d9ab337941f81cb1dec3861e3ac9415c2ed00c1dd00",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "5": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about how I take out the trash on collection day.",
-            "ja": "今日は、収集日にどうやってゴミを出しているかについて話したいと思います。"
+            "en": "At home, I usually sort the trash into burnable, plastic, and cans before collection day.",
+            "ja": "家では収集日の前に、たいてい燃えるゴミ、プラスチック、缶に分けています。"
           },
           {
-            "en": "At home, I sort my trash into burnable, plastic, and cans and bottles.",
-            "ja": "家では、ゴミを燃えるゴミ、プラスチック、缶とビンに分けています。"
+            "en": "The schedule I follow puts burnable trash on Monday and Thursday, and recyclables on Wednesday.",
+            "ja": "僕が守っているスケジュールでは、燃えるゴミが月曜と木曜、資源ゴミが水曜です。"
           },
           {
-            "en": "The schedule I follow is burnable on Monday and Thursday, and recyclables on Wednesday.",
-            "ja": "私が守っているスケジュールは、燃えるゴミが月曜と木曜、資源ゴミが水曜です。"
+            "en": "One time I totally forgot the day and had to chase the truck down the street.",
+            "ja": "一度は曜日をすっかり忘れて、通りを走ってトラックを追いかけるはめになりました。"
           },
           {
-            "en": "One thing that really helps me is a reminder alarm on my phone every night.",
-            "ja": "私をすごく助けてくれるのは、毎晩スマホに設定したリマインダーのアラームです。"
+            "en": "The one thing that makes it easier for me is a reminder app that buzzes each night.",
+            "ja": "僕にとって楽にしてくれる工夫の一つは、毎晩鳴るリマインダーアプリです。"
           }
         ],
         "outline": [
-          "Opening: introduce trash on collection day",
-          "Point 1: how I sort trash at home",
-          "Point 2: the weekly day schedule I follow",
-          "Wrap-up: a phone alarm makes it easier"
+          "Opening: how I sort trash at home",
+          "Point 1: the weekly burnable and recyclable schedule",
+          "Point 2: the time I nearly missed the truck",
+          "Wrap-up: a reminder app that makes it easier"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "Okay, let me tell you how I deal with the trash at home. First, I split things into groups. Food scraps and paper go in the burnable bag. Then bottles, cans, and plastic go in the recycling. I rinse them quickly so they don't smell. In my area, burnable trash goes out on Monday and Thursday. Recyclable stuff goes out every other Wednesday. So I try to remember the days. One time I totally forgot. I heard the truck outside, and I ran down in my slippers! I just made it. That was close. The annoying part for me is the plastic. I have to wash it and dry it, and that takes time. But I've got a little trick now. I put a note on my fridge. It's small, but it really helps me. So that's my trash routine. Not exciting, but it works!"
+        "text": "So, let me walk you through how I deal with rubbish at home. I've got separate bins for burnable stuff, plastics, and cans. Honestly, it's not that hard once you get into the habit. In my area, burnable trash goes out on Tuesdays and Fridays, and recyclables only on Wednesdays. I usually take the bags down before eight, or I'll miss the truck completely. One morning I totally forgot the day. I heard the truck rumbling outside and ran down in my slippers! I made it, but only just. What I love is that our building's got a covered spot, so bags don't blow around. The annoying part? Rinsing out greasy containers before I recycle them. It's a pain, but if I skip it, they get rejected. So I'd rather do it right the first time than deal with the hassle later, you know?"
       }
     },
     "6": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about how I take out the trash on collection day.",
-            "ja": "今日は、収集日にどうやってゴミを出すかについて話したいと思います。"
+            "en": "So today I want to walk you through how I deal with taking out the trash on collection day.",
+            "ja": "では今日は、収集日にゴミ出しをどうこなしているかを順を追ってお話ししたいと思います。"
           },
           {
-            "en": "At home I sort the trash into burnable, plastic, and cans and bottles.",
-            "ja": "家では、ゴミを燃えるゴミ、プラスチック、缶やびんに分けています。"
+            "en": "At home, I sort everything into burnable stuff, plastics, and cans and bottles in separate bins.",
+            "ja": "家では、燃えるゴミ、プラスチック、缶とビンを別々の箱に分けて全部仕分けしています。"
           },
           {
-            "en": "The schedule I follow is burnable on Monday and Thursday, and recyclables on Wednesday.",
-            "ja": "私が従っているスケジュールは、月曜と木曜が燃えるゴミ、水曜が資源ゴミです。"
+            "en": "To be honest, one time I totally forgot the day and had to chase the truck down the street.",
+            "ja": "正直に言うと、一度すっかり曜日を忘れて、通りでトラックを追いかける羽目になったんです。"
           },
           {
-            "en": "One thing that helps me is a phone alarm the night before, so I don't forget.",
-            "ja": "私を助けてくれるものの一つは前の晩のスマホのアラームで、そのおかげで忘れずにすみます。"
+            "en": "What really makes it easier for me is a calendar app that pings me the night before.",
+            "ja": "私にとって本当に楽になるのは、前の晩に通知してくれるカレンダーアプリなんです。"
           }
         ],
         "outline": [
-          "Opening: intro to trash on collection day",
-          "Point 1: how I sort trash at home",
-          "Point 2: my weekly pickup schedule",
-          "Wrap-up: alarm trick that makes it easier"
+          "Opening: introduce trash-out routine on collection day",
+          "Point 1: how I sort trash and the weekly schedule",
+          "Point 2: the time I nearly missed the truck",
+          "Wrap-up: reminder app makes it much easier"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "I take out the trash a lot at home. First, I sort it. I keep the burnable trash in one bag. That's food waste and paper. Then I put plastic bottles and cans in another box. I wash them a little first. So it's clean and easy.\n\nIn my town, burnable trash goes out on Monday and Thursday. The recyclable day is Wednesday. I try to remember, but it's hard.\n\nOne time, I totally forgot the day. I heard the truck outside. I ran down the stairs with my bag. I just made it. My heart was beating fast!\n\nThe annoying part is the early morning. I have to put it out before eight. I'm not a morning person, so that's tough. But I set an alarm on my phone now. That small thing really helps me."
+        "text": "Okay, so let me walk you through how I deal with the rubbish at home. First off, I've got separate bins under the sink. One's for burnable stuff, and the other's for recyclables like bottles and cans. To be honest, sorting it all can be a bit of a faff. Where I live, burnable trash goes out on Tuesdays and Fridays, and recyclables get picked up on Wednesdays. The truck comes ridiculously early, like half seven. Actually, there was this one time I completely blanked on the day. I heard the truck rumbling down the street, so I sprinted out in my pyjamas and just about made it. Talk about cutting it fine! That said, the thing that really winds me up is rinsing out greasy containers before recycling them. It's such a hassle. What makes life easier, though, is a little magnet on my fridge with the schedule. Honestly, I'd forget everything without it."
       }
     }
   }

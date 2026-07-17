@@ -1,5 +1,7 @@
 # セッション再開（強化セッションの中断復帰）Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 強化セッション（60分/30分の通しメニュー）を当日中に中断（リロード・誤操作・メニュー離脱）しても、スタート画面に「続きから（ブロック n/m）」の情報的な導線を出し、押せば途中のブロックから再開できるようにする（押さなければ従来どおり最初から）。

@@ -1,70 +1,70 @@
 {
   "topicId": "writing-commit-messages",
   "sourceHash": "1a8cc299d725fd549e7dbafed3772ea054ddb6738eaaa63e3ed9714381089478",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "5": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about how I write commit messages in my daily work.",
-            "ja": "今日は、毎日の仕事でコミットメッセージをどう書いているかについて話したいです。"
+            "en": "I usually commit at a good stopping point, so my changes stay small and easy to follow.",
+            "ja": "私はたいてい区切りのいいところでコミットするので、変更は小さくて追いやすいままです。"
           },
           {
-            "en": "I usually commit at small, clean points, like right after I finish one function.",
-            "ja": "私はたいてい区切りのいい小さなところ、たとえば一つの関数を書き終えた直後にコミットします。"
+            "en": "The words I put in the message are usually \"fix\", \"add\", or \"refactor\" at the start.",
+            "ja": "メッセージの書き出しには、たいてい「fix」「add」「refactor」といった言葉を使います。"
           },
           {
-            "en": "The words I put in the message are usually simple ones like 'fix', 'add', or 'update'.",
-            "ja": "メッセージに入れる言葉は、たいてい「fix」「add」「update」のような簡単なものです。"
+            "en": "My message gets too vague when I write something like \"fixed various things\" late at night.",
+            "ja": "私のメッセージは、夜遅くに「いろいろ修正」みたいに書いてしまうと、雑になりすぎます。"
           },
           {
-            "en": "When my message gets too vague, like 'various changes', I use amend to rewrite it clearly.",
-            "ja": "「いろいろ修正」のようにメッセージが雑になりすぎたときは、amend を使ってはっきり書き直します。"
+            "en": "When I spot a typo, I just run git commit amend to fix the message quickly.",
+            "ja": "タイプミスに気づいたら、git commit --amend を実行してメッセージをさっと直します。"
           }
         ],
         "outline": [
-          "Opening: how I write commit messages",
-          "Point 1: when I commit and the words I use",
-          "Point 2: fixing vague messages with amend",
-          "Wrap-up: keeping messages small and clear"
+          "Opening: when I usually commit",
+          "Point 1: the starter words I reuse",
+          "Point 2: when messages get vague",
+          "Wrap-up: fixing bad messages with amend"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "I write commit messages a lot, so let me tell you how I do it. I like to commit small and often. When I finish one clear thing, I stop and commit right away. I don't wait until the end of the day. For the words, I keep it simple. I start with \"fix\" when I repair a bug, or \"add\" when I make something new. Sometimes \"update\" too. But when I'm tired, my message gets lazy. I write things like \"fix stuff\" or \"various changes.\" That's bad, because later I can't remember what I did. When I catch a typo or a weak message, I just fix it. If it's the last commit, I use \"amend\" and write it again. It feels much cleaner after that. Good messages really help me later. So I try hard to keep them clear."
+        "text": "Honestly, I try to commit in small chunks, whenever I hit a good stopping point. If I wait till the end, I've usually forgotten what I even changed. So I'd rather save little bits as I go. For the wording, I mostly start with \"fix\" when I've squashed a bug, or \"add\" when there's something new. Sometimes I'll throw in \"update\" or \"refactor\" too. But when I'm tired, my messages get lazy, like \"fixed some stuff.\" That's the worst, because two weeks later I can't tell what \"stuff\" means. When I catch a typo right after, I just amend it quickly. I've redone messages more times than I'd like to admit. If I've already pushed, though, I usually leave it alone. It's not worth the hassle. So my rule of thumb is simple: commit often, and write it like future-me is watching. That saves me every time."
       }
     },
     "6": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about how I write my Git commit messages.",
-            "ja": "今日は、私がGitのコミットメッセージをどう書いているかについて話したいです。"
+            "en": "To be honest, I usually commit in small chunks whenever I hit a natural stopping point.",
+            "ja": "正直なところ、区切りのいいところに来るたびに、小さくコミットすることが多いです。"
           },
           {
-            "en": "I usually commit in small pieces whenever I finish one clear step.",
-            "ja": "私はたいてい、区切りのいい一つの作業が終わるたびに小さくコミットします。"
+            "en": "The words I put in the message are usually things like \"fix\", \"add\", or \"refactor\".",
+            "ja": "メッセージの書き出しに使う言葉は、たいてい「fix」「add」「refactor」といったものです。"
           },
           {
-            "en": "The words I put in the message are simple ones like \"fix\" or \"add\".",
-            "ja": "メッセージに入れる言葉は、「fix」や「add」みたいなシンプルなものです。"
+            "en": "My message gets too vague when I'm tired and just type something like \"various fixes\".",
+            "ja": "疲れているときに「いろいろ修正」みたいに書いてしまうと、メッセージが雑になりすぎます。"
           },
           {
-            "en": "When I notice a typo, I use amend to fix the bad message right away.",
-            "ja": "タイプミスに気づいたら、amendを使ってすぐに雑なメッセージを直します。"
+            "en": "When I spot a typo, I usually fix a bad message by running git commit amend.",
+            "ja": "タイポに気づいたときは、たいてい git commit --amend を使って雑なメッセージを直します。"
           }
         ],
         "outline": [
-          "Opening: how I write commit messages",
-          "When and how small I commit",
-          "The starter words I always use",
-          "Wrap-up: fixing vague or bad messages"
+          "Opening: when I usually commit",
+          "Point 1: the starter words I rely on",
+          "Point 2: when messages turn vague",
+          "Wrap-up: how I fix a bad message"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "I don't wait until the end of my work to commit. I like to stop at good points and make small commits. That way, each change stays clear. It's easier to go back if something breaks.\n\nFor the words, I keep them simple. I usually start with \"fix\" when I repair a bug. I write \"add\" when I put in something new. Sometimes I use \"update\" too.\n\nBut I'm not always careful. When I'm tired, my message gets vague. I just write \"fix stuff\" or \"some changes.\" Later, I look back and I can't remember what I did. That's a bad habit.\n\nSo how do I fix a bad message? Sometimes I spot a typo right away. Then I use \"amend\" to redo the last one. It's quick, and it keeps my history clean and honest."
+        "text": "To be honest, I usually commit in small chunks whenever I hit a natural stopping point. I'd rather do that than dump everything at the end of the day. That way, if something breaks, I can roll back without losing much.\n\nAs for the words, I nearly always kick off with \"fix\", \"add\", or \"update\". They're short and they get straight to the point, you know?\n\nThat said, sometimes I get lazy and write something vague like \"various changes\". When that happens, it's usually because I've bundled too much into one commit. Actually, that's a red flag telling me I should've split things up.\n\nAnd typos? Oh, they sneak in all the time. If I catch one before pushing, I'll just run git commit amend and rewrite it. It's a lifesaver, really. But once it's pushed, I tend to leave it — rewriting shared history isn't worth the hassle."
       }
     }
   }

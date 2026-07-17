@@ -62,6 +62,14 @@ const SAMPLE_PREP_PACK: PrepPack = {
   chunks: [{ en: "Hi there.", ja: "やあ。" }], outline: ["opening"], hintDefault: "ja",
 };
 
+describe("topic-assets / TOPIC_ASSET_PROMPT_VERSION", () => {
+  // #195: stage4-6 の生成プロンプトへ難度勾配（B1-B2/B2/B2-C1）を入れたため、
+  // 旧仕様(v1)で生成された同梱JSON・DBキャッシュを全件stale化する必要がある
+  test("生成仕様の変更(#195 難度勾配)に伴い v2 へbump済み", () => {
+    expect(TOPIC_ASSET_PROMPT_VERSION).toBe("v2");
+  });
+});
+
 describe("topic-assets / computeSourceHash", () => {
   test("同じ内容は同じハッシュ、内容が変われば別ハッシュ（sha256 hex 64桁）", () => {
     const h1 = computeSourceHash("hello");
@@ -550,6 +558,17 @@ describe("topic-assets / genTopicAssetSlot（1スロットのprepPack+model talk
     const result = await genTopicAssetSlot({ runner, topic: SAMPLE_TOPIC, stage: 3 });
     expect(result.modelTalk?.text).toBe(PASSING_TALK);
     expect(state.talkCalls).toBe(2);
+  });
+
+  // #195再生成の運用で「検証NG」だけでは原因（短縮形率か・文長か・書き言葉語彙か）が特定できず
+  // 盲目的な再実行しかできなかったため、NGログへ機械検証の理由を含める
+  test("modelTalkの検証NGログはFAIL理由(どの指標が閾値を割ったか)を含む", async () => {
+    const { runner } = makeSlotRunner([PASSING_PREP_JSON], [FAILING_TALK, PASSING_TALK]);
+    const logs: string[] = [];
+    await genTopicAssetSlot({ runner, topic: SAMPLE_TOPIC, stage: 3, log: (s) => logs.push(s) });
+    const ng = logs.find((l) => l.includes("modelTalk") && l.includes("検証NG"));
+    expect(ng).toBeDefined();
+    expect(ng!).toContain("短縮形率");
   });
 
   test("3回とも検証NGならエラーをthrowする（3ラウンド規律）", async () => {

@@ -1,5 +1,7 @@
 # LLM 設定 v2 — 接続定義とロール割当の分離 + プリセット3種 Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 設定画面の「言語モデル」を「接続（ローカル LLM / Codex の定義）」と「用途ごとのモデル割当（Claude / ローカル / Codex を直接選ぶ）」に再構成し、ロール割当を書くだけのプリセット3種（オールローカル / バランス〔推奨〕/ 最高品質）を最上部に追加する。

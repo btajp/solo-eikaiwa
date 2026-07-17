@@ -1,82 +1,82 @@
 {
   "topicId": "washing-dishes-routine",
   "sourceHash": "e8fbc0e0686b6788c661177699413990e8036a1d5b52a06b71570324dcb80237",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "3": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about how I wash the dishes at home.",
-            "ja": "今日は家での皿洗いの仕方について話したいと思います。"
+            "en": "Today I want to talk about washing the dishes at home.",
+            "ja": "今日は家での皿洗いについて話したいと思います。"
           },
           {
             "en": "I usually wash the dishes right after dinner, so they don't pile up.",
-            "ja": "たいてい夕食のすぐ後に洗うので、皿がたまらないようにしています。"
+            "ja": "私はたいてい夕食のすぐ後に皿を洗うので、ためこまずに済みます。"
           },
           {
-            "en": "I use a soft sponge, some soap, and warm water to clean them.",
-            "ja": "柔らかいスポンジと洗剤とお湯を使って皿をきれいにします。"
+            "en": "I use a sponge, some soap, and hot water to clean everything.",
+            "ja": "スポンジと洗剤とお湯を使って、全部きれいに洗います。"
           },
           {
-            "en": "The dishes I hate most are the oily pans, because the fat is hard to remove.",
-            "ja": "一番洗いたくないのは油のついたフライパンです。油が落ちにくいからです。"
+            "en": "The dishes I hate washing most are the oily pans from cooking.",
+            "ja": "一番洗いたくないのは、料理で使った油っぽいフライパンです。"
           },
           {
-            "en": "I don't have a dishwasher, so I always wash everything by hand.",
-            "ja": "食洗機を持っていないので、いつも全部手で洗っています。"
+            "en": "I don't have a dishwasher, so I wash everything by hand.",
+            "ja": "食洗機がないので、全部手で洗っています。"
           },
           {
-            "en": "So washing the dishes is a small job, but it keeps my kitchen clean.",
-            "ja": "だから皿洗いは小さな仕事ですが、キッチンをきれいに保ってくれます。"
+            "en": "In the end, washing the dishes is boring, but I feel good after.",
+            "ja": "結局、皿洗いは退屈ですが、終わった後は気分がいいです。"
           }
         ],
         "outline": [
-          "Opening: how I wash the dishes at home",
-          "Point 1: when and how I do it",
-          "Point 2: worst dishes and hand washing",
-          "Wrap-up: small job, clean kitchen"
+          "Opening: talk about washing the dishes",
+          "Point 1: when and how I wash them",
+          "Point 2: hardest dishes and by hand",
+          "Wrap-up: boring but feels good"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I usually wash the dishes right after I eat. I don't like to leave them in the sink. When dirty plates sit too long, the food gets hard. So I clean them fast. My way is simple. I use a soft sponge and some soap. I turn on the hot water and start washing. Hot water helps a lot with grease. I wash the glasses first, then the plates. The dishes I hate most are the oily ones. Frying pans are the worst for me. The oil sticks and it's hard to clean. Sometimes I need to scrub a pan for a long time. I don't have a dishwasher at home. So I wash everything by hand. It takes a few minutes, but that's okay. After I finish, I feel good. A clean kitchen makes me happy."
+        "text": "I usually wash the dishes right after I eat. I don't like to leave them for later. When there are many dishes, the kitchen feels messy. So I clean them fast. I use a soft sponge, some soap, and warm water. First, I put a little soap on the sponge. Then I rub each plate and cup well. Warm water helps a lot, and it takes the oil away. The dishes I hate most are the oily ones. Frying pans are the worst for me. The oil sticks, and it's really hard to clean. Sometimes I let the pan soak for a while. I don't have a dishwasher at home, so I wash everything by hand. It's not my favorite job, but it's quick. After that, I dry my hands and feel happy. My kitchen looks clean again."
       }
     },
     "4": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about how I wash the dishes at home.",
-            "ja": "今日は家での皿の洗い方についてお話ししたいです。"
+            "en": "I usually wash the dishes right after dinner, so they don't pile up.",
+            "ja": "私はたいてい夕食のすぐ後にお皿を洗うので、たまってしまわないようにしています。"
           },
           {
-            "en": "I usually wash the dishes right after dinner, so they don't pile up in the sink.",
-            "ja": "私はたいてい夕食の後すぐに皿を洗うので、シンクに溜まりません。"
+            "en": "The way I do it is simple: a sponge, some soap, and hot water.",
+            "ja": "私のやり方はシンプルで、スポンジと洗剤とお湯を使うだけです。"
           },
           {
-            "en": "The way I do it is simple: I use a sponge, some soap, and hot water.",
-            "ja": "やり方はシンプルで、スポンジと洗剤とお湯を使います。"
+            "en": "The dishes I hate washing most are greasy frying pans after cooking meat.",
+            "ja": "一番洗いたくない食器は、肉を焼いた後の油っぽいフライパンです。"
           },
           {
-            "en": "The dishes I hate washing most are greasy frying pans, because the oil is really hard to remove.",
-            "ja": "一番洗いたくない食器は油っぽいフライパンで、油がなかなか落ちないからです。"
+            "en": "I wash everything by hand because my small kitchen doesn't have a dishwasher.",
+            "ja": "うちの狭いキッチンには食洗機がないので、私はすべて手洗いしています。"
           },
           {
-            "en": "To wrap up, I wash by hand because I don't have a dishwasher yet.",
-            "ja": "まとめると、まだ食洗機がないので私は手洗いしています。"
+            "en": "In the end, washing up is boring, but a clean sink always feels good.",
+            "ja": "結局、皿洗いは退屈ですが、シンクがきれいだといつも気持ちがいいです。"
           }
         ],
         "outline": [
-          "Opening: how I wash the dishes at home",
-          "Point 1: when I wash and my simple method",
-          "Point 2: greasy pans are the worst",
-          "Wrap-up: I wash by hand, no dishwasher"
+          "Opening: when I wash the dishes",
+          "Point 1: how I do it with sponge and hot water",
+          "Point 2: dishes I hate and hand-washing",
+          "Wrap-up: boring but a clean sink feels good"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "I don't wash the dishes right after I eat. I'm too tired then. So I leave them in the sink and do them later. Usually I wash everything at night, all at once. First, I turn on the hot water. Then I put some soap on my sponge. I scrub each plate slowly and rinse it well. Hot water makes the grease come off faster. The dishes I hate most are the oily ones. Frying pans are the worst for me. The oil sticks and it won't go away easily. Sometimes I let the pan soak first. That helps a little. I don't have a dishwasher at home. So I wash everything by hand. It takes time, but I kind of like it. It's quiet, and I can just think. That's my little routine every night."
+        "text": "I usually don't wash the dishes right after I eat. I'm too full and lazy, so I leave them in the sink. But if I wait too long, the food dries up and it's harder to clean. So most nights I wash them before bed. I use a soft sponge, some dish soap, and hot water, because hot water cuts through grease much better. The dishes I hate washing most are the greasy ones, like the frying pan after I've cooked bacon. The oil sticks everywhere, and it takes ages to get it off. I don't have a dishwasher, so I wash everything by hand. Honestly, I don't really mind it. It's kind of relaxing when I put on some music. When I'm done, I leave everything to dry, and my kitchen looks clean again."
       }
     }
   }

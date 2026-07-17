@@ -1,13 +1,16 @@
 ---
 id: ai-data-governance
 kind: topic
-title: "Data governance in the AI era"
-title_ja: "AI時代のデータガバナンス"
+title: "What I paste into AI tools at work — and what I never do"
+title_ja: "仕事でAIツールに貼るもの・絶対に貼らないもの"
 domain: it
 level: [4, 6]
+experience_anchor: "ほぼ全員がChatGPTなどのAIツールに何かを貼り付けた経験があり、その時に何を貼って何をためらったかは自分の記憶から話せるため。"
+memory_cue: "エラーログやコードをコピーしてAIに貼り付け、送信ボタンを押す直前に社名や個人情報が混じっていないか目で確認した場面。"
+common_objects_or_actions: "copying an error log, pasting code into ChatGPT, deleting a customer name before sending, checking a company chat rule"
 ---
 Talk about:
-- Which data is safe to give to AI tools, and which is not — AIツールに渡してよいデータ・だめなデータ
-- How you decide: classification, contracts, or gut feeling? — 判断基準は？分類・契約・それとも勘？
-- A policy or guideline you wrote or want to write — 書いた（書きたい）ポリシーやガイドライン
-- What most companies get wrong about this — 多くの会社が間違えている点
+- The kind of stuff you paste into ChatGPT or Copilot every day — 毎日ChatGPTやCopilotに貼っている作業内容
+- One time you stopped and thought 'wait, I shouldn't paste this' — 「これは貼っちゃまずい」と手が止まった瞬間
+- Your own personal rule for customer names, code, or passwords — 顧客名・コード・パスワードについての自分ルール
+- Whether your team ever talked about it, or you just guess — チームで話し合ったか、それとも自己判断か

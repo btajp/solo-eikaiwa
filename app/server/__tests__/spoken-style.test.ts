@@ -66,12 +66,27 @@ describe("spokenStyleFor", () => {
     expect(beginner).toContain("one in every two");
   });
 
-  test("intermediate/advanced の文長ガイドは変更しない（回帰ロック・beginner限定の強化）", () => {
+  // #195再生成で intermediate 帯も短縮形率チェック(閾値0.2)に系統的にFAILする実例を観測した
+  // （reporting-a-bug/stage3: 実測7回連続 0.06〜0.13。過去形の体験談トピックで顕著）。beginner で
+  // 実績のある mandatory 表現+定量ノルマを intermediate/advanced にも足す（機械ゲート0.2と整合）。
+  test("intermediate/advanced も短縮形の mandatory 表現と定量ノルマ(3文に1回以上)を含む", () => {
+    for (const band of ["intermediate", "advanced"] as const) {
+      expect(spokenStyleFor(band)).toContain("mandatory");
+      expect(spokenStyleFor(band)).toContain("one of every three sentences");
+      // 過去形narrationでも短縮形が出るよう具体例を明示（実測FAILは過去形体験談で発生した）
+      expect(spokenStyleFor(band)).toContain("past-tense narration");
+    }
+  });
+
+  test("intermediate/advanced の文長ガイドは現行文字列と完全一致する（回帰ロック）", () => {
+    const quota =
+      "Contractions (I'm, it's, don't, didn't, that's) are mandatory — writing \"I am\" / \"do not\" / \"it is\" throughout turns this into a textbook, not natural speech. " +
+      "Use a contraction in at least one of every three sentences (aim for one in every two), even in past-tense narration (didn't, wasn't, couldn't, I'd).";
     expect(spokenStyleFor("intermediate")).toBe(
-      `${SPOKEN_STYLE_BLOCK} Keep sentences short: mostly 9-13 words per sentence.`,
+      `${SPOKEN_STYLE_BLOCK} Keep sentences short: mostly 9-13 words per sentence. ${quota}`,
     );
     expect(spokenStyleFor("advanced")).toBe(
-      `${SPOKEN_STYLE_BLOCK} Even at this level, keep sentences short for natural speech: mostly 10-15 words — split a long idea into two short sentences instead of chaining clauses with commas.`,
+      `${SPOKEN_STYLE_BLOCK} Even at this level, keep sentences short for natural speech: mostly 10-15 words — split a long idea into two short sentences instead of chaining clauses with commas. ${quota}`,
     );
   });
 });

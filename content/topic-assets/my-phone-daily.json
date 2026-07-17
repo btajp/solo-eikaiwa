@@ -1,98 +1,98 @@
 {
   "topicId": "my-phone-daily",
   "sourceHash": "c1d47b83b594f5e6bb147ebcef776121d55ac6cf303bb35b2f73a27ebec838c2",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "1": {
       "prepPack": {
         "chunks": [
           {
-            "en": "The first thing I do is check my phone.",
-            "ja": "朝、私が最初にすることはスマホを確認することです。"
-          },
-          {
-            "en": "In the morning, I read the news and messages.",
-            "ja": "朝は、ニュースとメッセージを読みます。"
-          },
-          {
-            "en": "The app I open the most is a chat app.",
-            "ja": "私がいちばんよく開くアプリはチャットアプリです。"
-          },
-          {
-            "en": "I also use maps when I go to work.",
-            "ja": "仕事に行くときは地図アプリも使います。"
-          },
-          {
-            "en": "I use my phone on the train every day.",
-            "ja": "私は毎日、電車の中でスマホを使います。"
-          },
-          {
-            "en": "At home, I watch short videos before bed.",
-            "ja": "家では、寝る前に短い動画を見ます。"
-          },
-          {
-            "en": "One thing I want to change is my screen time.",
-            "ja": "変えたいことのひとつは、画面を見る時間です。"
-          },
-          {
-            "en": "So I want to use my phone less at night.",
-            "ja": "だから、夜はスマホをもっと使わないようにしたいです。"
-          }
-        ],
-        "outline": [
-          "Opening: my phone is part of my day",
-          "Point 1: morning routine and top apps",
-          "Point 2: when and where I use it",
-          "Wrap-up: I want to cut my screen time"
-        ],
-        "hintDefault": "ja"
-      },
-      "modelTalk": {
-        "text": "I'll tell you about my phone. Every morning, I wake up and grab my phone. First, I turn off the alarm. Then I check the time and the weather. I open my chat app the most. I talk with my friends and family there. I also watch short videos a lot. I use my phone on the train and at home. Sometimes I use it while I eat lunch. That's not a good habit, I think. I want to change one thing. I want to look at my phone less at night. It's hard, but I'll try. My eyes need some rest. That's my plan."
-      }
-    },
-    "2": {
-      "prepPack": {
-        "chunks": [
-          {
-            "en": "Today I want to talk about my phone.",
-            "ja": "今日は自分のスマホについて話したいです。"
+            "en": "I use my phone every single day.",
+            "ja": "私は毎日スマホを使います。"
           },
           {
             "en": "The first thing I do is check the time.",
-            "ja": "まず最初にするのは時間を確認することです。"
+            "ja": "最初にすることは時間を確認することです。"
           },
           {
-            "en": "The app I open the most is my email.",
-            "ja": "いちばんよく開くアプリはメールです。"
+            "en": "After that, I read my morning messages.",
+            "ja": "その後、朝のメッセージを読みます。"
           },
           {
-            "en": "I use my phone on the train to work.",
-            "ja": "通勤の電車の中でスマホを使います。"
+            "en": "The app I open the most is a chat app.",
+            "ja": "いちばんよく開くアプリはチャットアプリです。"
           },
           {
-            "en": "I also use it a lot at home at night.",
-            "ja": "夜、家でもよくスマホを使います。"
+            "en": "I also use maps when I go to work.",
+            "ja": "仕事に行くときは地図も使います。"
+          },
+          {
+            "en": "I use my phone on the train every morning.",
+            "ja": "毎朝、電車の中でスマホを使います。"
           },
           {
             "en": "One thing I want to change is my screen time.",
-            "ja": "変えたいことの一つはスクリーンタイムです。"
+            "ja": "変えたいことの一つはスマホを見る時間です。"
           },
           {
-            "en": "So I want to use my phone a little less.",
-            "ja": "だから、スマホを使う時間を少し減らしたいです。"
+            "en": "So I want to use my phone less at night.",
+            "ja": "だから夜はスマホをもっと少なく使いたいです。"
           }
         ],
         "outline": [
-          "Opening: my phone every day",
-          "Point 1: morning use and top apps",
+          "Opening: I use my phone every day",
+          "Point 1: morning routine and top apps",
           "Point 2: when and where I use it",
           "Wrap-up: one thing I want to change"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I'll tell you about my phone. Every morning, I wake up and grab my phone. First, I turn off the alarm. Then I check the time and the weather. I open my messages too. I look at my chat app the most. I use it to talk with my friends. I also open a video app a lot. I watch short clips when I'm bored. I use my phone at home and on the train. Sometimes I use it in bed at night. That's the thing I want to change. I don't want to look at it so late. So I'll try to sleep earlier."
+        "text": "I use my phone a lot. Every morning I check the time first. Then I look at my messages. I open my chat app the most. I talk with my friends and family there. I also open my music app a lot. Sometimes I watch short videos too. I use my phone at home and on the train. I check it at work when I take a break. At night I use it in bed. That's the problem. I want to change one thing. I don't want to use my phone in bed. It's bad for my sleep. So I'll try to stop soon. Let's see how it goes."
+      }
+    },
+    "2": {
+      "prepPack": {
+        "chunks": [
+          {
+            "en": "I use my phone every single day.",
+            "ja": "私は毎日スマホを使っています。"
+          },
+          {
+            "en": "The first thing I do is check the time.",
+            "ja": "最初にすることは時間を確認することです。"
+          },
+          {
+            "en": "In the morning, I read my news app first.",
+            "ja": "朝は、まずニュースアプリを読みます。"
+          },
+          {
+            "en": "The app I open the most is a chat app.",
+            "ja": "いちばんよく開くアプリはチャットアプリです。"
+          },
+          {
+            "en": "I use my phone on the train to work.",
+            "ja": "通勤の電車の中でスマホを使います。"
+          },
+          {
+            "en": "At night, I watch short videos in bed.",
+            "ja": "夜はベッドで短い動画を見ます。"
+          },
+          {
+            "en": "One thing I want to change is less screen time.",
+            "ja": "変えたいことは、画面を見る時間を減らすことです。"
+          }
+        ],
+        "outline": [
+          "Opening: I use my phone every day",
+          "Point 1: morning routine and most-used apps",
+          "Point 2: when and where I use it",
+          "Wrap-up: one thing I want to change"
+        ],
+        "hintDefault": "ja"
+      },
+      "modelTalk": {
+        "text": "I want to tell you about my phone. Every morning, I wake up and I check my phone. First, I look at the time. Then I read new messages from my friends. I open the same apps a lot. I use a chat app and a video app. I like music apps too. I use my phone at home and on the train. Sometimes I use it in bed at night. That's not good, I know. I want to change one thing. I want to look at my phone less. It's hard, but I'll try. Maybe I can put it down after dinner. That's my simple plan."
       }
     }
   }

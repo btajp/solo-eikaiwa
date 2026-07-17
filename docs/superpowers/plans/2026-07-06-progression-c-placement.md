@@ -1,5 +1,7 @@
 # Phase C: プレースメント（初期レベル見極め・月次再測定） Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 約10分の測定セッション（自己紹介→状況説明→意見）を録音・文字起こしし、Claude が CEFR 記述子ベースのルーブリックで stage(1..6) と開始レベルを推定、利用者の確定操作で反映する。月次再測定の導線もホームに出す。

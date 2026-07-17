@@ -1,5 +1,5 @@
 import { defaultRunner, type ClaudeRunner } from "./converse";
-import { syntaxConstraint, vocabConstraint, type HintLang } from "./progression";
+import { cefrBandLabel, syntaxConstraint, vocabConstraint, type HintLang } from "./progression";
 import type { SessionEvent } from "./session-log";
 import { SPOKEN_STYLE_BLOCK, spokenBandForStage, spokenStyleFor } from "./spoken-style";
 
@@ -25,15 +25,16 @@ export function extractJson<T>(text: string): T | null {
 }
 
 function makeAeSystem(stage: number): string {
-  const vocab = vocabConstraint(stage);
-  // stage>=4（vocab===null）は旧文言を一字一句維持する（上級者の挙動不変）
-  const constraintLine = vocab
-    ? `${vocab}\nKeep every "better" version short and simple enough for the learner to actually say (one clause when possible).\n`
+  // #195: 言い直し例（better）の語彙もレベル勾配にする（旧実装は stage>=4 が制約なしのB1相当で頭打ち）。
+  // 「1節で言い切れる短さに」の支援行は低ステージ専用のまま（上級帯は自然さ・正確さを優先する）
+  const supportLine = stage <= 3
+    ? `\nKeep every "better" version short and simple enough for the learner to actually say (one clause when possible).`
     : "";
-  return `You are an English error-correction coach for a Japanese IT professional (CEFR A2-B1).
+  return `You are an English error-correction coach for a Japanese IT professional (CEFR ${cefrBandLabel(stage)}).
 You receive the transcript of the learner's spoken monologue (round 1 of a 4/3/2 fluency task).
 Pick the 3-5 most impactful language problems (grammar, word choice, unnatural phrasing). Ignore filler words and small slips.
-${constraintLine}Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:
+${vocabConstraint(stage)}${supportLine}
+Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:
 {"items":[{"quote":"<the learner's exact words>","issue":"<short English label>","better":"<corrected natural version>","why_ja":"<1〜2文の簡潔な日本語解説>"}],"praise":"<one short encouraging sentence in English>"}
 For "better": ${SPOKEN_STYLE_BLOCK}
 Do not use any tools — reply directly with text only.`;
@@ -164,15 +165,22 @@ export async function generateFixExplanation(
  * （checkModelTalk）を新設した際にrealな生成（answering-office-phone/business/advanced帯）で
  * 短縮形率0.125（下限0.2未満）のFAILを実測した。ガイドを注入せず3ラウンド再生成に任せるのは
  * 「たまたま閾値を超えるまで運任せに引き直す」だけで歩留まりが悪いため、根本のプロンプトを直す。
+ *
+ * #195: 旧実装は stage4/5/6 が完全同一のB1固定プロンプトで、fluency帯に難度勾配が無かった。
+ * 語彙・構文は vocab/syntaxConstraint の勾配（B1-B2/B2/B2-C1）を全stageで注入し、語数も
+ * 120-150 → 130-160 → 140-170 と単調に上げる（4/3/2 の持ち時間増と整合。checkModelTalk の
+ * 帯別平均文長上限の内側に収まる文長帯は syntaxConstraint 側が指示する）。
  */
 function modelTalkSystem(stage: number): string {
   const vocab = vocabConstraint(stage);
   const syntax = syntaxConstraint(stage);
-  const learnerLabel = stage <= 2 ? "(CEFR A2)" : stage === 3 ? "(CEFR A2-B1)" : "(CEFR B1)";
-  const wordCount = stage <= 2 ? "90-120" : "120-150";
-  const rules = vocab
+  const learnerLabel = `(CEFR ${cefrBandLabel(stage)})`;
+  const wordCount = stage <= 2 ? "90-120" : stage <= 4 ? "120-150" : stage === 5 ? "130-160" : "140-170";
+  // stage<=3 は従来文言（short sentences 明示）を維持。stage>=4 は syntaxConstraint が文長帯と
+  // 複文許容を指示するため、固定句 "short sentences" は付けない（B2/C1帯の構文指示と矛盾させない）
+  const rules = stage <= 3
     ? `Rules: ${wordCount} words, spoken register, first person, short sentences. ${vocab} ${syntax}`
-    : "Rules: 120-150 words, spoken register, first person, plain high-frequency vocabulary, short sentences.";
+    : `Rules: ${wordCount} words, spoken register, first person. ${vocab} ${syntax}`;
   return `You produce a model monologue for an English learner ${learnerLabel} to shadow.
 ${rules}
 ${spokenStyleFor(spokenBandForStage(stage))}
@@ -214,15 +222,19 @@ export async function generateReflection(
 export type PrepPack = { chunks: Array<{ en: string; ja: string }>; outline: string[]; hintDefault: HintLang };
 
 function prepSystem(chunkCount: number, stage: number): string {
-  const vocab = vocabConstraint(stage);
-  const syntax = syntaxConstraint(stage);
-  // stage>=4（vocab===null）はバレット自体を挿入しない（元々このバレットは存在しなかった＝上級者の挙動不変）
-  const vocabBullet = vocab ? `\n- ${vocab}` : "";
-  const syntaxBullet = syntax ? `\n- ${syntax}` : "";
-  const levelLabel = stage <= 2 ? "A2 level" : stage === 3 ? "A2-B1 level" : "B1 level";
-  const levelAdj = stage <= 2 ? "A2-level" : stage === 3 ? "A2-B1-level" : "B1-level";
-  const chunkWords = stage <= 2 ? "roughly 6-10 words" : stage === 3 ? "roughly 8-14 words" : "roughly 8-16 words";
-  return `You prepare a Japanese IT professional (CEFR A2-B1) for a short English monologue.
+  // #195: 準備チャンクの語彙・構文もレベル勾配にする（旧実装は stage>=4 がバレット無し・B1固定で頭打ち）。
+  // チャンク語数もstage単調（6-10 → 8-14 → 9-14 → 10-15 → 11-16 語）に上げる
+  // （checkPrepChunk の外枠 4-20 語の内側）。
+  const vocabBullet = `\n- ${vocabConstraint(stage)}`;
+  const syntaxBullet = `\n- ${syntaxConstraint(stage)}`;
+  const levelLabel = `${cefrBandLabel(stage)} level`;
+  const levelAdj = `${cefrBandLabel(stage)}-level`;
+  const chunkWords = stage <= 2 ? "roughly 6-10 words"
+    : stage === 3 ? "roughly 8-14 words"
+    : stage === 4 ? "roughly 9-14 words"
+    : stage === 5 ? "roughly 10-15 words"
+    : "roughly 11-16 words";
+  return `You prepare a Japanese IT professional (CEFR ${cefrBandLabel(stage)}) for a short English monologue.
 You receive a topic and hint angles. Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:
 {"chunks":[{"en":"<complete, speakable sentence, ${levelLabel}>","ja":"<自然な日本語訳>"}],"outline":["<short English bullet>"]}
 Rules:
@@ -262,14 +274,16 @@ export async function generatePrepPack(
 }
 
 export function roleplayPrompt(scenario: { title: string; hints: string[] }, stage: number): string {
-  return `You are an English roleplay partner for a Japanese IT professional (CEFR A2-B1).
+  // #195: 旧実装は stage>=4 が「B1 level」固定フォールバックで難度勾配が無かった。
+  // 学習者像ラベルと語彙制約を vocabConstraint / cefrBandLabel の勾配に連動させる
+  return `You are an English roleplay partner for a Japanese IT professional (CEFR ${cefrBandLabel(stage)}).
 Scenario: ${scenario.title}
 Setup:
 ${scenario.hints.map((h) => `- ${h}`).join("\n")}
 Rules:
 - Stay in your assigned role for the whole conversation. Do not break character.
 - Keep every reply SHORT: 2-4 sentences, then ask ONE question or make ONE request.
-- ${vocabConstraint(stage) ?? "Use plain, high-frequency English (B1 level). No rare idioms."}
+- ${vocabConstraint(stage)}
 - Do NOT correct the learner's errors explicitly; respond naturally.
 - Never switch to Japanese.
 - Do not use any tools — reply directly with text only.`;

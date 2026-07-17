@@ -39,6 +39,45 @@ function tmpModelsDir(): string {
 
 type FetchCall = { url: string; range: string | null };
 
+/**
+ * 手動供給・pull同期のフェイクレスポンスbody（Issue #261: タイマー依存の排除）。
+ * highWaterMark: 0 のため pull は「消費側が read() 待ちに入った瞬間」にだけ呼ばれる。
+ * したがって pulled(n) の解決は「supply 済み chunk の .part への書き込みと進捗反映が
+ * すべて完了し、消費側が n 回目の read で次の chunk を要求した」ことを保証する。
+ * setTimeout ベースの flush と違い、書き込みI/Oの所要時間に依存しない決定的な同期点になる。
+ */
+function makeManualBody() {
+  let ctrl!: ReadableStreamDefaultController<Uint8Array>;
+  let pullCount = 0;
+  const waiters: Array<{ n: number; resolve: () => void }> = [];
+  const stream = new ReadableStream<Uint8Array>(
+    {
+      start(c) { ctrl = c; },
+      pull() {
+        pullCount++;
+        for (const w of waiters.filter((x) => pullCount >= x.n)) {
+          waiters.splice(waiters.indexOf(w), 1);
+          w.resolve();
+        }
+      },
+    },
+    { highWaterMark: 0 },
+  );
+  return {
+    stream,
+    /** chunk を1つ供給する（消費側の read 待ちを直接解決する） */
+    supply(chunk: Uint8Array) { ctrl.enqueue(chunk); },
+    close() { ctrl.close(); },
+    /** ネットワーク中断を注入する */
+    fail(err: Error) { ctrl.error(err); },
+    /** n回目の pull（= n回目の read 要求）まで待つ */
+    pulled(n: number): Promise<void> {
+      if (pullCount >= n) return Promise.resolve();
+      return new Promise((resolve) => waiters.push({ n, resolve }));
+    },
+  };
+}
+
 /** シンプルな一発完了フェイクfetch: Rangeを見て該当部分を200/206で返す */
 function makeSimpleFetch(content: Uint8Array, opts: { calls?: FetchCall[] } = {}): typeof fetch {
   return (async (url: string, init?: RequestInit) => {
@@ -160,23 +199,22 @@ describe("model-download: 進捗ポーリング（チャンク到着ごとのrec
     const registry = fakeRegistry(content);
     const dir = tmpModelsDir();
 
-    let ctrl!: ReadableStreamDefaultController<Uint8Array>;
-    const stream = new ReadableStream<Uint8Array>({ start(c) { ctrl = c; } });
-    const fetchFn: typeof fetch = (async () => new Response(stream as unknown as BodyInit, { status: 200 })) as unknown as typeof fetch;
+    const body = makeManualBody();
+    const fetchFn: typeof fetch = (async () => new Response(body.stream as unknown as BodyInit, { status: 200 })) as unknown as typeof fetch;
     const mgr = createModelDownloadManager({ modelsDir: dir, registry, fetchFn });
 
     const result = mgr.start("small");
     expect(result.ok).toBe(true);
-    await flush();
+    await body.pulled(1); // 消費側が最初のchunkを要求した = fetch完了・.partオープン済み・受信0
     expect(mgr.getState().receivedBytes).toBe(0);
 
-    ctrl.enqueue(chunkA);
-    await flush();
+    body.supply(chunkA);
+    await body.pulled(2); // chunkAの書き込み・進捗反映が完了してから次のchunkを要求した
     expect(mgr.getState().receivedBytes).toBe(chunkA.length);
     expect(mgr.getState().status).toBe("downloading");
 
-    ctrl.enqueue(chunkB);
-    ctrl.close();
+    body.supply(chunkB);
+    body.close();
     if (result.ok) await result.done;
     expect(mgr.getState().status).toBe("done");
     expect(mgr.getState().receivedBytes).toBe(content.length);
@@ -192,7 +230,7 @@ describe("model-download: 中断→再開（Range）", () => {
     const dir = tmpModelsDir();
     const calls: FetchCall[] = [];
 
-    let ctrl1!: ReadableStreamDefaultController<Uint8Array>;
+    const body1 = makeManualBody();
     let firstCall = true;
     const fetchFn: typeof fetch = (async (url: string, init?: RequestInit) => {
       const headers = (init?.headers ?? {}) as Record<string, string>;
@@ -200,9 +238,8 @@ describe("model-download: 中断→再開（Range）", () => {
       calls.push({ url: String(url), range });
       if (firstCall) {
         firstCall = false;
-        // 1回目: 外部から制御できるストリームを返す（chunkAが実際に読み出された後で切断するため）
-        const s = new ReadableStream<Uint8Array>({ start(c) { ctrl1 = c; } });
-        return new Response(s as unknown as BodyInit, { status: 200 });
+        // 1回目: 手動供給body（chunkAの書き込み完了をpullで同期してから切断するため）
+        return new Response(body1.stream as unknown as BodyInit, { status: 200 });
       }
       // 2回目: Rangeに応じた残りを返す
       const m = range ? /^bytes=(\d+)-$/.exec(range) : null;
@@ -216,11 +253,11 @@ describe("model-download: 中断→再開（Range）", () => {
 
     const first = mgr.start("small");
     expect(first.ok).toBe(true);
-    await flush();
-    ctrl1.enqueue(chunkA);
-    await flush();
+    await body1.pulled(1);
+    body1.supply(chunkA);
+    await body1.pulled(2); // chunkAが.partへ書き込まれ進捗反映されたことを同期してから切断する
     expect(mgr.getState().receivedBytes).toBe(chunkA.length); // 切断前にchunkAが確実に書き込まれたことを確認
-    ctrl1.error(new Error("simulated network drop"));
+    body1.fail(new Error("simulated network drop"));
     if (first.ok) await first.done;
 
     const afterFail = mgr.getState();
@@ -247,13 +284,12 @@ describe("model-download: 中断→再開（Range）", () => {
     const registry = fakeRegistry(content);
     const dir = tmpModelsDir();
 
-    let ctrl1!: ReadableStreamDefaultController<Uint8Array>;
+    const body1 = makeManualBody();
     let firstCall = true;
     const fetchFn: typeof fetch = (async () => {
       if (firstCall) {
         firstCall = false;
-        const s = new ReadableStream<Uint8Array>({ start(c) { ctrl1 = c; } });
-        return new Response(s as unknown as BodyInit, { status: 200 });
+        return new Response(body1.stream as unknown as BodyInit, { status: 200 });
       }
       // Rangeを送っても200で全体を返す（無視するサーバを模す）
       return new Response(content as unknown as BodyInit, { status: 200 });
@@ -261,12 +297,15 @@ describe("model-download: 中断→再開（Range）", () => {
 
     const mgr = createModelDownloadManager({ modelsDir: dir, registry, fetchFn });
     const first = mgr.start("small");
-    await flush();
-    ctrl1.enqueue(chunkA);
-    await flush();
-    ctrl1.error(new Error("drop"));
+    await body1.pulled(1);
+    body1.supply(chunkA);
+    // chunkAが.partへ書き込まれてから切断する（切断が先行すると.partが残らず、
+    // 再startがRangeを送らない=「Range無視」経路を通らないままテストが通ってしまう）
+    await body1.pulled(2);
+    body1.fail(new Error("drop"));
     if (first.ok) await first.done;
     expect(mgr.getState().status).toBe("error");
+    expect(mgr.getState().receivedBytes).toBe(chunkA.length); // .partにchunkA分が残っている前提を固定
 
     const second = mgr.start("small");
     if (second.ok) await second.done;

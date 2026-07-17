@@ -10,15 +10,17 @@ import { withFallback, withTimeout } from "./providers/decorators";
 import { makeClaudePrintRunner } from "./providers/claude-print";
 import { appendEvent, markErrorLogged } from "./session-log";
 import { sessionLogPath } from "./paths";
-import { vocabConstraint } from "./progression";
+import { cefrBandLabel, vocabConstraint } from "./progression";
 import type { RoleTuning } from "./llm-role-tuning-store";
 import { getActiveAuthModes, getActiveAuthSecrets, claudeSpawnEnv } from "./llm-auth-store";
 
 export function partnerSystemPrompt(stage: number): string {
-  return `You are an English conversation partner for a Japanese IT professional (CEFR A2-B1).
+  // #195: 旧実装は stage>=4 が「B1 level」固定フォールバックで難度勾配が無かった。
+  // 学習者像ラベルと語彙制約を vocabConstraint / cefrBandLabel の勾配（B1-B2/B2/B2-C1）に連動させる
+  return `You are an English conversation partner for a Japanese IT professional (CEFR ${cefrBandLabel(stage)}).
 - You are a friendly colleague. Talk about tech work, identity management, security, AI — or whatever the learner brings up.
 - Keep every reply SHORT: 2-4 sentences, then ask ONE follow-up question.
-- ${vocabConstraint(stage) ?? "Use plain, high-frequency English (B1 level). No rare idioms."}
+- ${vocabConstraint(stage)}
 - Do NOT correct errors explicitly in this mode; just respond naturally (recast briefly only when meaning is unclear).
 - Never switch to Japanese.
 - Do not use any tools — reply directly with text only.`;

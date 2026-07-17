@@ -4,6 +4,7 @@ import {
   type AeFeedback, type PrepPack,
 } from "../coach";
 import type { ClaudeRunner } from "../converse";
+import { syntaxConstraint, vocabConstraint } from "../progression";
 import type { SessionEvent } from "../session-log";
 import { SPOKEN_STYLE_BLOCK, spokenStyleFor } from "../spoken-style";
 
@@ -53,19 +54,35 @@ describe("generateAeFeedback", () => {
     expect(result.items[0].why_ja).toContain("prose feedback");
   });
 
-  // stage4+ 不変ロック: 変更前の実出力(AE_SYSTEM)+口語スタイルブロック注入をそのまま転記（回帰基準）
-  test("stage 4+ の systemPrompt は現行文字列(+口語スタイルブロック)と完全一致する（回帰ロック）", async () => {
+  // #195 難度勾配ロック: stage5 は CEFR B2 の学習者像 + B2語彙勾配（vocabConstraint(5)）を含む現行文字列に固定
+  test("stage 5 の systemPrompt は B2 学習者像+語彙勾配込みの現行文字列と完全一致する（回帰ロック）", async () => {
     const { runner, seen } = runnerReturning(JSON.stringify(valid));
     await generateAeFeedback({ transcript: "t", topicTitle: "x", stage: 5 }, runner);
     expect(seen[0].systemPrompt).toBe(
-      "You are an English error-correction coach for a Japanese IT professional (CEFR A2-B1).\n" +
+      "You are an English error-correction coach for a Japanese IT professional (CEFR B2).\n" +
       "You receive the transcript of the learner's spoken monologue (round 1 of a 4/3/2 fluency task).\n" +
       "Pick the 3-5 most impactful language problems (grammar, word choice, unnatural phrasing). Ignore filler words and small slips.\n" +
+      `${vocabConstraint(5)}\n` +
       "Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:\n" +
       '{"items":[{"quote":"<the learner\'s exact words>","issue":"<short English label>","better":"<corrected natural version>","why_ja":"<1〜2文の簡潔な日本語解説>"}],"praise":"<one short encouraging sentence in English>"}\n' +
       `For "better": ${SPOKEN_STYLE_BLOCK}\n` +
       "Do not use any tools — reply directly with text only.",
     );
+  });
+
+  test("言い直し例の難度も stage 4/5/6 で勾配になる（B1-B2/B2/B2-C1・#195）", async () => {
+    const prompts: string[] = [];
+    for (const stage of [4, 5, 6]) {
+      const { runner, seen } = runnerReturning(JSON.stringify(valid));
+      await generateAeFeedback({ transcript: "t", topicTitle: "x", stage }, runner);
+      prompts.push(seen[0].systemPrompt!);
+    }
+    expect(prompts[0]).toContain("(CEFR B1-B2)");
+    expect(prompts[1]).toContain("(CEFR B2)");
+    expect(prompts[2]).toContain("(CEFR B2-C1)");
+    expect(new Set(prompts).size).toBe(3);
+    // 「betterを1節で言い切れる短さに」の支援行は低ステージ専用のまま（上級帯は自然さ優先）
+    expect(prompts[1]).not.toContain("one clause when possible");
   });
 
   test("stage 1 の systemPrompt は高頻度語彙制約と one clause 制約を含む", async () => {
@@ -97,22 +114,41 @@ describe("generateModelTalk", () => {
     expect(seen[0].systemPrompt).toContain("word families");
   });
 
-  test("stage 4+ の systemPrompt は旧文言(plain high-frequency vocabulary)を維持し、word families 制約は課さない", async () => {
-    const { runner, seen } = runnerReturning("x");
-    await generateModelTalk({ topicTitle: "t", hints: [], stage: 5 }, runner);
-    expect(seen[0].systemPrompt).toContain("plain high-frequency vocabulary");
-    expect(seen[0].systemPrompt).not.toContain("word families");
+  // #195: 旧実装は stage4/5/6 が完全同一のB1固定プロンプト（fluency帯に難度勾配が無い）だった
+  test("stage 4/5/6 の systemPrompt は互いに異なり、B1-B2/B2/B2-C1 の勾配ラベルを持つ（#195）", async () => {
+    const prompts: string[] = [];
+    for (const stage of [4, 5, 6]) {
+      const { runner, seen } = runnerReturning("x");
+      await generateModelTalk({ topicTitle: "t", hints: [], stage }, runner);
+      prompts.push(seen[0].systemPrompt!);
+    }
+    expect(prompts[0]).toContain("(CEFR B1-B2)");
+    expect(prompts[1]).toContain("(CEFR B2)");
+    expect(prompts[2]).toContain("(CEFR B2-C1)");
+    expect(new Set(prompts).size).toBe(3);
+    for (const p of prompts) expect(p).not.toContain("word families");
   });
 
-  // stage4+ 不変ロック: 変更前の実出力をそのまま転記（回帰基準）。
-  // v0.26 content-ladder wave3でspokenStyleForの注入を追加した際に意図的に更新した
-  // （実測でstage5のmodelTalkが短縮形率不足でcheckModelTalkにFAILする実例を確認したため。coach.ts参照）。
-  test("stage 4+ の systemPrompt は現行文字列と完全一致する（回帰ロック）", async () => {
+  test("語数指示も stage 単調に増える（120-150 → 130-160 → 140-170・#195）", async () => {
+    const prompts: string[] = [];
+    for (const stage of [4, 5, 6]) {
+      const { runner, seen } = runnerReturning("x");
+      await generateModelTalk({ topicTitle: "t", hints: [], stage }, runner);
+      prompts.push(seen[0].systemPrompt!);
+    }
+    expect(prompts[0]).toContain("120-150 words");
+    expect(prompts[1]).toContain("130-160 words");
+    expect(prompts[2]).toContain("140-170 words");
+  });
+
+  // #195 難度勾配ロック: stage5 の実出力を固定（vocab/syntaxConstraint(5) 込み）。
+  // 旧ロック（stage4-6共通のB1固定文言）は難度頭打ちの原因だったため意図的に更新した。
+  test("stage 5 の systemPrompt は現行文字列と完全一致する（回帰ロック）", async () => {
     const { runner, seen } = runnerReturning("x");
     await generateModelTalk({ topicTitle: "t", hints: [], stage: 5 }, runner);
     expect(seen[0].systemPrompt).toBe(
-      "You produce a model monologue for an English learner (CEFR B1) to shadow.\n" +
-      "Rules: 120-150 words, spoken register, first person, plain high-frequency vocabulary, short sentences.\n" +
+      "You produce a model monologue for an English learner (CEFR B2) to shadow.\n" +
+      `Rules: 130-160 words, spoken register, first person. ${vocabConstraint(5)} ${syntaxConstraint(5)}\n` +
       `${spokenStyleFor("advanced")}\n` +
       "No headings, no lists — just the monologue text.\n" +
       "Do not use any tools — reply directly with text only.",
@@ -247,26 +283,40 @@ describe("generatePrepPack", () => {
     expect(seen[0].systemPrompt).toContain("word families");
   });
 
-  test("stage 4+ は語彙制約バレット自体を挿入しない（word families も No rare idioms も含まない）", async () => {
-    const { runner, seen } = runnerReturning(JSON.stringify(valid));
-    await generatePrepPack({ topicTitle: "t", hints: [], stage: 5 }, runner);
-    expect(seen[0].systemPrompt).not.toContain("word families");
-    expect(seen[0].systemPrompt).not.toContain("No rare idioms");
+  // #195: 旧実装は stage4/5/6 が完全同一のB1固定プロンプト（準備チャンクの難度勾配が無い）だった
+  test("stage 4/5/6 は語彙・構文バレットが勾配で入り、チャンク語数指示も単調に上がる（#195）", async () => {
+    const prompts: string[] = [];
+    for (const stage of [4, 5, 6]) {
+      const { runner, seen } = runnerReturning(JSON.stringify(valid));
+      await generatePrepPack({ topicTitle: "t", hints: [], stage }, runner);
+      prompts.push(seen[0].systemPrompt!);
+    }
+    expect(prompts[0]).toContain("B1-B2 level");
+    expect(prompts[0]).toContain("roughly 9-14 words");
+    expect(prompts[1]).toContain("B2 level");
+    expect(prompts[1]).toContain("roughly 10-15 words");
+    expect(prompts[2]).toContain("B2-C1 level");
+    expect(prompts[2]).toContain("roughly 11-16 words");
+    expect(new Set(prompts).size).toBe(3);
+    for (const p of prompts) expect(p).not.toContain("word families");
   });
 
-  // stage4+ 不変ロック: 変更前の実出力(chunkCount既定6)+口語スタイルブロック注入をそのまま転記（回帰基準）
-  test("stage 4+ の systemPrompt は現行文字列(+口語スタイルブロック)と完全一致する（回帰ロック）", async () => {
+  // #195 難度勾配ロック: stage5 の実出力(chunkCount既定6・vocab/syntaxバレット込み)を固定。
+  // 旧ロック（stage4-6共通のB1固定文言）は難度頭打ちの原因だったため意図的に更新した。
+  test("stage 5 の systemPrompt は現行文字列と完全一致する（回帰ロック）", async () => {
     const { runner, seen } = runnerReturning(JSON.stringify(valid));
     await generatePrepPack({ topicTitle: "t", hints: [], stage: 5 }, runner);
     expect(seen[0].systemPrompt).toBe(
-      "You prepare a Japanese IT professional (CEFR A2-B1) for a short English monologue.\n" +
+      "You prepare a Japanese IT professional (CEFR B2) for a short English monologue.\n" +
       "You receive a topic and hint angles. Reply with STRICT JSON only — no markdown fences, no commentary — exactly this shape:\n" +
-      '{"chunks":[{"en":"<complete, speakable sentence, B1 level>","ja":"<自然な日本語訳>"}],"outline":["<short English bullet>"]}\n' +
+      '{"chunks":[{"en":"<complete, speakable sentence, B2 level>","ja":"<自然な日本語訳>"}],"outline":["<short English bullet>"]}\n' +
       "Rules:\n" +
-      '- Exactly 6 chunks. Each "en" MUST be a complete, speakable sentence of roughly 8-16 words that the learner can read aloud as-is.\n' +
+      '- Exactly 6 chunks. Each "en" MUST be a complete, speakable sentence of roughly 10-15 words that the learner can read aloud as-is.\n' +
       '  No ellipses ("..."), no blanks, and no placeholders like [X] — always fill the slot with a concrete, topic-relevant\n' +
-      "  example a B1-level IT professional could plausibly say, using the given topic and hints for the content\n" +
+      "  example a B2-level IT professional could plausibly say, using the given topic and hints for the content\n" +
       '  (e.g. "The main problem we had was a slow database query.", "What worked well was splitting the task into smaller steps.").\n' +
+      `- ${vocabConstraint(5)}\n` +
+      `- ${syntaxConstraint(5)}\n` +
       "- Keep the reusable sentence frame recognizable at the START of each sentence (sentence-starter + filled example), so the\n" +
       "  learner can reuse that same frame with their own content in the next exercise.\n" +
       '- ja: the natural full-sentence Japanese translation of "en" (not a fragment).\n' +
@@ -402,10 +452,20 @@ describe("roleplayPrompt", () => {
     expect(p).not.toContain("B1 level");
   });
 
-  test("stage 4+ は従来の B1 目安を維持する", () => {
-    const p = roleplayPrompt({ title: "t", hints: ["h"] }, 5);
-    expect(p).toContain("B1 level");
-    expect(p).not.toContain("word families");
+  // #195: 旧実装は stage4-6 が同一の「B1 level」フォールバックで、fluency帯の難度勾配が無かった
+  test("stage 4/5/6 は B1-B2/B2/B2-C1 の語彙勾配を課し、互いに異なる（#195）", () => {
+    const p4 = roleplayPrompt({ title: "t", hints: ["h"] }, 4);
+    const p5 = roleplayPrompt({ title: "t", hints: ["h"] }, 5);
+    const p6 = roleplayPrompt({ title: "t", hints: ["h"] }, 6);
+    expect(p4).toContain(vocabConstraint(4));
+    expect(p5).toContain(vocabConstraint(5));
+    expect(p6).toContain(vocabConstraint(6));
+    expect(p5).toContain("(CEFR B2)");
+    expect(new Set([p4, p5, p6]).size).toBe(3);
+    for (const p of [p4, p5, p6]) {
+      expect(p).not.toContain("word families");
+      expect(p).not.toContain("Use plain, high-frequency English (B1 level)");
+    }
   });
 });
 

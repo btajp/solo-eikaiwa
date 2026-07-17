@@ -1,82 +1,82 @@
 {
   "topicId": "booking-meeting-room",
   "sourceHash": "957060c63dd2fa8c9cb597dbeaa1b909b4ce89f07e0a5156eb616ca43cc683d2",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "3": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about how I book a meeting room at work.",
-            "ja": "今日は職場で会議室をどう予約するかについて話したいです。"
+            "en": "I usually book a meeting room using our online calendar system.",
+            "ja": "私はたいてい、社内のオンラインカレンダーで会議室を予約します。"
           },
           {
-            "en": "I usually book a room when my team needs to plan a new project.",
-            "ja": "私はたいてい、チームが新しいプロジェクトを計画するときに部屋を予約します。"
+            "en": "I book a room when my team needs to talk about a project.",
+            "ja": "チームでプロジェクトについて話す必要があるとき、部屋を予約します。"
           },
           {
-            "en": "First I check the time and how many people will join the meeting.",
-            "ja": "まず私は時間と、何人が会議に参加するかを確認します。"
+            "en": "Usually four or five people from my team will join the meeting.",
+            "ja": "たいてい私のチームから四、五人がその会議に参加します。"
           },
           {
-            "en": "When the room is already taken, I look for another free room nearby.",
-            "ja": "部屋がもう埋まっているときは、近くの別の空いている部屋を探します。"
+            "en": "When the room is already taken, I look for another free room.",
+            "ja": "部屋がもう埋まっているときは、別の空いている部屋を探します。"
           },
           {
-            "en": "I always check small things, like the size and if there's a screen.",
-            "ja": "私はいつも、広さや画面があるかどうかなど、小さなことを確認します。"
+            "en": "Before I book, I always check the time and how many seats we need.",
+            "ja": "予約する前に、私はいつも時間と必要な席数を確認します。"
           },
           {
-            "en": "So booking a room is easy for me when I plan a few steps ahead.",
-            "ja": "だから数手先を計画しておけば、私にとって部屋の予約は簡単です。"
+            "en": "So booking a room is easy when I plan it a little early.",
+            "ja": "だから少し早めに計画すれば、部屋の予約は簡単です。"
           }
         ],
         "outline": [
-          "Opening: how I book a meeting room",
+          "Opening: how I book a room online",
           "Point 1: when I need it and who joins",
-          "Point 2: what I check and backup plans",
-          "Wrap-up: planning ahead makes it easy"
+          "Point 2: what I do if the room is taken and what I check",
+          "Wrap-up: planning early makes it easy"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I book a meeting room almost every week at work. First, I open our office app on my computer. I choose a day and a time. Then I pick a room that is free. I usually need a room for our team meeting. About five people join, so the room can't be too small. I always check the start time and the end time. I also check how many chairs the room has. Sometimes the room I want is already taken. When that happens, I look for another free room. If I can't find one, I move my meeting to a later time. I like a room with a big screen too. Before the meeting, I send a message to everyone. I tell them the room number and the time. It's easy when I plan it early."
+        "text": "I usually book a meeting room online. It's quick and easy. I open our office app and I look for a free room. Then I pick a time and I write who will join. Most of the time, I need a room in the morning. My small team joins, so about four or five people. Sometimes my boss comes too. When the room is already taken, I don't worry. I just find another free room nearby. Or I ask a friend to change times with me. Before I book, I check some small things. I check the start time and the end time. I check the size too, because we need enough chairs. I also check if there's a screen for my laptop. When everything looks good, I click the button. That's how I book a room."
       }
     },
     "4": {
       "prepPack": {
         "chunks": [
           {
-            "en": "The way I usually book a room is through our shared online calendar.",
-            "ja": "私がいつも部屋を予約する方法は、共有のオンラインカレンダーを使うことです。"
+            "en": "When I need a meeting room, I usually book it through our shared calendar app.",
+            "ja": "会議室が必要なとき、私はたいてい共有カレンダーのアプリで予約します。"
           },
           {
-            "en": "I usually need a room when my team has our weekly planning meeting.",
-            "ja": "私はたいてい、チームの週次の計画ミーティングがあるときに部屋が必要になります。"
+            "en": "I usually need a room when my team has our weekly sprint planning together.",
+            "ja": "チームで毎週のスプリント計画をするとき、私はたいてい部屋が必要になります。"
           },
           {
-            "en": "When the room is already taken, I just move our meeting to a later time.",
-            "ja": "部屋がもう埋まっているときは、ミーティングを後の時間に移すだけです。"
+            "en": "When the room I want is already taken, I look for another free slot nearby.",
+            "ja": "ほしい部屋がもう埋まっているときは、近くの空いている時間枠を探します。"
           },
           {
-            "en": "One small thing I always check is whether the room is big enough for everyone.",
-            "ja": "私がいつも確認する小さなことの一つは、部屋が全員に十分な広さかどうかです。"
+            "en": "Small things I always check are the start time and how many seats the room has.",
+            "ja": "私がいつも確認する小さなことは、開始時間と部屋の席数です。"
           },
           {
-            "en": "So booking a room is easy for me once I check the time and size.",
-            "ja": "だから時間と広ささえ確認すれば、部屋の予約は私にとって簡単です。"
+            "en": "So booking a room is simple once you check the time, size, and who joins.",
+            "ja": "だから時間や広さ、誰が参加するかを確認すれば、部屋の予約は簡単です。"
           }
         ],
         "outline": [
-          "Opening: how I book a room online",
+          "Opening: how I book a meeting room",
           "Point 1: when I need it and who joins",
-          "Point 2: what I do when it's taken",
-          "Wrap-up: small checks like time and size"
+          "Point 2: what I do when it's taken and what I check",
+          "Wrap-up: booking is simple with a few checks"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "I usually book a meeting room online. We've got a simple app for that. I open it, pick a time, and grab a free room. Most of the time I need a room in the afternoon. My small team joins, so about four or five people. Sometimes my manager comes too, and one client. When I plan, I check the time first. I don't want to clash with another meeting. I also check the size. A big group needs a bigger room. Then I look at the screen and the wifi. If the room is already taken, I don't panic. I just pick the next free slot, or I find another floor. Plus I can ask a colleague to swap. That's it, really. It's quick, and it keeps everyone happy. I always send an invite after I book."
+        "text": "At work, I usually book a meeting room through our online calendar. It's quick, and I can see which rooms are free. First, I check when I need the room and how long we'll talk. Then I add the people who will join, so everyone gets a reminder. Most of the time, only my small team comes in, maybe four or five people. Sometimes the room I want is already taken, so I look for another one nearby. If nothing's free, I message my colleagues and we move the meeting a bit later. Before I confirm, I check a few small things. I make sure the time is right and the room is big enough for us. I also check if there's a screen, because we often share slides. After that, I just send the invite out."
       }
     }
   }

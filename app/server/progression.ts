@@ -73,24 +73,54 @@ export function prepParams(stage: number): PrepSupport {
 /**
  * ステージ別の語彙レベリング制約（生成・会話プロンプトに差し込む1文）。
  * 研究知見5: 95%カバレッジ≈2,000〜3,000語族で非母語話者の聴解が安定する。
- * これは「難易度つまみ」の一種であり、閾値(stage<=3)もここに一元化する。
- * stage>=4 は null を返す（制約なし）— 挿入するかどうか・旧文言をどう保つかは各呼び出し点の責任とする。
+ * これは「難易度つまみ」の一種であり、閾値もここに一元化する。
+ * #195: 旧実装は stage>=4 で null（各呼び出し点がB1固定文言へフォールバック）だったため
+ * Lv31以降の難度がB1で頭打ちになっていた。全stageで文字列を返し、B1-B2→B2→B2-C1 の勾配にする。
  */
-export function vocabConstraint(stage: number): string | null {
-  return stage <= 3
-    ? "Use only the most common 2,000–3,000 English word families (everyday high-frequency vocabulary). Avoid rare, academic, or advanced words, and avoid idioms."
-    : null;
+export function vocabConstraint(stage: number): string {
+  if (stage <= 3) {
+    return "Use only the most common 2,000–3,000 English word families (everyday high-frequency vocabulary). Avoid rare, academic, or advanced words, and avoid idioms.";
+  }
+  if (stage === 4) {
+    return "Use mostly high-frequency vocabulary, plus common phrasal verbs and everyday collocations (CEFR B1-B2). No rare idioms, no academic words.";
+  }
+  if (stage === 5) {
+    return "Use a broad CEFR B2 vocabulary: natural phrasal verbs, common idioms, and precise everyday word choices are welcome. Keep it conversational, not academic.";
+  }
+  return "Use a rich CEFR B2-C1 vocabulary: natural idioms, phrasal verbs, and nuanced word choices are welcome. Keep it conversational — never academic or literary.";
 }
 
-/** 構文・文長の stage 制約。vocabConstraint と同じ null 契約: stage>=4 は null（呼び出し側が現行文言を維持）。 */
-export function syntaxConstraint(stage: number): string | null {
+/**
+ * 構文・文長の stage 制約。vocabConstraint と同じ勾配契約（#195で null 契約を廃止）。
+ * 文長帯は stage 単調増加（6-10 → 8-12 → 9-13 → 10-14 → 11-15 語）で、spoken-register-check の
+ * 帯別上限（beginner 11 / intermediate 14 / advanced 16 語/文）の内側に収まる値にする。
+ */
+export function syntaxConstraint(stage: number): string {
   if (stage <= 2) {
     return "Keep grammar very simple: CEFR A2, one clause per sentence, no relative clauses or cleft sentences, most sentences 6-10 words.";
   }
   if (stage === 3) {
     return "Keep grammar simple: around CEFR A2-B1, at most one subordinate clause per sentence, most sentences 8-12 words.";
   }
-  return null;
+  if (stage === 4) {
+    return "Mix simple and complex sentences: around CEFR B1-B2, subordinate and relative clauses are fine, most sentences 9-13 words.";
+  }
+  if (stage === 5) {
+    return "Use varied sentence structures: around CEFR B2, subordinate clauses, comparisons, and real or unreal conditionals are welcome, most sentences 10-14 words.";
+  }
+  return "Use varied, sophisticated sentence structures: around CEFR B2-C1, conditionals, hedging, indirect questions, and spoken discourse markers (actually, to be honest, that said) are welcome, most sentences 11-15 words.";
+}
+
+/**
+ * stage(1..6) → CEFR帯ラベル（プロンプトの学習者像・難度表記に共通で使う。vocab/syntaxConstraint と
+ * 同じ勾配の一元定義・#195）。範囲外は端にクランプ（Lv61+ が stage6 に張り付くのと同じ思想）。
+ */
+export function cefrBandLabel(stage: number): string {
+  if (stage <= 2) return "A2";
+  if (stage === 3) return "A2-B1";
+  if (stage === 4) return "B1-B2";
+  if (stage === 5) return "B2";
+  return "B2-C1";
 }
 
 /** stage(1..6) の代表アンカーレベル（各stageの下寄り中央）。降格先・既定開始レベルの基準。 */

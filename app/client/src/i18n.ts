@@ -489,6 +489,7 @@ type ListeningScreenStrings = { listeningScreen: {
   weekCount: (n: number) => string;
   filterFit: string; filterAll: string;
   domain: { daily: string; business: string; it: string };
+  dialogueBadge: string;
   open: string; back: string;
   play: string;
   /** 再生速度トグルのラベル (#194)。倍率表記（0.7x等）は言語非依存のため辞書に置かない */
@@ -1088,6 +1089,7 @@ export const STR: Record<Lang, Strings> = {
       weekCount: (n) => `${n} listens this week`,
       filterFit: "Your level", filterAll: "All",
       domain: { daily: "Daily", business: "Business", it: "IT" },
+      dialogueBadge: "Dialogue",
       open: "Listen", back: "← Back to list",
       play: "▶ Play",
       speedLabel: "Playback speed",
@@ -1685,6 +1687,7 @@ export const STR: Record<Lang, Strings> = {
       weekCount: (n) => `今週 ${n} 本`,
       filterFit: "自分のレベル", filterAll: "すべて",
       domain: { daily: "日常", business: "ビジネス", it: "IT" },
+      dialogueBadge: "対話",
       open: "聞く", back: "← 一覧に戻る",
       play: "▶ 再生",
       speedLabel: "再生速度",

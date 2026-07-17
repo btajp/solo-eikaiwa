@@ -459,10 +459,19 @@ describe("partnerSystemPrompt", () => {
     expect(p).toContain("Never switch to Japanese");
   });
 
-  test("stage 4+ は従来の B1 目安を維持する", () => {
-    const p = partnerSystemPrompt(5);
-    expect(p).toContain("B1 level");
-    expect(p).not.toContain("word families");
+  // #195: 旧実装は stage4-6 が同一の「B1 level」フォールバックで、fluency帯の難度勾配が無かった
+  test("stage 4/5/6 は B1-B2/B2/B2-C1 の語彙勾配を課し、互いに異なる（#195）", () => {
+    const p4 = partnerSystemPrompt(4);
+    const p5 = partnerSystemPrompt(5);
+    const p6 = partnerSystemPrompt(6);
+    expect(p4).toContain("B1-B2");
+    expect(p5).toContain("(CEFR B2)");
+    expect(p6).toContain("B2-C1");
+    expect(new Set([p4, p5, p6]).size).toBe(3);
+    for (const p of [p4, p5, p6]) {
+      expect(p).not.toContain("word families");
+      expect(p).not.toContain("Use plain, high-frequency English (B1 level)");
+    }
   });
 
   test("PARTNER_SYSTEM_PROMPT はフォールバック既定として存在し続ける", () => {

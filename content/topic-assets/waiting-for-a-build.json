@@ -1,70 +1,70 @@
 {
   "topicId": "waiting-for-a-build",
   "sourceHash": "036422b7374435be2c86a1ec6a8fcb0af2c11a9ac65e253713d2d7b28c8f31ef",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "5": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about what I do while a build runs.",
-            "ja": "今日はビルドが動いている間に何をするかについて話したいと思います。"
+            "en": "My builds usually take around ten minutes, and the full test suite runs even longer.",
+            "ja": "僕のビルドはたいてい10分くらいかかって、テスト一式はさらに長く走ります。"
           },
           {
-            "en": "My builds and tests usually take about ten minutes to finish.",
-            "ja": "私のビルドやテストは、たいてい終わるまでに10分くらいかかります。"
+            "en": "While I wait, I grab a coffee and skim through Slack to catch up on messages.",
+            "ja": "待っている間は、コーヒーを取りに行ってSlackにざっと目を通し、メッセージに追いつきます。"
           },
           {
-            "en": "While I wait, I get some coffee and check my Slack messages.",
-            "ja": "待っている間、私はコーヒーを取りに行き、Slackのメッセージを確認します。"
+            "en": "When a build fails right at the end, I feel pretty frustrated because I've lost that time.",
+            "ja": "最後の最後でビルドが失敗すると、その時間を無駄にしたようでかなりイライラします。"
           },
           {
-            "en": "One thing that makes my wait shorter is running only the tests I changed.",
-            "ja": "待ち時間を短くする工夫の一つは、変更したテストだけを実行することです。"
+            "en": "One thing that makes my wait shorter is running the slow tests in the background early.",
+            "ja": "待ち時間を短くする工夫の一つは、遅いテストを早めにバックグラウンドで走らせておくことです。"
           }
         ],
         "outline": [
-          "Opening: what I do during a build",
-          "Point: builds take ~10 min, I grab coffee and check Slack",
-          "Point: how I feel when it fails at the end",
-          "Wrap-up: running only changed tests saves time"
+          "Opening: how long my builds and tests take",
+          "Point 1: what I do while waiting (coffee, Slack)",
+          "Point 2: how I feel when a build fails at the end",
+          "Wrap-up: one trick that shortens my wait"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "My builds usually take about five minutes. Sometimes the tests take longer, maybe ten. It's not too bad, but it feels slow when I'm in a hurry. So what do I do while I wait? Well, I get up and make some coffee. I check Slack and answer quick messages. Sometimes I just stretch my legs and look out the window. But here's the worst part. Sometimes the build fails right at the end. Oh, I hate that feeling! I waited all that time for nothing. I feel a bit annoyed, and I have to start again. So I've found one trick that helps me. I run the small tests first. If they pass, then I run the big build. That way I catch problems early. My wait feels shorter now, and that's really nice."
+        "text": "My builds usually take around ten minutes, though the big test suite can drag on. So I've learned not to just sit there staring at the screen. Usually I'll grab a coffee, stretch a bit, and check Slack for anything urgent. Sometimes I skim through my emails or jot down my next task while I'm waiting. But honestly, if the build fails right at the end, my heart sinks. I've waited all that time for nothing, and now I've got to start over. It's like watching your bus pull away just as you reach the stop. One thing that really speeds things up? Running the smaller tests first, before the whole suite kicks off. That way, if something's broken, I catch it early instead of ten minutes in. It's a small trick, but it's saved me loads of frustration."
       }
     },
     "6": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about what I do while a build is running.",
-            "ja": "今日は、ビルドが走っている間に私が何をしているかについて話したいです。"
+            "en": "To be honest, my builds usually take around ten minutes, so I can't just sit there staring.",
+            "ja": "正直に言うと、私のビルドはたいてい10分くらいかかるので、ただ座って画面を見つめているわけにはいきません。"
           },
           {
-            "en": "My builds and tests usually take about ten minutes to finish.",
-            "ja": "私のビルドやテストは、終わるのにたいてい10分くらいかかります。"
+            "en": "While I wait, I usually grab a coffee and quickly skim through my Slack messages.",
+            "ja": "待っている間、私はたいていコーヒーを取りに行って、Slackのメッセージにさっと目を通します。"
           },
           {
-            "en": "While I wait, I grab a coffee and check my Slack messages.",
-            "ja": "待っている間、私はコーヒーを取ってきて、Slackのメッセージを確認します。"
+            "en": "When a build fails right at the end, I get really frustrated because I've wasted all that time.",
+            "ja": "最後の最後でビルドが失敗すると、その時間を全部無駄にしたようで、本当にイライラします。"
           },
           {
-            "en": "One thing that makes my wait shorter is running only the tests I changed.",
-            "ja": "待ち時間を短くする工夫の一つは、変更したテストだけを走らせることです。"
+            "en": "One thing that makes my wait shorter is running the slower tests in parallel on CI.",
+            "ja": "待ち時間を短くするために工夫していることの一つは、遅いテストをCI上で並列に走らせることです。"
           }
         ],
         "outline": [
-          "Opening: what I do during a build",
-          "Point 1: how long my builds usually take",
-          "Point 2: coffee and Slack while waiting",
-          "Wrap-up: running only changed tests to save time"
+          "Opening: how long my builds take",
+          "Point 1: what I do while waiting",
+          "Point 2: how I feel when it fails",
+          "Wrap-up: one trick to shorten the wait"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "My builds don't take long. Usually it's about three or four minutes. The tests are a bit faster. But when it's a big change, I might wait ten minutes. So what do I do while I wait? Well, I make a coffee first. Then I check Slack and read new messages. Sometimes I just stretch my back for a minute. It's a small break, and I like it. But here's the hard part. When the build fails right at the end, I feel so annoyed. I waited all that time for nothing! I take a deep breath and try again. One thing helps me a lot. I run the small tests first, before the full build. That way I catch problems early. So I don't waste ten minutes on a silly mistake. It really makes my wait feel shorter."
+        "text": "Honestly, my builds usually take somewhere between five and ten minutes. Not forever, but long enough to lose my focus. So while I'm waiting, I tend to wander off and grab a coffee. Then I'll quickly check Slack, skim a few messages, maybe reply to one or two. To be honest, that's a bit of a trap. I get sucked into a thread and lose track of time. And when the build fails right at the very end? Ugh, it's the worst. I've been sitting there for ten minutes, and then it just falls apart. It's frustrating, especially if it's some silly typo I could've caught. That said, one thing that really shortens my wait is running tests in the background. I kick them off early, so they're already halfway done. Plus, I keep a little to-do list handy for those gaps. It helps me feel like I'm not just twiddling my thumbs, you know?"
       }
     }
   }

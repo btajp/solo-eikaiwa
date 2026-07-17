@@ -1,82 +1,82 @@
 {
   "topicId": "reporting-a-bug",
   "sourceHash": "f95efa8c7528c1e924054cb15e3feb5355f12601116e869051ea0663b62079d1",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "3": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about a bug I found at work.",
-            "ja": "今日は、仕事で見つけた不具合についてお話ししたいと思います。"
+            "en": "Last week I found a bug in our login page at work.",
+            "ja": "先週、職場でログインページの不具合を見つけました。"
           },
           {
-            "en": "The last bug I noticed was a login button that didn't work.",
-            "ja": "この前気づいた不具合は、動かないログインボタンでした。"
+            "en": "The main problem was that the page froze after I clicked submit.",
+            "ja": "主な問題は、送信を押した後にページが固まることでした。"
           },
           {
-            "en": "First, I write down the steps and take a few screenshots.",
-            "ja": "まず、手順を書き留めて、スクリーンショットを何枚か撮ります。"
+            "en": "First I wrote down clear notes about what I saw on screen.",
+            "ja": "まず、画面で見たことを分かりやすくメモに書き留めました。"
           },
           {
-            "en": "Then I tell my team on Slack with a short and clear message.",
-            "ja": "それから、短くて分かりやすいメッセージでチームにSlackでSlackで伝えます。"
+            "en": "Then I told my team on Slack and added a screenshot too.",
+            "ja": "それからSlackでチームに伝えて、スクリーンショットも添えました。"
           },
           {
-            "en": "To show the problem, I explain each step so others can see it too.",
-            "ja": "問題を見せるために、他の人も分かるように各手順を説明します。"
+            "en": "To show the problem, I listed the steps to make it happen again.",
+            "ja": "問題を見せるために、再現するための手順を並べて書きました。"
           },
           {
-            "en": "When it got fixed, I felt really happy and relieved about it.",
-            "ja": "それが直ったとき、私は本当に嬉しくて、ほっとしました。"
+            "en": "When the bug got fixed, I felt really happy and relieved.",
+            "ja": "その不具合が直ったとき、とても嬉しくてほっとしました。"
           }
         ],
         "outline": [
-          "Opening: a bug I found at work",
-          "How I write it down and tell my team",
-          "Steps I take to show the problem",
-          "Wrap-up: how I felt when it was fixed"
+          "Opening: found a login bug at work",
+          "Point 1: wrote notes and told the team on Slack",
+          "Point 2: shared steps to reproduce the problem",
+          "Wrap-up: felt happy and relieved when it was fixed"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "Last week I found a bug at work. The app crashed when I clicked \"save.\" It happened every time, so I knew it wasn't just me. First, I wrote it down in my notes. I like to keep things simple and clear. Then I told my team on our chat. I said what I did and what went wrong. I also wrote the steps, one by one. So they could see the same problem too. I took a short video of my screen as well. Pictures help more than long words, I think. My teammate read it and started to fix it fast. When it got fixed, I felt really happy and calm. It's a good feeling when you help make things better. Small bugs matter, and I'm glad I spoke up."
+        "text": "Last week I found a bug at work. I was testing our app, and a button just didn't work. When I clicked \"save,\" nothing happened. That's when I knew something was wrong. So I wrote it down right away in my notes. I like to keep things simple and clear. Then I told my team in our chat.\n\nTo show the problem, I took a few steps. First, I opened the same page again. Next, I clicked the button slowly, and I took a screenshot. I also wrote down what I did, step by step. That way, my team could see it too.\n\nA day later, someone fixed it. I felt so happy and a little proud. It's a nice feeling when you help make something better. I'll keep reporting bugs, because small ones can cause big trouble."
       }
     },
     "4": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Today I want to talk about a bug I found last week at work.",
-            "ja": "今日は、先週仕事で見つけた不具合についてお話ししたいです。"
+            "en": "The last bug I noticed at work was a broken login button on mobile.",
+            "ja": "この前仕事で気づいた不具合は、モバイルでログインボタンが動かないというものでした。"
           },
           {
-            "en": "The last bug I noticed was a login page that froze on mobile phones.",
-            "ja": "この前気づいた不具合は、スマホでログインページが固まるというものでした。"
+            "en": "When I find a problem, I usually write it down in a short ticket first.",
+            "ja": "問題を見つけたとき、私はたいてい最初に短いチケットにメモします。"
           },
           {
-            "en": "How I tell my team is I write a short note with clear steps in our chat.",
-            "ja": "チームへの伝え方としては、はっきりした手順を書いた短いメモをチャットに投稿します。"
+            "en": "To show the problem, I take a screenshot and list the exact steps to reproduce it.",
+            "ja": "問題を見せるために、スクリーンショットを撮り、再現する正確な手順を書き出します。"
           },
           {
-            "en": "The steps I take to show the problem are recording my screen and adding the error log.",
-            "ja": "問題を見せるための手順は、画面を録画してエラーログを添えることです。"
+            "en": "After that, I tell my team on Slack and tag the right developer.",
+            "ja": "その後、Slackでチームに伝えて、担当の開発者にメンションします。"
           },
           {
-            "en": "When it got fixed, I felt really relieved because our users could log in again.",
-            "ja": "直ったとき、ユーザーがまたログインできるようになって、本当にほっとしました。"
+            "en": "When it got fixed, I felt really relieved because users could finally log in again.",
+            "ja": "それが直ったとき、ユーザーがやっとまたログインできるようになったので、本当にほっとしました。"
           }
         ],
         "outline": [
-          "Opening: introduce a recent bug at work",
-          "Point 1: how I record and report it to the team",
-          "Point 2: the steps I use to reproduce and show it",
-          "Wrap-up: how relieved I felt when it was fixed"
+          "Opening: the bug I found at work",
+          "How I record and report it to the team",
+          "Steps I take to reproduce and show it",
+          "Wrap-up: how I felt when it was fixed"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "So, the last bug I found at work was pretty annoying. When I clicked \"save,\" the page just froze. My data didn't get stored at all. First, I wrote it down in my notebook. I like to keep short, clear notes. Then I told my team on our chat app. I tried to explain it in simple words. To show the problem, I took some screenshots. I also wrote the exact steps I took. Click here, type this, then it breaks. I even made a short screen recording. That way, my teammates could see it fast. A few days later, someone fixed it. Honestly, I felt really happy and relieved. It's nice when people listen to you. It's a small thing, but it helped everyone. Now the app works well, and I feel proud. Reporting bugs isn't scary anymore for me."
+        "text": "Last week at work, I found a bug in our app. When I clicked the save button, nothing happened at all. My work just disappeared, and that's really frustrating for users. So I wrote it down right away in a quick note. I like to keep things clear, so I don't forget the details later. Then I told my team on our chat channel. To show the problem, I took some screenshots and made a short video too. I also listed the exact steps I did before it broke. That way, my teammates can follow along and see it themselves. A few days later, one developer fixed it and asked me to test again. I clicked save, and it worked perfectly this time. Honestly, I felt so relieved and a bit proud. It's a great feeling when a small report actually helps."
       }
     }
   }

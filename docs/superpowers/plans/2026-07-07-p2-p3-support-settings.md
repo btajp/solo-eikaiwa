@@ -1,5 +1,7 @@
 # P2 学習サポート設定の統一 + P3 段階的ステップの横展開 Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** サーバの「データ削除による表示制御」をやめて ja を常に返し、サイドバーの統一サポート設定（おまかせ/多め/少なめ＋個別トグル）で表示既定をクライアントが決める仕組みにし、その設定基盤の上にシャドーイング・音読ウォームアップ・振り返り/AE の段階的ステップを横展開する。

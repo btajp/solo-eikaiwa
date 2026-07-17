@@ -2335,9 +2335,9 @@
     "category_no": 22,
     "category": "機能: 依頼・許可・提案",
     "domain": "business",
-    "en": "I was wondering if you could review my draft before Friday.",
-    "ja": "金曜までに私の草案を見ていただけないでしょうか。",
-    "note": "I was wondering if you could。過去進行形で心理的な距離を置く、最も丁寧な部類の依頼表現"
+    "en": "Can I help you set up the meeting room?",
+    "ja": "会議室の準備を手伝いましょうか？",
+    "note": "Can I help you...？は手伝いを申し出る依頼・提案表現。"
   },
   {
     "no": 261,
@@ -3014,9 +3014,9 @@
     "category_no": 26,
     "category": "会話機能: 依頼する",
     "domain": "daily",
-    "en": "Would you mind watering my plants while I'm away?",
-    "ja": "留守の間、植物に水をあげてもらえませんか。",
-    "note": "Would you mind で丁寧に依頼する",
+    "en": "Can you grab me a towel? My hands are wet.",
+    "ja": "タオル取ってくれる？手が濡れてるんだ。",
+    "note": "Can you 〜? は親しい相手へのくだけた依頼表現。",
     "band": "development"
   },
   {

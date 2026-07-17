@@ -1,10 +1,19 @@
 import { extractErrorMessage } from "./http";
 
+export type ListeningFormat = "monologue" | "dialogue";
+export type ListeningTurn = { speaker: string; text: string };
 export type ListeningMeta = {
   id: string; title: string; titleJa: string;
   domain: "daily" | "business" | "it"; level: [number, number];
+  /** #220: 2話者対話素材の識別（省略時は従来のmonologue扱い） */
+  format?: ListeningFormat;
+  speakers?: string[];
 };
-export type ListeningDetail = ListeningMeta & { paragraphs: string[] };
+export type ListeningDetail = ListeningMeta & {
+  paragraphs: string[];
+  /** #220: dialogue のみ。ラベル抜きの発話ターン（表示は話者ラベル付き・再生は結合テキスト1本） */
+  turns?: ListeningTurn[];
+};
 
 export async function fetchListeningLibrary(): Promise<{ items: ListeningMeta[]; weeklyCount: number }> {
   const res = await fetch("/api/listening");

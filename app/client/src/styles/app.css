@@ -401,6 +401,8 @@ ul, ol { margin: 0 0 var(--sp-3); padding-left: var(--sp-5); }
 .listening-para { margin: 0 0 var(--sp-4); }
 .listening-para:last-child { margin-bottom: 0; }
 .listening-para.is-playing { background: var(--accent-soft); border-radius: var(--radius-sm); box-shadow: 0 0 0 6px var(--accent-soft); }
+/* 対話素材（#220）の話者ラベル: 誰の発話かを一目で追えるよう控えめに色分け */
+.listening-speaker { color: var(--accent); font-weight: 700; }
 
 /* 進捗ダッシュボード */
 .stack-sm > * + * { margin-top: var(--sp-2); }

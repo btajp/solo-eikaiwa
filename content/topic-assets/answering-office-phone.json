@@ -1,70 +1,70 @@
 {
   "topicId": "answering-office-phone",
   "sourceHash": "65d2f3b57d9a716e242c9a76f71d9bcfe212573faddca365a9ece730e984db02",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "5": {
       "prepPack": {
         "chunks": [
           {
-            "en": "When I pick up the office phone, I say, \"Hello, this is Sato from the IT team.\"",
-            "ja": "会社の電話に出るときは、「もしもし、ITチームの佐藤です」と言います。"
+            "en": "When I pick up the office phone, I usually say, \"Thank you for calling, this is Sato speaking.\"",
+            "ja": "オフィスの電話に出るときは、たいてい「お電話ありがとうございます、佐藤が承ります」と言います。"
           },
           {
-            "en": "When I have to transfer a call, I say, \"Please hold on, I'll connect you now.\"",
-            "ja": "電話を取り次ぐときは、「少々お待ちください、今おつなぎします」と言います。"
+            "en": "When I have to transfer a call, I ask the caller to hold on for just a moment.",
+            "ja": "電話を取り次がなければならないときは、相手に少しだけお待ちいただくようお願いします。"
           },
           {
-            "en": "When the person is out, I take a message and write down the caller's name and number.",
-            "ja": "担当者が不在のときは、伝言を受けて、相手の名前と電話番号をメモします。"
+            "en": "If the person they want is out, I'll jot down a quick message and their number.",
+            "ja": "相手が探している人が不在なら、簡単な伝言と番号を書き留めておきます。"
           },
           {
-            "en": "To be honest, I prefer chat and email because I can check the details later.",
-            "ja": "正直に言うと、私はチャットやメールの方が好きです。後で内容を確認できるからです。"
+            "en": "To be honest, I prefer chat over phone calls because I can think before I reply.",
+            "ja": "正直に言うと、返信する前に考えられるので、電話よりチャットのほうが好きです。"
           }
         ],
         "outline": [
-          "Opening: how I greet callers on the office phone",
-          "Point: transferring calls and putting people on hold",
-          "Point: taking a message when someone is out",
-          "Wrap-up: why I prefer chat and email over calls"
+          "Opening: how I answer and greet callers",
+          "Point 1: transferring calls and putting people on hold",
+          "Point 2: taking a message when someone's out",
+          "Wrap-up: why I prefer chat over phone calls"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "Hi. When the office phone rings, I pick it up fast. I say, \"Good morning, this is the sales team, Kenji speaking.\" Then I ask, \"How can I help you?\" I try to sound friendly and clear. Sometimes the call is for someone else. So I say, \"Just a moment, please. I'll put you through.\" If I need time, I say, \"Can I put you on hold?\" When the person is out, I take a message. I write down the name, the number, and the reason. Then I read it back to check. I say, \"I'll pass this on when he's back.\" Honestly, I prefer chat and email. I can think before I write. Phone calls make me a bit nervous. But they're faster for urgent things. So I'm slowly getting used to them. Practice really helps me feel calm."
+        "text": "When the office phone rings, I usually pick up within a few rings. I say hello, give the company name, then my own. Something like, \"Good morning, Sunrise Trading, this is Ken.\" It sounds friendly but professional. If the caller needs someone else, I'll ask them to hold on for a second. Then I transfer the call, or I pop back and explain there's a bit of a wait. When the person they want is out, I jot down a quick message. I always double-check the name, the number, and what it's about. To be honest, I'm not a huge fan of phone calls. If I had the choice, I'd probably go for chat or email instead. You get time to think, and there's a record you can look back on. Still, a call feels warmer sometimes, and you can sort things out much faster than typing back and forth."
       }
     },
     "6": {
       "prepPack": {
         "chunks": [
           {
-            "en": "When I pick up the office phone, I say, \"Hello, this is Tanaka from the IT team.\"",
-            "ja": "会社の電話に出るときは、「もしもし、ITチームの田中です」と言います。"
+            "en": "When I pick up the office phone, I usually say, \"Good morning, this is Kenji from the IT team.\"",
+            "ja": "会社の電話に出るときは、たいてい「おはようございます、ITチームの健二です」と言います。"
           },
           {
-            "en": "When I have to transfer a call, I say, \"Please hold on, I'll put you through.\"",
-            "ja": "電話を取り次ぐときは、「少々お待ちください、おつなぎします」と言います。"
+            "en": "When I have to transfer a call, I'll say, \"Let me put you on hold for a moment.\"",
+            "ja": "電話を取り次がなきゃいけないときは、「少々お待ちください、保留にしますね」と言います。"
           },
           {
-            "en": "When the person is out, I take a message and write down the caller's name and number.",
-            "ja": "担当者が不在のときは、伝言を受けて、相手の名前と電話番号をメモします。"
+            "en": "If the person they want is out, I'll offer to take a quick message and pass it on.",
+            "ja": "相手が求めている人が不在のときは、簡単な伝言を承って伝えますよと申し出ます。"
           },
           {
-            "en": "To be honest, I prefer chat and email because I can check the details later.",
-            "ja": "正直に言うと、後で内容を確認できるので、チャットやメールの方が好きです。"
+            "en": "To be honest, I prefer chat or email because I can think before I reply, unlike phone calls.",
+            "ja": "正直なところ、電話と違って返信前に考えられるので、チャットやメールのほうが好きです。"
           }
         ],
         "outline": [
-          "Opening: how I greet callers on the office phone",
-          "Point 1: transferring calls and putting people on hold",
-          "Point 2: taking a message when someone is out",
-          "Wrap-up: why I prefer chat or email over calls"
+          "Opening: how I answer and greet the caller",
+          "Point 1: putting someone on hold or transferring the call",
+          "Point 2: taking a message when the person is out",
+          "Wrap-up: why I lean toward chat or email"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "Okay, so at work, when the phone rings, I pick it up quickly. I say, \"Good morning, this is Sales. How can I help you?\" I try to sound friendly and calm. Sometimes the caller wants someone else. So I say, \"Sure, let me put you through. Please hold for a moment.\" If the line is busy, I ask them to wait or call back. When the person they want is out, I take a message. I write down the name, the number, and what they need. Then I read it back to check. I always say I'll pass it on. Honestly, I like chat and email more than calls. With a message, I've got time to think. Phone calls make me a bit nervous. But I'm getting better with practice, and that feels good."
+        "text": "So, whenever the office phone rings, I try to pick up within three rings. I'll say something like, \"Good morning, Sales Department, this is Kenji speaking.\" Keeping it warm but professional really sets the tone. If the caller needs someone else, I'll say, \"Let me put you through — bear with me a second.\" Honestly, I always ask before sticking anyone on hold. That said, if the person they want is out, I'll offer to take a message. I jot down the name, the number, and what it's about, then read it back to double-check. To be honest, phone calls aren't really my cup of tea. I much prefer chat or email, because you get a bit of time to think. On the phone, you're kind of put on the spot, and you can't scroll back. But actually, there's something nice about hearing a real voice. It clears things up faster, and you avoid those endless back-and-forth threads."
       }
     }
   }

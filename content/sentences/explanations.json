@@ -1036,10 +1036,6 @@
     "text": "How about ...? は「〜はどうですか」と代案を軽く差し出す提案の形。about は前置詞なので、後ろには名詞か動名詞（-ing）が来る。\n「会議をずらすのはどう？」と動作を提案するときは、文を丸ごと作らず moving the meeting という -ing のかたまりを How about に乗せる、と考えて組み立てる。\n使い回し例:\nHow about asking the security team first?（先にセキュリティチームに聞いてみるのはどう？）\nHow about having the retrospective online this time?（今回はふりかえりをオンラインでやるのはどう？）\nよくある間違い:\n誤）How about to move the meeting to Thursday? → 正）How about moving the meeting to Thursday?\n前置詞 about の直後に to 不定詞は置けない。What about -ing? もほぼ同じ意味の提案として使える。"
   },
   {
-    "no": 260,
-    "text": "I was wondering if you could ... は依頼表現の中でも最上級に丁寧な形。「〜していただけないかと思っていまして」と、今のお願いをわざと過去進行形でぼかすことで心理的な距離を作り、相手に断る余地を残す。\n頼みにくい大きめのお願いは、主語を相手ではなく自分（I）にして、要求の本体を if you could ... の中に埋め込む、と考えて組み立てる。\n使い回し例:\nI was wondering if you could introduce me to your vendor.（御社のベンダーをご紹介いただけないかと思いまして。）\nI was wondering if I could reschedule our one-on-one.（1on1 の日程を変更させていただけないかと思いまして。）\nよくある間違い:\n誤）I was wondering if you can review my draft. → 正）I was wondering if you could review my draft.\nwas wondering に合わせて if 節も could にそろえるのが丁寧さの要。can にすると距離感が崩れてちぐはぐに聞こえる。"
-  },
-  {
     "no": 261,
     "text": "Would it be okay if I + 過去形は、影響の大きい行動の前に使う柔らかい許可伺い。if 節の restarted は過去の話ではなく仮定法で、「もし仮に〜したら」と現実から一歩引くことで押しつけがましさを消す。\n「〜しても大丈夫ですか」は状況を指す it を主語に Would it be okay で始め、自分の行動を if I + 過去形で続ける、と考えて組み立てる。\n使い回し例:\nWould it be okay if I merged this branch today?（今日このブランチをマージしても大丈夫でしょうか。）\nWould it be okay if I skipped tomorrow's standup?（明日の朝会を欠席しても大丈夫でしょうか。）\nよくある間違い:\n誤）Would it be okay if I restart the server now? → 正）Would it be okay if I restarted the server now?\n主節の would に合わせて if 節も過去形にそろえる。現在形で言うなら Is it okay if I restart ...? とセットを崩さないこと。"
   },
@@ -1324,10 +1320,6 @@
     "text": "丁寧に「〜してもらえますか」と頼むとき Could you ...? を使い、a bit（少し）を加えると要求が控えめで柔らかくなります。命令ではなく依頼のニュアンスになります。\n\n使い回し例:\nCould you speak a bit more slowly, please?（もう少しゆっくり話してもらえますか。）\nCould you move over a bit, please?（少し詰めてもらえますか。）\n\nよくある間違い:\nCould you turn down a bit the music? → Could you turn the music down a bit?（目的語が名詞のとき turn ... down の間に置き、a bit は文末に付けます）"
   },
   {
-    "no": 332,
-    "text": "Would you mind ...ing? は「〜するのは嫌ですか＝〜してもらえますか」と相手の負担を気づかう、とても丁寧な依頼表現です。mind の後ろは必ず動詞のing形（動名詞）を置きます。\n\n使い回し例:\nWould you mind opening the window? 窓を開けてもらえませんか。\nWould you mind waiting here for a moment? ここで少しの間待ってもらえませんか。\n\nよくある間違い:\nWould you mind to close the door? （誤）\n→ Would you mind closing the door? （正）\nmind の後は to不定詞ではなく ing形にします。\n\nなお承諾する返事は No（＝嫌ではない＝いいですよ）になる点も要注意です。"
-  },
-  {
     "no": 333,
     "text": "『Could you〜?』は「〜してもらえますか」と相手の意向を尋ねる丁寧な依頼で、canの過去形couldにより直接的な命令を避け、職場でも柔らかく響きます。let me knowは「私に知らせる」で、その後のwhen節は疑問詞のまとまり（when + 主語 + 動詞）を語順そのままで置きます。\n\n使い回し例:\nCould you let me know when the report is ready?（レポートがいつ仕上がるか教えてもらえますか。）\nCould you tell me where the station is?（駅がどこにあるか教えてもらえますか。）\n\nよくある間違い:\n間接疑問文の語順に注意。\n誤: Could you let me know when does the meeting start?\n正: Could you let me know when the meeting starts?\n（when以下は疑問文の語順doesを使わず、主語+動詞の平叙文の形にします。）"
   },
@@ -1558,5 +1550,13 @@
   {
     "no": 390,
     "text": "Gotchaは「わかった／了解」という口語表現で、rightを文末に付けて「〜だよね？」と相手に確認します。技術的なやりとりでの軽い相づちに便利です。\n\n使い回し例:\nSo the error only shows up when I'm offline, right?（じゃあエラーはオフラインのときだけ出るんだよね？）\nGotcha, so I should push to the main branch after review, right?（なるほど、レビューのあとにmainブランチへpushすればいいんだよね？）\n\nよくある間違い:\n文末のrightをisn't itなどに置き換えようとして \"it only breaks in the mobile version, isn't it?\" とすると動詞が合いません。動詞がbreak（一般動詞）なので、誤 isn't it? → 正 right?（またはdoesn't it?）が自然です。"
+  },
+  {
+    "no": 260,
+    "text": "Can I help you...？は「〜しましょうか」と相手のために手伝いを申し出る表現です。help のあとは目的語（you）＋動詞の原形（set up）が続き、to は付けません。\n\n使い回し例:\nCan I help you carry these bags?（この荷物を運ぶのを手伝いましょうか？）\nCan I help you find your seat?（お席を探すのをお手伝いしましょうか？）\n\nよくある間違い:\n誤: Can I help you to set up the meeting room?\n正: Can I help you set up the meeting room?\nhelp の目的語の後ろは動詞の原形が自然で、to は入れないのが基本です。"
+  },
+  {
+    "no": 332,
+    "text": "Can you 〜? は「〜してくれる？」と相手に何かを頼むときの表現で、能力を問う形を借りて日常のカジュアルな依頼を柔らかく伝えます。Please より打ち解けた響きで、家族や友人に向いています。\n\n使い回し例:\nCan you pass me the salt? I can't reach it.（塩取ってくれる？届かないんだ。）\nCan you close the window? It's getting cold.（窓閉めてくれる？寒くなってきた。）\n\nよくある間違い:\n×Can you to grab me a towel? → ○Can you grab me a towel?（Can you の後は動詞の原形。to は付けません。）"
   }
 ]

@@ -1,82 +1,82 @@
 {
   "topicId": "charging-devices-night",
   "sourceHash": "354392544e01cf86f892c5ecddf13a4e6bfa0544bde4b0aea68422df45a24238",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "3": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Tonight I want to talk about charging my devices at night.",
-            "ja": "今夜は、夜にデバイスを充電することについて話したいです。"
+            "en": "Every night I charge my devices next to my bed.",
+            "ja": "毎晩、私はベッドのそばで自分の機器を充電します。"
           },
           {
-            "en": "I usually plug things in on the small desk near my bed.",
-            "ja": "私はたいてい、ベッドの近くにある小さな机で充電します。"
+            "en": "The devices I charge are my phone, my earphones, and my watch.",
+            "ja": "私が充電する機器は、スマホ、イヤホン、そして時計です。"
           },
           {
-            "en": "Every night I charge my phone, my earphones, and my smart watch.",
-            "ja": "毎晩、スマホとイヤホンとスマートウォッチを充電します。"
+            "en": "I usually start charging around ten, just before I sleep.",
+            "ja": "私はたいてい10時ごろ、寝る直前に充電を始めます。"
           },
           {
-            "en": "I start charging before I sleep, and I check the battery in the morning.",
-            "ja": "寝る前に充電を始めて、朝にバッテリーを確認します。"
+            "en": "In the morning I check my phone to see the battery level.",
+            "ja": "朝、私はバッテリーの残量を見るためにスマホを確認します。"
           },
           {
-            "en": "One time I forgot to charge my phone, so it died at work.",
-            "ja": "一度充電を忘れて、仕事中にスマホの電源が切れてしまいました。"
+            "en": "One time I forgot to charge my phone and it died at work.",
+            "ja": "あるとき充電を忘れて、職場でスマホの電源が切れてしまいました。"
           },
           {
-            "en": "So now I always check my charger before I go to bed.",
-            "ja": "だから今は、寝る前に必ず充電器を確認しています。"
+            "en": "So now I always plug in my phone before I go to bed.",
+            "ja": "だから今は、寝る前に必ずスマホを充電するようにしています。"
           }
         ],
         "outline": [
-          "Opening: talk about charging devices at night",
-          "Point 1: where I charge and which devices",
-          "Point 2: when I start and check the battery",
-          "Wrap-up: a time I forgot, so now I check"
+          "Opening: where and when I charge",
+          "Point 1: which devices I charge each night",
+          "Point 2: a time I forgot and had trouble",
+          "Wrap-up: my new nightly habit"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I charge my phone every night by my bed. It's easy to reach there. I put my earphones and my watch on the desk too. I plug them all in before I sleep. My phone battery is often low at night, so I don't forget it much. I usually start charging around eleven. Then I check everything in the morning. I look at my phone first. I want to see it's full. Sometimes my watch is still low, and that's a problem. One night I forgot to plug in my phone. I was so tired that I just fell asleep. In the morning my phone was almost dead. I couldn't check my messages. I had to wait and charge it fast. Now I try to plug things in first, before I get into bed."
+        "text": "I charge my devices every night, and it's a simple habit now. I plug my phone in next to my bed. My earphones and my watch go on the desk close by. Sometimes I charge my tablet in the living room too. I usually start charging when I brush my teeth. Then I check the little lights before I sleep. In the morning, I look at my phone first. I want to see if it's full. Most days everything is ready, so I feel good. But one night I forgot to plug my phone in. I was so tired that I just fell asleep. The next morning my phone was almost dead. I couldn't call anyone on my way to work. Now I always check twice before bed. It's a small thing, but it really helps me."
       }
     },
     "4": {
       "prepPack": {
         "chunks": [
           {
-            "en": "Tonight I want to talk about how I charge my devices at night.",
-            "ja": "今夜は、夜にどうやって自分のデバイスを充電するかについて話したいと思います。"
+            "en": "Every night I charge my devices on a small table next to my bed.",
+            "ja": "毎晩、ベッドの横にある小さなテーブルで自分のデバイスを充電しています。"
           },
           {
-            "en": "I usually plug everything in on the small desk next to my bed.",
-            "ja": "私はたいてい、ベッドの隣にある小さな机で全部を充電します。"
+            "en": "The devices I charge are my phone, my earbuds, and my smartwatch.",
+            "ja": "充電するデバイスは、スマホ、イヤホン、そしてスマートウォッチです。"
           },
           {
-            "en": "Every night I charge my phone, my earphones, and my smart watch.",
-            "ja": "毎晩、私はスマホとイヤホンとスマートウォッチを充電します。"
+            "en": "I usually start charging around eleven and check the battery when I wake up.",
+            "ja": "だいたい十一時ごろに充電を始めて、起きたときにバッテリーを確認します。"
           },
           {
-            "en": "I usually start charging around eleven, and I check the battery when I wake up.",
-            "ja": "私はたいてい11時ごろに充電を始めて、起きたときにバッテリーを確認します。"
+            "en": "One time I forgot to charge my phone, and it died during my morning commute.",
+            "ja": "一度スマホの充電を忘れて、朝の通勤中に電源が切れてしまいました。"
           },
           {
-            "en": "One time I forgot to charge my phone, and it died on the train.",
-            "ja": "一度スマホを充電し忘れて、電車の中で電源が切れてしまいました。"
+            "en": "So now I keep a spare cable in my bag just to be safe.",
+            "ja": "だから今は念のため、カバンに予備のケーブルを入れています。"
           }
         ],
         "outline": [
-          "Opening: nightly charging routine",
-          "Where and which devices I charge",
-          "When I start and check the battery",
-          "Wrap-up: a time I forgot to charge"
+          "Opening: where and when I charge my devices",
+          "Point 1: which devices I charge every night",
+          "Point 2: a time I forgot and got in trouble",
+          "Wrap-up: how I stay prepared now"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "I charge my devices every night, and I've got a little routine now. Most of the time, I plug things in on my desk near my bed. There's a power strip right there, so it's easy. I charge my phone first, then my earbuds and my watch. Sometimes I forget the watch, but I try to do all three. I usually start around eleven, just before I sleep. When I wake up, I check my phone screen first. I like seeing that little full battery sign. It feels good, honestly. One time I forgot to plug in my phone at night. In the morning it was almost dead. I had only ten percent for the whole day. That was really stressful. So now I check twice before bed. It's a small habit, but it saves me a lot of trouble."
+        "text": "I charge my devices every night, and I've got a little routine now. I usually plug my phone in right by my bed, so I can reach it easily. My earphones and my watch go on the desk in my room. Sometimes I charge my tablet in the living room too. I start charging everything just before I go to sleep, around eleven. When I wake up, the first thing I do is check my phone. I like seeing that it's at a hundred percent. But one time I forgot to plug it in, and it was really annoying. I woke up, grabbed my phone, and the battery was almost dead. I had to rush around before work with only ten percent left. Now I try to double-check everything before bed, so it doesn't happen again."
       }
     }
   }

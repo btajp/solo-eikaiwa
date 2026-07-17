@@ -6,7 +6,7 @@ import { normalizeEn } from "./chunks";
 import { extractJson, generateSentenceExplanation } from "./coach";
 import type { ClaudeRunner } from "./converse";
 import { loadContent, type Domain } from "./content";
-import { loadListening } from "./listening";
+import { dialogueScriptText, loadListening, type ListeningTurn } from "./listening";
 import { loadBundledExplanations, loadSentences, type Sentence } from "./sentences";
 import { vocabConstraint } from "./progression";
 import { categoryBadRates, pickWorstCategories } from "./srs-analytics";
@@ -18,9 +18,12 @@ import {
   LISTENING_WORD_RANGE,
 } from "./spoken-register-check";
 import {
+  replaceContentCandidate,
   writeContentCandidates,
+  writeDialogueListeningCandidates,
   writeListeningCandidates,
   type GeneratedContentCandidate,
+  type GeneratedDialogueListeningCandidate,
   type GeneratedListeningCandidate,
 } from "./content-gen-markdown";
 
@@ -179,9 +182,8 @@ export async function genSentences(deps: GenSentencesDeps): Promise<void> {
   let all = [...sentences];
   for (const w of worst) {
     const inCategory = sentences.filter((s) => s.category_no === w.categoryNo);
-    const vocab = vocabConstraint(deps.stage);
-    // stage>=4（vocab===null）は行自体を挿入しない（元々この行は無かった＝上級者の挙動不変）
-    const vocabLine = vocab ? `${vocab}\n` : "";
+    // #195: 全stageで語彙勾配を注入する（旧実装は stage>=4 が行なし=B1相当で頭打ちだった）
+    const vocabLine = `${vocabConstraint(deps.stage)}\n`;
     const system = `You write original English example sentences for a Japanese learner (CEFR B1-B2).
 Write exactly 4 spoken-register sentences practicing the grammar category "${w.category}".
 Domains: one "daily", one "business", one "it", and one of your choice. 6-14 words each. Contractions welcome.
@@ -262,9 +264,8 @@ export async function genTopics(deps: GenTopicsDeps): Promise<void> {
   const candidates: NewContentCandidate[] = [];
   for (const p of plans) {
     const existing = (p.kind === "topic" ? topics : scenarios).map((c) => c.id).join(", ");
-    const vocab = vocabConstraint(deps.stage);
-    // stage>=4（vocab===null）は行自体を挿入しない（元々この行は無かった＝上級者の挙動不変）
-    const vocabLine = vocab ? `${vocab}\n` : "";
+    // #195: 全stageで語彙勾配を注入する（旧実装は stage>=4 が行なし=B1相当で頭打ちだった）
+    const vocabLine = `${vocabConstraint(deps.stage)}\n`;
     // scenario は genScenarios と同じナラティブ+スターター仕様（coach.ts roleplayPrompt の Setup 欄が
     // 前提とする形式）。topic 側のプロンプトは従来どおり一切変更しない。domain/level は genTopics 従来仕様
     // のままモデルが決める（genScenarios の固定プランとは異なる）。
@@ -389,8 +390,7 @@ export async function genScenarios(deps: GenScenariosDeps): Promise<void> {
   const candidates: NewContentCandidate[] = [];
 
   for (const p of SCENARIO_BAND_PLAN) {
-    const vocab = vocabConstraint(p.vocabStage);
-    const vocabLine = vocab ? `${vocab}\n` : "";
+    const vocabLine = `${vocabConstraint(p.vocabStage)}\n`;
     const domainDesc = p.domain === "daily" ? "everyday life" : p.domain === "business" ? "the workplace" : "software/IT work";
     const system = `You create one original roleplay SCENARIO for an English speaking practice app (Japanese learner, beginner difficulty stage ${p.level[0]}-${p.level[1]} of 6).
 Domain: ${domainDesc}. A scenario sets up a roleplay that an AI coach will run with the learner by voice.
@@ -481,8 +481,7 @@ export async function genTopicsBand(deps: GenTopicsBandDeps): Promise<void> {
   const candidates: NewContentCandidate[] = [];
 
   for (const p of TOPIC_BAND_PLAN) {
-    const vocab = vocabConstraint(p.vocabStage);
-    const vocabLine = vocab ? `${vocab}\n` : "";
+    const vocabLine = `${vocabConstraint(p.vocabStage)}\n`;
     const domainDesc = p.domain === "business" ? "the workplace" : "software/IT work";
     const system = `You create one original topic for an English speaking practice app (Japanese learner, beginner difficulty stage ${p.level[0]}-${p.level[1]} of 6).
 Domain: ${domainDesc}. A topic gives 4 talking-point hints for a monologue: a near-beginner can talk about it from their own daily work life (e.g., describing a workday, tools they use, asking for help — pick your own original angle).
@@ -592,8 +591,8 @@ export async function genListeningForTarget(deps: GenListeningForTargetDeps): Pr
   const log = deps.log ?? console.log;
   const existingIds = new Set(loadListening(deps.listeningDir).map((it) => it.id));
   const [lo, hi] = BAND_STAGE_RANGE[deps.band];
-  const vocab = vocabConstraint(lo);
-  const vocabLine = vocab ? `${vocab}\n` : "";
+  // #195: 帯開始stageの語彙勾配を全帯で注入する（旧実装は fluency 帯が行なし=B1相当で頭打ちだった）
+  const vocabLine = `${vocabConstraint(lo)}\n`;
   const domainDesc = DOMAIN_DESC[deps.domain];
   const spokenBand = SPOKEN_BAND_FOR_BAND[deps.band];
   // it ドメインのみマニュアル調回避の指示を追加する（daily/businessは従来どおり不変・全帯対象）
@@ -648,6 +647,135 @@ Do not use any tools — reply directly with text only.`;
   mkdirSync(deps.listeningDir, { recursive: true });
   const written = writeListeningCandidates(candidates, deps.listeningDir);
   log(`完了: ${written.length} 本の ${deps.domain}/${deps.band} listening を追加しました。`);
+}
+
+// ============ #220: 2話者対話形式の多聴生成 ============
+
+export type NewDialogueListeningCandidate = {
+  id: string; title: string; titleJa: string; speakers: string[]; turns: ListeningTurn[];
+};
+
+/** 対話の最小ターン数（8未満は話者交替の聞き取り練習として短すぎる） */
+export const DIALOGUE_MIN_TURNS = 8;
+/** 各話者の最小発話回数（片方が相槌1回だけの「実質モノローグ」を弾く） */
+export const DIALOGUE_MIN_TURNS_PER_SPEAKER = 3;
+/** 質問（?）を含む最小ターン数（質問応答の聞き取りが #220 の目的のため） */
+export const DIALOGUE_MIN_QUESTION_TURNS = 2;
+
+/** 話者名: 1語・大文字始まりの英名のみ（parseListeningFile のラベル行 regex と同期した安全形式） */
+const DIALOGUE_SPEAKER_NAME_RE = /^[A-Z][A-Za-z]*$/;
+
+/**
+ * AI 生成 dialogue listening 候補の厳格バリデーション（#220）。validateListeningCandidate（monologue）と
+ * 同じ外枠（id/title/titleJa/talk-explain 上限）に、対話固有の構造検証を加える:
+ * ①話者はちょうど2人・1語の大文字始まり英名・重複なし ②turns は8件以上・全ターンが宣言話者のもの・
+ * 改行なし ③両話者とも3ターン以上発話 ④質問（?）を含むターンが2件以上（話者交替+質問応答の担保）
+ * ⑤ラベル込み本文が talk-explain 上限内。
+ * speakers はターンの初出順へ正規化して返す（listeningToMarkdown → parseListeningFile の round-trip 一致条件）。
+ */
+export function validateDialogueListeningCandidate(
+  parsed: unknown, existingIds: Set<string>, dir: string,
+): NewDialogueListeningCandidate | null {
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const c = parsed as Partial<NewDialogueListeningCandidate>;
+  if (typeof c.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(c.id)) return null;
+  if (c.id === "log") return null;
+  if (existingIds.has(c.id) || existsSync(path.join(dir, `${c.id}.md`))) return null;
+  if (typeof c.title !== "string" || !c.title.trim() || /[\r\n"]/.test(c.title)) return null;
+  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\r\n"]/.test(c.titleJa)) return null;
+
+  if (!Array.isArray(c.speakers) || c.speakers.length !== 2) return null;
+  if (!c.speakers.every((s) => typeof s === "string" && DIALOGUE_SPEAKER_NAME_RE.test(s))) return null;
+  if (new Set(c.speakers).size !== 2) return null;
+
+  if (!Array.isArray(c.turns) || c.turns.length < DIALOGUE_MIN_TURNS) return null;
+  const turns: ListeningTurn[] = [];
+  for (const raw of c.turns) {
+    const t = raw as Partial<ListeningTurn>;
+    if (typeof t?.speaker !== "string" || !(c.speakers as string[]).includes(t.speaker)) return null;
+    if (typeof t?.text !== "string" || !t.text.trim() || /[\r\n]/.test(t.text)) return null;
+    turns.push({ speaker: t.speaker, text: t.text.trim() });
+  }
+  // 初出順へ正規化（frontmatter speakers とターンから導出される話者順の round-trip を保証する）
+  const speakersInOrder = [...new Set(turns.map((t) => t.speaker))];
+  if (speakersInOrder.length !== 2) return null;
+  for (const speaker of speakersInOrder) {
+    if (turns.filter((t) => t.speaker === speaker).length < DIALOGUE_MIN_TURNS_PER_SPEAKER) return null;
+  }
+  if (turns.filter((t) => t.text.includes("?")).length < DIALOGUE_MIN_QUESTION_TURNS) return null;
+  const labeledBody = turns.map((t) => `${t.speaker}: ${t.text}`).join("\n\n");
+  if (labeledBody.length > LISTENING_BODY_MAX_CHARS) return null;
+
+  return { id: c.id, title: c.title.trim(), titleJa: c.titleJa.trim(), speakers: speakersInOrder, turns };
+}
+
+export type GenDialogueListeningForTargetDeps = GenListeningForTargetDeps;
+
+/**
+ * 対話型多聴の生成本体（#220）。genListeningForTarget（monologue）と同じ3ラウンド規律・同じ質ゲート構造で、
+ * 検証はラベル抜きの発話本文（dialogueScriptText）に対して行う: 構造（validateDialogueListeningCandidate）
+ * + 総語数レンジ（checkListeningWordCount・#218 のゲートを対話にも適用）+ 口語レジスター3指標
+ * （checkSpokenRegister・帯別閾値）。全アイテム検証済み後に一括書き込み（all-or-nothing）。
+ * 音声は scripts/generate-dialogue-audio.ts が話者別 voice で別途生成する（テキスト生成とは独立）。
+ */
+export async function genDialogueListeningForTarget(deps: GenDialogueListeningForTargetDeps): Promise<void> {
+  const log = deps.log ?? console.log;
+  const existingIds = new Set(loadListening(deps.listeningDir).map((it) => it.id));
+  const [lo, hi] = BAND_STAGE_RANGE[deps.band];
+  const vocab = vocabConstraint(lo);
+  const vocabLine = vocab ? `${vocab}\n` : "";
+  const domainDesc = DOMAIN_DESC[deps.domain];
+  const spokenBand = SPOKEN_BAND_FOR_BAND[deps.band];
+  const candidates: GeneratedDialogueListeningCandidate[] = [];
+
+  for (let i = 0; i < deps.count; i++) {
+    const system = `You write an original two-speaker DIALOGUE listening script for a Japanese learner of English.
+HARD length requirement: the total spoken text across all turns MUST be ${LISTENING_WORD_RANGE.min}-${LISTENING_WORD_RANGE.max} words — scripts under ${LISTENING_WORD_RANGE.min} words are rejected. With short turns of about 8-12 words that means roughly 30-40 turns, so write a long, complete conversation (the situation can evolve: a small problem, a follow-up question, a digression, a resolution).
+Topic domain: ${domainDesc}. Difficulty: aim at CEFR level band for learner stage ${lo}-${hi} of 6.
+Two speakers with common English first names (one word each, e.g. "Ken", "Emma") talk naturally: real turn-taking, including questions and answers (at least ${DIALOGUE_MIN_QUESTION_TURNS} turns must contain a question), short reactions, and both speakers talking a similar amount (each speaker at least ${DIALOGUE_MIN_TURNS_PER_SPEAKER} turns).
+Each turn is one short utterance of 1-3 sentences with NO line breaks inside.
+${spokenStyleFor(spokenBand)}
+${vocabLine}${ORIGINALITY}
+Do NOT reuse these existing ids: ${[...existingIds].join(", ") || "(none)"}
+Reply with STRICT JSON only — no markdown fences:
+{"id":"kebab-case-id","title":"English title","titleJa":"日本語タイトル","speakers":["Name1","Name2"],"turns":[{"speaker":"Name1","text":"..."},{"speaker":"Name2","text":"..."}, "..."]}
+Do not use any tools — reply directly with text only.`;
+    let cand: NewDialogueListeningCandidate | null = null;
+    for (let attempt = 1; attempt <= 3 && !cand; attempt++) {
+      let text: string | undefined;
+      try {
+        ({ text } = await deps.runner(
+          `Write the ${deps.domain} dialogue listening script (band ${deps.band}, item ${i + 1}/${deps.count}) now.`, undefined, { systemPrompt: system },
+        ));
+      } catch (err) {
+        // SDK呼び出し自体の一過性エラーも検証NGと同様に再試行する。実エラーは必ずログに残す
+        console.warn("[content-gen] runner error:", err instanceof Error ? err.message : String(err));
+      }
+      if (text !== undefined) {
+        const parsed = extractJson<NewDialogueListeningCandidate>(text);
+        const base = validateDialogueListeningCandidate(parsed, existingIds, deps.listeningDir);
+        // 質ゲートはラベル抜きの発話本文で計測する（"Ken:" 等のラベルは語数・文長の雑音になるため）
+        const script = base ? dialogueScriptText(base.turns) : "";
+        cand = base && checkListeningWordCount(script).pass && checkSpokenRegister(script, spokenBand).pass ? base : null;
+      }
+      if (!cand && attempt < 3) log(`  ${deps.domain}/${deps.band}(dialogue): 検証NG — 再生成します(${attempt}/3)`);
+    }
+    if (!cand) {
+      throw new Error(`エラー: ${deps.domain}/${deps.band} の dialogue listening (${i + 1}/${deps.count}) が3回とも検証を通りませんでした。何も書き込みません。`);
+    }
+    existingIds.add(cand.id);
+    candidates.push({ ...cand, domain: deps.domain, level: [lo, hi] });
+    log(`  + dialogue listening: ${cand.id} [${deps.domain}/${lo}-${hi}] ${cand.title}（${cand.turns.length}ターン）`);
+  }
+
+  if (deps.dry) {
+    log("--dry のため書き込みません");
+    return;
+  }
+
+  mkdirSync(deps.listeningDir, { recursive: true });
+  const written = writeDialogueListeningCandidates(candidates, deps.listeningDir);
+  log(`完了: ${written.length} 本の ${deps.domain}/${deps.band} dialogue listening を追加しました。`);
 }
 
 export type GenListeningDeps = {
@@ -769,8 +897,8 @@ export async function genTopicsForTarget(deps: GenTopicsForTargetDeps): Promise<
   const log = deps.log ?? console.log;
   const existingIds = new Set(loadContent(deps.topicsDir).map((c) => c.id));
   const [lo, hi] = BAND_STAGE_RANGE[deps.band];
-  const vocab = vocabConstraint(lo);
-  const vocabLine = vocab ? `${vocab}\n` : "";
+  // #195: 帯開始stageの語彙勾配を全帯で注入する（旧実装は fluency 帯が行なし=B1相当で頭打ちだった）
+  const vocabLine = `${vocabConstraint(lo)}\n`;
   const domainDesc = DOMAIN_DESC[deps.domain];
   const candidates: NewContentCandidate[] = [];
 
@@ -863,8 +991,8 @@ export async function genScenariosForTarget(deps: GenScenariosForTargetDeps): Pr
   const log = deps.log ?? console.log;
   const existingIds = new Set(loadContent(deps.scenariosDir).map((c) => c.id));
   const [lo, hi] = BAND_STAGE_RANGE[deps.band];
-  const vocab = vocabConstraint(lo);
-  const vocabLine = vocab ? `${vocab}\n` : "";
+  // #195: 帯開始stageの語彙勾配を全帯で注入する（旧実装は fluency 帯が行なし=B1相当で頭打ちだった）
+  const vocabLine = `${vocabConstraint(lo)}\n`;
   const domainDesc = DOMAIN_DESC[deps.domain];
   const candidates: NewContentCandidate[] = [];
 
@@ -1020,8 +1148,8 @@ export async function genSpokenFunctionSentencesForTarget(deps: GenSpokenFunctio
   const sentences = loadSentences(deps.sentencesFile);
   const [lo] = BAND_STAGE_RANGE[deps.band];
   const spokenBand = SPOKEN_BAND_FOR_CONTENT_BAND[deps.band];
-  const vocab = vocabConstraint(lo);
-  const vocabLine = vocab ? `${vocab}\n` : "";
+  // #195: 帯開始stageの語彙勾配を全帯で注入する（旧実装は fluency 帯が行なし=B1相当で頭打ちだった）
+  const vocabLine = `${vocabConstraint(lo)}\n`;
 
   let all = [...sentences];
   const bandAdded: Sentence[] = [];
@@ -1184,4 +1312,318 @@ export async function genMissingSentenceExplanations(deps: GenSentenceExplanatio
   const merged = [...arr, ...added];
   writeFileSync(deps.explanationsFile, JSON.stringify(merged, null, 2) + "\n");
   log(`完了: 解説 ${added.length}件を追記しました（計 ${merged.length}件）。`);
+}
+
+// === #219: 指定 no の例文差し替え（準重複ペアの正規再生成経路） =====================================
+
+/**
+ * 全例文の近似重複ペア（正規化トークンJaccard >= NEAR_DUPLICATE_JACCARD_THRESHOLD）を no の組で列挙する。
+ * #219 の受け入れ条件「全文でJaccard>=0.8のペアが0組」の機械検証に使う（O(n^2)だが390文規模では十分軽い）。
+ */
+export function findNearDuplicateSentencePairs(sentences: readonly Sentence[]): Array<[number, number]> {
+  const sets = sentences.map((s) => normalizedTokenSet(s.en));
+  const pairs: Array<[number, number]> = [];
+  for (let i = 0; i < sentences.length; i++) {
+    for (let j = i + 1; j < sentences.length; j++) {
+      if (tokenJaccard(sets[i], sets[j]) >= NEAR_DUPLICATE_JACCARD_THRESHOLD) {
+        pairs.push([sentences[i].no, sentences[j].no]);
+      }
+    }
+  }
+  return pairs;
+}
+
+/**
+ * 差し替え候補1文の検証（#219）。validateNewSentences と同じ品質ゲート（型・空文字・200字上限・
+ * 正規化完全一致・近似重複Jaccard>=0.8）を、差し替え対象を除いた残り全文（others）に対して課す。
+ * 追加の制約:
+ *   - domain は原文と同一（SRSスロットのdomain分布を差し替えで崩さない）
+ *   - 原文と正規化後に完全一致する候補は不採用（差し替えとして無意味なため）
+ *   - 原文が band 付き（spoken function例文）なら、書き言葉語彙禁止・帯別語数上限（validateSpokenFunction
+ *     Sentences と同じ per-sentence ゲート）も課し、band を引き継ぐ
+ * no / category_no / category は原文から引き継ぐ（SRSの復習履歴・解説キャッシュのキーである no を保つ）。
+ */
+export function validateReplacementSentence(
+  raw: unknown,
+  original: Sentence,
+  others: readonly Sentence[],
+): Sentence | null {
+  const c = raw as NewSentenceCandidate;
+  if (typeof c?.en !== "string" || typeof c?.ja !== "string" || typeof c?.note !== "string") return null;
+  if (c.domain !== original.domain) return null;
+  const en = c.en.trim();
+  if (!en || en.length > 200) return null;
+  const ja = c.ja.trim();
+  if (!ja) return null;
+  const norm = normalizeEn(en);
+  if (!norm || norm === normalizeEn(original.en)) return null;
+  if (others.some((s) => normalizeEn(s.en) === norm)) return null;
+  const tokens = normalizedTokenSet(en);
+  if (others.some((s) => tokenJaccard(tokens, normalizedTokenSet(s.en)) >= NEAR_DUPLICATE_JACCARD_THRESHOLD)) return null;
+  if (original.band) {
+    if (findWrittenVocabHits(en).length > 0) return null;
+    if (countWords(en) > SPOKEN_FUNCTION_WORD_CAP[original.band]) return null;
+  }
+  return {
+    no: original.no, category_no: original.category_no, category: original.category,
+    domain: original.domain, en, ja, note: c.note.trim(),
+    ...(original.band ? { band: original.band } : {}),
+  };
+}
+
+export type GenReplaceSentencesDeps = {
+  runner: ClaudeRunner;
+  sentencesFile: string;
+  explanationsFile: string;
+  /** 差し替える既存文の no（各準重複ペアの残さない側など） */
+  nos: number[];
+  /** band 無し原文の語彙制約に使う現在ステージ（band 付き原文は帯の下端ステージを使う） */
+  stage: number;
+  dry: boolean;
+  log?: (s: string) => void;
+};
+
+/**
+ * 指定した no の例文を、同じ no・category・domain（band 付きなら band も）のまま新しい文へ差し替える（#219）。
+ * 生成は既存の正規経路と同じ3ラウンド規律で、validateReplacementSentence（近似重複ゲート込み）を
+ * hard-fail 条件とする。全対象の検証が通った後に、
+ *   1) 差し替え後の全文で近似重複ペアが0組であること（#219の受け入れ条件そのもの）
+ *   2) band 付きスロットを差し替えた帯の口語レジスター集計（genSpokenFunctionSentencesForTargetと同じ粒度）
+ * を最終ゲートし、どちらかがFAILなら何も書き込まず throw する（all-or-nothing）。
+ * 書き込み時は、差し替えた no の同梱解説（旧文の解説で陳腐化する）を explanations.json から除去する
+ * （呼び出し側が genMissingSentenceExplanations で再生成する前提）。音声は text ハッシュキーの同梱
+ * キャッシュのため、差し替え後に scripts/generate-sentence-audio.ts の差分生成が別途必要。
+ */
+export async function genReplaceSentences(deps: GenReplaceSentencesDeps): Promise<void> {
+  const log = deps.log ?? console.log;
+  const sentences = loadSentences(deps.sentencesFile);
+  const byNo = new Map(sentences.map((s) => [s.no, s]));
+  if (deps.nos.length === 0) throw new Error("エラー: 差し替え対象の no がありません。");
+  const missing = deps.nos.filter((no) => !byNo.has(no));
+  if (missing.length > 0) throw new Error(`エラー: 存在しない no が指定されました: ${missing.join(", ")}`);
+
+  let all = [...sentences];
+  for (const no of deps.nos) {
+    const original = byNo.get(no)!;
+    const others = all.filter((s) => s.no !== no);
+    // 回避リスト: 原文 + 原文と語彙が近い文（近似重複の再発リスク集合・カテゴリ横断） + 同カテゴリの代表12文
+    const originalTokens = normalizedTokenSet(original.en);
+    const similar = others.filter((s) => tokenJaccard(originalTokens, normalizedTokenSet(s.en)) >= 0.5);
+    const sameCategory = others.filter((s) => s.category_no === original.category_no).slice(0, 12);
+    const avoid = [...new Set([original, ...similar, ...sameCategory])];
+    const difficulty = original.band ? SPOKEN_FUNCTION_BAND_DIFFICULTY_DESC[original.band] : "CEFR B1-B2";
+    const styleBlock = original.band ? `${spokenStyleFor(SPOKEN_BAND_FOR_CONTENT_BAND[original.band])}\n` : "";
+    const vocab = original.band ? vocabConstraint(BAND_STAGE_RANGE[original.band][0]) : vocabConstraint(deps.stage);
+    const vocabLine = vocab ? `${vocab}\n` : "";
+    const system = `You write one original English example sentence for a Japanese learner (${difficulty}).
+It replaces an existing sentence in the category "${original.category}" — write exactly 1 spoken-register sentence practicing that category.
+Domain: ${DOMAIN_DESC[original.domain]} (the "domain" value must be "${original.domain}"). 6-14 words. Contractions welcome.
+${styleBlock}${vocabLine}${ORIGINALITY}
+The sentence being replaced and its near-duplicates — do NOT duplicate or closely paraphrase any of these:
+${avoid.map((s) => `- ${s.en}`).join("\n")}
+Reply with STRICT JSON only: {"sentences":[{"domain":"${original.domain}","en":"...","ja":"自然な和訳","note":"文法・使い方のポイント1行(日本語)"}]}
+Do not use any tools — reply directly with text only.`;
+
+    let replacement: Sentence | null = null;
+    for (let attempt = 1; attempt <= 3 && !replacement; attempt++) {
+      let text: string | undefined;
+      try {
+        ({ text } = await deps.runner(`Write the replacement sentence for no.${no} now.`, undefined, { systemPrompt: system }));
+      } catch (err) {
+        // SDK呼び出し自体の一過性エラーも検証NGと同様に再試行する（実エラーは必ずログに残す）
+        console.warn("[content-gen] runner error:", err instanceof Error ? err.message : String(err));
+      }
+      if (text !== undefined) {
+        const parsed = extractJson<{ sentences?: unknown }>(text);
+        const cand = Array.isArray(parsed?.sentences) ? parsed.sentences[0] : undefined;
+        replacement = cand !== undefined ? validateReplacementSentence(cand, original, others) : null;
+      }
+      if (!replacement && attempt < 3) log(`  no.${no}: 検証NG — 再生成します(${attempt}/3)`);
+    }
+    if (!replacement) {
+      throw new Error(`エラー: no.${no} の差し替えが3回とも検証を通りませんでした。何も書き込みません。`);
+    }
+    all = all.map((s) => (s.no === no ? replacement! : s));
+    log(`  ~ no.${no} [${replacement.domain}] ${original.en} → ${replacement.en}`);
+  }
+
+  // 最終ゲート1（#219受け入れ条件）: 差し替え後の全文で近似重複ペアが0組
+  const remaining = findNearDuplicateSentencePairs(all);
+  if (remaining.length > 0) {
+    throw new Error(
+      `エラー: 差し替え後も準重複ペアが残っています: ${remaining.map(([a, b]) => `no.${a}≒no.${b}`).join(", ")}。` +
+      "残ったペアの no も --nos に含めて再実行してください。何も書き込みません。",
+    );
+  }
+  // 最終ゲート2: band付きスロットを差し替えた帯は、帯全体の口語レジスター集計も維持されていること
+  const bands = [...new Set(deps.nos.map((no) => byNo.get(no)!.band).filter((b): b is Band => b !== undefined))];
+  for (const band of bands) {
+    const bandSentences = all.filter((s) => s.band === band);
+    const aggregate = checkSpokenRegister(bandSentences.map((s) => s.en).join(" "), SPOKEN_BAND_FOR_CONTENT_BAND[band]);
+    if (!aggregate.pass) {
+      throw new Error(
+        `エラー: band ${band} の合計${bandSentences.length}文での口語レジスター集計検証がFAILしました: ` +
+        `${aggregate.reasons.join(" / ")}。何も書き込みません。`,
+      );
+    }
+  }
+
+  if (deps.dry) {
+    log("--dry のため書き込みません");
+    return;
+  }
+  // 書き込み前バリデーション: temp に書いて loadSentences が全件読めることを確認してから本番に書く（genSentencesと同型）
+  const work = mkdtempSync(path.join(tmpdir(), "gen-replace-"));
+  try {
+    const tempFile = path.join(work, "sentences.json");
+    writeFileSync(tempFile, JSON.stringify(all, null, 2) + "\n");
+    const check = loadSentences(tempFile);
+    if (check.length !== all.length) {
+      throw new Error(`エラー: 生成物のバリデーションに失敗（${all.length}件中${check.length}件のみ有効）。書き込みを中止します。`);
+    }
+    writeFileSync(deps.sentencesFile, JSON.stringify(all, null, 2) + "\n");
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+  // 差し替えた no の同梱解説は旧文の解説のため除去する（genMissingSentenceExplanations が欠損分として再生成する）
+  if (existsSync(deps.explanationsFile)) {
+    const raw: unknown = JSON.parse(readFileSync(deps.explanationsFile, "utf8"));
+    const arr = Array.isArray(raw) ? (raw as Array<{ no: number; text: string }>) : [];
+    const targets = new Set(deps.nos);
+    const kept = arr.filter((e) => !targets.has(e.no));
+    if (kept.length !== arr.length) {
+      writeFileSync(deps.explanationsFile, JSON.stringify(kept, null, 2) + "\n");
+      log(`解説を除去: ${arr.length - kept.length}件（差し替えた no の旧解説 — 欠損分として再生成されます）`);
+    }
+  }
+  log(`完了: ${deps.nos.length} 文を差し替えました（計 ${all.length} 文）。`);
+  log("音声の差分生成: cd app && bun ../scripts/generate-sentence-audio.ts");
+}
+
+// === #182: 既存お題のアンカー付き in-place 再生成 =====================================
+
+/** validateRegenTopicCandidate が既存お題から固定で引き継ぐ項目（id/domain/level）+ プロンプトに使う既存本文 */
+export type RegenTopicSource = {
+  id: string;
+  title: string;
+  titleJa: string;
+  domain: Domain;
+  level: [number, number];
+  hints: string[];
+};
+
+/**
+ * 既存お題の再生成候補の検証（#182）。validateTopicTargetCandidate と同じ品質ゲート
+ * （title/titleJa の frontmatter 安全性・hints 4件・アンカー3フィールドの必須 + インライン安全性・
+ * checkTopicAnchor の機械検証）を課すが、id/domain/level は既存お題から固定で引き継ぐ
+ * （in-place 置き換えのため、新規 id の検査・既存 id との衝突検査はしない）。
+ */
+export function validateRegenTopicCandidate(parsed: unknown, existing: RegenTopicSource): NewContentCandidate | null {
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const c = parsed as Partial<NewContentCandidate>;
+  if (typeof c.title !== "string" || !c.title.trim() || /[\r\n"]/.test(c.title)) return null;
+  if (typeof c.titleJa !== "string" || !c.titleJa.trim() || /[\r\n"]/.test(c.titleJa)) return null;
+  const hints = validateGeneratedHints(c.hints, 4);
+  if (!hints) return null;
+  if (typeof c.experienceAnchor !== "string" || !c.experienceAnchor.trim() || !safeInlineField(c.experienceAnchor)) return null;
+  if (typeof c.memoryCue !== "string" || !c.memoryCue.trim() || !safeInlineField(c.memoryCue)) return null;
+  if (
+    !Array.isArray(c.commonObjectsOrActions) || c.commonObjectsOrActions.length === 0 ||
+    !c.commonObjectsOrActions.every((x) => typeof x === "string" && x.trim().length > 0 && safeInlineField(x))
+  ) {
+    return null;
+  }
+  const anchor = checkTopicAnchor({
+    title: c.title, experienceAnchor: c.experienceAnchor, memoryCue: c.memoryCue,
+    commonObjectsOrActions: c.commonObjectsOrActions,
+  });
+  if (!anchor.pass) return null;
+  return {
+    id: existing.id, kind: "topic", title: c.title.trim(), titleJa: c.titleJa.trim(),
+    domain: existing.domain, level: existing.level, hints,
+    experienceAnchor: c.experienceAnchor.trim(), memoryCue: c.memoryCue.trim(),
+    commonObjectsOrActions: c.commonObjectsOrActions.map((x) => x.trim()),
+  };
+}
+
+export type GenRegenTopicsDeps = {
+  runner: ClaudeRunner;
+  topicsDir: string;
+  /** 再生成する既存お題の id（アンカー未整備の legacy お題など） */
+  ids: string[];
+  dry: boolean;
+  log?: (s: string) => void;
+};
+
+export type GenRegenTopicsResult = {
+  /** 検証を通って書き込んだ（dry では書き込み相当の）id */
+  regenerated: string[];
+  /** 3回とも検証NGで書き込みゼロのまま残した id（既存ファイルは不変） */
+  failed: string[];
+};
+
+/**
+ * 既存お題を同じ id・domain・level のまま「完全に既知」アンカー付きで再生成し、in-place で置き換える（#182）。
+ * テーマは既存の title/hints をプロンプトへ埋め込んで維持する（id と内容の対応・ローテーション履歴の
+ * 連続性を保つ）。各お題は3ラウンド規律で、validateRegenTopicCandidate（checkTopicAnchor 連動）を
+ * hard-fail 条件とする。3回とも検証NGのお題はそのお題だけ書き込みゼロで failed に載せ、他のお題の
+ * 処理は続行する（26件規模のバッチで1件の不調が全体を無に帰さないよう、genTopicsForTarget の
+ * all-or-nothing とは意図的に粒度を変えている。成功分はお題ごとに即書き込み済みのため中断後の
+ * 再実行では残りだけを指定すればよい）。
+ */
+export async function genRegenTopics(deps: GenRegenTopicsDeps): Promise<GenRegenTopicsResult> {
+  const log = deps.log ?? console.log;
+  const topics = loadContent(deps.topicsDir);
+  const byId = new Map(topics.map((t) => [t.id, t]));
+  if (deps.ids.length === 0) throw new Error("エラー: 再生成対象の id がありません。");
+  const unknown = deps.ids.filter((id) => !byId.has(id));
+  if (unknown.length > 0) throw new Error(`エラー: 存在しない id が指定されました: ${unknown.join(", ")}`);
+
+  const result: GenRegenTopicsResult = { regenerated: [], failed: [] };
+  for (const id of deps.ids) {
+    const existing = byId.get(id)!;
+    const [lo, hi] = existing.level;
+    const vocab = vocabConstraint(lo);
+    const vocabLine = vocab ? `${vocab}\n` : "";
+    const system = `You REGENERATE one existing topic for an English speaking practice app (Japanese learner, difficulty stage ${lo}-${hi} of 6).
+Domain: ${DOMAIN_DESC[existing.domain]}.
+${KNOWN_INFORMATION_RULE}
+Keep the same subject matter as this existing topic (your output replaces the file with id "${id}"), but rewrite it so the learner can talk entirely from their own lived, everyday experience:
+Existing title: "${existing.title}" / ${existing.titleJa}
+Existing hints:
+${existing.hints.map((h) => `- ${h}`).join("\n")}
+A topic gives 4 talking-point hints for a monologue.
+Each hint line: English phrase — 日本語の補足. Spoken register. ${ORIGINALITY}
+${vocabLine}Reply with STRICT JSON only:
+{"title":"English title","titleJa":"日本語タイトル","hints":["English — 日本語", ...4 items],
+"experienceAnchor":"日本語1文: なぜ学習者が新知識なしで自分の経験から話せるか","memoryCue":"日本語1文: 学習者が思い出せる具体的な場面や記憶","commonObjectsOrActions":["具体的なモノ/行動を英語で3-5件（カンマ・引用符・改行は使わないこと）"]}
+Do not use any tools — reply directly with text only.`;
+
+    let cand: NewContentCandidate | null = null;
+    for (let attempt = 1; attempt <= 3 && !cand; attempt++) {
+      let text: string | undefined;
+      try {
+        ({ text } = await deps.runner(`Regenerate the topic "${id}" now.`, undefined, { systemPrompt: system }));
+      } catch (err) {
+        // SDK呼び出し自体の一過性エラーも検証NGと同様に再試行する（実エラーは必ずログに残す）
+        console.warn("[content-gen] runner error:", err instanceof Error ? err.message : String(err));
+      }
+      if (text !== undefined) {
+        cand = validateRegenTopicCandidate(extractJson<NewContentCandidate>(text), {
+          id: existing.id, title: existing.title, titleJa: existing.titleJa,
+          domain: existing.domain, level: existing.level, hints: existing.hints,
+        });
+      }
+      if (!cand && attempt < 3) log(`  ${id}: 検証NG — 再生成します(${attempt}/3)`);
+    }
+    if (!cand) {
+      result.failed.push(id);
+      log(`  ! ${id}: 3回とも検証を通りませんでした（このお題は書き込みゼロ・既存ファイルを維持）`);
+      continue;
+    }
+    if (!deps.dry) replaceContentCandidate(cand, deps.topicsDir);
+    result.regenerated.push(id);
+    log(`  ~ topic: ${id} [${cand.domain}/${lo}-${hi}] ${cand.title}${deps.dry ? "（--dry・未書き込み）" : ""}`);
+  }
+  return result;
 }

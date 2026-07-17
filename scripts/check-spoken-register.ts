@@ -15,6 +15,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parseFrontmatter, parseLevelRange } from "../app/server/content";
+import { dialogueScriptText, parseListeningFile } from "../app/server/listening";
 import {
   bandForLevel, checkListeningWordCount, checkSpokenRegister, LISTENING_WORD_RANGE,
   type ListeningWordCountResult, type SpokenRegisterResult,
@@ -22,8 +23,16 @@ import {
 import type { SpokenBand } from "../app/server/spoken-style";
 import { LISTENING_DIR } from "../app/server/paths";
 
-/** frontmatter があれば除去して本文のみ返す。無ければファイル全体をそのまま返す */
+/**
+ * frontmatter があれば除去して本文のみ返す。無ければファイル全体をそのまま返す。
+ * dialogue 素材（#220）は「話者名:」ラベルが語数・文長の雑音になるため、ラベル抜きの発話本文
+ * （dialogueScriptText — 生成ゲート genDialogueListeningForTarget と同じ計測単位）で検証する。
+ */
 function extractBody(text: string): { body: string; band: SpokenBand } {
+  const item = parseListeningFile(text);
+  if (item?.format === "dialogue") {
+    return { body: dialogueScriptText(item.turns), band: bandForLevel(item.level) };
+  }
   const fm = parseFrontmatter(text);
   if (!fm) return { body: text, band: "intermediate" };
   return { body: fm.body, band: bandForLevel(parseLevelRange(fm.fields.level)) };

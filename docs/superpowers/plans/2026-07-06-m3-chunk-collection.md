@@ -1,5 +1,7 @@
 # M3: 詰まった表現の自動チャンク収集と SRS 統合 実装計画
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 4/3/2 の AE フィードバックと振り返りが指摘した「学習者が詰まった表現」を自動でチャンク（元発話＋修正版＋解説）として収集し、暗記例文300 と同じ SRS 練習キューに統合する。

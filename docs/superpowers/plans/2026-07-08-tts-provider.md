@@ -1,5 +1,7 @@
 # ローカルTTS対応（OpenAI互換 音声エンドポイントの差し替え可能化）実装計画
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** TTS の合成先（OpenAI 互換 `/v1/audio/speech`）を、Base URL・モデル・voice の3点で差し替え可能にし、kokoro-fastapi 等のローカル TTS を**APIキーなし**で使えるようにする。何も設定しなければ現行と完全に同一（キーあり→OpenAI、なし→macOS `say`、同梱バンドル最優先）。

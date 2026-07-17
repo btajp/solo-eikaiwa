@@ -1,7 +1,7 @@
 {
   "topicId": "my-browser-tabs",
   "sourceHash": "447dfa5378d1fd6db6d5ec1191c3e26d6dc370e565e4087aa86b96d33dd90a53",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "1": {
       "prepPack": {
@@ -11,44 +11,44 @@
             "ja": "今日は私のブラウザのタブについて話したいです。"
           },
           {
-            "en": "I usually keep about twenty tabs open at once.",
-            "ja": "私はたいてい一度に20個くらいのタブを開いています。"
+            "en": "I usually keep about fifteen tabs open.",
+            "ja": "私はたいてい15個くらいのタブを開いています。"
           },
           {
-            "en": "One site I keep open all day is Gmail.",
-            "ja": "一日中開いておくサイトの一つはGmailです。"
+            "en": "I keep my email open all day long.",
+            "ja": "私はメールを一日中ずっと開いています。"
           },
           {
-            "en": "Another site I always use is our team chat.",
-            "ja": "いつも使うもう一つのサイトはチームのチャットです。"
+            "en": "I also keep our team chat open all day.",
+            "ja": "チームのチャットも一日中開いています。"
           },
           {
-            "en": "I close old tabs when my browser gets slow.",
-            "ja": "ブラウザが遅くなったら古いタブを閉じます。"
+            "en": "I close old tabs at the end of the day.",
+            "ja": "私は一日の終わりに古いタブを閉じます。"
           },
           {
-            "en": "To find the tab I want, I use search.",
-            "ja": "目的のタブを見つけるために、検索を使います。"
+            "en": "I find the tab I want by its small icon.",
+            "ja": "私は小さなアイコンで目的のタブを見つけます。"
           },
           {
-            "en": "Sometimes I lose a tab and it's really annoying.",
-            "ja": "時々タブを見失って、それが本当に面倒です。"
+            "en": "Sometimes I use the search box to find a tab.",
+            "ja": "ときどき検索ボックスを使ってタブを探します。"
           },
           {
-            "en": "So I'm trying to keep fewer tabs open now.",
-            "ja": "だから今は開くタブを減らすようにしています。"
+            "en": "So that's how I use my browser tabs every day.",
+            "ja": "というわけで、それが私の毎日のタブの使い方です。"
           }
         ],
         "outline": [
           "Opening: talk about my browser tabs",
           "Point 1: how many tabs and which sites stay open",
           "Point 2: when I close tabs and how I find them",
-          "Wrap-up: trying to keep fewer tabs"
+          "Wrap-up: my daily tab habit"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I love my browser tabs. I always keep many tabs open. Sometimes I've got twenty tabs or more. It's a lot, I know. Some sites stay open all day. I keep my email open every day. I keep music and my chat app too. I don't close them. But my old tabs get messy fast. So I close them at night. I also close them when my computer feels slow. Finding the right tab can be hard. I use the little search box for tabs. I just type a word and it shows up. That's quick and easy. I like my tabs, but I try to stay tidy."
+        "text": "I want to tell you about my browser tabs. I always keep a lot of tabs open. Sometimes I have twenty tabs. It's too many, but I can't help it. I keep some sites open all day. My email is always there. My music and my chat are open too. I don't close them. I close old tabs at night. Sometimes I close them on Friday. It feels good to clean up. But finding the right tab is hard. The tabs get very small. So I use the search box. I just type a word. Then I find my tab fast. That's how I do it."
       }
     },
     "2": {
@@ -56,43 +56,43 @@
         "chunks": [
           {
             "en": "Today I want to talk about my browser tabs.",
-            "ja": "今日は私のブラウザのタブについて話したいです。"
+            "ja": "今日はブラウザのタブについて話したいです。"
           },
           {
-            "en": "I usually keep about twenty tabs open.",
-            "ja": "私はいつも20個くらいのタブを開いています。"
+            "en": "I usually keep about fifteen tabs open at once.",
+            "ja": "私はたいてい一度に15個くらいのタブを開いています。"
           },
           {
             "en": "I keep my email and chat open all day.",
             "ja": "私はメールとチャットを一日中開いています。"
           },
           {
-            "en": "I also keep our team's task board open.",
-            "ja": "私はチームのタスクボードも開いておきます。"
+            "en": "I also keep the ticket board open every day.",
+            "ja": "私は毎日チケットのボードも開いています。"
           },
           {
             "en": "I close old tabs at the end of the day.",
             "ja": "私は一日の終わりに古いタブを閉じます。"
           },
           {
-            "en": "I find the tab I want by using search.",
-            "ja": "私は検索を使って欲しいタブを見つけます。"
+            "en": "To find the tab I want, I use search.",
+            "ja": "目的のタブを見つけるために、私は検索を使います。"
           },
           {
             "en": "So that's how I manage my browser tabs.",
-            "ja": "というわけで、これが私のブラウザのタブの管理の仕方です。"
+            "ja": "そんなふうに私はブラウザのタブを管理しています。"
           }
         ],
         "outline": [
           "Opening: talk about my browser tabs",
-          "Point 1: how many tabs and which sites stay open",
-          "Point 2: when I close tabs and how I find them",
+          "How many tabs and which sites stay open",
+          "When I close old tabs and how I find one",
           "Wrap-up: how I manage my tabs"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "I've got a small problem. I always keep too many tabs open. Sometimes there are twenty tabs. It's a bit crazy, I know. Some sites stay open all day. My email is always there. My music is always there too. Plus I keep one tab for chat with friends. I don't close old tabs very often. But on Friday I clean them up. I close the old ones I don't need. So how do I find the right tab? Well, I look at the little pictures on top. That helps me a lot. Sometimes I just search the tab name. And then I'm happy again."
+        "text": "I usually keep lots of tabs open. Maybe ten or twelve. It's a bad habit, but I can't stop. I keep some sites open all day. My email is always there. My music page stays open too. I like to check the news, so that tab stays open. I don't close old tabs often. Sometimes there are too many. Then I close some at night. It feels good to clean them up. Finding the right tab can be hard. The tabs get very small. So I use search to find one. I just type a word, and it shows up. That's how I stay a little organized."
       }
     }
   }

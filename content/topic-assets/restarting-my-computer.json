@@ -1,54 +1,54 @@
 {
   "topicId": "restarting-my-computer",
   "sourceHash": "6f12794bbd1c8413fa1bb3fac4191409c43642b187163cf115fa3e1bd550362d",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "1": {
       "prepPack": {
         "chunks": [
           {
             "en": "Today I want to talk about restarting my computer.",
-            "ja": "今日はパソコンの再起動についてお話ししたいです。"
+            "ja": "今日はパソコンの再起動について話したいと思います。"
           },
           {
             "en": "When my computer gets slow, I restart it.",
             "ja": "パソコンの動きが遅くなったとき、私は再起動します。"
           },
           {
-            "en": "First, I close all my open apps.",
-            "ja": "まず、開いているアプリを全部閉じます。"
+            "en": "First, I close all my apps.",
+            "ja": "まず、私はすべてのアプリを閉じます。"
           },
           {
-            "en": "Then I click restart and I wait a little.",
-            "ja": "それから再起動を押して、少し待ちます。"
+            "en": "Then I click the restart button.",
+            "ja": "それから再起動ボタンをクリックします。"
           },
           {
-            "en": "I wait for it to start again.",
-            "ja": "パソコンがもう一度立ち上がるまで待ちます。"
+            "en": "After that, I wait for it to start again.",
+            "ja": "そのあと、立ち上がるまで待ちます。"
           },
           {
-            "en": "After that, my computer runs much faster.",
-            "ja": "その後、パソコンはずっと速く動きます。"
+            "en": "It often fixes small problems for me.",
+            "ja": "これで小さな問題はよく直ります。"
           },
           {
-            "en": "Restarting often fixes small problems for me.",
-            "ja": "再起動は、小さな問題を直してくれることが多いです。"
+            "en": "Sometimes the internet works better after this.",
+            "ja": "ときどき、このあとインターネットの調子が良くなります。"
           },
           {
-            "en": "So I always try this first when something breaks.",
-            "ja": "だから何か調子が悪いとき、私はいつもまずこれを試します。"
+            "en": "So restarting is an easy and useful trick.",
+            "ja": "だから再起動は簡単で役に立つ方法です。"
           }
         ],
         "outline": [
-          "Opening: talk about restarting my computer",
-          "Point 1: I do it when it gets slow",
-          "Point 2: close apps, restart, and wait",
-          "Wrap-up: it fixes small problems, so I try it first"
+          "Opening: restarting my computer",
+          "Point 1: close apps when it's slow",
+          "Point 2: wait and it fixes small problems",
+          "Wrap-up: easy and useful trick"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "My computer gets slow sometimes. It doesn't work well, and that's annoying. So I decide to restart it. First, I close all my apps. I don't want to lose my work. I save my files, and then I click restart. Now I just wait. It takes a minute or two. I watch the screen and I'm patient. Soon the computer starts again. It feels fast and fresh. Wow, that's much better! This trick fixes small problems a lot. I don't need to call for help. I can do it myself. So when your computer feels slow, try it. Just restart it. It's easy, and it really works."
+        "text": "Sometimes my computer gets really slow. It doesn't open my files fast. So I decide to restart it. First, I close all my apps. I save my work before I close them. That's important, so I don't lose it. Then I click restart and I wait. My computer turns off and starts again. It takes a minute or two. I just wait and stay calm. When it's ready, I open my apps again. Often the computer works fine now. Restarting fixes small problems a lot. It's easy, and I don't need help. I try this first every time. It usually works for me."
       }
     },
     "2": {
@@ -60,39 +60,39 @@
           },
           {
             "en": "When my computer gets slow, I restart it.",
-            "ja": "パソコンの動きが遅くなったら、私は再起動します。"
+            "ja": "パソコンの動きが遅くなったとき、私は再起動します。"
           },
           {
-            "en": "First, I close all my apps before restarting.",
-            "ja": "まず、再起動する前にすべてのアプリを閉じます。"
+            "en": "First, I close all my apps before I stop it.",
+            "ja": "まず、止める前にすべてのアプリを閉じます。"
           },
           {
             "en": "Then I click the restart button and wait.",
             "ja": "それから再起動ボタンを押して待ちます。"
           },
           {
-            "en": "I wait for it to start again slowly.",
-            "ja": "立ち上がるまでゆっくり待ちます。"
+            "en": "I wait for it to start again, about one minute.",
+            "ja": "立ち上がるまで、だいたい1分ほど待ちます。"
           },
           {
-            "en": "This often fixes small problems very fast.",
-            "ja": "これで小さな問題はすぐに直ることが多いです。"
+            "en": "It often fixes small problems like a frozen screen.",
+            "ja": "画面が固まるような小さな問題は、これでよく直ります。"
           },
           {
-            "en": "So restarting is an easy trick I use.",
-            "ja": "だから再起動は私がよく使う簡単な方法です。"
+            "en": "So restarting is an easy first step for me.",
+            "ja": "だから再起動は、私にとって簡単な最初の一歩です。"
           }
         ],
         "outline": [
-          "Opening: talk about restarting my computer",
-          "Point 1: I close apps when it gets slow",
-          "Point 2: I wait for it to start again",
-          "Wrap-up: it fixes small problems easily"
+          "Opening: restarting the computer",
+          "Point 1: I restart when it's slow and close apps first",
+          "Point 2: I wait, and it fixes small problems",
+          "Wrap-up: an easy first step"
         ],
         "hintDefault": "ja"
       },
       "modelTalk": {
-        "text": "Sometimes my computer gets really slow. It stops working well, and that's annoying. So I restart it. First, I close all my apps. I save my work before I close them. That's important, so I don't lose anything. Then I click restart. Now I just wait. My computer goes dark for a moment. I wait for it to start again. It takes a minute or two. Then the screen comes back. Everything feels faster now. This often fixes small problems. It's an easy trick, and it usually works. I don't need a new computer. I just turn it off and on. That's it!"
+        "text": "Sometimes my computer gets slow. It doesn't open pages fast. So I stop and restart it. But first I close all my apps. I don't want to lose my work. So I save my files first. Then I click restart. I wait for it to start again. It takes a minute or two. I don't touch anything. I just wait. When it comes back, it feels faster. It often fixes small problems for me. The screen doesn't freeze so much. I like this trick a lot. It's easy and quick. I do it once a week. It really helps my computer work well."
       }
     }
   }

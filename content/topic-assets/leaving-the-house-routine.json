@@ -1,70 +1,70 @@
 {
   "topicId": "leaving-the-house-routine",
   "sourceHash": "8e397a37a8d8158e3af44c16a619da2ad2ef2cc03de728f29defeaa88b917365",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "5": {
       "prepPack": {
         "chunks": [
           {
-            "en": "The thing I always grab before leaving home is my company laptop and its charger.",
-            "ja": "家を出る前に必ず手に取るのは、会社のノートパソコンとその充電器です。"
+            "en": "Before I leave home, the first thing I always grab is my company ID badge.",
+            "ja": "家を出る前に、私がいつも最初に手に取るのは会社のIDバッジです。"
           },
           {
-            "en": "The way I check I didn't forget anything is a quick pat on my bag and pockets.",
-            "ja": "忘れ物がないか確認する私のやり方は、カバンとポケットをさっと手で触ってみることです。"
+            "en": "The way I check I didn't forget anything is patting my pockets for my phone and keys.",
+            "ja": "忘れ物がないか確認する私のやり方は、ポケットを叩いてスマホと鍵を確認することです。"
           },
           {
-            "en": "When I'm running late, I rush out the door and just check my phone and keys.",
-            "ja": "遅刻しそうなときは、ドアから慌てて飛び出して、スマホと鍵だけを確認します。"
+            "en": "When I'm running late, I rush out the door and skip breakfast altogether.",
+            "ja": "遅刻しそうなときは、慌ててドアから飛び出して、朝食を完全に抜いてしまいます。"
           },
           {
-            "en": "The one thing I often forget is my ID card for entering the office building.",
-            "ja": "私がよく忘れるものは、オフィスビルに入るための社員証です。"
+            "en": "The one thing I often leave behind is my umbrella, even when it's clearly going to rain.",
+            "ja": "私がよく置き忘れるものは傘で、明らかに雨が降りそうなときでもです。"
           }
         ],
         "outline": [
-          "Opening: what I always grab before leaving",
-          "Point 1: how I check for forgotten items",
+          "Opening: my morning routine before heading out",
+          "Point 1: what I grab and how I check for forgotten things",
           "Point 2: rushing out when I'm late",
-          "Wrap-up: the one thing I often forget"
+          "Wrap-up: the item I always forget"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "Before I leave home, I always grab the same three things. My phone, my keys, and my wallet. I touch each one and say them in my head. Phone, keys, wallet. It's a quick little check, but it works for me. If I've got all three, I feel calm and ready.\n\nBut some mornings I wake up late. My heart starts racing. I rush around and pull on my shoes. I grab my bag and run out the door. On those days, I don't check anything. I just go.\n\nSo of course, I forget stuff. The thing I leave behind most is my umbrella. I set it by the door, and then I forget it. Later it rains, and I get wet. Next time I'll remember. Well, maybe."
+        "text": "Right, so before I head out, there are a few things I always grab. My phone, my keys, and my wallet — those three are non-negotiable. I usually pat my pockets to double-check I've got everything. It's a silly little habit, but it works for me. If I'm not sure, I'll open my bag and take a quick look inside. When I'm running late, though, that whole routine goes out the window. I just grab whatever's closest and dash out the door. Then halfway down the street, I start panicking about what I've forgotten. Honestly, the thing I leave behind most often is my umbrella. I set it by the door, and then I completely blank on it. If it starts raining later, I always end up kicking myself. So these days I try to slow down, even when I'm in a rush. It saves me so much hassle later on."
       }
     },
     "6": {
       "prepPack": {
         "chunks": [
           {
-            "en": "The thing I always grab before heading out is my work laptop and charger.",
-            "ja": "出かける前に必ず手に取るのは、仕事用のノートパソコンと充電器です。"
+            "en": "Before I head out the door, the first thing I always grab is my phone and wallet.",
+            "ja": "家を出る前に、私がいつも最初に手に取るのはスマホと財布です。"
           },
           {
-            "en": "The way I check I didn't forget anything is a quick pat on my pockets.",
-            "ja": "忘れ物がないか確認する私のやり方は、ポケットをさっと手で叩くことです。"
+            "en": "The way I check I haven't forgotten anything is to pat down all my pockets quickly.",
+            "ja": "忘れ物がないか確認する私のやり方は、全部のポケットをさっと叩いて触ることです。"
           },
           {
-            "en": "When I'm running late, I rush out the door and skip breakfast completely.",
-            "ja": "遅刻しそうなときは、ドアから飛び出して朝食を完全に抜きます。"
+            "en": "When I'm running late, I tend to grab my bag and rush out without double-checking.",
+            "ja": "遅刻しそうなときは、確認もせずにカバンをつかんで慌てて飛び出してしまいがちです。"
           },
           {
-            "en": "The one thing I often forget is my umbrella, even when it's raining.",
-            "ja": "よく忘れる物は傘で、雨が降っているときでさえ忘れます。"
+            "en": "The one thing I often leave behind is my umbrella, especially when it's not raining yet.",
+            "ja": "私がよく置き忘れるものは傘で、特にまだ雨が降っていないときに忘れます。"
           }
         ],
         "outline": [
           "Opening: what I always grab before leaving",
           "How I check for forgotten items",
-          "When I'm late and rush out",
+          "Rushing out when I'm late",
           "Wrap-up: the thing I often forget"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "Okay, so before I leave home, I always grab a few things. My phone comes first. Then my wallet and my keys. I put them in the same pocket every day. That way I don't have to think too much.\n\nI check everything at the door. I touch my pockets one by one. Phone, keys, wallet, mask. If something's missing, I feel it right away. It's a simple habit, but it works for me.\n\nWhen I'm running late, it's a different story. I rush around and grab stuff fast. My heart beats quickly. I lock the door and just run. Sometimes I still forget things.\n\nThe one thing I always leave behind? My umbrella. I put it down somewhere and walk off. Then it rains, and I get wet. So yeah, I really need to fix that habit soon."
+        "text": "Right, so before I head out the door, there's always this little routine I go through. First things first, I grab my phone, my wallet and my keys — that's the holy trinity, honestly. I usually pat my pockets to double-check I've got everything on me. If something feels off, I'll stop and mentally run through my day. Do I need my laptop? An umbrella? That sort of thing.\n\nNow, when I'm running late, it all goes out the window. I'm dashing around, half-dressed, shoving stuff into my bag. To be honest, that's exactly when I make mistakes.\n\nThe one thing I forever leave behind? My water bottle. I fill it up, set it on the counter, and then just... walk off without it. Every single time. That said, I'm trying to build a better habit. These days I leave everything by the door the night before. It genuinely saves me a mad scramble in the morning."
       }
     }
   }

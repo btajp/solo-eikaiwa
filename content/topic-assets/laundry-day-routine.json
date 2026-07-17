@@ -1,70 +1,70 @@
 {
   "topicId": "laundry-day-routine",
   "sourceHash": "60169f1e150faaa799acee3bca1c4d40af175bdab52b7064024cb1e1331ac1ad",
-  "promptVersion": "v1",
+  "promptVersion": "v2",
   "byStage": {
     "5": {
       "prepPack": {
         "chunks": [
           {
-            "en": "I usually run the washing machine at night, about three times a week.",
-            "ja": "私はたいてい夜に、週三回くらい洗濯機を回します。"
+            "en": "I usually run the washing machine at night, about three or four times a week.",
+            "ja": "私はたいてい夜に洗濯機を回していて、週に三、四回くらいです。"
           },
           {
-            "en": "The first thing I do is separate the white clothes from the dark ones.",
-            "ja": "最初にすることは、白い服を濃い色の服と分けることです。"
+            "en": "Before I start, I sort my clothes and pick a gentle cycle for delicate stuff.",
+            "ja": "始める前に服を分けて、デリケートなものには弱い（優しい）コースを選びます。"
           },
           {
-            "en": "I dry my clothes inside on rainy days, and they take about half a day.",
-            "ja": "雨の日は部屋干しをして、乾くまで半日くらいかかります。"
+            "en": "When it comes to drying, I usually hang everything indoors since it rains a lot.",
+            "ja": "乾かすことに関しては、雨が多いのでたいてい部屋干しにしています。"
           },
           {
-            "en": "Honestly, I often put off folding the laundry until the next morning.",
-            "ja": "正直に言うと、洗濯物をたたむのを翌朝まで後回しにしがちです。"
+            "en": "To be honest, I always put off folding the laundry until the pile gets huge.",
+            "ja": "正直なところ、洗濯物をたたむのは山が大きくなるまでいつも後回しにしてしまいます。"
           }
         ],
         "outline": [
           "Opening: when and how often I do laundry",
-          "Point 1: sorting clothes and picking a setting",
-          "Point 2: drying at home and how long it takes",
-          "Wrap-up: folding is the part I always delay"
+          "Point 1: sorting clothes and choosing a setting",
+          "Point 2: drying indoors at home",
+          "Wrap-up: folding and my habit of putting it off"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "Let me tell you how I do my laundry. I usually run the washing machine at night. It's quieter then, and I've got more free time. I do it about three times a week. Before I start, I sort my clothes. I put the white things in one pile and the dark ones in another. Then I pick a gentle setting and cool water. That way my clothes last longer. I don't have a dryer, so I hang everything up inside. It takes about a day to dry. In summer it's faster, maybe half a day. The hard part is folding. I always put it off. Sometimes the clean clothes just sit on my chair for days. But when I finally fold them and put them away, my room feels tidy again. Then I feel really good. That's my simple laundry routine."
+        "text": "I usually run the washing machine at night, after dinner. It's quieter then, and the clothes are ready by morning. I do about three loads a week, sometimes four if we're busy. Before I start, I sort things out. I keep the whites away from anything bright, because colours can bleed. For a normal load I pick a quick, cool wash to save energy. If something's really dirty, though, I'll bump up the temperature. We don't have a dryer, so I hang everything on a rack indoors. In winter it takes ages, maybe a whole day to dry. On sunny days, I put it outside and it's done in a couple of hours. Then comes the part I hate: folding. Honestly, I always put it off. The clean pile just sits there, staring at me. Eventually I give in, fold it all, and finally tuck it away in the drawers."
       }
     },
     "6": {
       "prepPack": {
         "chunks": [
           {
-            "en": "I usually run the washing machine at night, about three times a week.",
-            "ja": "私はたいてい夜に、週に3回くらい洗濯機を回します。"
+            "en": "So, to be honest, I usually run the washing machine at night after I get home from work.",
+            "ja": "正直に言うと、仕事から帰ってきた後、夜に洗濯機を回すことが多いんです。"
           },
           {
-            "en": "First, I sort my clothes and pick a gentle setting for dark colors.",
-            "ja": "まず服を分けて、色物にはやさしいコースを選びます。"
+            "en": "The main thing I focus on is sorting my dark clothes from the whites first.",
+            "ja": "僕が一番気をつけているのは、まず色物と白物を分けることですね。"
           },
           {
-            "en": "After that, I hang my clothes inside because I don't have a dryer.",
-            "ja": "そのあとは乾燥機がないので、部屋の中に服を干します。"
+            "en": "What works well for me is drying everything indoors, since it usually takes half a day.",
+            "ja": "僕にとってうまくいくのは部屋干しで、だいたい半日くらいで乾くんです。"
           },
           {
-            "en": "In the end, I often put off folding the clothes until the next day.",
-            "ja": "結局、服をたたむのを次の日まで後回しにしがちです。"
+            "en": "That said, I'll admit that folding and putting things away is what I tend to put off.",
+            "ja": "とはいえ、正直たたんでしまう作業は、つい後回しにしがちだと認めます。"
           }
         ],
         "outline": [
-          "Opening: when and how often I do laundry",
-          "Point 1: sorting clothes and choosing a setting",
-          "Point 2: drying clothes at home without a dryer",
-          "Wrap-up: folding is the part I put off"
+          "Opening: when I run the machine",
+          "Sorting darks from whites",
+          "Drying indoors, takes half a day",
+          "Wrap-up: folding is what I put off"
         ],
         "hintDefault": "en"
       },
       "modelTalk": {
-        "text": "I usually do my laundry at night. I run the washing machine about three times a week. In the morning I'm too busy, so night is easier for me. Before I start, I sort my clothes. I keep the white ones away from the dark ones. Then I pick a gentle setting and cold water. Cold water is fine for most of my clothes. I don't have a dryer, so I hang everything inside my room. It usually takes a day to dry. When the weather is nice, I hang things outside. That's much faster. After they're dry, I fold them and put them away. But honestly, I often leave the clean pile on my chair. I tell myself I'll do it later. Then it just sits there for days. I really should fix that habit soon."
+        "text": "So, when do I actually do my laundry? Honestly, I'm a night owl, so I usually run the machine after dinner. I do maybe three loads a week, give or take. That said, I try not to leave wet clothes sitting overnight.\n\nBefore I start, I sort everything — darks in one pile, whites in another. I pick a gentle cycle for delicate stuff, and I keep the water cool to stop colours running.\n\nDrying? Well, my flat doesn't get much sun, so I hang things up indoors on a rack. It takes ages, to be honest — usually a full day. Sometimes I'll cheat and use the dryer if I'm in a rush.\n\nFolding is where I fall down, though. I tend to dump everything on a chair and put it off. Eventually the pile gets so big I can't ignore it. Then I finally fold it all and stash it away properly."
       }
     }
   }

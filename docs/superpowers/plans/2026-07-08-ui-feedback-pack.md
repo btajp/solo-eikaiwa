@@ -1,5 +1,7 @@
 # アプリUI改善パック（フィードバック一括対応 A） Implementation Plan
 
+> **歴史的計画文書**: 本文書は執筆時点のリポジトリ構成・ファイルパスのスナップショットであり、その後のリファクタ（ファイル分割・改名等）は反映していません。現在の構成は [README.md](../../../README.md) / [AGENTS.md](../../../AGENTS.md) を参照してください。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 練習カレンダーを日別XPの濃淡5段階に強化し、設定を3タブに分割、サイドバーに言語/文字サイズ切替を常設、プリセットをドロップダウン+現在値自動判定に変更、バランスプリセットの生成をClaudeへ、用途別推奨理由を表示、メニュー文言を改善する（v0.22.0・spec: `docs/superpowers/specs/2026-07-08-ui-feedback-pack-design.md`）。
