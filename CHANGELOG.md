@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.30.1] - 2026-07-17
+
+### Fixed
+
+- デスクトップ版でフッターの GitHub・公式サイト・プライバシーポリシーのリンクが反応しなかった問題を修正し、システムブラウザで開くようにした（練習中の画面はそのまま保たれる）
+- フッターのアイコンの左端が下の文言と揃うよう位置を調整した
+
 ## [0.30.0] - 2026-07-17
 
 ### Added
@@ -589,7 +596,8 @@
 - 学習データ（録音・トランスクリプト・進捗・DB・キャッシュ）は `data/` のローカルファイルで、リポジトリにコミットされない
 - 音声データはマシン外に出ない（外部送信はテキストのみ: Claude への発話テキスト、OpenAI TTS への応答テキスト）
 
-[Unreleased]: https://github.com/btajp/solo-eikaiwa/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/btajp/solo-eikaiwa/compare/v0.30.1...HEAD
+[0.30.1]: https://github.com/btajp/solo-eikaiwa/compare/v0.30.0...v0.30.1
 [0.30.0]: https://github.com/btajp/solo-eikaiwa/compare/v0.29.3...v0.30.0
 [0.29.3]: https://github.com/btajp/solo-eikaiwa/compare/v0.29.2...v0.29.3
 [0.29.2]: https://github.com/btajp/solo-eikaiwa/compare/v0.29.1...v0.29.2
