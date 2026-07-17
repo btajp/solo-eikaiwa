@@ -49,7 +49,9 @@ function main(): void {
     console.log("\n結果: FAIL（AI生成教材の手修正は禁止 — 再生成で対応。AGENTS.md）");
     process.exit(1);
   }
-  console.log(strict ? "\n結果: 全件PASS（strict）" : "\n結果: PASS（violationなし。未検証legacyは再生成で解消予定）");
+  if (strict) console.log("\n結果: 全件PASS（strict）");
+  else if (audit.legacyUnanchored.length === 0) console.log("\n結果: 全件PASS（violationなし・未検証legacyなし）");
+  else console.log("\n結果: PASS（violationなし。未検証legacyは再生成で解消予定）");
   process.exit(0);
 }
 

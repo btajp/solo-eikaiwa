@@ -153,41 +153,13 @@ export function checkTopicAnchor(candidate: TopicAnchorCandidate): TopicAnchorCh
 
 /**
  * #182: アンカー（experienceAnchor/memoryCue/commonObjectsOrActions）未整備のまま4/3/2ローテーションに
- * 入っている既存お題（2026-07時点の26件）。generate-content の生成ゲート（checkTopicAnchor）導入前に
- * 追加された教材で、grandfather 扱いとして auditTopicAnchors の violation から除外する。
- * 新規に追加するお題はこの一覧に載せないこと — アンカー無しで追加すると CLI ゲート
- * （scripts/check-topic-anchors.ts）が violation として非ゼロ終了する。
- * この26件は #182 の再生成バッチ（既存の生成・検証手順による再生成 — 手修正禁止）でアンカー完備へ
- * 置き換え、完了したものからこの一覧を縮めて最終的に空にする。
+ * 入っていた既存お題の grandfather 一覧。生成ゲート（checkTopicAnchor）導入前に追加された26件が
+ * 載っていたが、#182 の再生成バッチ（`bun scripts/generate-content.ts topics-regen` — 手修正禁止の
+ * 正規経路）で全件アンカー完備へ置き換え済みのため、現在は空。
+ * 以後この一覧には何も載せないこと — アンカー無しのお題は CLI ゲート
+ * （scripts/check-topic-anchors.ts）が violation として非ゼロ終了する（grandfather の余地はもう無い）。
  */
-export const LEGACY_UNANCHORED_TOPIC_IDS: readonly string[] = [
-  "abac-okta",
-  "ai-agent-governance",
-  "ai-data-governance",
-  "blog-workflow",
-  "corporate-it",
-  "desk-tools",
-  "explaining-delay",
-  "file-backup-habit",
-  "food-restaurants",
-  "health-routine",
-  "hobbies-recent",
-  "incident-response",
-  "meeting-facilitation",
-  "my-career",
-  "recent-article",
-  "recruiting",
-  "schedule-negotiation",
-  "small-talk-work",
-  "team-chat-work",
-  "team-intro",
-  "tech-selection",
-  "this-week-work",
-  "travel-hometown",
-  "weekend-plans",
-  "work-email-habits",
-  "zero-trust",
-];
+export const LEGACY_UNANCHORED_TOPIC_IDS: readonly string[] = [];
 
 export type TopicAnchorAuditTopic = {
   id: string;

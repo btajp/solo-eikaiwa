@@ -127,6 +127,24 @@ function writePrepared(entries: Array<{ file: string; markdown: string }>): stri
   }
 }
 
+/**
+ * 既存教材ファイルのin-place置き換え専用（#182の再生成バッチ等）。writeContentCandidates が
+ * 「新規追加」用に既存ファイルとの衝突を拒否するのに対し、こちらは対象ファイルの存在を要求し、
+ * serialize→parseのラウンドトリップ検証を通った場合だけ上書きする。
+ */
+export function replaceContentCandidate(candidate: GeneratedContentCandidate, directory: string): string {
+  const markdown = contentToMarkdown(candidate);
+  if (!contentRoundTrips(candidate, markdown)) {
+    throw new Error(`エラー: ${candidate.id} のMarkdownラウンドトリップ検証に失敗しました。何も書き込みません。`);
+  }
+  const file = path.join(directory, `${candidate.id}.md`);
+  if (!existsSync(file)) {
+    throw new Error(`エラー: ${file} が存在しません（in-place置き換えの対象がありません）。`);
+  }
+  writeFileSync(file, markdown);
+  return file;
+}
+
 /** 全候補をserialize→parseして完全一致した場合だけ、一括書き込みする。 */
 export function writeContentCandidates(
   candidates: readonly GeneratedContentCandidate[],

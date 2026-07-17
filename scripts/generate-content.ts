@@ -12,6 +12,13 @@
  *                                                          # 同上（scenario・starter口語検証必須）
  *   bun scripts/generate-content.ts listening-target --band <...> --domain <...> --count <n> [--dry]
  *                                                          # 同上（listening・特定セルだけ狙い撃ちで再生成したい時用）
+ *   bun scripts/generate-content.ts sentences-replace --nos 260,332 [--dry]
+ *                                                          # 指定noの例文を同じno・category・domain（band付きはbandも）のまま差し替える
+ *                                                          # （#219: 準重複ペアの解消。差し替え後の全文で近似重複0組を最終ゲートし、
+ *                                                          # 旧文の同梱解説を除去→欠損分として再生成する）
+ *   bun scripts/generate-content.ts topics-regen [--ids id1,id2] [--dry]
+ *                                                          # 既存お題を同じid/domain/levelのままアンカー付きで再生成しin-place置き換え
+ *                                                          # （#182: --ids省略時はアンカー未検証の全お題。お題ごとに3回NGなら書き込みゼロ）
  *   bun scripts/generate-content.ts --fill-coverage [--dry]
  *                                                          # content-coverageの不足セル（帯×domain×topics/scenarios/listening）を
  *                                                          # 優先順（bridge込みでもカバレッジゼロのセルを先頭）に全自動で埋める
@@ -28,7 +35,9 @@ import {
   deprecatedContentCommandMessage, genSentences, genListening,
   genTopicsForTarget, genScenariosForTarget, genListeningForTarget,
   genSpokenFunctionSentences, genMissingSentenceExplanations,
+  genRegenTopics, genReplaceSentences,
 } from "../app/server/content-gen";
+import { auditTopicAnchors } from "../app/server/topic-anchor-check";
 import { resolveCliRunner } from "../app/server/converse";
 import { resolveProviderKey } from "../app/server/llm-provider";
 import { CLAUDE_MODELS, EFFORTS, SERVICE_TIERS, type RoleTuning } from "../app/server/llm-role-tuning-store";
@@ -148,9 +157,51 @@ async function runFillCoverage(): Promise<void> {
   }
 }
 
+/** --nos のカンマ区切りの正の整数リストを読む（不正・欠落は許容値を提示して即終了） */
+function parseNosArg(): number[] {
+  const raw = argValue("--nos");
+  const parts = (raw ?? "").split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+  const nos = parts.map(Number);
+  if (nos.length === 0 || nos.some((n) => !Number.isInteger(n) || n < 1)) {
+    console.error("--nos は差し替える例文noのカンマ区切りで指定してください（例: --nos 260,332）。");
+    process.exit(1);
+  }
+  return nos;
+}
+
+/** --ids のカンマ区切りリスト。省略時はアンカー未検証（legacy + violation）の全お題を対象にする */
+function parseRegenTopicIds(): string[] {
+  const raw = argValue("--ids");
+  if (raw !== undefined) {
+    const ids = raw.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    if (ids.length === 0) {
+      console.error("--ids は再生成するお題idのカンマ区切りで指定してください（例: --ids desk-tools,zero-trust）。");
+      process.exit(1);
+    }
+    return ids;
+  }
+  const audit = auditTopicAnchors(loadContent(TOPICS_DIR));
+  return [...audit.legacyUnanchored, ...audit.violations.map((v) => v.id)];
+}
+
 async function main(): Promise<void> {
   if (process.argv.includes("--fill-coverage")) {
     await runFillCoverage();
+    return;
+  }
+  if (sub === "topics-regen") {
+    const ids = parseRegenTopicIds();
+    if (ids.length === 0) {
+      console.log("再生成対象はありません（全お題がアンカー検証済みです）。");
+      return;
+    }
+    console.log(`アンカー付き再生成の対象: ${ids.length}件`);
+    const result = await genRegenTopics({ runner, topicsDir: TOPICS_DIR, ids, dry, log: console.log });
+    console.log(`\n再生成: ${result.regenerated.length}件 / 3回NGで未変更: ${result.failed.length}件`);
+    if (result.failed.length > 0) {
+      console.error(`3回とも検証NG（書き込みゼロ・再実行で解消してください）: ${result.failed.join(", ")}`);
+      process.exit(1);
+    }
     return;
   }
   if (sub === "topics-target") {
@@ -182,6 +233,12 @@ async function main(): Promise<void> {
   const stage = stageOf(makeProgressStore(db).getLevel());
   if (sub === "sentences") {
     await genSentences({ runner, sentencesFile: SENTENCES_FILE, db, stage, dry, log: console.log });
+  } else if (sub === "sentences-replace") {
+    // 差し替え本体で旧解説を除去し、その欠損分を同じ実行フロー内で再生成する（spoken-functionsと同型）
+    await genReplaceSentences({
+      runner, sentencesFile: SENTENCES_FILE, explanationsFile: EXPLANATIONS_FILE, nos: parseNosArg(), stage, dry, log: console.log,
+    });
+    await genMissingSentenceExplanations({ runner, sentencesFile: SENTENCES_FILE, explanationsFile: EXPLANATIONS_FILE, dry, log: console.log });
   } else if (sub === "listening") {
     await genListening({ runner, listeningDir: LISTENING_DIR, dry, log: console.log });
   } else if (sub === "spoken-functions") {
@@ -191,6 +248,8 @@ async function main(): Promise<void> {
   } else {
     console.error(
       "使い方: bun scripts/generate-content.ts <sentences|listening|spoken-functions|topics-target|scenarios-target|listening-target> [--dry]\n" +
+      "       bun scripts/generate-content.ts sentences-replace --nos 260,332 [--dry]\n" +
+      "       bun scripts/generate-content.ts topics-regen [--ids id1,id2] [--dry]\n" +
       "       bun scripts/generate-content.ts --fill-coverage [--dry]",
     );
     process.exit(1);

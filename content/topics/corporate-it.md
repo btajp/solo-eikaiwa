@@ -1,13 +1,16 @@
 ---
 id: corporate-it
 kind: topic
-title: "What a modern corporate IT team does"
-title_ja: "モダンな情シスの仕事とは"
+title: "The IT support you use at work"
+title_ja: "職場で使うITサポート"
 domain: it
 level: [2, 4]
+experience_anchor: "誰でも職場でPCやアカウント、社内アプリを使い、IT担当に助けを求めた経験があるため、新しい知識なしに自分の体験だけで話せる。"
+memory_cue: "パスワードを忘れてログインできず、IT担当にチャットや電話で連絡した朝の場面を思い出せる。"
+common_objects_or_actions: "logging into a work app, resetting a password, sending a message to IT support, restarting a laptop, using a company chat tool"
 ---
 Talk about:
-- How you explain your job to someone outside IT — IT外の人に自分の仕事をどう説明するか
-- SaaS management, identity, devices: which matters most and why — SaaS管理・ID・デバイス、どれが最重要？
-- One project that changed how your company works — 会社の働き方を変えたプロジェクトを1つ
-- What people misunderstand about corporate IT — 情シスについてよくある誤解
+- A time you asked the IT team for help — IT担当に助けを求めたときのこと
+- The apps and tools you log into every day — 毎日ログインするアプリやツール
+- What happens when your laptop or password stops working — PCやパスワードが動かなくなったときどうするか
+- One thing about work IT that annoys you or helps you — 仕事のITで困ること・助かること
